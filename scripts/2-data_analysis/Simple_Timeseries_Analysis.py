@@ -1,3 +1,5 @@
+from datetime import datetime, timedelta
+
 import matplotlib.pyplot as plt
 import numpy as np
 import pycwt
@@ -10,8 +12,8 @@ import uncertainties as unc
 
 
 def main():
-    chunked_analysis()
-    # original_file()
+    # chunked_analysis()
+    original_file()
 
 
 def chunked_analysis():
@@ -144,23 +146,32 @@ def plot_timeseries(data):
         ncols=3, figsize=(15, 5), sharex=True, sharey=True
     )
     axes[0].set_title("Linear Trend")
-    axes[0].plot(time, y, ".")
-    axes[0].plot(time, y, "-", linewidth=0.5, color="C0")
+    # axes[0].plot(time, y, ".")
+    axes[0].plot(time, y, ".-", linewidth=0.5)
     axes[0].plot(time, linear_component)
     axes[0].annotate(
-        "Jährliche Hebung/Senkung: %.2f mm/a" % ((lin_popt[0]) * 365.25),
+        "Jährliche Hebung/Senkung: %.1f mm/a" % ((lin_popt[0]) * 365.25),
         (0.95, 0.05),
         xycoords="axes fraction",
         horizontalalignment="right",
     )
 
     axes[1].set_title("Signal - Linear = Sinusoidal Trend")
-    axes[1].plot(time, y_detrend, ".")
-    axes[1].plot(time, y_detrend, "-", linewidth=0.5, color="C0")
+    # axes[1].plot(time, y_detrend, ".")
+    axes[1].plot(time, y_detrend, ".-", linewidth=0.5)
     axes[1].plot(time, sinus_component)
+    shift = datetime(2015, 1, 1) - timedelta(days=np.abs(popt[2]))
+
+    if shift.day > 10:
+        prefix = "Mitte"
+    elif shift.day > 20:
+        prefix = "Ende"
+    else:
+        prefix = "Anfang"
+
     axes[1].annotate(
-        "Jährliche Schwankung %.2fmm\nPeriodizität %i Tage\nVerschiebung %i Tage"
-        % (popt[0] * 2, (1 / popt[1]) * 6, popt[2]),
+        "Jährliche Schwankung: $\\pm$%.1f mm\nPeriodizität: %i Tage\nMaximum: %s %s"
+        % (np.abs(popt[0]), (1 / popt[1]) * 6, prefix, shift.strftime("%B")),
         (0.95, 0.95),
         xycoords="axes fraction",
         horizontalalignment="right",
@@ -168,8 +179,8 @@ def plot_timeseries(data):
     )
 
     axes[2].set_title("Residuals")
-    axes[2].plot(time, y_residual, ".")
-    axes[2].plot(time, y_residual, "-", linewidth=0.5, color="C0")
+    # axes[2].plot(time, y_residual, ".")
+    axes[2].plot(time, y_residual, ".-", linewidth=0.5)
 
     plt.show()
 

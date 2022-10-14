@@ -1,3 +1,5 @@
+import random
+
 import numpy as np
 import scipy.linalg as splinalg
 import scipy.stats as spstats
@@ -86,7 +88,7 @@ def invert_time_series(
     In this example, I only show how it is done simultaneously for the three
     components of one station.
     """
-
+    clean_inputs(data)
     if not ind:
         ind = slice(len(data["t"]))
         ori = True
@@ -116,16 +118,18 @@ def invert_time_series(
     # Dimension:
     #    (#samples * #components * #stations) x
     #    (#samples * #components * #stations)
-    sigma_matrix = np.diag(
-        np.hstack(
-            (
-                data["sigmE"][ind] ** 2,
-                data["sigmN"][ind] ** 2,
-                data["sigmU"][ind] ** 2,
+    if "sigmE" in data.keys():
+        sigma_matrix = np.diag(
+            np.hstack(
+                (
+                    data["sigmE"][ind] ** 2,
+                    data["sigmN"][ind] ** 2,
+                    data["sigmU"][ind] ** 2,
+                )
             )
         )
-    )
-
+    else:
+        sigma_matrix = np.array([])
     # Define TIME-vector
     # Dimension:
     #     (#samples * #components * #stations) x 1
@@ -136,10 +140,23 @@ def invert_time_series(
     return matrix, data, time_vector
 
 
-def invert(G, D, S=np.array([])):
+def clean_inputs(data):
+    """Cleans all nonfinite data from input"""
+    for k in data.keys():
+        if isinstance(data[k], np.ndarray):
+            ind = np.nonzero(np.isfinite(data[k]))
+            for k in data.keys():
+                if isinstance(data[k], np.ndarray):
+                    data[k] = data[k][ind]
+
+
+def invert(G: np.ndarray, D: np.ndarray, S=np.array([])):
     """Invert for your model parameters
     Dimension: #parameters x 1
     """
+    G = G.astype(np.double)
+    D = D.astype(np.double)
+    S = S.astype(np.double)
     Gp = G.conj().transpose()
     if S.any():
         iS = np.linalg.inv(S)
@@ -149,7 +166,7 @@ def invert(G, D, S=np.array([])):
         iM1 = np.linalg.inv(np.matmul(Gp, G))
         M = np.matmul(np.matmul(iM1, D), Gp)
 
-    return M
+    return M.astype("e")
 
 
 def forward_model(M, G, data, ind, ori=True):
@@ -175,7 +192,7 @@ def forward_model(M, G, data, ind, ori=True):
 
 
 def prepare_g_functions(
-    data, ind, t_AT=[], t_EQ=[], num_coeffs=1, t_relative=0
+    data, ind, t_AT=[], t_EQ=[], num_coeffs=2, t_relative=0
 ):
     """Prepares the Green's functions
 
@@ -192,17 +209,13 @@ def prepare_g_functions(
         (data["t"][ind] - t_relative) ** ii for ii in range(num_coeffs + 1)
     ]
 
-    # Use annual oscillation only for continuous data
-    if len(data["dataE"]) > 360:
-        # Mini-g-function == ANNUAL SIGNAL ==== 4 parameters ===== B1 to B4 ===
-        g_ANNUAL = [
-            np.sin(2 * np.pi * data["t"][ind]),
-            np.cos(2 * np.pi * data["t"][ind]),
-            np.sin(4 * np.pi * data["t"][ind]),
-            np.cos(4 * np.pi * data["t"][ind]),
-        ]
-    else:
-        g_ANNUAL = []
+    # Mini-g-function == ANNUAL SIGNAL ==== 4 parameters ===== B1 to B4 ===
+    g_ANNUAL = [
+        np.sin(2 * np.pi * data["t"][ind]),
+        np.cos(2 * np.pi * data["t"][ind]),
+        np.sin(4 * np.pi * data["t"][ind]),
+        np.cos(4 * np.pi * data["t"][ind]),
+    ]
 
     # Mini-g-function == HEAVISIDE ======== 1-2 parameters ===== C1, C2 ===
 
@@ -308,5 +321,44 @@ def remove_outliers(data, threshold=2.5):
     return ind
 
 
-if __name__ == "__main__":
-    main()
+def medianize_station(dataset: dict, data_keys: list, include_sigma=True):
+    """Takes the median of the dataset and returns it as a timeseries"""
+    time_series = dict()
+    for k in ["dataE", "dataN", "dataU"]:
+        time_series[k] = np.nanmedian(
+            [dataset[kk][k] for kk in data_keys], axis=0
+        )
+        if include_sigma:
+            time_series[k.replace("data", "sigm")] = np.nanstd(
+                [dataset[kk][k] for kk in data_keys], axis=0
+            )
+    time_series["t"] = dataset[data_keys[0]]["t"]
+    time_series["station"] = [dataset[kk]["station"] for kk in data_keys]
+    return time_series
+
+
+def stack_data(dataset: dict, data_keys: list):
+    """Stacks all datapoints for inversion"""
+    time_series = dict()
+    time_series["t"] = np.hstack([dataset[kk]["t"] for kk in dataset.keys()])
+    asorted = np.argsort(time_series["t"])
+    time_series["t"][asorted]
+    for k in ["dataE", "dataN", "dataU"]:
+        time_series[k] = np.hstack([dataset[kk][k] for kk in data_keys])
+        time_series[k] = time_series[k][asorted]
+    time_series["station"] = [dataset[kk]["station"] for kk in data_keys]
+    return time_series
+
+
+def downsample_timeseries(time_series, maxn):
+    """
+    Randomly takes maxn datapoints from the timeseries to circumvent memory
+    limitations.
+    """
+    samples = random.sample(range(len(time_series["dataE"])), maxn)
+    time_series["t"] = time_series["t"][samples]
+    asorted = np.argsort(time_series["t"])
+    time_series["t"] = time_series["t"][asorted]
+    for k in ["dataE", "dataN", "dataU"]:
+        time_series[k] = time_series[k][samples][asorted]
+    return time_series

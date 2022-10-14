@@ -1,6 +1,8 @@
-from turtle import ht
+import numpy as np
 
-import h5py
+# import scipy.interpolate as spint
+import scipy.signal as spsig
+import u4py.utils.files as u4files
 from matplotlib import pyplot as plt
 
 
@@ -8,16 +10,23 @@ def main():
     """
     main function
     """
-    h5path = r"E:\Projekte\Umwelt4\PythonExports\raster14\raster14_415999_5535999.h5"
+    file_list = u4files.get_file_paths(filetypes=(("*.h5", "*.h5"),))
+    for file_path in file_list:
+        data = u4files.load_hdf5(file_path, timefmt="floatyear")
+        time = data["time"]
+        y = np.nanmedian(data["timeseries"], axis=0)
+        ind = np.nonzero(np.isfinite(y))
+        num_samples = 5 * len(y)
+        # spline = spint.CubicSpline(time[ind], y[ind])
+        y_resampled = spsig.resample(y[ind], num_samples)
 
-    with h5py.File(h5path) as h5file:
-        for k in h5file.keys():
-            data = h5file['raster'][()]
+        time_q = np.linspace(np.min(time), np.max(time), num_samples)
+        fig, ax = plt.subplots()
+        ax.plot(time, y, "o-")
+        # ax.plot(time_q, spline(time_q))
+        ax.plot(time_q, y_resampled, ".-", linewidth=0.5)
+        plt.show()
 
-    fig, ax = plt.subplots()
-    ax.imshow(data)
-    plt.show()
 
-
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

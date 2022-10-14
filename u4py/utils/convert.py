@@ -253,11 +253,13 @@ def merge_data(inputs):
         output_data[f"{station}"] = {
             "t": data_ew["time"],
             "dataE": data_ew["timeseries"][ii],
-            "dataN": np.zeros_like(data_ew["timeseries"][ii]),
+            "dataN": data_ew["timeseries"][ii],
             "dataU": data_ud["timeseries"][ii],
             # "sigmE": sigmE,
             # "sigmN": sigmE,
             # "sigmU": sigmE,
             "station": f"{station}",
+            "xmid": data_ew["xmid"],
+            "ymid": data_ew["ymid"],
         }
     dict_to_hdf5(os.path.join(output_path, file_name), output_data)
