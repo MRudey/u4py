@@ -3,6 +3,7 @@
 *.h5
 *.code-workspace
 launch.json
+requirements.txt
 
 # External Libraries
 external/
