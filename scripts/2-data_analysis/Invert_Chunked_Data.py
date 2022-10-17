@@ -1,5 +1,3 @@
-import random
-
 import matplotlib.pyplot as plt
 import numpy as np
 import scipy.signal as spsig
@@ -10,23 +8,32 @@ import u4py.utils.files as u4files
 def main():
     file_path = u4files.get_file_paths(filetypes=(("*.h5", "*.h5"),))
     time_ori, time, data, inversion_results = ts_inversion(file_path[0])
-    plot_inversion_results(time_ori, data)
+    plot_inversion_results(time_ori, data, inversion_results)
 
 
-def plot_inversion_results(time, data):
-    fig, axes = plt.subplots(
-        ncols=2, figsize=(10, 5), sharex="row", sharey="row"
-    )
+def plot_inversion_results(time, data, inversion_results):
+    ew_mov = inversion_results["matrix_ori"][1]
+    ud_mov = inversion_results["matrix_ori"][13]
+
+    fig, axes = plt.subplots(ncols=2, figsize=(10, 5), sharex=True)
     axes[0].set_title("East-West Component")
     axes[0].plot(time[0], data["dataE"], ".-", linewidth=0.5)
     axes[0].plot(time[0], data["ori_dhat_data"]["dhatE"])
+    axes[0].annotate(
+        f"{ew_mov:.2} mm/yr", (0.05, 0.05), xycoords="axes fraction"
+    )
     # axes[1][0].plot(time[0], data["ori_dhat_data"]["dhatE"], "C1")
     axes[1].set_title("Vertical Component")
     axes[1].plot(time[0], data["dataU"], ".-", linewidth=0.5)
     axes[1].plot(time[0], data["ori_dhat_data"]["dhatU"])
+    axes[1].annotate(
+        f"Hebung/Senkung = {ud_mov:.2} mm/yr",
+        (0.05, 0.05),
+        xycoords="axes fraction",
+    )
     # axes[1][1].plot(time[0], data["ori_dhat_data"]["dhatU"], "C1")
     fig.tight_layout()
-    plt.show()
+    fig.savefig("Test")
 
 
 def ts_inversion(file_path="", mode="median", resample_data=2, maxn=4000):

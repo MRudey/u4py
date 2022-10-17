@@ -3,6 +3,7 @@ from datetime import datetime, timedelta
 import matplotlib.pyplot as plt
 import numpy as np
 import pycwt
+import scipy.ndimage as spimg
 import scipy.optimize as spopt
 import scipy.signal as spsignal
 import scipy.stats as spstats
@@ -12,8 +13,8 @@ import uncertainties as unc
 
 
 def main():
-    # chunked_analysis()
-    original_file()
+    chunked_analysis()
+    # original_file()
 
 
 def chunked_analysis():
@@ -50,6 +51,9 @@ def chunked_analysis():
         yn = int((yi - miny) / chunk_size)
         SLP[yn, xn] = sl
         SEA[yn, xn] = se
+
+    SLP = spimg.median_filter(SLP, 3)
+    SEA = spimg.median_filter(SEA, 3)
 
     fig, axes = plt.subplots(ncols=2, sharex=True, sharey=True)
     rng = np.percentile(np.abs(slope), 95)
