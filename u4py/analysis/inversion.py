@@ -2,7 +2,11 @@ import random
 
 import numpy as np
 import scipy.linalg as splinalg
+import scipy.sparse as spsparse
 import scipy.stats as spstats
+
+# import tensorflow as tf
+import u4py.utils.plots as u4plots
 
 
 def create_synthetic_data():
@@ -44,7 +48,14 @@ def create_synthetic_data():
 
 
 def invert_time_series(
-    data, t_AT=[], t_EQ=[], ind=0, num_coeffs=1, t_relative=0
+    data,
+    t_AT=[],
+    t_EQ=[],
+    ind=0,
+    num_coeffs=1,
+    t_relative=0,
+    use_tensorflow=False,
+    use_sparse=True,
 ):
     """Inverts the timeseries
 
@@ -98,7 +109,10 @@ def invert_time_series(
     g_functions = prepare_g_functions(
         data, ind, t_AT, t_EQ, num_coeffs, t_relative
     )
-    g_matrix = set_g_matrices(*g_functions)
+    if use_sparse:
+        g_matrix = spsparse.csr_matrix(set_g_matrices(*g_functions))
+    else:
+        g_matrix = set_g_matrices(*g_functions)
 
     # The G-matrix has now the following dimension:
     # Length: #samples * #stations * #components
@@ -119,23 +133,41 @@ def invert_time_series(
     #    (#samples * #components * #stations) x
     #    (#samples * #components * #stations)
     if "sigmE" in data.keys():
-        sigma_matrix = np.diag(
-            np.hstack(
-                (
-                    data["sigmE"][ind] ** 2,
-                    data["sigmN"][ind] ** 2,
-                    data["sigmU"][ind] ** 2,
+        if use_sparse:
+            sigma_matrix = spsparse.csc_matrix(
+                spsparse.diags(
+                    np.hstack(
+                        (
+                            data["sigmE"][ind] ** 2,
+                            data["sigmN"][ind] ** 2,
+                            data["sigmU"][ind] ** 2,
+                        )
+                    )
                 )
             )
-        )
+
+        else:
+            sigma_matrix = np.diag(
+                np.hstack(
+                    (
+                        data["sigmE"][ind] ** 2,
+                        data["sigmN"][ind] ** 2,
+                        data["sigmU"][ind] ** 2,
+                    )
+                )
+            )
     else:
         sigma_matrix = np.array([])
     # Define TIME-vector
     # Dimension:
     #     (#samples * #components * #stations) x 1
     time_vector = [data["t"][ind], data["t"][ind], data["t"][ind]]
-
-    matrix = invert(g_matrix, data_vector, sigma_matrix)
+    if use_sparse:
+        matrix = invert(g_matrix, data_vector, sigma_matrix)
+    # elif use_tensorflow:
+    #     matrix = invert_tf(g_matrix, data_vector, sigma_matrix)
+    else:
+        matrix = invert_np(g_matrix, data_vector, sigma_matrix)
     data = forward_model(matrix, g_matrix, data, ind, ori=ori)
     return matrix, data, time_vector
 
@@ -154,6 +186,17 @@ def invert(G: np.ndarray, D: np.ndarray, S=np.array([])):
     """Invert for your model parameters
     Dimension: #parameters x 1
     """
+    Gp = G.conj().transpose()
+    iS = spsparse.linalg.inv(S)
+    M = iS @ D @ Gp @ spsparse.linalg.inv(spsparse.csc_matrix(G @ iS @ Gp))
+
+    return M.astype("e")
+
+
+def invert_np(G: np.ndarray, D: np.ndarray, S=np.array([])):
+    """Invert for your model parameters
+    Dimension: #parameters x 1
+    """
     G = G.astype(np.double)
     D = D.astype(np.double)
     S = S.astype(np.double)
@@ -169,11 +212,27 @@ def invert(G: np.ndarray, D: np.ndarray, S=np.array([])):
     return M.astype("e")
 
 
+# def invert_tf(G: np.ndarray, D: np.ndarray, S=np.array([])):
+#     """Invert for your model parameters
+#     Dimension: #parameters x 1
+#     """
+#     Gp = G.conj().transpose()
+#     if S.any():
+#         iS = tf.linalg.inv(S)
+#         M = iS @ D @ Gp @ tf.linalg.inv(G @ iS @ Gp)
+#     else:
+#         M = tf.linalg.inv(Gp @ G) @ D @ Gp
+#     return M.astype("e")
+
+
 def forward_model(M, G, data, ind, ori=True):
     """Forward model the data using the model parameters:
     Separation of the big DHAT-vector into different components
     """
-    dhat = np.reshape(np.matmul(M, G), (3, len(data["t"][ind])))
+    if isinstance(G, spsparse.csr_matrix):
+        dhat = np.reshape(M @ G, (3, len(data["t"][ind])))
+    else:
+        dhat = np.reshape(np.matmul(M, G), (3, len(data["t"][ind])))
     dhat_data = dict()
     dhat_data["dhatE"] = dhat[0]
     dhat_data["dhatN"] = dhat[1]
@@ -342,7 +401,7 @@ def stack_data(dataset: dict, data_keys: list):
     time_series = dict()
     time_series["t"] = np.hstack([dataset[kk]["t"] for kk in dataset.keys()])
     asorted = np.argsort(time_series["t"])
-    time_series["t"][asorted]
+    time_series["t"] = time_series["t"][asorted]
     for k in ["dataE", "dataN", "dataU"]:
         time_series[k] = np.hstack([dataset[kk][k] for kk in data_keys])
         time_series[k] = time_series[k][asorted]
@@ -362,3 +421,16 @@ def downsample_timeseries(time_series, maxn):
     for k in ["dataE", "dataN", "dataU"]:
         time_series[k] = time_series[k][samples][asorted]
     return time_series
+
+
+def main():
+    data, t_EQ = create_synthetic_data()
+    matrix, data, time_vector = invert_time_series(
+        data, t_EQ=t_EQ, use_sparse=True
+    )
+    inversion_results = {"matrix_ori": matrix}
+    u4plots.plot_inversion_results(time_vector, data, inversion_results)
+
+
+if __name__ == "__main__":
+    main()

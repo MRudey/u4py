@@ -1,42 +1,22 @@
-import matplotlib.pyplot as plt
 import numpy as np
 import scipy.signal as spsig
 import u4py.analysis.inversion as u4invert
 import u4py.utils.files as u4files
+import u4py.utils.plots as u4plots
 
 
 def main():
     file_path = u4files.get_file_paths(filetypes=(("*.h5", "*.h5"),))
-    time_ori, time, data, inversion_results = ts_inversion(file_path[0])
-    plot_inversion_results(time_ori, data, inversion_results)
-
-
-def plot_inversion_results(time, data, inversion_results):
-    ew_mov = inversion_results["matrix_ori"][1]
-    ud_mov = inversion_results["matrix_ori"][13]
-
-    fig, axes = plt.subplots(ncols=2, figsize=(10, 5), sharex=True)
-    axes[0].set_title("East-West Component")
-    axes[0].plot(time[0], data["dataE"], ".-", linewidth=0.5)
-    axes[0].plot(time[0], data["ori_dhat_data"]["dhatE"])
-    axes[0].annotate(
-        f"{ew_mov:.2} mm/yr", (0.05, 0.05), xycoords="axes fraction"
+    # file_path = (
+    #     "/mnt/Raid/Umwelt_4/INSAR_chunks/merged/PSI_chunk_x464500_y5518250.h5"
+    # )
+    time_ori, time, data, inversion_results = ts_inversion(
+        file_path[0], maxn=0
     )
-    # axes[1][0].plot(time[0], data["ori_dhat_data"]["dhatE"], "C1")
-    axes[1].set_title("Vertical Component")
-    axes[1].plot(time[0], data["dataU"], ".-", linewidth=0.5)
-    axes[1].plot(time[0], data["ori_dhat_data"]["dhatU"])
-    axes[1].annotate(
-        f"Hebung/Senkung = {ud_mov:.2} mm/yr",
-        (0.05, 0.05),
-        xycoords="axes fraction",
-    )
-    # axes[1][1].plot(time[0], data["ori_dhat_data"]["dhatU"], "C1")
-    fig.tight_layout()
-    fig.savefig("Test")
+    u4plots.plot_inversion_results(time_ori, time, data, inversion_results)
 
 
-def ts_inversion(file_path="", mode="median", resample_data=2, maxn=4000):
+def ts_inversion(file_path="", mode="stack", resample_data=2, maxn=4000):
     """Simultaneous inversion of multiple components of surface motion
 
     Args:
@@ -87,7 +67,7 @@ def ts_inversion(file_path="", mode="median", resample_data=2, maxn=4000):
             time_series["xmid"] = dataset[data_keys[0]]["xmid"]
             time_series["ymid"] = dataset[data_keys[0]]["ymid"]
 
-        if len(time_series["dataE"]) > maxn:
+        if maxn and len(time_series["dataE"]) > maxn:
             time_series = u4invert.downsample_timeseries(time_series, maxn)
 
         if "sigmE" not in time_series.keys():
@@ -98,7 +78,7 @@ def ts_inversion(file_path="", mode="median", resample_data=2, maxn=4000):
     matrix_ori, data, time_vector_ori = u4invert.invert_time_series(
         time_series, t_EQ=t_EQ
     )
-    ind = u4invert.remove_outliers(data["ori_dhat_data"])
+    ind = u4invert.remove_outliers(data["ori_dhat_data"], threshold=2)
     matrix, data, time_vector = u4invert.invert_time_series(
         time_series, ind=ind
     )
