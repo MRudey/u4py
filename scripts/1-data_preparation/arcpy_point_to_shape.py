@@ -5,6 +5,7 @@ import arcpy
 import numpy as np
 import h5py
 
+
 def main():
     base_path = r"C:\Users\Michael Rudolf\Documents\ArcGIS\INSAR_Data"
     arcpy.env.workspace = os.path.join(
@@ -19,19 +20,21 @@ def main():
     if all_data:
         # Directly converts FeatureClass to h5 via NumPy
         for ii, fc in enumerate(arcpy.ListFeatureClasses()):
-            curi = ii+1
-            print(f'Converting {fc}...  {curi} of {num_fc}:')
-            print('... load and convert to dictionary.')
-            output = feature_to_dict(arcpy.da.FeatureClassToNumPyArray(fc, '*'))
-            print('... compress and save to h5.')
+            curi = ii + 1
+            print(f"Converting {fc}...  {curi} of {num_fc}:")
+            print("... load and convert to dictionary.")
+            output = feature_to_dict(
+                arcpy.da.FeatureClassToNumPyArray(fc, "*")
+            )
+            print("... compress and save to h5.")
             h5path = os.path.join(base_path, fc + ".h5")
             dict_to_hdf5(h5path, output)
     else:
-        fc =  "BBD_2021_PSI_Vertikal"
-        print(f'Converting {fc}...:')
-        print('... load and convert to dictionary.')
-        output = feature_to_dict(arcpy.da.FeatureClassToNumPyArray(fc, '*'))
-        print('... compress and save to h5.')
+        fc = "BBD_2021_PSI_Vertikal"
+        print(f"Converting {fc}...:")
+        print("... load and convert to dictionary.")
+        output = feature_to_dict(arcpy.da.FeatureClassToNumPyArray(fc, "*"))
+        print("... compress and save to h5.")
         h5path = os.path.join(base_path, fc + ".h5")
         dict_to_hdf5(h5path, output)
 
@@ -40,6 +43,7 @@ def main():
     #     print("Exporting %i/%i" % (ii + 1, len(arcpy.ListFeatureClasses())))
     #     out_fname = os.path.join(out_path, fc)
     #     arcpy.conversion.FeatureClassToShapefile(fc, out_path)
+
 
 def feature_to_dict(arr):
     """Converts an array containing feature classes to a dictionary
@@ -75,20 +79,20 @@ def feature_to_dict(arr):
         id_key = "ID"
     # Create time axis
     if has_time:
-        key_list = [
-            k for k in all_keys if k not in non_time_keys
-        ]
-        time = np.array([datetime.datetime.strptime(k, 'date_%Y%m%d') for k in key_list])
+        key_list = [k for k in all_keys if k not in non_time_keys]
+        time = np.array(
+            [datetime.datetime.strptime(k, "date_%Y%m%d") for k in key_list]
+        )
         num_fields = len(key_list)
         timeseries = np.zeros((num_points, num_fields))
         # key_to_num = dict()
-        xx = arr['X']
-        yy = arr['Y']
-        zz = arr['Z']
+        xx = arr["X"]
+        yy = arr["Y"]
+        zz = arr["Z"]
         ps_id = arr[id_key]
 
         for jj, k in enumerate(key_list):
-            timeseries[:,jj] = arr[k]
+            timeseries[:, jj] = arr[k]
     else:
         for ii in range(num_points):
             xx = arr["X"]
@@ -105,7 +109,9 @@ def feature_to_dict(arr):
             "z": zz,
             "time": time,
             "ps_id": ps_id,
-            "timeseries": timeseries.astype('e')  # Converts floats to half-rp,
+            "timeseries": timeseries.astype(
+                "e"
+            ),  # Converts floats to half-rp,
         }
     else:
         output = {
@@ -118,6 +124,7 @@ def feature_to_dict(arr):
         }
     return output
 
+
 def convert_file(file_path):
     """
     Converts the given dbf file into a h5 file. The h5 file only contains the
@@ -126,15 +133,12 @@ def convert_file(file_path):
     base_path, fname_ext = os.path.split(file_path)
     base_path, _ = os.path.split(base_path)
     fname, _ = os.path.splitext(fname_ext)
-    data = dbf_to_dict(file_path)
+    data = psi_dbf_to_dict(file_path)
     h5path = os.path.join(base_path, fname + ".h5")
     dict_to_hdf5(h5path, data)
 
 
-
-def dict_to_hdf5(
-    h5path, data, compression="gzip", compression_opts=9
-):
+def dict_to_hdf5(h5path, data, compression="gzip", compression_opts=9):
     """
     Saves contents of dictionary into given h5 file. Dates are converted to
     strings following ISO date formatting.
