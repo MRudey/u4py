@@ -1,11 +1,12 @@
 """ Contains simple file and folder utilities for u4py """
 
 import os
-from datetime import datetime, timedelta
+from datetime import datetime
 from tkinter import Tk, filedialog
 
 import h5py
 import numpy as np
+import u4py.analysis.inversion as u4invert
 
 
 def get_file_paths(**kwargs):
@@ -34,9 +35,10 @@ def get_folder_paths(**kwargs):
     return folder_path
 
 
-def get_file_list(filetype=".h5", **kwargs):
+def get_file_list(filetype=".h5", folder_path=None, **kwargs):
     """Asks for folder and returns all files of given filetype"""
-    folder_path = get_folder_paths(**kwargs)
+    if not folder_path:
+        folder_path = get_folder_paths(**kwargs)
     file_list = [
         os.path.join(folder_path, f)
         for f in os.listdir(folder_path)
@@ -86,3 +88,24 @@ def get_floatyear(timestr):
     """Converts to a float based year"""
     t = datetime.fromisoformat(timestr)
     return t.year + ((t - datetime(t.year, 1, 1)).days / 365.25)
+
+
+def get_data_for_inversion(file_path):
+    """Loads file and prepares dataset for inversion"""
+    dataset = load_hdf5(file_path, timefmt="floatyear")
+    data = u4invert.stack_data(dataset)
+    data["sigmE"] = np.ones_like(data["dataE"])
+    data["sigmN"] = np.ones_like(data["dataE"])
+    data["sigmU"] = np.ones_like(data["dataE"])
+
+    if "inversion_results" in dataset.keys():
+        data["inversion_results"] = dataset["inversion_results"]
+
+    return data
+
+
+def multi_split(file_path: os.PathLike, nsplits: int):
+    """Splits the filepath multiple times"""
+    for n in range(nsplits):
+        file_path = os.path.split(file_path)[0]
+    return file_path

@@ -3,6 +3,7 @@ import pickle
 from multiprocessing import Pool, cpu_count
 
 import numpy as np
+import u4py.analysis.inversion as u4invert
 import u4py.utils.files as u4files
 from scipy import optimize as spopt
 from tqdm import tqdm
@@ -138,3 +139,47 @@ def get_common_files(base_path: os.PathLike, path1="ASCE", path2="DESC"):
     file_list_set = set(file_list_1)
     common_files = [f for f in file_list_2 if f in file_list_set]
     return common_files
+
+
+def get_inversion_results(file_list, overwrite=False):
+    """
+    Checks if inversion results are there and reprocesses if not or
+    overwrite=True
+    """
+    folder_path = os.path.split(file_list[0])[0]
+    base_path = os.path.split(os.path.split(folder_path)[0])[0]
+    result_folder = os.path.join(base_path, "INSAR_results")
+    result_path = os.path.join(result_folder, "inversion_results.pkl")
+    if os.path.exists(result_path) and not overwrite:
+        with open(result_path, "rb") as pkl_file:
+            results, chunk_size = pickle.load(pkl_file)
+    else:
+        results, chunk_size = process_file_list(file_list, fnc=invert_file)
+        os.makedirs(result_folder, exist_ok=True)
+        with open(result_path, "wb") as pkl_file:
+            pickle.dump((results, chunk_size), pkl_file)
+    return results, chunk_size
+
+
+def invert_file(file_path, overwrite=False):
+    """
+    Does full processing for a single file
+    """
+    base_path, fname = os.path.split(file_path)
+    data = u4files.get_data_for_inversion(file_path)
+    matrix = None
+
+    if "inversion_results" not in data.keys() or overwrite:
+        try:
+            _, data, _ = u4invert.invert_time_series(data)
+            ind = u4invert.remove_outliers(data["ori_dhat_data"], threshold=2)
+            matrix, data, _ = u4invert.invert_time_series(data, ind=ind)
+            orig_data = u4files.load_hdf5(file_path)
+            orig_data["inversion_results"] = matrix
+            dict_to_hdf5(file_path, orig_data)
+        except:
+            print(f"Inverting {fname} failed")
+    else:
+        matrix = data["inversion_results"]
+
+    return (data["xmid"], data["ymid"], matrix)

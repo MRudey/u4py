@@ -396,16 +396,19 @@ def medianize_station(dataset: dict, data_keys: list, include_sigma=True):
     return time_series
 
 
-def stack_data(dataset: dict, data_keys: list):
+def stack_data(dataset: dict):
     """Stacks all datapoints for inversion"""
+    data_keys = [kk for kk in dataset.keys() if kk != "inversion_results"]
     time_series = dict()
-    time_series["t"] = np.hstack([dataset[kk]["t"] for kk in dataset.keys()])
+    time_series["t"] = np.hstack([dataset[kk]["t"] for kk in data_keys])
     asorted = np.argsort(time_series["t"])
     time_series["t"] = time_series["t"][asorted]
     for k in ["dataE", "dataN", "dataU"]:
         time_series[k] = np.hstack([dataset[kk][k] for kk in data_keys])
         time_series[k] = time_series[k][asorted]
     time_series["station"] = [dataset[kk]["station"] for kk in data_keys]
+    time_series["xmid"] = dataset[data_keys[0]]["xmid"]
+    time_series["ymid"] = dataset[data_keys[0]]["ymid"]
     return time_series
 
 

@@ -49,7 +49,7 @@ def ts_inversion(file_path="", mode="stack", resample_data=2, maxn=4000):
                 dataset, data_keys, include_sigma=False
             )
         elif mode == "stack":
-            time_series = u4invert.stack_data(dataset, data_keys)
+            time_series = u4invert.stack_data(dataset)
 
         if resample_data and mode == "median":
             for k in ["dataE", "dataN", "dataU"]:
