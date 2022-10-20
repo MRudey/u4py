@@ -2,6 +2,7 @@
 import os
 from datetime import datetime, timedelta
 
+import geopandas
 import h5py
 import numpy as np
 import u4py.utils.files as u4files
@@ -9,7 +10,22 @@ from dbfread import DBF
 from tqdm import tqdm
 
 
-def dbf_to_dict(file_in):
+def dbf_to_dict(file_in: os.PathLike):
+    """Generic conversion of dbf file to dictionary"""
+    geodf = geopandas.read_file(file_in)
+    geodf = geodf.set_crs("EPSG:4326")
+    geodf = geodf.to_crs("EPSG:32632")
+    output = dict()
+    for k in geodf.keys():
+        if k == "geometry":
+            output[k] = np.array([(p.x, p.y) for p in geodf[k].to_numpy()])
+        else:
+            output[k] = geodf[k].to_numpy()
+
+    return output
+
+
+def psi_dbf_to_dict(file_in: os.PathLike):
     """
     Takes a dbf file and returns a dictionary with numpy arrays for x, y, z
     coordinates, PS_ID and timeseries for each entry.
@@ -185,7 +201,7 @@ def convert_file(file_path):
     base_path, fname_ext = os.path.split(file_path)
     base_path, _ = os.path.split(base_path)
     fname, _ = os.path.splitext(fname_ext)
-    data = dbf_to_dict(file_path)
+    data = psi_dbf_to_dict(file_path)
     h5path = os.path.join(base_path, fname + ".h5")
     dict_to_hdf5(h5path, data)
 
@@ -261,5 +277,6 @@ def merge_data(inputs):
             "station": f"{station}",
             "xmid": data_ew["xmid"],
             "ymid": data_ew["ymid"],
+            "chunk_size": data_ew["chunk_size"],
         }
     dict_to_hdf5(os.path.join(output_path, file_name), output_data)

@@ -1,3 +1,4 @@
+import os
 from datetime import datetime, timedelta
 
 import matplotlib.pyplot as plt
@@ -8,6 +9,8 @@ import scipy.optimize as spopt
 import scipy.signal as spsignal
 import scipy.stats as spstats
 import u4py.analysis.processing as u4process
+import u4py.analysis.spatial as u4spatial
+import u4py.utils.convert as u4convert
 import u4py.utils.files as u4files
 import uncertainties as unc
 
@@ -23,6 +26,16 @@ def chunked_analysis():
     """
     # file_list = u4files.get_file_paths(filetypes=(("*.h5", "*.h5"),))
     file_list = u4files.get_file_list()
+    base_folder = u4files.multi_split(file_list[0], nsplits=3)
+
+    places = u4convert.dbf_to_dict(
+        os.path.join(base_folder, "Places", "gis_osm_places_free_1.dbf")
+    )
+
+    city_names, city_coords = u4spatial.get_features(places, ["city", "town"])
+
+
+def load_data(file_list):
     results, chunk_size = u4process.get_processing_results(file_list)
     if not chunk_size:
         chunk_size = 500
@@ -35,13 +48,17 @@ def chunked_analysis():
         ymids.append(ymid)
         slope.append(time_components[0] * 365.25)
         season.append(np.abs(time_components[1]))
+    return xmids, ymids, slope, season
 
+
+def plot_gridded(xmids, ymids, chunk_size, slope, season):
     minx = np.min(xmids)
     maxx = np.max(xmids) + chunk_size
     miny = np.min(ymids)
     maxy = np.max(ymids) + chunk_size
     x = np.arange(minx, maxx, chunk_size)
     y = np.arange(miny, maxy, chunk_size)
+
     XX, YY = np.meshgrid(x, y)
     SLP = np.ones_like(XX) * np.nan
     SEA = np.ones_like(XX) * np.nan
@@ -55,34 +72,37 @@ def chunked_analysis():
     SLP = spimg.median_filter(SLP, 3)
     SEA = spimg.median_filter(SEA, 3)
 
+
+def plot_gridded(
+    SLP,
+    SEA,
+):
     fig, axes = plt.subplots(ncols=2, sharex=True, sharey=True)
     rng = np.percentile(np.abs(slope), 95)
-    # slp = axes[0].scatter(
-    #     xmids,
-    #     ymids,
-    #     c=slope,
-    #     vmin=-rng,
-    #     vmax=rng,
-    #     cmap="RdBu",
-    #     marker="s",
-    #     s=3,
-    # )
     slp = axes[0].imshow(
         SLP,
         vmin=-rng,
         vmax=rng,
         origin="lower",
         extent=(minx, maxx, miny, maxy),
-        cmap="RdBu_r",
+        cmap="RdYlBu_r",
     )
     plt.colorbar(slp, ax=axes[0])
     rng = np.nanpercentile(season, 95)
     seas = axes[1].imshow(
         SEA, vmin=0, vmax=rng, origin="lower", extent=(minx, maxx, miny, maxy)
     )
-    # seas = axes[1].scatter(
-    #     xmids, ymids, c=season, vmin=0, vmax=rng, marker="s", s=3
-    # )
+
+    for ax in axes:
+        for citname, citcoords in zip(city_names, city_coords):
+            ax.annotate(
+                citname,
+                xy=citcoords,
+                horizontalalignment="center",
+                fontweight="bold",
+                fontsize="small",
+                fontfamily="Verdana",
+            )
     plt.colorbar(seas, ax=axes[1])
     plt.tight_layout()
     plt.show()
@@ -90,7 +110,6 @@ def chunked_analysis():
 
 def original_file():
     file_list = u4files.get_file_paths(filetypes=(("*.h5", "*.h5"),))
-    # file_path = r"C:\Users\Michael Rudolf\Documents\ArcGIS\INSAR_Data\Zeitreihe_ASCE_015_05.h5"
     for file_path in file_list:
         data = u4files.load_hdf5(file_path)
         # plot_statistics(data, timeslot=-1)
