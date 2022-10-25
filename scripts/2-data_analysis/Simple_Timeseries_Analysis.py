@@ -1,12 +1,8 @@
 import os
-from ast import Interactive
 from datetime import datetime, timedelta
 
-import contextily as cx
 import geopandas
-import matplotlib.gridspec as mplgrid
 import matplotlib.pyplot as plt
-import matplotlib.widgets as mplwid
 import numpy as np
 import pycwt
 import rasterio

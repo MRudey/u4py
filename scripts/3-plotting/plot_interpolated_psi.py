@@ -1,12 +1,9 @@
 import os
-from datetime import datetime
-from os import PathLike
 
 import matplotlib.pyplot as plt
 import numpy as np
 import u4py.utils.files as u4files
 from scipy.interpolate import griddata
-from tqdm import tqdm
 
 
 def main():
@@ -16,13 +13,13 @@ def main():
 
     os.makedirs(out_dir, exist_ok=True)
     x, y, z = get_data(ud_file)
-    # grid_x, grid_y = np.meshgrid(
-    #     np.linspace(np.min(x), np.max(x), 10000),
-    #     np.linspace(np.min(y), np.max(y), 10000),
-    # )
+    grid_x, grid_y = np.meshgrid(
+        np.linspace(np.min(x), np.max(x), 10000),
+        np.linspace(np.min(y), np.max(y), 10000),
+    )
 
-    # points = np.array([(xx, yy) for xx, yy in zip(x, y)])
-    # grid_1 = griddata(points, z, (grid_x, grid_y), method="cubic")
+    points = np.array([(xx, yy) for xx, yy in zip(x, y)])
+    grid_1 = griddata(points, z, (grid_x, grid_y), method="cubic")
     fig, ax = plt.subplots()
     ax.imshow(grid_1)
     plt.show()
