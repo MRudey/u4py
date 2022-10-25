@@ -426,6 +426,32 @@ def downsample_timeseries(time_series, maxn):
     return time_series
 
 
+def print_inversion_results(matrix):
+    names = [
+        "--- Direction East-West ---\n" + " [0]        yaxis-offset:",
+        " [1]        linear trend:",
+        " [2]    semi-annual sine:",
+        " [3]  semi-annual cosine:",
+        " [4]         annual sine:",
+        " [5]       annual cosine:",
+        "\n--- Direction North-South (same as EW) ---\n"
+        + " [6]        yaxis-offset:",
+        " [7]        linear trend:",
+        " [8]    semi-annual sine:",
+        " [9]  semi-annual cosine:",
+        " [10]        annual sine:",
+        " [11]      annual cosine:",
+        "\n--- Direction Up-Down ---\n" + " [12]       yaxis-offset:",
+        " [13]       linear trend:",
+        " [14]   semi-annual sine:",
+        " [15] semi-annual cosine:",
+        " [16]        annual sine:",
+        " [17]      annual cosine:",
+    ]
+    for ann, val in zip(names, matrix):
+        print(ann, f"{val:.2}")
+
+
 def main():
     data, t_EQ = create_synthetic_data()
     matrix, data, time_vector = invert_time_series(
