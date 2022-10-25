@@ -5,6 +5,7 @@ from datetime import datetime, timedelta
 import geopandas
 import h5py
 import numpy as np
+import shapely.geometry as shpgeo
 import u4py.utils.files as u4files
 from dbfread import DBF
 from tqdm import tqdm
@@ -13,15 +14,21 @@ from tqdm import tqdm
 def dbf_to_dict(file_in: os.PathLike):
     """Generic conversion of dbf file to dictionary"""
     geodf = geopandas.read_file(file_in)
-    geodf = geodf.set_crs("EPSG:4326")
+    if not geodf.crs:
+        geodf = geodf.set_crs("EPSG:4326")
     geodf = geodf.to_crs("EPSG:32632")
     output = dict()
     for k in geodf.keys():
         if k == "geometry":
-            output[k] = np.array([(p.x, p.y) for p in geodf[k].to_numpy()])
+            output[k] = []
+            for geom in geodf[k].to_numpy():
+                if isinstance(geom, shpgeo.Point):
+                    output[k].append((geom.x, geom.y))
+                elif isinstance(geom, shpgeo.Polygon):
+                    output[k].append(geom.bounds)
+            output[k] = np.array(output[k])
         else:
             output[k] = geodf[k].to_numpy()
-
     return output
 
 

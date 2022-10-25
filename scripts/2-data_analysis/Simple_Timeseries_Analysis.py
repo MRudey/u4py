@@ -1,121 +1,256 @@
 import os
+from ast import Interactive
 from datetime import datetime, timedelta
 
+import contextily as cx
+import geopandas
+import matplotlib.gridspec as mplgrid
 import matplotlib.pyplot as plt
+import matplotlib.widgets as mplwid
 import numpy as np
 import pycwt
+import rasterio
+import rasterio.plot as rioplot
 import scipy.ndimage as spimg
 import scipy.optimize as spopt
 import scipy.signal as spsignal
 import scipy.stats as spstats
 import u4py.analysis.processing as u4process
-import u4py.analysis.spatial as u4spatial
-import u4py.utils.convert as u4convert
 import u4py.utils.files as u4files
 import uncertainties as unc
 
 
 def main():
-    chunked_analysis()
-    # original_file()
+    chunked_analysis(interactive=True)
+    # original_file(interactive=False)
 
 
-def chunked_analysis():
+def chunked_analysis(interactive=False):
     """
     Processes a full suite of datasets
     """
     # file_list = u4files.get_file_paths(filetypes=(("*.h5", "*.h5"),))
     file_list = u4files.get_file_list()
     base_folder = u4files.multi_split(file_list[0], nsplits=3)
-
-    places = u4convert.dbf_to_dict(
-        os.path.join(base_folder, "Places", "gis_osm_places_free_1.dbf")
+    places_path = os.path.join(base_folder, "Places")
+    plot_folder = os.path.join(base_folder, "INSAR_plots")
+    suptitle = get_suptitle(file_list[0])
+    piloten = geopandas.read_file(
+        os.path.join(base_folder, "Places", "Pilotregionen.dbf")
     )
 
-    city_names, city_coords = u4spatial.get_features(places, ["city", "town"])
+    data = load_data(file_list)
+    slp_2d, sea_2d, extent = make_gridded_data(*data)
+    tektonik_hessen = get_tektonik_hessen(
+        os.path.join(places_path, "tektonik.dbf"),
+        os.path.join(places_path, "vg2500_bld.dbf"),
+    )
+    if interactive:
+        plot_gridded(
+            slp_2d,
+            sea_2d,
+            extent,
+            suptitle,
+            places_path,
+            tektonik_hessen,
+            dpi=100,
+        )
+    else:
+        plot_gridded(
+            slp_2d,
+            sea_2d,
+            extent,
+            suptitle,
+            places_path,
+            tektonik_hessen,
+            save_path=os.path.join(plot_folder, f"Hessen_{suptitle}"),
+        )
+        names = ["Kassel", "Hoher_Meissner", "Werra_Kali", "Rhein-Main"]
+        for num, pilot in piloten.values:
+            name = names[num - 1]
+            roi = pilot.bounds
+            plot_gridded(
+                slp_2d,
+                sea_2d,
+                extent,
+                suptitle,
+                places_path,
+                tektonik_hessen,
+                roi=roi,
+                save_path=os.path.join(plot_folder, f"roi_{name}_{suptitle}"),
+            )
+
+
+def get_tektonik_hessen(tektonik_path, bld_path):
+    tektonik = geopandas.read_file(tektonik_path).to_crs("EPSG:32632")
+    bld = geopandas.read_file(bld_path).to_crs("EPSG:32632")
+    hessen = bld[bld["GEN"] == "Hessen"]
+    tektonik_hessen = geopandas.clip(tektonik, hessen)
+    return tektonik_hessen
 
 
 def load_data(file_list):
     results, chunk_size = u4process.get_processing_results(file_list)
     if not chunk_size:
-        chunk_size = 500
+        chunk_size = 250
     xmids = []
     ymids = []
     slope = []
     season = []
-    for (xmid, ymid, time_components) in results:
+    for (xmid, ymid, components) in results:
         xmids.append(xmid)
         ymids.append(ymid)
-        slope.append(time_components[0] * 365.25)
-        season.append(np.abs(time_components[1]))
-    return xmids, ymids, slope, season
+        if components is not None:
+            if len(components) < 5:
+                slope.append(components[0] * 365.25)
+                season.append(np.abs(components[1]))
+            else:
+                slope.append(components[13])
+                season.append(np.abs(components[14]))
+        else:
+            season.append(np.nan)
+    return xmids, ymids, slope, season, chunk_size
 
 
-def plot_gridded(xmids, ymids, chunk_size, slope, season):
+def get_suptitle(fname):
+    if "ASCE" in fname:
+        suptitle = "LOS Ascending (curve fitting)"
+    elif "DESC" in fname:
+        suptitle = "LOS Descending (curve fitting)"
+    elif "BBD_Vert" in fname:
+        suptitle = "Vertical (curve fitting)"
+    elif "BBD_EW" in fname:
+        suptitle = "East-West (curve fitting)"
+    elif "merged" in fname:
+        suptitle = "Vertical (full inversion)"
+    return suptitle
+
+
+def make_gridded_data(xmids, ymids, slope, season, chunk_size):
     minx = np.min(xmids)
     maxx = np.max(xmids) + chunk_size
     miny = np.min(ymids)
     maxy = np.max(ymids) + chunk_size
+    extent = (minx, maxx, miny, maxy)
     x = np.arange(minx, maxx, chunk_size)
     y = np.arange(miny, maxy, chunk_size)
 
     XX, YY = np.meshgrid(x, y)
-    SLP = np.ones_like(XX) * np.nan
-    SEA = np.ones_like(XX) * np.nan
+    slp_2d = np.ones_like(XX) * np.nan
+    sea_2d = np.ones_like(XX) * np.nan
 
     for xi, yi, sl, se in zip(xmids, ymids, slope, season):
         xn = int((xi - minx) / chunk_size)
         yn = int((yi - miny) / chunk_size)
-        SLP[yn, xn] = sl
-        SEA[yn, xn] = se
+        slp_2d[yn, xn] = sl
+        sea_2d[yn, xn] = se
 
-    SLP = spimg.median_filter(SLP, 3)
-    SEA = spimg.median_filter(SEA, 3)
+    slp_2d = spimg.median_filter(slp_2d, 3)
+    sea_2d = spimg.median_filter(sea_2d, 3)
+
+    return slp_2d, sea_2d, extent
 
 
 def plot_gridded(
-    SLP,
-    SEA,
+    slp_2d,
+    sea_2d,
+    extent,
+    suptitle,
+    places_path,
+    tektonik_hessen,
+    roi=None,
+    save_path=None,
+    perc=95,
+    dpi=300,
 ):
-    fig, axes = plt.subplots(ncols=2, sharex=True, sharey=True)
-    rng = np.percentile(np.abs(slope), 95)
+    figwidth = 11.7
+    figheight = 8.27
+
+    if roi is not None:
+        width = roi[2] - roi[0]
+        height = roi[3] - roi[1]
+        ratio = width / height
+        figwidth = ratio * 1.25 * figwidth
+
+    fig, axes = plt.subplots(
+        ncols=2,
+        sharex=True,
+        sharey=True,
+        dpi=dpi,
+        figsize=(figwidth, figheight),
+        layout="constrained",
+    )
+    rng = np.nanpercentile(np.abs(slp_2d), perc)
     slp = axes[0].imshow(
-        SLP,
+        slp_2d,
         vmin=-rng,
         vmax=rng,
         origin="lower",
-        extent=(minx, maxx, miny, maxy),
-        cmap="RdYlBu_r",
+        extent=extent,
+        cmap="RdYlBu",
+        zorder=1,
+        alpha=0.8,
     )
-    plt.colorbar(slp, ax=axes[0])
-    rng = np.nanpercentile(season, 95)
+    plt.colorbar(
+        slp,
+        ax=axes[0],
+        label="Displacement (mm/a)",
+        orientation="horizontal",
+        extend="both",
+        shrink=0.5,
+    )
+    rng = np.nanpercentile(sea_2d, perc)
     seas = axes[1].imshow(
-        SEA, vmin=0, vmax=rng, origin="lower", extent=(minx, maxx, miny, maxy)
+        sea_2d,
+        vmin=0,
+        vmax=rng,
+        origin="lower",
+        extent=extent,
+        zorder=1,
+        alpha=0.8,
     )
 
     for ax in axes:
-        for citname, citcoords in zip(city_names, city_coords):
-            ax.annotate(
-                citname,
-                xy=citcoords,
-                horizontalalignment="center",
-                fontweight="bold",
-                fontsize="small",
-                fontfamily="Verdana",
-            )
-    plt.colorbar(seas, ax=axes[1])
-    plt.tight_layout()
-    plt.show()
+        with rasterio.open(
+            os.path.join(places_path, "hessen_map.tif")
+        ) as hessen_map:
+            rioplot.show(hessen_map, ax=ax, zorder=0)
+        tektonik_hessen.plot(ax=ax, color="k", zorder=2, linewidth=1.5)
+        ax.grid("True", color="r", alpha=0.3)
+    plt.colorbar(
+        seas,
+        ax=axes[1],
+        label="Amplitude (mm)",
+        orientation="horizontal",
+        extend="both",
+        shrink=0.5,
+    )
+    axes[0].set_title("Linear Component", fontweight="bold")
+    axes[1].set_title("Seasonal Component", fontweight="bold")
+    fig.suptitle(suptitle, fontsize="large", fontweight="bold")
+    if roi is not None:
+        axes[0].set_xlim(roi[0], roi[2])
+        axes[0].set_ylim(roi[1], roi[3])
+    # fig.tight_layout()
+    if save_path:
+        fig.savefig(save_path)
+        plt.close(fig)
+    else:
+        plt.show()
 
 
-def original_file():
+def original_file(interactive=True):
     file_list = u4files.get_file_paths(filetypes=(("*.h5", "*.h5"),))
     for file_path in file_list:
         data = u4files.load_hdf5(file_path)
         # plot_statistics(data, timeslot=-1)
         # plot_cwt(data)
-        plot_timeseries(data)
+        fig, ax = plot_timeseries(data)
         # plot_mean(data)
+        if interactive:
+            plt.show()
+        else:
+            fig.savefig(file_path.replace(".h5", "_simple"))
 
 
 def plot_mean(data):
@@ -205,7 +340,7 @@ def plot_timeseries(data):
     # axes[2].plot(time, y_residual, ".")
     axes[2].plot(time, y_residual, ".-", linewidth=0.5)
 
-    plt.show()
+    return fig, axes
 
 
 def plot_statistics(data, timeslot):

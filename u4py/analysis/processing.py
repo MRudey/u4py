@@ -16,19 +16,19 @@ def get_processing_results(file_list, overwrite=False):
     overwrite=True
     """
     folder_path = os.path.split(file_list[0])[0]
-    if "ASCE" in folder_path:
-        direction = "ASCE"
-    elif "DESC" in folder_path:
-        direction = "DESC"
-    elif "BBD_Vert" in folder_path:
-        direction = "BBD_Vert"
-    elif "BBD_EW" in folder_path:
-        direction = "BBD_EW"
     base_path = os.path.split(os.path.split(folder_path)[0])[0]
     result_folder = os.path.join(base_path, "INSAR_results")
-    result_path = os.path.join(
-        result_folder, direction + "_processing_results.pkl"
-    )
+    if "ASCE" in folder_path:
+        pickle_path = "ASCE_processing_results.pkl"
+    elif "DESC" in folder_path:
+        pickle_path = "DESC_processing_results.pkl"
+    elif "BBD_Vert" in folder_path:
+        pickle_path = "BBD_Vert_processing_results.pkl"
+    elif "BBD_EW" in folder_path:
+        pickle_path = "BBD_EW_processing_results.pkl"
+    elif "merged" in folder_path:
+        pickle_path = "inversion_results.pkl"
+    result_path = os.path.join(result_folder, pickle_path)
     if os.path.exists(result_path) and not overwrite:
         with open(result_path, "rb") as pkl_file:
             results, chunk_size = pickle.load(pkl_file)

@@ -6,14 +6,23 @@ import u4py.utils.plots as u4plots
 
 
 def main():
-    file_path = u4files.get_file_paths(filetypes=(("*.h5", "*.h5"),))
+    file_paths = u4files.get_file_paths(filetypes=(("*.h5", "*.h5"),))
     # file_path = (
     #     "/mnt/Raid/Umwelt_4/INSAR_chunks/merged/PSI_chunk_x464500_y5518250.h5"
     # )
-    time_ori, time, data, inversion_results = ts_inversion(
-        file_path[0], maxn=0
-    )
-    u4plots.plot_inversion_results(time_ori, time, data, inversion_results)
+    if not file_paths:
+        pass
+    for file_path in file_paths:
+        time_ori, time, data, inversion_results = ts_inversion(
+            file_path, maxn=0
+        )
+        u4plots.plot_inversion_results(
+            time_ori,
+            time,
+            data,
+            inversion_results,
+            file_path.replace(".h5", ".png"),
+        )
 
 
 def ts_inversion(file_path="", mode="stack", resample_data=2, maxn=4000):
