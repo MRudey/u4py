@@ -4,9 +4,12 @@ import os
 from datetime import datetime
 from tkinter import Tk, filedialog
 
+import geopandas as gp
 import h5py
 import numpy as np
+
 import u4py.analysis.inversion as u4invert
+import u4py.analysis.spatial as u4spatial
 import u4py.utils.convert as u4convert
 
 
@@ -69,6 +72,7 @@ def get_data(h5group, timefmt="datetime", ind=None):
         "floatyear": u4convert.get_floatyear,
     }
     data = dict()
+    ind.sort()
     for k in h5group.keys():
         if k == "time" or k == "t":
             v = np.array(
@@ -110,3 +114,68 @@ def multi_split(file_path: os.PathLike, nsplits: int):
     for n in range(nsplits):
         file_path = os.path.split(file_path)[0]
     return file_path
+
+
+def get_select_points(query, psi_file_path, overwrite=False):
+
+    base_folder, source_name = os.path.split(psi_file_path)
+    point_files_folder = os.path.join(
+        os.path.split(base_folder)[0], "selected_psi_points"
+    )
+    os.makedirs(point_files_folder, exist_ok=True)
+    point_file_name = (
+        query["address"] + "_clip_" + os.path.splitext(source_name)[0] + ".shp"
+    )
+    point_file_path = os.path.join(point_files_folder, point_file_name)
+
+    if os.path.exists(point_file_path) and not overwrite:
+        points = gp.GeoDataFrame.from_file(point_file_path)
+    else:
+        points = u4spatial.select_points(query, psi_file_path)
+        points.to_file(point_file_path)
+        points = gp.GeoDataFrame.from_file(point_file_path)
+    return points
+
+
+def get_region_points(region, region_name, psi_file_path, overwrite=False):
+
+    base_folder, source_name = os.path.split(psi_file_path)
+    point_files_folder = os.path.join(
+        os.path.split(base_folder)[0], "selected_psi_points"
+    )
+    os.makedirs(point_files_folder, exist_ok=True)
+    point_file_name = (
+        region_name + "_region_" + os.path.splitext(source_name)[0] + ".shp"
+    )
+    point_file_path = os.path.join(point_files_folder, point_file_name)
+
+    if os.path.exists(point_file_path) and not overwrite:
+        points = gp.GeoDataFrame.from_file(point_file_path)
+    else:
+        points = u4spatial.select_points_region(region, psi_file_path)
+        points.to_file(point_file_path)
+        points = gp.GeoDataFrame.from_file(point_file_path)
+    return points
+
+
+def get_point_points(
+    point, radius, region_name, psi_file_path, overwrite=False
+):
+
+    base_folder, source_name = os.path.split(psi_file_path)
+    point_files_folder = os.path.join(
+        os.path.split(base_folder)[0], "selected_psi_points"
+    )
+    os.makedirs(point_files_folder, exist_ok=True)
+    point_file_name = (
+        region_name + "_points_" + os.path.splitext(source_name)[0] + ".shp"
+    )
+    point_file_path = os.path.join(point_files_folder, point_file_name)
+
+    if os.path.exists(point_file_path) and not overwrite:
+        points = gp.GeoDataFrame.from_file(point_file_path)
+    else:
+        points = u4spatial.select_points_point(point, radius, psi_file_path)
+        points.to_file(point_file_path)
+        points = gp.GeoDataFrame.from_file(point_file_path)
+    return points

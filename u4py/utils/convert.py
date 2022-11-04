@@ -6,9 +6,10 @@ import geopandas
 import h5py
 import numpy as np
 import shapely.geometry as shpgeo
-import u4py.utils.files as u4files
 from dbfread import DBF
 from tqdm import tqdm
+
+import u4py.utils.files as u4files
 
 
 def gnss_dat_to_dict(file_in: os.PathLike):

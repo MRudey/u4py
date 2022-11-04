@@ -1,8 +1,11 @@
+import geopandas as gp
 import h5py
 import numpy as np
+import osmnx
 import rasterio as rio
 import rasterio.warp as riowarp
 import scipy.spatial as spspatial
+import shapely.geometry as shpgeo
 
 
 def get_features(in_dict: dict, features: list):
@@ -70,3 +73,54 @@ def get_coords(file_path):
             [(x, y) for x, y in zip(h5file["x"][()], h5file["y"][()])]
         )
     return coords
+
+
+def select_points(query, psi_file_path):
+    """
+    Selects points from the specified file and crops them by the rectangles found in the given osm query
+    """
+
+    osm_data = osmnx.geometries_from_address(
+        query["address"], tags=query["tags"]
+    ).to_crs("EPSG:32632")
+
+    coords = get_coords(psi_file_path)
+    points = gp.GeoDataFrame(
+        {
+            "geometry": shpgeo.MultiPoint(coords),
+            "source_index": np.arange(len(coords)),
+        },
+        crs="EPSG:32632",
+    )
+    return points.clip(osm_data)
+
+
+def select_points_region(region, psi_file_path):
+    """
+    Selects points from the specified file and crops them by the rectangles found in the given region
+    """
+
+    coords = get_coords(psi_file_path)
+    points = gp.GeoDataFrame(
+        {
+            "geometry": shpgeo.MultiPoint(coords),
+            "source_index": np.arange(len(coords)),
+        },
+        crs="EPSG:32632",
+    )
+    return points.clip(region)
+
+
+def select_points_point(point, radius, psi_file_path):
+    region = gp.GeoDataFrame(
+        {"geometry": [shpgeo.Point(point).buffer(radius)]}, crs="EPSG:32632"
+    )
+    coords = get_coords(psi_file_path)
+    points = gp.GeoDataFrame(
+        {
+            "geometry": shpgeo.MultiPoint(coords),
+            "source_index": np.arange(len(coords)),
+        },
+        crs="EPSG:32632",
+    )
+    return points.clip(region)
