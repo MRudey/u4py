@@ -7,6 +7,7 @@ from tkinter import Tk, filedialog
 import h5py
 import numpy as np
 import u4py.analysis.inversion as u4invert
+import u4py.utils.convert as u4convert
 
 
 def get_file_paths(**kwargs):
@@ -47,7 +48,7 @@ def get_file_list(filetype=".h5", folder_path=None, **kwargs):
     return file_list
 
 
-def load_hdf5(file_path, timefmt="datetime"):
+def load_hdf5(file_path, timefmt="datetime", ind=None):
     """
     Loads data from a hdf5 file. Converts timestamps to datetime.
     Different timestamp formats are supported:
@@ -55,17 +56,17 @@ def load_hdf5(file_path, timefmt="datetime"):
         floatyear: Years in float point numbers
     """
     with h5py.File(file_path, "r") as h5file:
-        data = get_data(h5file, timefmt)
+        data = get_data(h5file, timefmt, ind)
     return data
 
 
-def get_data(h5group, timefmt="datetime"):
+def get_data(h5group, timefmt="datetime", ind=None):
     """
     Recursively gets data from a group. Going deeper if a group is found.
     """
     convert_time = {
         "datetime": datetime.fromisoformat,
-        "floatyear": get_floatyear,
+        "floatyear": u4convert.get_floatyear,
     }
     data = dict()
     for k in h5group.keys():
@@ -75,19 +76,19 @@ def get_data(h5group, timefmt="datetime"):
             )
         else:
             try:
-                v = h5group[k][()]
+                if ind is None:
+                    v = h5group[k][()]
+                else:
+                    v = h5group[k][ind]
             except ValueError:
-                v = h5group[k][()]
+                if ind is None:
+                    v = h5group[k][()]
+                else:
+                    v = h5group[k][ind]
             except TypeError:
-                v = get_data(h5group[k], timefmt)
+                v = get_data(h5group[k], timefmt, ind=ind)
         data[k] = v
     return data
-
-
-def get_floatyear(timestr):
-    """Converts to a float based year"""
-    t = datetime.fromisoformat(timestr)
-    return t.year + ((t - datetime(t.year, 1, 1)).days / 365.25)
 
 
 def get_data_for_inversion(file_path):

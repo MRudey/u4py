@@ -11,6 +11,35 @@ from dbfread import DBF
 from tqdm import tqdm
 
 
+def gnss_dat_to_dict(file_in: os.PathLike):
+    """Converts a gnss dat file to dictionary"""
+    raw = np.loadtxt(file_in, unpack=True)
+
+    ind = np.argsort(raw[0])
+    time = np.array([gps_week_to_time(r) for r in raw[0]])
+    floatyear = np.array([get_floatyear(r) for r in time])
+
+    data = {
+        "gps_week": raw[0][ind],
+        "gps_datetime": time[ind],
+        "gps_floatyear": floatyear,
+        "res_north": raw[1][ind],
+        "sig_north": raw[2][ind],
+        "res_east": raw[3][ind],
+        "sig_east": raw[4][ind],
+        "res_up": raw[5][ind],
+        "sig_up": raw[6][ind],
+    }
+    return data
+
+
+def gps_week_to_time(gps_week):
+    """Converts a gpsweek timestamp to datetime"""
+    days = gps_week * 7
+    dt = datetime(1980, 1, 6, 0, 0) + timedelta(days=days)
+    return dt
+
+
 def dbf_to_dict(file_in: os.PathLike):
     """Generic conversion of dbf file to dictionary"""
     geodf = geopandas.read_file(file_in)
@@ -287,3 +316,16 @@ def merge_data(inputs):
             "chunk_size": data_ew["chunk_size"],
         }
     dict_to_hdf5(os.path.join(output_path, file_name), output_data)
+
+
+def get_floatyear(timestr):
+    """Converts to a float based year"""
+    if isinstance(timestr, str):
+        t = datetime.fromisoformat(timestr)
+    elif isinstance(timestr, datetime):
+        t = timestr
+    else:
+        raise NotImplementedError(
+            "Converting from this time format is not supported."
+        )
+    return t.year + ((t - datetime(t.year, 1, 1)).days / 365.25)

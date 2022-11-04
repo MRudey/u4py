@@ -4,13 +4,12 @@ from datetime import datetime, timedelta
 import geopandas
 import matplotlib.pyplot as plt
 import numpy as np
-import pycwt
 import rasterio
 import rasterio.plot as rioplot
 import scipy.ndimage as spimg
 import scipy.optimize as spopt
-import scipy.signal as spsignal
 import scipy.stats as spstats
+import u4py.analysis.other as u4other
 import u4py.analysis.processing as u4process
 import u4py.utils.files as u4files
 import uncertainties as unc
@@ -262,7 +261,7 @@ def plot_mean(data):
 def plot_cwt(data):
     time = data["time"]
     y = np.median(data["timeseries"], axis=0)
-    freqs, coi, power = cwt(y, 6)
+    freqs, coi, power = u4other.cwt(y, 6)
 
     fig, ax = plt.subplots()
     xx, yy = np.meshgrid(time, freqs)
@@ -280,20 +279,20 @@ def plot_timeseries(data):
     time_days = np.linspace(0, len(time) * 6, len(time))
 
     lin_popt, lin_pcov = spopt.curve_fit(
-        poly1,
+        u4other.poly1,
         time_days,
         y,
     )
-    linear_component = poly1(time_days, *lin_popt)
+    linear_component = u4other.poly1(time_days, *lin_popt)
     y_detrend = y - linear_component
 
     popt, pcov = spopt.curve_fit(
-        sinefunc,
+        u4other.sinefunc,
         time_days,
         y_detrend,
         p0=[2, 6 / 365.25, 0],
     )
-    sinus_component = sinefunc(time_days, *popt)
+    sinus_component = u4other.sinefunc(time_days, *popt)
     y_residual = y_detrend - sinus_component
 
     fig, axes = plt.subplots(
@@ -393,61 +392,6 @@ def clean_points(points, sigma=2, fnc=spstats.norm):
     limit = sigma * fnc(*fnc.fit(points)).std()
     slc = np.nonzero(points > -limit) and np.nonzero(points < limit)
     return slc
-
-
-def run_stat_mean(timeseries, fnc=spstats.norm):
-    """
-    Computes the running mean/median with the given statistical distribution
-    """
-    _, c = timeseries.shape
-    ts_out = np.zeros(c)
-    for ii in range(c):
-        ts_out[ii] = get_stat_val(timeseries[:, ii], fnc=spstats.t)
-    return ts_out
-
-
-def get_stat_val(values, fnc=spstats.norm):
-    return fnc(*fnc.fit(values)).mean()
-
-
-def sinefunc(x, amplitude, width, shift):
-    return amplitude * np.cos(width * (x + shift))
-
-
-def poly1(x, slope, offset):
-    return slope * x + offset
-
-
-def cwt(y, dt):
-    """
-    Does a continuous wavelet transformation of the input data with a Morlet
-    """
-    # Detrend and normalize data for better cwt analysis
-    y_detrend = spsignal.detrend(y)
-    std = np.std(y_detrend)  # Standard deviation
-    dat_norm = y_detrend / std  # Normalized dataset
-
-    # Wavelet parameters
-    mother = pycwt.wavelet.Morlet(6.0)
-    s0 = 8 * dt  # Starting scale
-    dj = 1 / 12  # sub-octaves
-    J = 7 / dj  # Seven powers of two with dj sub-octaves
-
-    # Do continous transform
-    wave, scales, freqs, coi, _, _ = pycwt.wavelet.cwt(
-        dat_norm, dt, dj, s0, J, mother
-    )
-
-    # Convert cone of influence from periods to frequency and set values above
-    # threshold to maximum for better plotting
-    coi = 1 / coi
-    coi[coi >= np.max(freqs)] = np.max(freqs)
-
-    # Calculate power spectrum
-    power = (np.abs(wave)) ** 2
-    power /= scales[:, None]
-
-    return freqs, coi, power
 
 
 if __name__ == "__main__":

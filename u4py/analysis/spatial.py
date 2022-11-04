@@ -1,6 +1,8 @@
+import h5py
 import numpy as np
 import rasterio as rio
 import rasterio.warp as riowarp
+import scipy.spatial as spspatial
 
 
 def get_features(in_dict: dict, features: list):
@@ -47,3 +49,24 @@ def reproject_raster(in_path, out_path, output_crs):
                     resampling=riowarp.Resampling.nearest,
                 )
     return out_path
+
+
+def get_cKDTree(file_path):
+    """
+    Loads all x and y coordinates from the given hdf5 file and returns a
+    cKDTree for easy spatial lookup.
+    """
+    coords = get_coords(file_path)
+
+    return spspatial.cKDTree(coords)
+
+
+def get_coords(file_path):
+    """
+    Loads all x and y coordinates from the given hdf5 file
+    """
+    with h5py.File(file_path, "r") as h5file:
+        coords = np.array(
+            [(x, y) for x, y in zip(h5file["x"][()], h5file["y"][()])]
+        )
+    return coords
