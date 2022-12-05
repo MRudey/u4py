@@ -1,8 +1,9 @@
 """ Lets the user define a region and fits all PSI points in it """
 
+import locale
 import os
 import string
-from datetime import datetime, timedelta
+from datetime import datetime
 
 import contextily
 import geopandas as gp
@@ -63,14 +64,97 @@ def main():
     slope = get_linfit_each(psi_data_region)
 
     damage_shp = damage_shp.to_crs(points.crs)
-    fig = plot_map_and_timeseries(
-        psi_data, psi_data_region, slope, psi_data_well, points, damage_shp
+    gas_fault_shp = gp.read_file(
+        r"C:\Users\Michael Rudolf\Documents\ArcGIS\Places\Gas_Störungen.shp"
     )
+    gas_top_shp = gp.read_file(
+        r"C:\Users\Michael Rudolf\Documents\ArcGIS\Places\Tiefenlinie_Top_Sand_7.shp"
+    )
+    date_rhine, level_rhine = load_rhine_date(
+        r"C:\Users\Michael Rudolf\PowerFolders\Umwelt_4_privat\scripts\Wasserstand des Rheins bei Düsseldorf monatlich ab 1996.csv"
+    )
+    date_gas, level_gas = load_gas_data(
+        r"C:\Users\Michael Rudolf\PowerFolders\Umwelt_4_privat\scripts\Inventory Turnover Data.txt"
+    )
+    date, temp_m, temp_x, temp_n, rain = np.loadtxt(
+        r"C:\Users\Michael Rudolf\PowerFolders\Umwelt_4_privat\scripts\klarchiv_01420_month_his\produkt_klima_monat_19350701_20211231_01420.txt",
+        skiprows=1,
+        delimiter=";",
+        usecols=(1, 5, 6, 7, 14),
+        unpack=True,
+    )
+    date_rain = [datetime.strptime(str(int(d)), "%Y%m%d") for d in date]
+    temp_m[temp_m < -50] = np.nan
+    temp_x[temp_x < -50] = np.nan
+    temp_n[temp_n < -50] = np.nan
+    rain[rain < 0] = np.nan
+
+    fig = plt.figure(figsize=(12, 12), dpi=150)
+    grid = gs.GridSpec(ncols=2, nrows=4)
+    axes = [
+        fig.add_subplot(grid[:2, 0]),
+        fig.add_subplot(grid[0, 1]),
+        fig.add_subplot(grid[1, 1]),
+        fig.add_subplot(grid[2, 0]),
+        fig.add_subplot(grid[2, 1]),
+        fig.add_subplot(grid[3, 0]),
+        fig.add_subplot(grid[3, 1]),
+    ]
+    # fig, axes = plt.subplots(ncols=2, figsize=(12, 6), dpi=150)
+    numerate_axes(fig)
+    plot_map(
+        axes, psi_data_region, slope, damage_shp, gas_fault_shp, gas_top_shp
+    )
+
+    add_timeseries(
+        psi_data, axes[1], "Ground Motion in Crumstadt", shareax=axes[2]
+    )
+    add_timeseries(
+        psi_data_well,
+        axes[2],
+        "Ground Motion at Gas Storage",
+        legend=False,
+        shareax=axes[1],
+    )
+    axes[3].bar(date_rain, rain, width=10, color="C0")
+    axes[3].set_ylabel("Avg. Rainfall (mm)\n(Frankfurt)")
+    axes[3].set_ylim(0, 130)
+    axes[4].plot(date_rain, temp_m, "s-", color="C3")
+    axes[4].fill_between(
+        date_rain, temp_n, temp_x, color="C3", alpha=0.5, edgecolor=None
+    )
+    axes[4].set_ylabel("Avg. Temperature (°C)\n(Frankfurt)")
+    # axes[4].set_ylim(0, 30)
+    axes[5].plot(date_rhine, level_rhine, "s-", color="C1")
+    axes[5].set_ylabel("Avg. Water Level (cm)\n(Rhine in Düsseldorf)")
+    axes[5].set_ylim(0, 700)
+    axes[6].plot(date_gas, (level_gas / np.max(level_gas)) * 100, color="C2")
+    axes[6].set_ylabel("Fill level of gas storage (%)")
+    axes[6].set_ylim(
+        0,
+    )
+
+    axes[1].set_xlim(
+        datetime(2015, 1, 1),
+        # datetime(2021, 1, 1),
+    )
+    for ii in range(2, len(axes)):
+        axes[ii].sharex(axes[1])
+    # plt.subplots_adjust(right=0.99, top=0.99, bottom=0.07)
+
+    axes[0].legend(loc="upper right")
     fig_path = os.path.join(
         r"C:\Users\Michael Rudolf\Documents\ArcGIS\selected_psi_points",
         query["address"],
     )
     # plt.show()
+    contextily.add_basemap(
+        axes[0],
+        crs=points.crs.to_string(),
+        # zoom=15,
+        source=contextily.providers.OpenStreetMap.Mapnik,
+    )
+    fig.tight_layout()
     fig.savefig(fig_path)
     fig.savefig(fig_path + ".pdf")
 
@@ -93,18 +177,9 @@ def get_linfit_each(psi_data):
     return slope
 
 
-def plot_map_and_timeseries(
-    psi_data, psi_data_region, slope, psi_data_well, points, damage_shape
+def plot_map(
+    axes, psi_data_region, slope, damge_shp, gas_fault_shp, gas_top_shp
 ):
-    fig = plt.figure(figsize=(12, 6), dpi=150)
-    grid = gs.GridSpec(ncols=2, nrows=2)
-    axes = [
-        fig.add_subplot(grid[:, 0]),
-        fig.add_subplot(grid[0, 1]),
-        fig.add_subplot(grid[1, 1]),
-    ]
-    # fig, axes = plt.subplots(ncols=2, figsize=(12, 6), dpi=150)
-    numerate_axes(fig)
     # Map
     rng = np.percentile(np.abs(slope), 95)
     sc = axes[0].scatter(
@@ -124,7 +199,7 @@ def plot_map_and_timeseries(
         extend="both",
         label="Mean Vertical Velocity (mm/a)",
     )
-    damage_shape.plot(
+    damge_shp.plot(
         ax=axes[0],
         color="k",
         # markersize=,
@@ -166,7 +241,7 @@ def plot_map_and_timeseries(
         ]
     )
     txt = axes[0].annotate(
-        "Oil Wells",
+        "Gas Storage",
         (464500, 5516100),
         # xycoords="axes fraction",
         horizontalalignment="left",
@@ -200,20 +275,13 @@ def plot_map_and_timeseries(
         rotation=90,
         verticalalignment="center",
     )
-    axes[0].legend(loc="upper right")
-    add_timeseries(psi_data, axes[1], "Crumstadt", shareax=axes[2])
-    add_timeseries(
-        psi_data_well, axes[2], "Oil Wells", legend=False, shareax=axes[1]
+    gas_top_shp.plot(
+        ax=axes[0],
+        column="Z",
+        facecolor="none",
+        zorder=1,
     )
-    contextily.add_basemap(
-        axes[0],
-        crs=points.crs.to_string(),
-        # zoom=15,
-        source=contextily.providers.OpenStreetMap.Mapnik,
-    )
-    # plt.subplots_adjust(right=0.99, top=0.99, bottom=0.07)
-    fig.tight_layout()
-    return fig
+    gas_fault_shp.plot(ax=axes[0], color="k", label="Faults", zorder=1)
 
 
 def add_timeseries(psi_data, ax, title, legend=True, shareax=False):
@@ -306,6 +374,43 @@ def numerate_axes(fig, n=0, step=1):
             horizontalalignment="center",
             # bbox=dict(fc="w", boxstyle="Circle"),
         )
+
+
+def date2num_rhine(y):
+    "Jan 1996"
+    locale.setlocale(locale.LC_ALL, "de_DE")
+    date = datetime.strptime(y, "%b %Y")
+    return date
+
+
+def date2num_gas(y):
+    "06. 12. 2020"
+    date = datetime.strptime(y, "%d. %m. %Y")
+    return date
+
+
+def load_gas_data(file_path):
+    with open(file_path, "rt") as gasfile:
+        first_row = gasfile.readline()
+        date = []
+        level = []
+        for row in gasfile.readlines():
+            row_text = row.split("\t")
+            date.append(date2num_gas(row_text[0]))
+            level.append(float(row_text[3].replace("\n", "").replace(" ", "")))
+    return date, level
+
+
+def load_rhine_date(file_path):
+    with open(file_path, "rt") as rhinefile:
+        first_row = rhinefile.readline()
+        date = []
+        level = []
+        for row in rhinefile.readlines():
+            row_text = row.split(",")
+            date.append(date2num_rhine(row_text[0]))
+            level.append(float(row_text[3].replace("\n", "").replace(" ", "")))
+    return date, level
 
 
 if __name__ == "__main__":
