@@ -99,7 +99,8 @@ def select_points_region(region, psi_file_path):
     """
     Selects points from the specified file and crops them by the rectangles found in the given region
     """
-
+    if region.crs != "EPSG:32632":
+        region = region.to_crs("EPSG:32632")
     coords = get_coords(psi_file_path)
     points = gp.GeoDataFrame(
         {
