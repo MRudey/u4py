@@ -155,7 +155,7 @@ def get_region_points(region, region_name, psi_file_path, overwrite=False):
         points = u4spatial.select_points_region(region, psi_file_path)
         points.to_file(point_file_path)
         points = gp.GeoDataFrame.from_file(point_file_path)
-    return points
+    return points, point_files_folder
 
 
 def get_point_points(

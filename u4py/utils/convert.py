@@ -1,6 +1,8 @@
 """ Contains functions for file conversion """
 import os
+import sqlite3 as sql
 from datetime import datetime, timedelta
+from multiprocessing import Pool
 
 import geopandas
 import h5py
@@ -98,9 +100,7 @@ def psi_dbf_to_dict(file_in: os.PathLike):
             id_key = "ID"
         # Create time axis
         if has_time:
-            key_list = [
-                k for k in dbffile.field_names if k not in non_time_keys
-            ]
+            key_list = [k for k in all_keys if k not in non_time_keys]
             time = np.array([key_to_time(k) for k in key_list])
             num_fields = len(key_list)
             timeseries = np.zeros((num_points, num_fields))
@@ -136,14 +136,14 @@ def psi_dbf_to_dict(file_in: os.PathLike):
             "z": zz,
             "ps_id": ps_id,
             "mean_vel": mean_vel,
-            "var_mean_vel": mean_vel,
+            "var_mean_vel": var_mean_vel,
         }
     return output
 
 
 def key_to_time(
     key,
-    starttime=datetime(year=2016, month=4, day=1),
+    starttime=datetime(year=2015, month=4, day=4),
     startindex=20150,
     acqdiff=timedelta(days=6),
 ):
@@ -164,6 +164,11 @@ def key_to_time(
     """
     timediff = (int(key[5:]) - startindex) * acqdiff
     return starttime + timediff
+
+
+def sql_key_to_time(key):
+    """Returns a datetime object for the given date"""
+    return datetime.strptime(key, "date_%Y%m%d")
 
 
 def chunk_data(data, save_folder, chunksize=1000, min_values=5, compress=True):
@@ -230,7 +235,7 @@ def get_chunks(xrange, yrange):
     return chunk_list
 
 
-def convert_file(file_path):
+def convert_shapefile(file_path: os.PathLike):
     """
     Converts the given dbf file into a h5 file. The h5 file only contains the
     necessary information and is zipped with gzip.
@@ -241,6 +246,155 @@ def convert_file(file_path):
     data = psi_dbf_to_dict(file_path)
     h5path = os.path.join(base_path, fname + ".h5")
     dict_to_hdf5(h5path, data)
+
+
+def convert_dpkg(file_path: os.PathLike):
+    """
+    Converts the given dpkg file into a h5 file. The h5 file only contains the
+    necessary information and is zipped with gzip.
+    """
+    base_path, fname_ext = os.path.split(file_path)
+    base_path, _ = os.path.split(base_path)
+    fname, _ = os.path.splitext(fname_ext)
+    data = psi_dbf_to_dict(file_path)
+    h5path = os.path.join(base_path, fname + ".h5")
+    dict_to_hdf5(h5path, data)
+
+
+def get_table_names(file_path: os.PathLike) -> list:
+    con = sql.connect(file_path)
+    cur = con.cursor()
+
+    # Get all table names
+    tables = [
+        res[0]
+        for res in cur.execute(
+            "SELECT name FROM sqlite_schema WHERE type='table' AND name LIKE 'Zeitreihe_%'"
+        )
+    ]
+    con.close()
+    return tables
+
+
+def table_to_dict(file_path: os.PathLike, table: str) -> dict:
+    """
+    Opens the given sql database and gets all content of the given table
+    """
+
+    # Get number of rows and names of columns
+    con = sql.connect(file_path)
+    cur = con.cursor()
+    num_points = cur.execute(f"SELECT COUNT(*) FROM {table}").fetchone()[0]
+    if num_points == 0:
+        return
+    all_keys = [res[1] for res in cur.execute(f"PRAGMA TABLE_INFO({table})")]
+
+    # Define type of file:
+    has_time = True
+    if "stack_ID" in all_keys:
+        has_time = False
+        mean_vel = np.zeros(num_points)
+        var_mean_vel = np.zeros(num_points)
+    elif "PS_ID" in all_keys:
+        non_time_keys = ["X", "Y", "Z", "PS_ID", "Shape", "OBJECTID"]
+        id_key = "PS_ID"
+    if "Input" in all_keys:
+        non_time_keys = [
+            "X",
+            "Y",
+            "Z",
+            "ID",
+            "Input",
+            "mean_velo_city",
+            "var_mean_velocity",
+        ]
+        id_key = "ID"
+
+    # Get Coordinates
+    xx = np.array(
+        [value[0] for value in cur.execute(f"SELECT X from {table}")]
+    )
+    yy = np.array(
+        [value[0] for value in cur.execute(f"SELECT Y from {table}")]
+    )
+    zz = np.array(
+        [value[0] for value in cur.execute(f"SELECT Z from {table}")]
+    )
+    ps_id = np.array(
+        [value[0] for value in cur.execute(f"SELECT {id_key} from {table}")]
+    )
+
+    if has_time:
+        key_list = [k for k in all_keys if k not in non_time_keys]
+        time = np.array([sql_key_to_time(k) for k in key_list])
+        num_fields = len(key_list)
+        timeseries = np.zeros((num_points, num_fields))
+
+        queries = [
+            (file_path, f"SELECT {k} from {table}", jj)
+            for jj, k in enumerate(key_list)
+        ]
+        with Pool() as p:
+            results = list(
+                tqdm(
+                    p.imap(multi_proc_query, queries),
+                    total=len(queries),
+                    desc="Processing queries",
+                    leave=False,
+                )
+            )
+        for r in results:
+            timeseries[:, r[1]] = np.array(r[0])
+    else:
+        mean_vel = np.array(
+            [
+                value[0]
+                for value in cur.execute(f"SELECT mean_velocity from {table}")
+            ]
+        )
+        var_mean_vel = np.array(
+            [
+                value[0]
+                for value in cur.execute(
+                    f"SELECT var_mean_velocity from {table}"
+                )
+            ]
+        )
+
+    if has_time:
+        output = {
+            "x": xx,
+            "y": yy,
+            "z": zz,
+            "time": time,
+            "ps_id": ps_id,
+            "timeseries": timeseries,
+        }
+    else:
+        output = {
+            "x": xx,
+            "y": yy,
+            "z": zz,
+            "ps_id": ps_id,
+            "mean_vel": mean_vel,
+            "var_mean_vel": var_mean_vel,
+        }
+    con.close()
+    return output
+
+
+def multi_proc_query(args):
+    """Multiprocessing wrapper for sql queries"""
+    return single_query(*args)
+
+
+def single_query(file_path: os.PathLike, query: str, jj: int = 0):
+    """Executes a single sql query for the given db-file"""
+    con = sql.connect(file_path)
+    cur = con.cursor()
+    result = [value[0] for value in cur.execute(query)]
+    con.close()
+    return (result, jj)
 
 
 def dict_to_hdf5(
