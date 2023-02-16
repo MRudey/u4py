@@ -2,7 +2,7 @@
 import os
 import sqlite3 as sql
 from datetime import datetime, timedelta
-from multiprocessing import Pool
+from multiprocessing import Manager, Pool
 
 import geopandas
 import h5py
@@ -180,37 +180,64 @@ def chunk_data(data, save_folder, chunksize=1000, min_values=5, compress=True):
     yrange = get_bounds(np.min(data["y"]), np.max(data["y"]), chunksize)
     chunk_list = get_chunks(xrange, yrange)
     os.makedirs(save_folder, exist_ok=True)
-    for chunk in tqdm(chunk_list, desc="Chunking data", leave=False):
-        xlow = data["x"] >= chunk[0]
-        xhigh = data["x"] < chunk[1]
-        ylow = data["y"] >= chunk[2]
-        yhigh = data["y"] < chunk[3]
-        slc = np.nonzero(xlow * xhigh * ylow * yhigh)
+    manager = Manager()
+    d = manager.dict(data)
 
-        if len(slc[0]) > min_values:
-            chunk_name = "PSI_chunk_x%i_y%i.h5" % (chunk[0], chunk[2])
-            output = dict()
-            for k in data.keys():
-                if k == "time":
-                    output[k] = data[k]
-                else:
-                    output[k] = data[k][slc]
-            output["xmid"] = chunk[0] + 0.5 * chunksize
-            output["ymid"] = chunk[2] + 0.5 * chunksize
-            output["num_points"] = len(slc[0])
-            output["chunk_size"] = chunksize
-            if "time" in data.keys():
-                if compress:
-                    dict_to_hdf5(os.path.join(save_folder, chunk_name), output)
-                else:
-                    dict_to_hdf5(
-                        os.path.join(save_folder, chunk_name),
-                        output,
-                        compression=None,
-                        compression_opts=0,
-                    )
+    args = [
+        (chunk, chunksize, min_values, compress, save_folder, d)
+        for chunk in chunk_list
+    ]
+
+    with Pool() as p:
+        results = list(
+            tqdm(
+                p.imap_unordered(chunking_worker, args, chunksize=100),
+                total=len(args),
+                desc="Chunking data",
+                leave=False,
+            )
+        )
+    return results
+
+
+def chunking_worker(args):
+    chunk = args[0]
+    chunksize = args[1]
+    min_values = args[2]
+    compress = args[3]
+    save_folder = args[4]
+    data = args[5]
+
+    xlow = data["x"] >= chunk[0]
+    xhigh = data["x"] < chunk[1]
+    ylow = data["y"] >= chunk[2]
+    yhigh = data["y"] < chunk[3]
+    slc = np.nonzero(xlow * xhigh * ylow * yhigh)
+
+    if len(slc[0]) > min_values:
+        chunk_name = "PSI_chunk_x%i_y%i.h5" % (chunk[0], chunk[2])
+        output = dict()
+        for k in data.keys():
+            if k == "time":
+                output[k] = data[k]
             else:
-                return chunk_name
+                output[k] = data[k][slc]
+        output["xmid"] = chunk[0] + 0.5 * chunksize
+        output["ymid"] = chunk[2] + 0.5 * chunksize
+        output["num_points"] = len(slc[0])
+        output["chunk_size"] = chunksize
+        if "time" in data.keys():
+            if compress:
+                dict_to_hdf5(os.path.join(save_folder, chunk_name), output)
+            else:
+                dict_to_hdf5(
+                    os.path.join(save_folder, chunk_name),
+                    output,
+                    compression=None,
+                    compression_opts=4,
+                )
+        else:
+            return chunk_name
 
 
 def get_bounds(minval, maxval, chunksize):
@@ -405,6 +432,29 @@ def dict_to_hdf5(
     strings following ISO date formatting.
     """
     with h5py.File(h5path, "w") as h5file:
+        for k, v in data.items():
+            if isinstance(v, dict):
+                h5file.create_group(k)
+                for k2, v2 in v.items():
+                    create_datasets(
+                        h5file[k], k2, v2, compression, compression_opts
+                    )
+            else:
+                create_datasets(h5file, k, v, compression, compression_opts)
+
+
+def dict_to_hdf5_mpi(
+    h5path: os.PathLike, data: dict, compression="gzip", compression_opts=9
+):
+    """
+    Parallel version of dict_to_hdf5. Requires a user built hdf5 version with
+    supporting parallel access. Also the script needs to be run with mpiexec.
+    Saves contents of dictionary into given h5 file. Dates are converted to
+    strings following ISO date formatting.
+    """
+    from mpi4py import MPI
+
+    with h5py.File(h5path, "w", driver="mpio", comm=MPI.COMM_WORLD) as h5file:
         for k, v in data.items():
             if isinstance(v, dict):
                 h5file.create_group(k)

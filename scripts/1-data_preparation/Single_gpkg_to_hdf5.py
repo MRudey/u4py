@@ -2,6 +2,7 @@
 
 
 import os
+import sys
 
 from tqdm import tqdm
 
@@ -10,7 +11,10 @@ import u4py.utils.files as u4files
 
 
 def main():
-    file_list = u4files.get_file_paths(filetypes=(("*.gpkg", "*.gpkg"),))
+    if len(sys.argv) == 1:
+        file_list = u4files.get_file_paths(filetypes=(("*.gpkg", "*.gpkg"),))
+    else:
+        file_list = [arg for arg in sys.argv[1:]]
     if not file_list:
         return
 
@@ -33,7 +37,19 @@ def process_table(
     h5path = os.path.join(export_path, f"{table}_{fname}.h5")
     data = u4convert.table_to_dict(file_path, table)
     if data:
-        u4convert.dict_to_hdf5(h5path, data)
+        if "asce" in file_path:
+            chunked_path = os.path.join(export_path, "Insar_chunks", "ASCE")
+        elif "desc" in file_path:
+            chunked_path = os.path.join(export_path, "Insar_chunks", "DESC")
+        elif "Ost_West" in file_path:
+            chunked_path = os.path.join(export_path, "Insar_chunks", "BBD_EW")
+        elif "Vertikal" in file_path:
+            chunked_path = os.path.join(
+                export_path, "Insar_chunks", "BBD_Vert"
+            )
+        u4convert.chunk_data(
+            data, chunked_path, chunksize=250, min_values=3, compress=False
+        )
 
 
 if __name__ == "__main__":

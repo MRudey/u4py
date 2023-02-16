@@ -2,7 +2,7 @@
 
 import os
 from datetime import datetime
-from tkinter import Tk, filedialog
+from tkinter import TclError, Tk, filedialog
 
 import geopandas as gp
 import h5py
@@ -18,6 +18,14 @@ def get_file_paths(**kwargs):
     file_list = []
     try:
         root = Tk()
+    except TclError:
+        print("No display detected.")
+        file_path = input("Enter file path:")
+        file_list = [
+            file_path,
+        ]
+        return file_list
+    try:
         root.withdraw()
         file_list = filedialog.askopenfilenames(**kwargs)
     finally:
@@ -117,7 +125,6 @@ def multi_split(file_path: os.PathLike, nsplits: int):
 
 
 def get_select_points(query, psi_file_path, overwrite=False):
-
     base_folder, source_name = os.path.split(psi_file_path)
     point_files_folder = os.path.join(
         os.path.split(base_folder)[0], "selected_psi_points"
@@ -138,7 +145,6 @@ def get_select_points(query, psi_file_path, overwrite=False):
 
 
 def get_region_points(region, region_name, psi_file_path, overwrite=False):
-
     base_folder, source_name = os.path.split(psi_file_path)
     point_files_folder = os.path.join(
         os.path.split(base_folder)[0], "selected_psi_points"
@@ -161,7 +167,6 @@ def get_region_points(region, region_name, psi_file_path, overwrite=False):
 def get_point_points(
     point, radius, region_name, psi_file_path, overwrite=False
 ):
-
     base_folder, source_name = os.path.split(psi_file_path)
     point_files_folder = os.path.join(
         os.path.split(base_folder)[0], "selected_psi_points"
