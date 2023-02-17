@@ -1,6 +1,7 @@
 """ Converts a gpkg file containing points with timeseries into hdf5 """
 
 
+import logging
 import os
 import sys
 
@@ -8,9 +9,16 @@ from tqdm import tqdm
 
 import u4py.utils.convert as u4convert
 import u4py.utils.files as u4files
+import u4py.utils.sql as u4sql
+
+logging.basicConfig(
+    format="%(asctime)-15s [%(levelname)s] %(funcName)s: %(message)s",
+    level=logging.INFO,
+)
 
 
 def main():
+
     if len(sys.argv) == 1:
         file_list = u4files.get_file_paths(filetypes=(("*.gpkg", "*.gpkg"),))
     else:
@@ -26,7 +34,7 @@ def main():
         export_path = os.path.join(base_path, "Converted_gpkg")
         os.makedirs(export_path, exist_ok=True)
 
-        tables = u4convert.get_table_names(file_path)
+        tables = u4sql.get_table_names(file_path)
         for table in tqdm(tables, desc="Reading from tables", leave=False):
             process_table(table, file_path, export_path, fname)
 
@@ -34,8 +42,7 @@ def main():
 def process_table(
     table: str, file_path: os.PathLike, export_path: os.PathLike, fname: str
 ):
-    h5path = os.path.join(export_path, f"{table}_{fname}.h5")
-    data = u4convert.table_to_dict(file_path, table)
+    data = u4sql.table_to_dict(file_path, table)
     if data:
         if "asce" in file_path:
             chunked_path = os.path.join(export_path, "Insar_chunks", "ASCE")
@@ -48,7 +55,7 @@ def process_table(
                 export_path, "Insar_chunks", "BBD_Vert"
             )
         u4convert.chunk_data(
-            data, chunked_path, chunksize=250, min_values=3, compress=False
+            data, chunked_path, chunksize=250, min_values=3, compress=True
         )
 
 
