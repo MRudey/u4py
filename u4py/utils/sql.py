@@ -12,27 +12,53 @@ import u4py.utils.config as u4config
 
 
 def get_table_names(file_path: os.PathLike) -> list:
-    """Gets all tables which start with 'Zeitreihe_'"""
+    """
+    Gets all tables which start with:
+        'Zeitreihe_',
+        'Ost_West', or
+        'vertikal'
+    """
     logging.debug("Getting table names.")
     con = sql.connect(file_path)
     cur = con.cursor()
 
-    # Get all table names
+    # Get all table names for ascending and descending data
     tables = [
         res[0]
         for res in cur.execute(
             "SELECT name FROM sqlite_schema WHERE type='table' AND name LIKE 'Zeitreihe_%'"
         )
     ]
+    # Append vertical and east-west datasets
+    tables.extend(
+        [
+            res[0]
+            for res in cur.execute(
+                "SELECT name FROM sqlite_schema WHERE type='table' AND name LIKE 'vertikal%'"
+            )
+        ]
+    )
+    tables.extend(
+        [
+            res[0]
+            for res in cur.execute(
+                "SELECT name FROM sqlite_schema WHERE type='table' AND name LIKE 'Ost_West%'"
+            )
+        ]
+    )
     con.close()
     if not tables:
         logging.info("No Tables according to scheme found.")
+    else:
+        logging.info(f"Found {len(tables)} tables in {file_path}")
+        for ii, t in enumerate(tables):
+            logging.debug(f" {ii:03g}: {t}")
     return tables
 
 
 def map_queries(queries):
     """Maps Queries to a parallel processing pool"""
-    logging.info(f"Starting parallel sql extraction.")
+    logging.info("Starting parallel sql extraction.")
     with Pool(u4config.slurm_cpus) as p:
         results = list(
             tqdm(
@@ -87,18 +113,20 @@ def table_to_dict(file_path: os.PathLike, table: str) -> dict:
         has_time = False
         mean_vel = np.zeros(num_points)
         var_mean_vel = np.zeros(num_points)
-    elif "PS_ID" in all_keys:
+    elif "PS_ID" in all_keys:  # ASCE and DESC Data
         non_time_keys = ["X", "Y", "Z", "PS_ID", "Shape", "OBJECTID"]
         id_key = "PS_ID"
-    if "Input" in all_keys:
+    if "Input" in all_keys:  # L3 Data
         non_time_keys = [
+            "OBJECTID",
+            "Shape",
+            "ID",
+            "Input",
             "X",
             "Y",
             "Z",
-            "ID",
-            "Input",
-            "mean_velo_city",
-            "var_mean_velocity",
+            "mean_velo_vert",
+            "var_mean_velo_vert",
         ]
         id_key = "ID"
 

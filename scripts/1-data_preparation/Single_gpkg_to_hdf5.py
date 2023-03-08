@@ -44,7 +44,7 @@ def main():
     if file_list:
         logging.info("Processing list:")
         for ii, file_name in enumerate(file_list):
-            logging.info(f" {ii}: {file_name}")
+            logging.info(f" {ii:03g}: {file_name}")
         chunk_file_list(file_list)
     else:
         logging.info("File List is empty. Evaluation stopped.")
@@ -67,7 +67,7 @@ def setup_parser():
         "--cpus",
         help="Number of CPUs to use for parallel processing (currently only for SQL queries).",
         metavar="number",
-        default=os.cpu_count(),
+        default=os.cpu_count() - 2,
         type=int,
     )
     parser.add_argument(
@@ -117,6 +117,8 @@ def process_table(
             chunked_path = os.path.join(export_path, "BBD_EW")
         elif "Vertikal" in file_path:
             chunked_path = os.path.join(export_path, "BBD_Vert")
+        elif "l3" in file_path:
+            chunked_path = os.path.join(export_path)
 
         u4convert.chunk_data_numba(
             data, chunked_path, chunksize=250, min_values=3, compress=True
