@@ -8,8 +8,12 @@ from multiprocessing import Pool
 import numpy as np
 from tqdm import tqdm
 
+import u4py.utils.config as u4config
+
 
 def get_table_names(file_path: os.PathLike) -> list:
+    """Gets all tables which start with 'Zeitreihe_'"""
+    logging.debug("Getting table names.")
     con = sql.connect(file_path)
     cur = con.cursor()
 
@@ -21,13 +25,15 @@ def get_table_names(file_path: os.PathLike) -> list:
         )
     ]
     con.close()
+    if not tables:
+        logging.info("No Tables according to scheme found.")
     return tables
 
 
 def map_queries(queries):
     """Maps Queries to a parallel processing pool"""
     logging.info(f"Starting parallel sql extraction.")
-    with Pool() as p:
+    with Pool(u4config.slurm_cpus) as p:
         results = list(
             tqdm(
                 p.map(multi_proc_query, queries),
@@ -112,7 +118,7 @@ def table_to_dict(file_path: os.PathLike, table: str) -> dict:
 
     if has_time:
         con.close()
-        logging.info(f"Getting timeseries")
+        logging.debug(f"Getting timeseries")
         key_list = [k for k in all_keys if k not in non_time_keys]
         time = np.array([sql_key_to_time(k) for k in key_list])
         num_fields = len(key_list)
@@ -123,10 +129,11 @@ def table_to_dict(file_path: os.PathLike, table: str) -> dict:
             for jj, k in enumerate(key_list)
         ]
         results = map_queries(queries)
+        logging.debug("Aggregating results of queries to timeseries array.")
         for r in results:
             timeseries[:, r[1]] = np.array(r[0])
     else:
-        logging.info(f"Getting means.")
+        logging.debug(f"Getting means.")
         mean_vel = np.array(
             [
                 value[0]

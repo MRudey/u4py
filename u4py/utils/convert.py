@@ -1,6 +1,7 @@
 """ Contains functions for file conversion """
 import logging
 import os
+import time
 from datetime import datetime, timedelta
 from multiprocessing import Manager, Pool
 
@@ -9,8 +10,11 @@ import h5py
 import numpy as np
 import shapely.geometry as shpgeo
 from dbfread import DBF
+from numba import jit, prange
+from numba_progress import ProgressBar
 from tqdm import tqdm
 
+import u4py.utils.config as u4config
 import u4py.utils.files as u4files
 
 
@@ -174,20 +178,22 @@ def chunk_data(data, save_folder, chunksize=1000, min_values=5, compress=True):
     Chunks data into many smaller files with spanning a square of `chunksize`
     meters. Discards chunks with less than `min_values`.
     """
-    logging.info(f"Chunking data.")
+    logging.info(f"Chunking data with multiprocessing.")
     xrange = get_bounds(np.min(data["x"]), np.max(data["x"]), chunksize)
     yrange = get_bounds(np.min(data["y"]), np.max(data["y"]), chunksize)
     chunk_list = get_chunks(xrange, yrange)
     os.makedirs(save_folder, exist_ok=True)
+    logging.debug("Creating data manager.")
     manager = Manager()
     d = manager.dict(data)
 
+    logging.debug("Creating arguments for parallel data chunking.")
     args = [
         (chunk, chunksize, min_values, compress, save_folder, d)
         for chunk in chunk_list
     ]
-    logging.info(f"Starting parallel pool for data chunking.")
-    with Pool() as p:
+    logging.debug(f"Starting parallel pool for data chunking.")
+    with Pool(u4config.slurm_cpus) as p:
         results = list(
             tqdm(
                 p.map(chunking_worker, args),
@@ -199,7 +205,62 @@ def chunk_data(data, save_folder, chunksize=1000, min_values=5, compress=True):
     return results
 
 
-def chunking_worker(args):
+def chunk_data_numba(
+    data: dict,
+    save_folder: os.PathLike,
+    chunksize: int = 1000,
+    min_values: int = 5,
+    compress: bool = True,
+):
+    """
+    Chunks data into many smaller files with spanning a square of `chunksize`
+    meters. Discards chunks with less than `min_values`.
+    """
+    logging.info(f"Chunking data with numba.")
+    xrange = get_bounds(np.min(data["x"]), np.max(data["x"]), chunksize)
+    yrange = get_bounds(np.min(data["y"]), np.max(data["y"]), chunksize)
+    chunk_list = get_chunks(xrange, yrange)
+    os.makedirs(save_folder, exist_ok=True)
+    total = len(chunk_list)
+
+    with ProgressBar(desc="Chunking Data", total=total) as progress:
+        numba_chunking(
+            total,
+            chunk_list,
+            chunksize,
+            min_values,
+            compress,
+            save_folder,
+            data,
+            progress,
+        )
+
+
+@jit(parallel=True)
+def numba_chunking(
+    total: int,
+    chunk_list: list,
+    chunksize: int,
+    min_values: int,
+    compress: bool,
+    save_folder: os.PathLike,
+    data: dict,
+    progress_proxy: ProgressBar,
+):
+    for ii in prange(total):
+        args = (
+            chunk_list[ii],
+            chunksize,
+            min_values,
+            compress,
+            save_folder,
+            data,
+        )
+        chunking_worker(args)
+        progress_proxy.update(1)
+
+
+def chunking_worker(args) -> str:
     """Encapsulated worker for getting a chunk out of the data."""
     chunk = args[0]
     chunksize = args[1]
@@ -216,12 +277,13 @@ def chunking_worker(args):
 
     if len(slc[0]) > min_values:
         chunk_name = "PSI_chunk_x%i_y%i.h5" % (chunk[0], chunk[2])
-        output = dict()
-        for k in data.keys():
-            if k == "time":
-                output[k] = data[k]
-            else:
-                output[k] = data[k][slc]
+
+        logging.debug(f"Reading chunk data for {chunk_name}")
+        start_time = time.time()
+        output = slice_array(data, slc)
+        run_time = time.time() - start_time
+        logging.debug(f"Reading {chunk_name} took {run_time:.3} seconds.")
+
         output["xmid"] = chunk[0] + 0.5 * chunksize
         output["ymid"] = chunk[2] + 0.5 * chunksize
         output["num_points"] = len(slc[0])
@@ -240,23 +302,40 @@ def chunking_worker(args):
             return chunk_name
 
 
-def get_bounds(minval, maxval, chunksize):
+def slice_array(data: dict, slc: slice) -> dict:
+    output = dict()
+    for k in data.keys():
+        if k == "time":
+            output[k] = data[k]
+        else:
+            output[k] = data[k][slc]
+    return output
+
+
+def get_bounds(minval: float, maxval: float, chunksize: int) -> np.ndarray:
     """
     Returns boundaries for given chunksize
     """
     minbound = int(np.floor(minval / chunksize) * chunksize)
     maxbound = int(np.ceil(maxval / chunksize) * chunksize)
-    return np.arange(minbound, maxbound, chunksize)
+    out = np.arange(minbound, maxbound, chunksize)
+    return out
 
 
-def get_chunks(xrange, yrange):
+@jit(nopython=True)
+def get_chunks(xrange: np.ndarray, yrange: np.ndarray) -> list:
     """
     Returns the corners for chunking
     """
     chunk_list = []
-    for ii, xm in enumerate(xrange):
+    len_x = len(xrange)
+    len_y = len(yrange)
+
+    for ii in range(len_x):
+        xm = xrange[ii]
         if ii < len(xrange) - 1:
-            for jj, ym in enumerate(yrange):
+            for jj in range(len_y):
+                ym = yrange[jj]
                 if jj < len(yrange) - 1:
                     chunk_list.append([xm, xrange[ii + 1], ym, yrange[jj + 1]])
     return chunk_list
@@ -297,7 +376,9 @@ def dict_to_hdf5(
     Saves contents of dictionary into given h5 file. Dates are converted to
     strings following ISO date formatting.
     """
-    logging.debug(f"Saving data to {h5path}.")
+    _, fname = os.path.split(h5path)
+    logging.debug(f"Saving data to {fname}.")
+    start_time = time.time()
     with h5py.File(h5path, "w") as h5file:
         for k, v in data.items():
             if isinstance(v, dict):
@@ -308,6 +389,9 @@ def dict_to_hdf5(
                     )
             else:
                 create_datasets(h5file, k, v, compression, compression_opts)
+    end_time = time.time()
+    run_time = end_time - start_time
+    logging.debug(f"Saving {fname} took {run_time:.3} seconds.")
 
 
 def create_datasets(h5group, k, v, compression, compression_opts):
