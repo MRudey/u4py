@@ -127,6 +127,8 @@ def table_to_dict(file_path: os.PathLike, table: str) -> dict:
             "Z",
             "mean_velo_vert",
             "var_mean_velo_vert",
+            "mean_velo_east",
+            "var_mean_velo_east",
         ]
         id_key = "ID"
 
