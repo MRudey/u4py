@@ -113,12 +113,10 @@ def process_table(
             chunked_path = os.path.join(export_path, "ASCE")
         elif "desc" in file_path:
             chunked_path = os.path.join(export_path, "DESC")
-        elif "Ost_West" in file_path:
+        elif ("Ost_West" in file_path) or (table == "Ost_West"):
             chunked_path = os.path.join(export_path, "BBD_EW")
-        elif "Vertikal" in file_path:
+        elif ("Vertikal" in file_path) or (table == "vertikal"):
             chunked_path = os.path.join(export_path, "BBD_Vert")
-        elif "l3" in file_path:
-            chunked_path = os.path.join(export_path)
 
         u4convert.chunk_data_numba(
             data, chunked_path, chunksize=250, min_values=3, compress=True
