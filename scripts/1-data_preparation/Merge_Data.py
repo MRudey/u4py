@@ -1,10 +1,12 @@
 import os
-from multiprocessing import Pool, cpu_count
+from multiprocessing import Pool
+
+from tqdm import tqdm
 
 import u4py.analysis.processing as u4process
+import u4py.utils.config as u4config
 import u4py.utils.convert as u4convert
 import u4py.utils.files as u4files
-from tqdm import tqdm
 
 
 def main():
@@ -13,7 +15,7 @@ def main():
     inputs = [(base_path, fn) for fn in common_files]
     os.makedirs(os.path.join(base_path, "merged"), exist_ok=True)
     # u4convert.merge_data(inputs[0])
-    with Pool(cpu_count() - 2) as p:
+    with Pool(u4config.cpu_count) as p:
         list(
             tqdm(
                 p.imap_unordered(u4convert.merge_data, inputs),

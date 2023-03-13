@@ -1,11 +1,16 @@
-""" Converts a gpkg file containing points with timeseries into hdf5 """
+"""
+Converts a gpkg file containing points with timeseries into chunked hdf5 files.
+
+#Parallelized
+#SLURM
+"""
 
 
-import argparse
 import logging
 import os
 import sys
 
+import u4py.utils.cmd_args as u4cmds
 import u4py.utils.config as u4config
 import u4py.utils.convert as u4convert
 import u4py.utils.files as u4files
@@ -14,31 +19,21 @@ import u4py.utils.sql as u4sql
 logging.basicConfig(
     format="[%(levelname)s] %(funcName)s: %(message)s",
     stream=sys.stdout,
-    level=logging.INFO,
+    level=u4config.log_level,
 )
 
 
 def main():
-    # Get commandline arguments
-    parser = setup_parser()
-    args = parser.parse_args()
+    # Enable commandline arguments
+    u4cmds.load(module_descript=__doc__)
 
     # Get the file list
-    if args.file_path:
+    if u4config.in_path:
         file_list = [
-            args.file_path,
+            u4config.in_path,
         ]
     else:
         file_list = u4files.get_file_paths(filetypes=(("*.gpkg", "*.gpkg"),))
-
-    # Adapt logger level when set to verbose (-v)
-    if args.verbose:
-        logging.getLogger().setLevel(logging.DEBUG)
-    logging.info(f"Set loglevel to {log_level(logging.getLogger().level)}.")
-
-    # Adjust number of cpus
-    u4config.slurm_cpus = args.cpus
-    logging.info(f"Using {u4config.slurm_cpus} CPUs.")
 
     # START PROCESSING
     if file_list:
@@ -49,34 +44,6 @@ def main():
     else:
         logging.info("File List is empty. Evaluation stopped.")
         return
-
-
-def setup_parser():
-    parser = argparse.ArgumentParser(
-        description="Converts gpkg file(s) to a chunked dataset."
-    )
-    parser.add_argument(
-        "-i",
-        "--file_path",
-        help="Filepath of the gpkg file. You will be asked to provide one when empty.",
-        metavar="path_to_file",
-        default=None,
-    )
-    parser.add_argument(
-        "-c",
-        "--cpus",
-        help="Number of CPUs to use for parallel processing (currently only for SQL queries).",
-        metavar="number",
-        default=os.cpu_count() - 2,
-        type=int,
-    )
-    parser.add_argument(
-        "-v",
-        "--verbose",
-        help="Sets the logging level to DEBUG",
-        action="store_true",
-    )
-    return parser
 
 
 def chunk_file_list(file_list):
@@ -121,22 +88,6 @@ def process_table(
         u4convert.chunk_data_numba(
             data, chunked_path, chunksize=250, min_values=3, compress=True
         )
-
-
-def log_level(num: int) -> str:
-    """Converts loglevel number into string"""
-    if num == 50:
-        return "CRITICAL"
-    elif num == 40:
-        return "ERROR"
-    elif num == 30:
-        return "WARNING"
-    elif num == 20:
-        return "INFO"
-    elif num == 10:
-        return "DEBUG"
-    elif num == 0:
-        return "NOTSET"
 
 
 if __name__ == "__main__":
