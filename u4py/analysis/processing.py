@@ -1,12 +1,14 @@
 import os
 import pickle
-from multiprocessing import Pool, cpu_count
+from multiprocessing import Pool
 
 import numpy as np
-import u4py.analysis.inversion as u4invert
-import u4py.utils.files as u4files
 from scipy import optimize as spopt
 from tqdm import tqdm
+
+import u4py.analysis.inversion as u4invert
+import u4py.utils.config as u4config
+import u4py.utils.files as u4files
 from u4py.utils.convert import dict_to_hdf5
 
 
@@ -76,7 +78,7 @@ def process_file(file_path, overwrite=False):
 
 def process_file_list(file_list, fnc=process_file):
     """Uses parallel processing to process a list of files"""
-    with Pool(cpu_count() - 2) as p:
+    with Pool(u4config.cpu_count) as p:
         results = list(
             tqdm(
                 p.imap_unordered(fnc, file_list),

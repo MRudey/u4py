@@ -59,7 +59,7 @@ def get_table_names(file_path: os.PathLike) -> list:
 def map_queries(queries):
     """Maps Queries to a parallel processing pool"""
     logging.info("Starting parallel sql extraction.")
-    with Pool(u4config.slurm_cpus) as p:
+    with Pool(u4config.cpu_count) as p:
         results = list(
             tqdm(
                 p.map(multi_proc_query, queries),

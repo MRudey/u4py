@@ -1,3 +1,6 @@
+import logging
 import os
 
-slurm_cpus = os.cpu_count()
+cpu_count = os.cpu_count()
+in_path = ""
+log_level = logging.INFO

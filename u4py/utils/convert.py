@@ -193,7 +193,7 @@ def chunk_data(data, save_folder, chunksize=1000, min_values=5, compress=True):
         for chunk in chunk_list
     ]
     logging.debug(f"Starting parallel pool for data chunking.")
-    with Pool(u4config.slurm_cpus) as p:
+    with Pool(u4config.cpu_count) as p:
         results = list(
             tqdm(
                 p.map(chunking_worker, args),
