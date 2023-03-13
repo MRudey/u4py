@@ -39,6 +39,11 @@ def get_folder_paths(**kwargs):
     folder_path = ""
     try:
         root = Tk()
+    except TclError:
+        print("No display detected.")
+        folder_path = input("Enter folder path:")
+        return folder_path
+    try:
         root.withdraw()
         folder_path = filedialog.askdirectory(**kwargs)
     finally:
@@ -80,7 +85,8 @@ def get_data(h5group, timefmt="datetime", ind=None):
         "floatyear": u4convert.get_floatyear,
     }
     data = dict()
-    ind.sort()
+    if ind:
+        ind.sort()
     for k in h5group.keys():
         if k == "time" or k == "t":
             v = np.array(
