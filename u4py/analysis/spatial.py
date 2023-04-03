@@ -1,3 +1,6 @@
+import os
+from os import PathLike
+
 import geopandas as gp
 import h5py
 import numpy as np
@@ -5,7 +8,7 @@ import osmnx
 import rasterio as rio
 import rasterio.warp as riowarp
 import scipy.spatial as spspatial
-import shapely.geometry as shpgeo
+import shapely
 
 
 def get_features(in_dict: dict, features: list):
@@ -64,20 +67,36 @@ def get_cKDTree(file_path):
     return spspatial.cKDTree(coords)
 
 
-def get_coords(file_path):
+def get_coords(file_path: PathLike) -> list:
     """
-    Loads all x and y coordinates from the given hdf5 file
+    Loads all x and y coordinates from the given hdf5 file.
+
+    Works with single hdf files as well as folders with many files.
     """
-    with h5py.File(file_path, "r") as h5file:
-        coords = np.array(
-            [(x, y) for x, y in zip(h5file["x"][()], h5file["y"][()])]
-        )
+    if file_path.endswith(".h5"):
+        with h5py.File(file_path, "r") as h5file:
+            coords = np.array(
+                [
+                    shapely.Point(x, y)
+                    for x, y in zip(h5file["x"][()], h5file["y"][()])
+                ]
+            )
+    else:
+        coords = [
+            shapely.Point(
+                int(f[f.find("_x") + 2 : f.find("_y")]),
+                int(f[f.find("_y") + 2 : f.find(".h5")]),
+            )
+            for f in os.listdir(file_path)
+            if f.endswith(".h5")
+        ]
     return coords
 
 
-def select_points(query, psi_file_path):
+def select_points_osm(query, psi_file_path):
     """
-    Selects points from the specified file and crops them by the rectangles found in the given osm query
+    Selects points from the specified file or files in folder
+    and crops them by the rectangles found in the given osm query.
     """
 
     osm_data = osmnx.geometries_from_address(
@@ -87,7 +106,7 @@ def select_points(query, psi_file_path):
     coords = get_coords(psi_file_path)
     points = gp.GeoDataFrame(
         {
-            "geometry": shpgeo.MultiPoint(coords),
+            "geometry": coords,
             "source_index": np.arange(len(coords)),
         },
         crs="EPSG:32632",
@@ -104,7 +123,7 @@ def select_points_region(region, psi_file_path):
     coords = get_coords(psi_file_path)
     points = gp.GeoDataFrame(
         {
-            "geometry": shpgeo.MultiPoint(coords),
+            "geometry": coords,
             "source_index": np.arange(len(coords)),
         },
         crs="EPSG:32632",
@@ -114,12 +133,12 @@ def select_points_region(region, psi_file_path):
 
 def select_points_point(point, radius, psi_file_path):
     region = gp.GeoDataFrame(
-        {"geometry": [shpgeo.Point(point).buffer(radius)]}, crs="EPSG:32632"
+        {"geometry": [shapely.Point(point).buffer(radius)]}, crs="EPSG:32632"
     )
     coords = get_coords(psi_file_path)
     points = gp.GeoDataFrame(
         {
-            "geometry": shpgeo.MultiPoint(coords),
+            "geometry": coords,
             "source_index": np.arange(len(coords)),
         },
         crs="EPSG:32632",

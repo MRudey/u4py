@@ -19,7 +19,11 @@ import u4py.utils.files as u4files
 
 
 def main():
-    psivert_path = r"C:\Users\Michael Rudolf\Documents\ArcGIS\INSAR_Data\BBD_2021_PSI_Vertikal.h5"
+    psivert_path = (
+        r"C:\Users\Michael Rudolf\Documents\ArcGIS\Data_2023\BBD_Vert"
+    )
+    # psivert_path = r"C:\Users\Michael Rudolf\Documents\ArcGIS\Data_2021\INSAR_Data\BBD_2021_PSI_Vertikal.h5"
+    psi_source = "L3_BBD_Vert_2023"
     damage_shp = gp.GeoDataFrame.from_file(
         r"C:\Users\Michael Rudolf\Documents\ArcGIS\Places\Gebaudeschaeden.shp"
     )
@@ -32,7 +36,7 @@ def main():
         },
     }
     # Get points from file, if not available creates new file
-    points = u4files.get_select_points(query, psivert_path)
+    points = u4files.get_select_points_osm(query, psivert_path)
     region = gp.GeoDataFrame(
         {
             "geometry": [
@@ -48,19 +52,35 @@ def main():
         },
         crs=points.crs,
     )
-    points_region = u4files.get_region_points(
+    points_region, _ = u4files.get_region_points(
         region, "Crumstadt", psivert_path
     )
     points_well = u4files.get_point_points(
         (464350, 5516100), 300, "OilWell", psivert_path
     )
 
-    ind = points.source_ind.to_numpy()
-    ind_region = points_region.source_ind.to_numpy()
-    ind_well = points_well.source_ind.to_numpy()
-    psi_data = u4files.load_hdf5(psivert_path, ind=ind)
-    psi_data_region = u4files.load_hdf5(psivert_path, ind=ind_region)
-    psi_data_well = u4files.load_hdf5(psivert_path, ind=ind_well)
+    # Loading for a single file:
+    if psivert_path.endswith(".h5"):
+        ind = points.source_ind.to_numpy()
+        ind_region = points_region.source_ind.to_numpy()
+        ind_well = points_well.source_ind.to_numpy()
+        psi_data = u4files.load_hdf5(psivert_path, ind=ind)
+        psi_data_region = u4files.load_hdf5(psivert_path, ind=ind_region)
+        psi_data_well = u4files.load_hdf5(psivert_path, ind=ind_well)
+
+    # Loading for a folder of split files (better parallelization)
+    else:
+        psi_data_filelist = u4files.points_to_filelist(points, psivert_path)
+        psi_data = u4files.load_hdf5_list(psi_data_filelist)
+        psi_data_region_filelist = u4files.points_to_filelist(
+            points_region, psivert_path
+        )
+        psi_data_region = u4files.load_hdf5_list(psi_data_region_filelist)
+        psi_data_well_filelist = u4files.points_to_filelist(
+            points_well, psivert_path
+        )
+        psi_data_well = u4files.load_hdf5_list(psi_data_well_filelist)
+
     slope = get_linfit_each(psi_data_region)
 
     damage_shp = damage_shp.to_crs(points.crs)
@@ -71,13 +91,13 @@ def main():
         r"C:\Users\Michael Rudolf\Documents\ArcGIS\Places\Tiefenlinie_Top_Sand_7.shp"
     )
     date_rhine, level_rhine = load_rhine_date(
-        r"C:\Users\Michael Rudolf\PowerFolders\Umwelt_4_privat\scripts\Wasserstand des Rheins bei Düsseldorf monatlich ab 1996.csv"
+        r"C:\Users\Michael Rudolf\HESSENBOX-DA\Umwelt_4_privat\scripts\Wasserstand des Rheins bei Düsseldorf monatlich ab 1996.csv"
     )
     date_gas, level_gas = load_gas_data(
-        r"C:\Users\Michael Rudolf\PowerFolders\Umwelt_4_privat\scripts\Inventory Turnover Data.txt"
+        r"C:\Users\Michael Rudolf\HESSENBOX-DA\Umwelt_4_privat\scripts\Inventory Turnover Data_23.txt"
     )
     date, temp_m, temp_x, temp_n, rain = np.loadtxt(
-        r"C:\Users\Michael Rudolf\PowerFolders\Umwelt_4_privat\scripts\klarchiv_01420_month_his\produkt_klima_monat_19350701_20211231_01420.txt",
+        r"C:\Users\Michael Rudolf\HESSENBOX-DA\Umwelt_4_privat\scripts\klarchiv_01420_month_his\produkt_klima_monat_19350701_20211231_01420.txt",
         skiprows=1,
         delimiter=";",
         usecols=(1, 5, 6, 7, 14),
@@ -145,7 +165,7 @@ def main():
     axes[0].legend(loc="upper right")
     fig_path = os.path.join(
         r"C:\Users\Michael Rudolf\Documents\ArcGIS\selected_psi_points",
-        query["address"],
+        query["address"] + "_" + psi_source,
     )
     # plt.show()
     contextily.add_basemap(
@@ -385,7 +405,10 @@ def date2num_rhine(y):
 
 def date2num_gas(y):
     "06. 12. 2020"
-    date = datetime.strptime(y, "%d. %m. %Y")
+    try:
+        date = datetime.strptime(y, "%d. %m. %Y")
+    except ValueError:
+        date = datetime.strptime(y, "%d.%m.%Y")
     return date
 
 
@@ -397,7 +420,7 @@ def load_gas_data(file_path):
         for row in gasfile.readlines():
             row_text = row.split("\t")
             date.append(date2num_gas(row_text[0]))
-            level.append(float(row_text[3].replace("\n", "").replace(" ", "")))
+            level.append(float(row_text[1].replace("\n", "").replace(" ", "")))
     return date, level
 
 

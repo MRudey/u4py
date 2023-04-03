@@ -64,7 +64,7 @@ def get_file_list(filetype=".h5", folder_path=None, **kwargs):
     return file_list
 
 
-def load_hdf5(file_path, timefmt="datetime", ind=None):
+def load_hdf5(file_path, timefmt="datetime", ind=np.array([])):
     """
     Loads data from a hdf5 file. Converts timestamps to datetime.
     Different timestamp formats are supported:
@@ -76,7 +76,72 @@ def load_hdf5(file_path, timefmt="datetime", ind=None):
     return data
 
 
-def get_data(h5group, timefmt="datetime", ind=None):
+def load_hdf5_list(file_list: list, timefmt: str = "datetime"):
+    """Loads and collects all data from all files in the file list.
+
+    Args:
+        file_list (list): A list of hdf5 files created from a gpkg file
+        timefmt (str, optional): Timestamp format for 'load_hdf5'. Defaults to "datetime".
+    """
+    data = dict()
+    for h5path in file_list:
+        data_new = load_hdf5(h5path, timefmt)
+        if not data:
+            data.update(data_new)
+        else:
+            data = merge_data(data, data_new)
+
+    return data
+
+
+def merge_data(data: dict, data_new: dict) -> dict:
+    """Updates the contents of data depending on the content
+
+    Args:
+        data (dict): The current data dictionary
+        data_new (dict): The data to be added
+
+    Returns:
+        dict: Merged data dictionary
+    """
+
+    if data_new["chunk_size"] != data["chunk_size"]:
+        raise NotImplementedError(
+            "You are attempting to merge two files with different chunk size."
+        )
+    data["num_points"] += data_new["num_points"]
+    data["ps_id"] = np.hstack((data["ps_id"], data_new["ps_id"]))
+    data["x"] = np.hstack((data["x"], data_new["x"]))
+    data["xmid"] = np.mean(data["x"])
+    data["y"] = np.hstack((data["y"], data_new["y"]))
+    data["ymid"] = np.mean(data["y"])
+    data["z"] = np.hstack((data["z"], data_new["z"]))
+    data["timeseries"] = np.vstack(
+        (data["timeseries"], data_new["timeseries"])
+    )
+    return data
+
+
+def points_to_filelist(gdf: gp.GeoDataFrame, data_folder: os.PathLike) -> list:
+    """Gets a list of files to load the data from
+
+    Args:
+        gdf (gp.GeoDataFrame): A dataframe containing the points.
+        data_folder (os.PathLike): Folder path where a hdf5 file for each
+        point in the dataframe is found.
+
+    Returns:
+        list: List of all files to be loaded for data aggregation.
+    """
+
+    file_list = [
+        os.path.join(data_folder, f"PSI_chunk_x{int(p.x)}_y{int(p.y)}.h5")
+        for p in gdf.geometry
+    ]
+    return file_list
+
+
+def get_data(h5group, timefmt="datetime", ind=np.array([])):
     """
     Recursively gets data from a group. Going deeper if a group is found.
     """
@@ -85,8 +150,10 @@ def get_data(h5group, timefmt="datetime", ind=None):
         "floatyear": u4convert.get_floatyear,
     }
     data = dict()
-    if ind:
+    if ind.any():
         ind.sort()
+    else:
+        ind = None
     for k in h5group.keys():
         if k == "time" or k == "t":
             v = np.array(
@@ -130,7 +197,7 @@ def multi_split(file_path: os.PathLike, nsplits: int):
     return file_path
 
 
-def get_select_points(query, psi_file_path, overwrite=False):
+def get_select_points_osm(query, psi_file_path, overwrite=False):
     base_folder, source_name = os.path.split(psi_file_path)
     point_files_folder = os.path.join(
         os.path.split(base_folder)[0], "selected_psi_points"
@@ -144,7 +211,7 @@ def get_select_points(query, psi_file_path, overwrite=False):
     if os.path.exists(point_file_path) and not overwrite:
         points = gp.GeoDataFrame.from_file(point_file_path)
     else:
-        points = u4spatial.select_points(query, psi_file_path)
+        points = u4spatial.select_points_osm(query, psi_file_path)
         points.to_file(point_file_path)
         points = gp.GeoDataFrame.from_file(point_file_path)
     return points
