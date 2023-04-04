@@ -1,9 +1,11 @@
-import os
 import datetime
+import os
 
 import arcpy
-import numpy as np
 import h5py
+import numpy as np
+
+import u4py.utils.convert as u4convert
 
 
 def main():
@@ -133,7 +135,7 @@ def convert_file(file_path):
     base_path, fname_ext = os.path.split(file_path)
     base_path, _ = os.path.split(base_path)
     fname, _ = os.path.splitext(fname_ext)
-    data = psi_dbf_to_dict(file_path)
+    data = u4convert.psi_dbf_to_dict(file_path)
     h5path = os.path.join(base_path, fname + ".h5")
     dict_to_hdf5(h5path, data)
 
