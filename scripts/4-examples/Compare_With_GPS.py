@@ -1,3 +1,5 @@
+""" Compares the detected ground motion with local GNSS stations"""
+
 import datetime
 import os
 import shutil
