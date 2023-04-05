@@ -1,4 +1,7 @@
-""" Lets the user define a region and fits all PSI points in it """
+"""
+Plots the regional ground motion in Crumstadt, Hessen and some additional data
+for it.
+"""
 
 
 import os
