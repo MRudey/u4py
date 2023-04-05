@@ -1,5 +1,6 @@
 import os
 from os import PathLike
+from typing import Tuple
 
 import geopandas as gp
 import h5py
@@ -144,3 +145,9 @@ def select_points_point(point, radius, psi_file_path):
         crs="EPSG:32632",
     )
     return points.clip(region)
+
+
+def get_rois(file_path: os.PathLike) -> list[Tuple[str, gp.GeoDataFrame]]:
+    regions = gp.read_file(file_path)
+    rois = [(r[1], r[2]) for r in regions.values]
+    return rois

@@ -244,7 +244,7 @@ def plot_map(axes, data_region, crs, places_path):
     axes[0].set_ylim(5514800, 5520400)
     axes[0].set_xlabel("Longitude (m)")
     axes[0].set_ylabel("Latitude (m)")
-    u4plotfmt.map_style_ticks(axes[0], divisor=2000)
+    u4plotfmt.map_style(axes[0], divisor=2000)
 
 
 def add_timeseries(data, ax, title, legend=True, shareax=False):

@@ -35,15 +35,18 @@ def add_map_label(text: str, coords: tuple, ax: Axes):
     )
 
 
-def map_style_ticks(ax: Axes, divisor: int = 0):
-    """Changes the x and y ticks to be in a good format for a map.
+def map_style(ax: Axes, divisor: int = 0, grid: bool = True):
+    """Changes axis to be in a good format for a map.
 
     Arguments:
         ax -- The axis object containing the map.
 
     Keyword Arguments:
         divisor -- The tick divisor (default: {0}).
+        grid -- Plot a red grid (default: {True}).
     """
+    if grid:
+        ax.grid("True", color="r", alpha=0.3)
     try:
         ax.ticklabel_format(style="plain")
     except AttributeError:
@@ -57,6 +60,8 @@ def map_style_ticks(ax: Axes, divisor: int = 0):
         ticks = ax.get_xticks()
         new_ticks = [yt for yt in ticks if np.remainder(yt, divisor) == 0]
         ax.set_xticks(new_ticks)
+    else:
+        ax.set_yticks(ax.get_yticks())
 
     ax.set_yticklabels(
         ax.get_yticks().astype(int),

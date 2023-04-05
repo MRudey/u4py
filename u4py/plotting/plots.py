@@ -273,9 +273,11 @@ def plot_gridded(
     # Size of Figure (adapted to region of interest)
     figwidth = 11.7
     figheight = 8.27
+    bounds = ()
     if roi is not None:
-        width = roi[2] - roi[0]
-        height = roi[3] - roi[1]
+        bounds = roi.bounds
+        width = bounds[2] - bounds[0]
+        height = bounds[3] - bounds[1]
         ratio = width / height
         figwidth = ratio * 1.25 * figwidth
 
@@ -331,10 +333,9 @@ def plot_gridded(
 
     # Fromatting and basemaps
     for ax in axes:
-        ax.grid("True", color="r", alpha=0.3)
-        u4plotfmt.map_style_ticks(ax=ax)
         if base_map_path:
             u4ax.add_basemap(base_map_path, ax=ax)
+            u4plotfmt.add_copyright("Basemap: OSM", ax=ax)
         if tektonik_path:
             u4ax.add_shapefile(
                 tektonik_path, ax=ax, color="k", zorder=2, linewidth=1
@@ -344,9 +345,11 @@ def plot_gridded(
     axes[1].set_title("Seasonal Component", fontweight="bold")
     if suptitle:
         fig.suptitle(suptitle, fontsize="large", fontweight="bold")
-    if roi is not None:
-        axes[0].set_xlim(roi[0], roi[2])
-        axes[0].set_ylim(roi[1], roi[3])
+    if bounds:
+        axes[0].set_xlim(bounds[0], bounds[2])
+        axes[0].set_ylim(bounds[1], bounds[3])
+        u4plotfmt.map_style(ax=axes[0])
+        u4plotfmt.map_style(ax=axes[1])
 
     # Save or show plot
     if save_path:
