@@ -64,24 +64,39 @@ def get_file_list(filetype=".h5", folder_path=None, **kwargs):
     return file_list
 
 
-def load_hdf5(file_path, timefmt="datetime", ind=np.array([])):
-    """
-    Loads data from a hdf5 file. Converts timestamps to datetime.
-    Different timestamp formats are supported:
-        datetime: Python built-in datetime
-        floatyear: Years in float point numbers
+def load_hdf5(file_path, timefmt="datetime", ind=np.array([])) -> dict:
+    """Loads data from a hdf5 file. Converts timestamps to datetime.
+
+    Arguments:
+        file_path -- The path to the hdf5 file.
+
+    Keyword Arguments:
+        timefmt -- Converts timestamps to datetime. (default: {"datetime"})
+            Different timestamp formats are supported:
+                datetime: Python built-in datetime
+                floatyear: Years in float point numbers
+        ind -- The indices of the timeseries to load. Creates a subset of the
+            data from the file (default: {np.array([])})
+
+    Returns:
+        The data as a dictionary.
     """
     with h5py.File(file_path, "r") as h5file:
         data = get_data(h5file, timefmt, ind)
     return data
 
 
-def load_hdf5_list(file_list: list, timefmt: str = "datetime"):
-    """Loads and collects all data from all files in the file list.
+def load_hdf5_list(file_list: list, timefmt: str = "datetime") -> dict:
+    """Loads and merges all data from all files in the file list.
 
-    Args:
-        file_list (list): A list of hdf5 files created from a gpkg file
-        timefmt (str, optional): Timestamp format for 'load_hdf5'. Defaults to "datetime".
+    Arguments:
+        file_list -- A list of hdf5 files created from a gpkg file
+
+    Keyword Arguments:
+        timefmt -- Timestamp format for 'load_hdf5' (default: {"datetime"})
+
+    Returns:
+        The data as a dictionary.
     """
     data = dict()
     for h5path in file_list:

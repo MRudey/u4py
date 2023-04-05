@@ -6,7 +6,7 @@ import scipy.sparse as spsparse
 import scipy.stats as spstats
 
 # import tensorflow as tf
-import u4py.utils.plots as u4plots
+import u4py.plotting.plots as u4plots
 
 
 def create_synthetic_data():

@@ -1,8 +1,9 @@
 import numpy as np
 import scipy.signal as spsig
+
 import u4py.analysis.inversion as u4invert
+import u4py.plotting.plots as u4plots
 import u4py.utils.files as u4files
-import u4py.utils.plots as u4plots
 
 
 def main():

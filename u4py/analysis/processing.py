@@ -32,13 +32,19 @@ def get_processing_results(file_list, overwrite=False):
         pickle_path = "inversion_results.pkl"
     result_path = os.path.join(result_folder, pickle_path)
     if os.path.exists(result_path) and not overwrite:
-        with open(result_path, "rb") as pkl_file:
-            results, chunk_size = pickle.load(pkl_file)
+        results, chunk_size = load_pickle(result_path)
     else:
         results, chunk_size = process_file_list(file_list)
         os.makedirs(result_folder, exist_ok=True)
         with open(result_path, "wb") as pkl_file:
             pickle.dump((results, chunk_size), pkl_file)
+    return results, chunk_size
+
+
+def load_pickle(pickle_path: os.PathLike) -> dict:
+    """Loads the given pickle file for plotting"""
+    with open(pickle_path, "rb") as pkl_file:
+        results, chunk_size = pickle.load(pkl_file)
     return results, chunk_size
 
 
