@@ -1,13 +1,11 @@
 import os
 
-import geopandas
+import geopandas as gp
 import matplotlib.pyplot as plt
-import numpy as np
-import rasterio
-import rasterio.plot as rioplot
 
 import u4py.analysis.processing as u4process
 import u4py.plotting.axes as u4ax
+import u4py.plotting.plots as u4plots
 import u4py.plotting.preparation as u4plotprep
 import u4py.utils.files as u4files
 
@@ -27,58 +25,47 @@ def chunked_analysis(interactive=False):
     places_path = os.path.join(base_folder, "Places")
     plot_folder = os.path.join(base_folder, "INSAR_plots")
     suptitle = get_suptitle(file_list[0])
-    piloten = geopandas.read_file(
-        os.path.join(base_folder, "Places", "Pilotregionen.dbf")
+    piloten = gp.read_file(
+        os.path.join(base_folder, "Places", "Pilotregionen.shp")
     )
 
     slp_2d, sea_2d, extent = load_data(file_list)
-
-    tektonik_hessen = get_tektonik_hessen(
-        os.path.join(places_path, "tektonik.dbf"),
-        os.path.join(places_path, "vg2500_bld.dbf"),
-    )
+    base_map_path = os.path.join(places_path, "hessen_map.tif")
+    tektonik_path = os.path.join(places_path, "tektonik_cropped.shp")
     if interactive:
-        plot_gridded(
+        u4plots.plot_gridded(
             slp_2d,
             sea_2d,
             extent,
-            suptitle,
-            places_path,
-            tektonik_hessen,
+            suptitle=suptitle,
+            base_map_path=base_map_path,
+            tektonik_path=tektonik_path,
             dpi=100,
         )
     else:
-        plot_gridded(
+        u4plots.plot_gridded(
             slp_2d,
             sea_2d,
             extent,
-            suptitle,
-            places_path,
-            tektonik_hessen,
+            suptitle=suptitle,
+            base_map_path=base_map_path,
+            tektonik_path=tektonik_path,
             save_path=os.path.join(plot_folder, f"Hessen_{suptitle}"),
         )
         names = ["Kassel", "Hoher_Meissner", "Werra_Kali", "Rhein-Main"]
         for num, pilot in piloten.values:
             name = names[num - 1]
             roi = pilot.bounds
-            plot_gridded(
+            u4plots.plot_gridded(
                 slp_2d,
                 sea_2d,
                 extent,
-                suptitle,
-                places_path,
-                tektonik_hessen,
+                suptitle=suptitle,
+                base_map_path=base_map_path,
+                tektonik_path=tektonik_path,
                 roi=roi,
                 save_path=os.path.join(plot_folder, f"roi_{name}_{suptitle}"),
             )
-
-
-def get_tektonik_hessen(tektonik_path, bld_path):
-    tektonik = geopandas.read_file(tektonik_path).to_crs("EPSG:32632")
-    bld = geopandas.read_file(bld_path).to_crs("EPSG:32632")
-    hessen = bld[bld["GEN"] == "Hessen"]
-    tektonik_hessen = geopandas.clip(tektonik, hessen)
-    return tektonik_hessen
 
 
 def load_data(file_list: list) -> tuple:
@@ -104,110 +91,6 @@ def get_suptitle(fname: str) -> str:
     elif "merged" in fname:
         suptitle = "Vertical (full inversion)"
     return suptitle
-
-
-def plot_gridded(
-    slp_2d: np.ndarray,
-    sea_2d: np.ndarray,
-    extent: tuple,
-    suptitle: str,
-    places_path: os.PathLike,
-    tektonik_hessen: geopandas.GeoDataFrame,
-    roi: geopandas.GeoDataFrame = None,
-    save_path: os.PathLike = None,
-    perc: int = 95,
-    dpi: int = 300,
-):
-    """Creates a plot for gridded data
-
-    Arguments:
-        slp_2d -- A 2D Array containing the linear trend data.
-        sea_2d -- A 2D Array containing the seasonal variation data.
-        extent -- The extend of the 2D grid as (minx, maxx, miny, maxy) tuple.
-        suptitle -- The title for the plot.
-        places_path -- Path to the file containing the additional shape files to be plotted.
-        tektonik_hessen -- GeoDataFrame with tectonic information of hessen.
-
-    Keyword Arguments:
-        roi -- GeoDataFrame containing the regions of interest for detailed plots. (default: {None})
-        save_path -- Path where to save the plot. (default: {None})
-        perc -- Percentile for the visualization. (default: {95})
-        dpi -- Resolution of the plot for saving to png. (default: {300})
-    """
-    figwidth = 11.7
-    figheight = 8.27
-
-    if roi is not None:
-        width = roi[2] - roi[0]
-        height = roi[3] - roi[1]
-        ratio = width / height
-        figwidth = ratio * 1.25 * figwidth
-
-    fig, axes = plt.subplots(
-        ncols=2,
-        sharex=True,
-        sharey=True,
-        dpi=dpi,
-        figsize=(figwidth, figheight),
-        layout="constrained",
-    )
-    rng = np.nanpercentile(np.abs(slp_2d), perc)
-    slp = axes[0].imshow(
-        slp_2d,
-        vmin=-rng,
-        vmax=rng,
-        origin="lower",
-        extent=extent,
-        cmap="RdYlBu",
-        zorder=1,
-        alpha=0.8,
-    )
-    plt.colorbar(
-        slp,
-        ax=axes[0],
-        label="Displacement (mm/a)",
-        orientation="horizontal",
-        extend="both",
-        shrink=0.5,
-    )
-    rng = np.nanpercentile(sea_2d, perc)
-    seas = axes[1].imshow(
-        sea_2d,
-        vmin=0,
-        vmax=rng,
-        origin="lower",
-        extent=extent,
-        zorder=1,
-        alpha=0.8,
-    )
-
-    for ax in axes:
-        with rasterio.open(
-            os.path.join(places_path, "hessen_map.tif")
-        ) as hessen_map:
-            rioplot.show(hessen_map, ax=ax, zorder=0)
-        tektonik_hessen.plot(ax=ax, color="k", zorder=2, linewidth=1.5)
-        ax.grid("True", color="r", alpha=0.3)
-    plt.colorbar(
-        seas,
-        ax=axes[1],
-        label="Amplitude (mm)",
-        orientation="horizontal",
-        extend="both",
-        shrink=0.5,
-    )
-    axes[0].set_title("Linear Component", fontweight="bold")
-    axes[1].set_title("Seasonal Component", fontweight="bold")
-    fig.suptitle(suptitle, fontsize="large", fontweight="bold")
-    if roi is not None:
-        axes[0].set_xlim(roi[0], roi[2])
-        axes[0].set_ylim(roi[1], roi[3])
-    # fig.tight_layout()
-    if save_path:
-        fig.savefig(save_path)
-        plt.close(fig)
-    else:
-        plt.show()
 
 
 def single_h5_analysis(interactive=True):

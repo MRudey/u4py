@@ -4,25 +4,18 @@ save_path if possible.
 """
 import os
 from datetime import datetime, timedelta
-from typing import Callable, Tuple
 
-import geopandas
+import geopandas as gp
 import matplotlib.pyplot as plt
 import numpy as np
-import rasterio
-import rasterio.plot as rioplot
-import scipy.ndimage as spimg
 import scipy.optimize as spopt
 import scipy.stats as spstats
 import uncertainties as unc
-from matplotlib.axes import Axes
-from matplotlib.figure import Figure
 
 import u4py.analysis.other as u4other
-import u4py.analysis.processing as u4process
 import u4py.plotting.axes as u4ax
+import u4py.plotting.formatting as u4plotfmt
 import u4py.plotting.preparation as u4plotprep
-import u4py.utils.files as u4files
 
 
 def plot_inversion_results(
@@ -243,3 +236,121 @@ def plot_statistics(data, timeslot):
     )
 
     plt.show()
+
+
+def plot_gridded(
+    lin_2d: np.ndarray,
+    sin_2d: np.ndarray,
+    extent: tuple,
+    suptitle: str = "",
+    base_map_path: os.PathLike = None,
+    tektonik_path: os.PathLike = None,
+    roi: gp.GeoDataFrame = None,
+    save_path: os.PathLike = None,
+    perc: int = 95,
+    dpi: int = 300,
+):
+    """Creates a plot for gridded data
+
+    Arguments:
+        lin_2d -- A 2D Array containing the linear trend data.
+        sin_2d -- A 2D Array containing the seasonal variation data.
+        extent -- The extend of the 2D grid as (minx, maxx, miny, maxy) tuple.
+
+    Keyword Arguments:
+        suptitle -- The title for the plot. (default: {''})
+        places_path -- Path to the file containing the additional shape files
+        to be plotted. (default: {None})
+        tektonik_hessen -- GeoDataFrame with tectonic information of hessen.
+        (default: {None})
+        roi -- GeoDataFrame containing the regions of interest for detailed
+        plots. (default: {None})
+        save_path -- Path where to save the plot. (default: {None})
+        perc -- Percentile for the visualization. (default: {95})
+        dpi -- Resolution of the plot for saving to png. (default: {300})
+    """
+
+    # Size of Figure (adapted to region of interest)
+    figwidth = 11.7
+    figheight = 8.27
+    if roi is not None:
+        width = roi[2] - roi[0]
+        height = roi[3] - roi[1]
+        ratio = width / height
+        figwidth = ratio * 1.25 * figwidth
+
+    fig, axes = plt.subplots(
+        ncols=2,
+        sharex=True,
+        sharey=True,
+        dpi=dpi,
+        figsize=(figwidth, figheight),
+        layout="constrained",
+    )
+
+    # Add linear component
+    rng = np.nanpercentile(np.abs(lin_2d), perc)
+    linplt = axes[0].imshow(
+        lin_2d,
+        vmin=-rng,
+        vmax=rng,
+        origin="lower",
+        extent=extent,
+        cmap="RdYlBu",
+        zorder=1,
+        alpha=0.8,
+    )
+    plt.colorbar(
+        linplt,
+        ax=axes[0],
+        label="Displacement (mm/a)",
+        orientation="horizontal",
+        extend="both",
+        shrink=0.5,
+    )
+
+    # Add seasonal component
+    rng = np.nanpercentile(sin_2d, perc)
+    sinplt = axes[1].imshow(
+        sin_2d,
+        vmin=0,
+        vmax=rng,
+        origin="lower",
+        extent=extent,
+        zorder=1,
+        alpha=0.8,
+    )
+    plt.colorbar(
+        sinplt,
+        ax=axes[1],
+        label="Amplitude (mm)",
+        orientation="horizontal",
+        extend="both",
+        shrink=0.5,
+    )
+
+    # Fromatting and basemaps
+    for ax in axes:
+        ax.grid("True", color="r", alpha=0.3)
+        u4plotfmt.map_style_ticks(ax=ax)
+        if base_map_path:
+            u4ax.add_basemap(base_map_path, ax=ax)
+        if tektonik_path:
+            u4ax.add_shapefile(
+                tektonik_path, ax=ax, color="k", zorder=2, linewidth=1
+            )
+
+    axes[0].set_title("Linear Component", fontweight="bold")
+    axes[1].set_title("Seasonal Component", fontweight="bold")
+    if suptitle:
+        fig.suptitle(suptitle, fontsize="large", fontweight="bold")
+    if roi is not None:
+        axes[0].set_xlim(roi[0], roi[2])
+        axes[0].set_ylim(roi[1], roi[3])
+
+    # Save or show plot
+    if save_path:
+        fig.savefig(save_path)
+        plt.close(fig)
+    else:
+        plt.show()

@@ -35,24 +35,28 @@ def add_map_label(text: str, coords: tuple, ax: Axes):
     )
 
 
-def map_style_ticks(ax: Axes, divisor: int = 2000):
+def map_style_ticks(ax: Axes, divisor: int = 0):
     """Changes the x and y ticks to be in a good format for a map.
 
     Arguments:
         ax -- The axis object containing the map.
 
     Keyword Arguments:
-        divisor -- The tick divisor (default: {2000}).
+        divisor -- The tick divisor (default: {0}).
     """
-    ax.ticklabel_format(style="plain")
+    try:
+        ax.ticklabel_format(style="plain")
+    except AttributeError:
+        pass
 
-    ticks = ax.get_yticks()
-    new_ticks = [yt for yt in ticks if np.remainder(yt, divisor) == 0]
-    ax.set_yticks(new_ticks)
+    if divisor:
+        ticks = ax.get_yticks()
+        new_ticks = [yt for yt in ticks if np.remainder(yt, divisor) == 0]
+        ax.set_yticks(new_ticks)
 
-    ticks = ax.get_xticks()
-    new_ticks = [yt for yt in ticks if np.remainder(yt, divisor) == 0]
-    ax.set_xticks(new_ticks)
+        ticks = ax.get_xticks()
+        new_ticks = [yt for yt in ticks if np.remainder(yt, divisor) == 0]
+        ax.set_xticks(new_ticks)
 
     ax.set_yticklabels(
         ax.get_yticks().astype(int),

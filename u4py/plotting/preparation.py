@@ -1,6 +1,6 @@
 """ Contains functions to modify or reformat data for plotting """
 
-from typing import Callable
+from typing import Callable, Tuple
 
 import numpy as np
 import scipy.ndimage as spimg
@@ -10,30 +10,48 @@ import scipy.stats as spstats
 import u4py.analysis.other as u4other
 
 
-def convert_results_for_grid(results, chunk_size):
+def convert_results_for_grid(
+    results: list, chunk_size: int = 250
+) -> Tuple[list, list, list, list, int]:
     """Returns the loaded data prepared for gridding"""
-    if not chunk_size:
-        chunk_size = 250
     xmids = []
     ymids = []
-    slope = []
-    season = []
+    lintrend = []
+    sinusoid = []
     for xmid, ymid, components in results:
         xmids.append(xmid)
         ymids.append(ymid)
         if components is not None:
-            if len(components) < 5:
-                slope.append(components[0] * 365.25)
-                season.append(np.abs(components[1]))
-            else:
-                slope.append(components[13])
-                season.append(np.abs(components[14]))
+            if len(components) < 5:  # Simple fit data
+                lintrend.append(components[0] * 365.25)
+                sinusoid.append(np.abs(components[1]))
+            else:  # Full inversion data
+                lintrend.append(components[13])
+                sinusoid.append(np.abs(components[14]))
         else:
-            season.append(np.nan)
-    return xmids, ymids, slope, season, chunk_size
+            sinusoid.append(np.nan)
+    return xmids, ymids, lintrend, sinusoid, chunk_size
 
 
-def make_gridded_data(xmids, ymids, slope, season, chunk_size):
+def make_gridded_data(
+    xmids: np.ndarray,
+    ymids: np.ndarray,
+    lintrend: np.ndarray,
+    sinusoid: np.ndarray,
+    chunk_size: int,
+) -> Tuple[np.ndarray, np.ndarray, tuple]:
+    """Converts the data into a nice gridded format for plotting with mpl.
+
+    Arguments:
+        xmids -- The x coordinates of the midpoints.
+        ymids -- The y coordinates of the midpoints.
+        lintrend -- The linear trend for the region
+        sinusoid -- The sinusoidal variation for the region
+        chunk_size -- Chunk size to generate X and Y Grid
+
+    Returns:
+        Linear and sinusoidal components each as array and the extend for plotting.
+    """
     minx = np.min(xmids)
     maxx = np.max(xmids) + chunk_size
     miny = np.min(ymids)
@@ -43,19 +61,19 @@ def make_gridded_data(xmids, ymids, slope, season, chunk_size):
     y = np.arange(miny, maxy, chunk_size)
 
     XX, YY = np.meshgrid(x, y)
-    slp_2d = np.ones_like(XX) * np.nan
-    sea_2d = np.ones_like(XX) * np.nan
+    lin_2d = np.ones_like(XX) * np.nan
+    sin_2d = np.ones_like(XX) * np.nan
 
-    for xi, yi, sl, se in zip(xmids, ymids, slope, season):
+    for xi, yi, li, si in zip(xmids, ymids, lintrend, sinusoid):
         xn = int((xi - minx) / chunk_size)
         yn = int((yi - miny) / chunk_size)
-        slp_2d[yn, xn] = sl
-        sea_2d[yn, xn] = se
+        lin_2d[yn, xn] = li
+        sin_2d[yn, xn] = si
 
-    slp_2d = spimg.median_filter(slp_2d, 3)
-    sea_2d = spimg.median_filter(sea_2d, 3)
+    lin_2d = spimg.median_filter(lin_2d, 3)
+    sin_2d = spimg.median_filter(sin_2d, 3)
 
-    return slp_2d, sea_2d, extent
+    return lin_2d, sin_2d, extent
 
 
 def clean_points(
@@ -92,7 +110,7 @@ def get_linfit_each_timeseries(data: dict) -> np.ndarray:
         An array containing all linear fits in the dictionary.
     """
 
-    slope = []
+    lintrend = []
     time = data["time"]
     for y in data["timeseries"]:
         slc = np.nonzero(np.isfinite(y))
@@ -105,5 +123,5 @@ def get_linfit_each_timeseries(data: dict) -> np.ndarray:
             time_days,
             y,
         )
-        slope.append(lin_popt[0] * 365)
-    return slope
+        lintrend.append(lin_popt[0] * 365)
+    return lintrend

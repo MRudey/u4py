@@ -18,6 +18,8 @@ from typing import Callable, Tuple
 import geopandas as gp
 import matplotlib.pyplot as plt
 import numpy as np
+import rasterio
+import rasterio.plot as rioplot
 import scipy.optimize as spopt
 import scipy.stats as spstats
 from matplotlib.axes import Axes
@@ -58,7 +60,7 @@ def plot_stat_func(
         data -- Data dictionary according to u4py standard (e.g. read from h5).
 
     Keyword Arguments:
-        ax -- The axis to add the plot to (default: {None}).
+        ax -- The axis to add the plot to.
         stat_fnc -- The statistical function to use on the timeseries data. (default: {np.nanmean})
 
     Returns:
@@ -78,7 +80,7 @@ def plot_cwt(data: dict, ax: Axes) -> Tuple[Figure, Axes] | None:
         data -- Data dictionary according to u4py standard (e.g. read from h5).
 
     Keyword Arguments:
-        ax -- The axis to add the plot to (default: {None}).
+        ax -- The axis to add the plot to.
 
     Returns:
         The figure and axis if there was no axis specified.
@@ -131,7 +133,7 @@ def plot_timeseries(
         y -- 1D or 2D Array containing the data for the y-axis.
 
     Keyword Arguments:
-        ax -- The axis to add the plot to (default: {None}).
+        ax -- The axis to add the plot to.
 
     Returns:
         The figure and axis if there was no axis specified.
@@ -163,7 +165,7 @@ def plot_timeseries_fit(data: dict, ax: Axes) -> Tuple[Figure, Axes] | None:
         data -- Data dictionary according to u4py standard (e.g. read from h5).
 
     Keyword Arguments:
-        ax -- The axis to add the plot to (default: {None}).
+        ax -- The axis to add the plot to.
 
     Returns:
         The figure and axis if there was no axis specified.
@@ -254,7 +256,7 @@ def add_shapefile(
         shp_path -- The path to the shapefile containing the geometry.
 
     Keyword Arguments:
-        ax -- The axis to add the plot to (default: {None}).
+        ax -- The axis to add the plot to.
         crs --  The target coordinate system as accepted by GeoPandas (default: {"EPSG:23032"}).
         kwargs -- Additional arguments passed to shape.plot(). See GeoPandas documentation.
     Returns:
@@ -270,3 +272,21 @@ def add_shapefile(
         shape = shape.to_crs(kwgs["crs"])
     kwgs.pop("crs")
     shape.plot(ax=ax, **kwgs)
+
+
+@add_or_create
+def add_basemap(
+    base_map_path: os.PathLike, ax: Axes, **kwargs
+) -> Tuple[Figure, Axes] | None:
+    """Creates a plot with the basemap as the lowest layer
+
+    Arguments:
+        base_map_path -- Path to the geotiff with the basemap
+        ax --  The axis to add the plot to.
+        kwargs -- Additional arguments passed to rasterio.plot.show(). See rasterio documentation.
+
+    Returns:
+        The figure and axis if there was no axis specified.
+    """
+    with rasterio.open(base_map_path) as base_map:
+        rioplot.show(base_map, ax=ax, zorder=0, **kwargs)
