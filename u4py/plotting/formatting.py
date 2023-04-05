@@ -88,3 +88,26 @@ def numerate_axes(fig: Figure, n: int = 0, step: int = 1):
             horizontalalignment="center",
             # bbox=dict(fc="w", boxstyle="Circle"),
         )
+
+
+def add_copyright(text: str, ax: Axes):
+    """Adds a small copyright string to the lower left of the plot.
+
+    Arguments:
+        text -- The text to add
+        ax -- The axis where to add the text.
+    """
+
+    txt = ax.annotate(
+        text,
+        (0.02, 0.02),
+        xycoords="axes fraction",
+        fontsize="small",
+        fontstyle="italic",
+    )
+    txt.set_path_effects(
+        [
+            path_effects.Stroke(linewidth=3, foreground="white"),
+            path_effects.Normal(),
+        ]
+    )

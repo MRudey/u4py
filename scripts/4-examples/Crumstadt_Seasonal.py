@@ -25,8 +25,8 @@ import u4py.utils.files as u4files
 def main():
     # Paths
     psi_source = "L3_BBD_Vert_2023"
-    psivert_path = u4files.get_folder_paths(title="Select PSI data folder")
     base_path = u4files.get_folder_paths(title="Select base folder")
+    psivert_path = u4files.get_folder_paths(title="Select PSI data folder")
     ext_path = os.path.join(base_path, "ExternalData")
     places_path = os.path.join(base_path, "Places")
     output_path = os.path.join(base_path, "INSAR_plots")
@@ -73,6 +73,7 @@ def main():
     )
     axes[3].set_ylabel("Avg. Rainfall (mm)\n(Frankfurt)")
     axes[3].set_ylim(0, 130)
+    u4plotfmt.add_copyright("Source: DWD", axes[3])
 
     # Temperature data
     axes[4].plot(climate_data["time"], climate_data["mean"], "s-", color="C3")
@@ -85,11 +86,13 @@ def main():
         edgecolor=None,
     )
     axes[4].set_ylabel("Avg. Temperature (°C)\n(Frankfurt)")
+    u4plotfmt.add_copyright("Source: DWD", axes[4])
 
     # Water Level
     axes[5].plot(date_rhine, level_rhine, "s-", color="C1")
     axes[5].set_ylabel("Avg. Water Level (cm)\n(Rhine in Düsseldorf)")
     axes[5].set_ylim(0, 700)
+    u4plotfmt.add_copyright("Source: Stadt Düsseldorf", axes[5])
 
     # Gas data
     axes[6].plot(date_gas, (level_gas / np.max(level_gas)) * 100, color="C2")
@@ -97,6 +100,7 @@ def main():
     axes[6].set_ylim(
         0,
     )
+    u4plotfmt.add_copyright("Source: MND Energies", ax=axes[6])
 
     # Formatting and saving
     axes[1].set_xlim(
