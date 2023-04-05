@@ -6,10 +6,13 @@ import h5py
 import numpy as np
 
 import u4py.utils.convert as u4convert
+import u4py.utils.files as u4files
 
 
 def main():
-    base_path = r"C:\Users\Michael Rudolf\Documents\ArcGIS\INSAR_Data"
+    base_path = u4files.get_folder_paths(
+        title="Select folder with Insar Data."
+    )
     arcpy.env.workspace = os.path.join(
         base_path, "BBD_Update_2021_Hessen\BBD_Update_2021_Hessen.gdb"
     )

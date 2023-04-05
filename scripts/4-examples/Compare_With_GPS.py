@@ -25,14 +25,15 @@ def main():
     take_diff = False  # Take differences between points to correlate
 
     # Paths
-    gnss_folder = r"C:\Users\Michael Rudolf\Documents\ArcGIS\GNSS_Data"
-    output_folder = r"C:\Users\Michael Rudolf\Documents\ArcGIS"
+    gnss_folder = u4files.get_folder_paths(title="Select GNSS data folder.")
+    insar_folder = u4files.get_folder_paths(title="Select InSAR data folder.")
+    output_folder = os.path.split(gnss_folder)[0]
     # get_converted_station_coordinates(gnss_folder)
     gnss_file_list = u4files.get_file_list(
         filetype=".dat", folder_path=gnss_folder
     )
-    psivert_path = r"C:\Users\Michael Rudolf\Documents\ArcGIS\INSAR_Data\BBD_2021_PSI_Vertikal.h5"
-    psiew_path = r"C:\Users\Michael Rudolf\Documents\ArcGIS\INSAR_Data\BBD_2021_PSI_Ost_West.h5"
+    psivert_path = os.path.join(insar_folder, "BBD_2021_PSI_Vertikal.h5")
+    psiew_path = os.path.join(insar_folder, "BBD_2021_PSI_Ost_West.h5")
     stations = get_converted_station_coordinates(gnss_folder)
     lookup_tree_vert = u4spatial.get_cKDTree(psivert_path)
     lookup_tree_ew = u4spatial.get_cKDTree(psiew_path)
@@ -316,17 +317,6 @@ def get_converted_station_coordinates(gnss_folder):
     # print("Station Data:")
     # print(stations)
     return stations
-
-
-def copy_chunk(out_folder, psi_chunk, id):
-    in_folder = r"C:\Users\Michael Rudolf\Documents\ArcGIS\INSAR_chunks"
-
-    folders = ["BBD_EW", "BBD_Vert"]
-    for fol in folders:
-        shutil.copyfile(
-            os.path.join(in_folder, fol, psi_chunk),
-            os.path.join(out_folder, f"{id}_{fol}.h5"),
-        )
 
 
 if __name__ == "__main__":

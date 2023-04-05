@@ -7,32 +7,31 @@ from datetime import datetime
 
 import contextily
 import geopandas as gp
-import matplotlib.gridspec as gs
-import matplotlib.patheffects as path_effects
 import matplotlib.pyplot as plt
 import numpy as np
 import scipy.optimize as spopt
-from shapely.geometry import Polygon
 
 import u4py.analysis.other as u4other
 import u4py.utils.files as u4files
 
 
 def main():
-    psivert_path = r"C:\Users\Michael Rudolf\Documents\ArcGIS\INSAR_Data\BBD_2021_PSI_Vertikal.h5"
-    region_path = (
-        r"C:\Users\Michael Rudolf\Documents\ArcGIS\Places\Selection.shp"
-    )
+    psi_vert_path = u4files.get_file_paths(
+        filetype=((".h5", ".h5"),), title="Select PSI Data file"
+    )[0]
+    region_path = u4files.get_file_paths(
+        filetype=((".shp", ".shp"),), title="Select region shape file."
+    )[0]
 
     # Get points from file, if not available creates new file
     region = gp.read_file(region_path)
 
     points_region, point_files_folder = u4files.get_region_points(
-        region, "FFM", psivert_path
+        region, "FFM", psi_vert_path
     )
 
     ind_region = points_region.source_ind.to_numpy()
-    psi_data_region = u4files.load_hdf5(psivert_path, ind=ind_region)
+    psi_data_region = u4files.load_hdf5(psi_vert_path, ind=ind_region)
     slope = get_linfit_each(psi_data_region)
 
     fig, axes = plt.subplots(ncols=2, figsize=(10, 5), dpi=150)

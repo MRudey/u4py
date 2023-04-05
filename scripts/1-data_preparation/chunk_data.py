@@ -1,9 +1,10 @@
 import os
 
 import numpy as np
+from tqdm import tqdm
+
 import u4py.utils.convert as u4convert
 import u4py.utils.files as u4files
-from tqdm import tqdm
 
 
 def main():
@@ -18,7 +19,6 @@ def main():
     file_list.append(os.path.join(folder_path, "BBD_2021_PSI_Ost_West.h5"))
     file_list.append(os.path.join(folder_path, "BBD_2021_PSI_Vertikal.h5"))
 
-    # file_path = r"C:\Users\Michael Rudolf\Documents\ArcGIS\INSAR_Data\Zeitreihe_ASCE_015_05.h5"
     no_time = []
     for file_path in tqdm(file_list, desc="Files", leave=False):
         data = u4files.load_hdf5(file_path)

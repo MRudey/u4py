@@ -25,34 +25,33 @@ import u4py.utils.files as u4files
 def main():
     # Paths
     psi_source = "L3_BBD_Vert_2023"
-    psivert_path = (
-        r"C:\Users\Michael Rudolf\Documents\ArcGIS\Data_2023\BBD_Vert"
-    )
-    # psivert_path = r"C:\Users\Michael Rudolf\Documents\ArcGIS\Data_2021\INSAR_Data\BBD_2021_PSI_Vertikal.h5"
-    fig_path = os.path.join(
-        r"C:\Users\Michael Rudolf\Documents\ArcGIS\selected_psi_points",
-        "Crumstadt" + "_" + psi_source,
-    )
+    psivert_path = u4files.get_folder_paths(title="Select PSI data folder")
+    base_path = u4files.get_folder_paths(title="Select base folder")
+    ext_path = os.path.join(base_path, "ExternalData")
+    places_path = os.path.join(base_path, "Places")
+    output_path = os.path.join(base_path, "INSAR_plots")
+    os.makedirs(output_path, exist_ok=True)
+    fig_path = os.path.join(output_path, "Crumstadt_" + psi_source)
 
     # Load Data
     data, crs = get_data_within_osm_query(psivert_path)
     data_region, _ = get_data_within_region(psivert_path, crs=crs)
     data_well, _ = get_data_at_well(psivert_path)
     date_rhine, level_rhine = u4rivers.load_rhine_date(
-        r"C:\Users\Michael Rudolf\HESSENBOX-DA\Umwelt_4_privat\scripts\Wasserstand des Rheins bei Düsseldorf monatlich ab 1996.csv"
+        os.path.join(ext_path, "Wasserstand_Rhein_DD.csv")
     )
     date_gas, level_gas = u4gas.load_gas_data(
-        r"C:\Users\Michael Rudolf\HESSENBOX-DA\Umwelt_4_privat\scripts\Inventory Turnover Data_23.txt"
+        os.path.join(ext_path, "Inventory Turnover Data_23.txt")
     )
     climate_data = u4climate.load_climate_data(
-        r"C:\Users\Michael Rudolf\HESSENBOX-DA\Umwelt_4_privat\scripts\klarchiv_01420_month_his\produkt_klima_monat_19350701_20211231_01420.txt"
+        os.path.join(ext_path, "Wetter_FFM.txt")
     )
 
     # Create the figure
     fig, axes = prepare_figure()
 
     # The map
-    plot_map(axes, data_region, crs=crs)
+    plot_map(axes, data_region, crs=crs, places_path=places_path)
 
     # Time series for Crumstadt
     add_timeseries(
@@ -195,7 +194,7 @@ def prepare_figure():
     return fig, axes
 
 
-def plot_map(axes, data_region, crs):
+def plot_map(axes, data_region, crs, places_path):
     # Map
     u4ax.plot_region_trend(data_region, ax=axes[0])
     u4plotfmt.add_map_label("Crumstadt", (465500, 5518000), ax=axes[0])
@@ -212,7 +211,7 @@ def plot_map(axes, data_region, crs):
     )
 
     u4ax.add_shapefile(
-        r"C:\Users\Michael Rudolf\Documents\ArcGIS\Places\Gebaudeschaeden.shp",
+        os.path.join(places_path, "Gebaudeschaeden.shp"),
         crs=crs,
         ax=axes[0],
         color="k",
@@ -223,14 +222,14 @@ def plot_map(axes, data_region, crs):
     )
 
     u4ax.add_shapefile(
-        r"C:\Users\Michael Rudolf\Documents\ArcGIS\Places\Tiefenlinie_Top_Sand_7.shp",
+        os.path.join(places_path, "Tiefenlinie_Top_Sand_7.shp"),
         ax=axes[0],
         column="Z",
         facecolor="none",
         zorder=1,
     )
     u4ax.add_shapefile(
-        r"C:\Users\Michael Rudolf\Documents\ArcGIS\Places\Gas_Störungen.shp",
+        os.path.join(places_path, "Gas_Störungen.shp"),
         ax=axes[0],
         color="k",
         label="Faults",
