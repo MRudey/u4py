@@ -22,7 +22,8 @@ def main():
 
     base_map_path = os.path.join(base_path, "Places", "hessen_map.tif")
     tektonik_path = os.path.join(base_path, "Places", "tektonik_cropped.shp")
-    piloten_path = os.path.join(base_path, "Places", "Pilotregionen.shp")
+    # piloten_path = os.path.join(base_path, "Places", "Pilotregionen.shp")
+    piloten_path = os.path.join(base_path, "Places", "FFM_regions.shp")
     output_path = os.path.join(base_path, "INSAR_plots")
     os.makedirs(output_path, exist_ok=True)
 

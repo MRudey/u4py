@@ -8,6 +8,8 @@ from typing import Tuple
 import geopandas as gp
 import h5py
 import numpy as np
+import rasterio as rio
+from rasterio.transform import Affine
 
 import u4py.analysis.inversion as u4invert
 import u4py.analysis.spatial as u4spatial
@@ -358,3 +360,35 @@ def load_data_from_points(
         data_filelist = points_to_filelist(points, input_path)
         data = load_hdf5_list(data_filelist)
     return data
+
+
+def ndarray_to_geotiff(
+    Z: np.ndarray, bounds: tuple, file_path: os.PathLike, crs
+):
+    """Saves a numpy nd array and its bounds to a georeferenced tiff
+
+    Arguments:
+        Z -- The array
+        bounds -- The edges of the array in real world coordinates
+        file_path -- the savepath
+        crs -- The coordinate system to use.
+    """
+    height, width = Z.shape
+    res = (bounds[1] - bounds[0]) / width
+    transform = Affine.translation(bounds[0] - res, bounds[2]) * Affine.scale(
+        res, res
+    )
+
+    with rio.open(
+        file_path,
+        "w",
+        driver="GTiff",
+        height=height,
+        width=width,
+        count=1,
+        dtype=Z.dtype,
+        crs=crs,
+        transform=transform,
+        nodata=-9999,
+    ) as dst:
+        dst.write(Z, 1)

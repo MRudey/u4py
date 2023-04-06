@@ -340,6 +340,8 @@ def plot_gridded(
             u4ax.add_shapefile(
                 tektonik_path, ax=ax, color="k", zorder=2, linewidth=1
             )
+        if roi is not None:
+            ax.plot(*roi.exterior.xy, color="k")
 
     axes[0].set_title("Linear Component", fontweight="bold")
     axes[1].set_title("Seasonal Component", fontweight="bold")

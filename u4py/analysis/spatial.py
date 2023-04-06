@@ -218,5 +218,5 @@ def select_points_point(point, radius, psi_file_path):
 
 def get_rois(file_path: os.PathLike) -> list[Tuple[str, gp.GeoDataFrame]]:
     regions = gp.read_file(file_path)
-    rois = [(r[1], r[2]) for r in regions.values]
+    rois = [(name, geom) for name, geom in zip(regions.Name, regions.geometry)]
     return rois
