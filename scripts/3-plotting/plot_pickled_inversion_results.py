@@ -4,7 +4,6 @@ file.
 """
 
 import os
-import pickle as pkl
 
 import u4py.plotting.plots as u4plots
 import u4py.plotting.preparation as u4plotprep
@@ -19,11 +18,11 @@ def main():
     base_path = u4files.get_folder_paths(title="Select basepath.")
 
     base_map_path = os.path.join(base_path, "Places", "hessen_map.tif")
-    tektonik_path = os.path.join(base_path, "Places" "tektonik_cropped.shp")
+    tektonik_path = os.path.join(base_path, "Places", "tektonik_cropped.shp")
 
     for fp in file_path:
-        data = load_data(fp)
-        converted_data = u4plotprep.convert_results_for_grid(data[0])
+        data = u4files.get_pickled_inversion_results(fp)
+        converted_data = u4plotprep.convert_results_for_grid(data)
         lin_2d, sin_2d, extend = u4plotprep.make_gridded_data(*converted_data)
         u4plots.plot_gridded(
             lin_2d,
@@ -33,13 +32,6 @@ def main():
             base_map_path=base_map_path,
             dpi=100,
         )
-
-
-def load_data(file_path):
-    """Loads data from selected pickle file"""
-    with open(file_path, "rb") as pklfile:
-        data = pkl.load(pklfile)
-    return data
 
 
 if __name__ == "__main__":

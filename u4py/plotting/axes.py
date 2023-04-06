@@ -27,7 +27,9 @@ from matplotlib.figure import Figure
 from pyproj import CRS
 
 import u4py.analysis.other as u4other
+import u4py.analysis.processing as u4proc
 import u4py.plotting.preparation as u4plotprep
+import u4py.utils.convert as u4convert
 
 
 def add_or_create(internal_plot):
@@ -171,37 +173,13 @@ def plot_timeseries_fit(data: dict, ax: Axes) -> Tuple[Figure, Axes] | None:
         The figure and axis if there was no axis specified.
     """
 
-    # Data Preparation
-    time = data["time"]
-    y_med = np.nanmedian(data["timeseries"], axis=0)
+    results = u4proc.get_decomposed_signals(data)
 
-    # Remove non finite elements
-    slc = np.nonzero(np.isfinite(y_med))
-    time = time[slc]
-    y_med = y_med[slc]
-
-    # Convert time to days
-    time_days = np.linspace(0, (time[-1] - time[0]).days, len(time))
-
-    # Linear component
-    lin_popt, lin_pcov = spopt.curve_fit(
-        u4other.poly1,
-        time_days,
-        y_med,
+    ax.plot(
+        results["time"],
+        results["signals"]["lin"] + results["signals"]["sin"],
+        label="Fit",
     )
-    linear_component = u4other.poly1(time_days, *lin_popt)
-    y_detrend = y_med - linear_component
-
-    sin_popt, sin_pcov = spopt.curve_fit(
-        u4other.sinefunc,
-        time_days,
-        y_detrend,
-        p0=[2, 6 / 365.25, 0],
-    )
-    sinus_component = u4other.sinefunc(time_days, *sin_popt)
-    # y_residual = y_detrend - sinus_component
-
-    ax.plot(time, linear_component + sinus_component, label="Fit")
     # shift = time[0] - timedelta(days=sin_popt[2])
 
     # if shift.day > 10:
@@ -211,8 +189,9 @@ def plot_timeseries_fit(data: dict, ax: Axes) -> Tuple[Figure, Axes] | None:
     # else:
     #     prefix = "Start"
     ax.annotate(
-        "Longterm Trend: %.1f mm/a" % (lin_popt[0] * 365)
-        + "\nYearly Variation: $\\pm$%.1f mm" % (np.abs(sin_popt[0])),
+        "Longterm Trend: %.1f mm/a" % (results["fits"]["lin"][0] * 365)
+        + "\nYearly Variation: $\\pm$%.1f mm"
+        % (np.abs(results["fits"]["sin"][0])),
         # + "\nPeriod: %i days" % ((1 / sin_popt[1]) * 6)
         # + "\nMaximum: %s %s" % (prefix, shift.strftime("%B")(0.99, 0.01)),
         (0.99, 0.01),
@@ -290,3 +269,61 @@ def add_basemap(
     """
     with rasterio.open(base_map_path) as base_map:
         rioplot.show(base_map, ax=ax, zorder=0, **kwargs)
+
+
+@add_or_create
+def plot_inversion_fit(
+    x: np.ndarray,
+    inv_results: tuple,
+    ax: Axes,
+    direction: str = "UD",
+    **kwargs
+) -> Tuple[Figure, Axes] | None:
+    """Creates a plot from inversion results.
+
+    Arguments:
+        x -- The x axis (datetime).
+        inv_results -- A tuple of the inversion results.
+        ax -- The axis to add the plot to.
+
+    Keyword Arguments:
+        direction -- The direction of the inversion results. Options are: "EW",
+        "NS", "UD" (default {"UD"})
+        kwargs -- Additional arguments passed to plt.plot().
+
+    Returns:
+        The figure and axis if there was no axis specified.
+    """
+    y = u4plotprep.get_forward_model(x, inv_results, direction)
+    ax.plot(x, y, label="Forward Model", **kwargs)
+
+
+@add_or_create
+def plot_fit_residuals(
+    data: dict, fit_data: tuple, ax: Axes, direction: str = "UD", **kwargs
+) -> Tuple[Figure, Axes] | None:
+    """Creates a plot with the residuals of the data and selected fit
+
+    Arguments:
+        data -- The data dictionary.
+        fit_data -- A tuple of fit data, the length defines the type
+        ax -- The axis to add the plot to.
+
+    Keyword Arguments:
+        direction -- The direction of the inversion results. Options are: "EW",
+        "NS", "UD" (default {"UD"})
+        kwargs -- Additional arguments passed to plt.plot().
+
+    Returns:
+        The figure and axis if there was no axis specified.
+    """
+
+    time = data["time"]
+    y = np.nanmedian(data["timeseries"], axis=0)
+
+    if len(fit_data) > 5:
+        y_fit = u4plotprep.get_forward_model(time, fit_data, direction)
+
+    y_res = y - y_fit
+
+    ax.plot(time, y_res, ".", label="Residuals", **kwargs)

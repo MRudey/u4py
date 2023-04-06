@@ -7,6 +7,7 @@ from scipy import optimize as spopt
 from tqdm import tqdm
 
 import u4py.analysis.inversion as u4invert
+import u4py.analysis.other as u4other
 import u4py.utils.config as u4config
 import u4py.utils.files as u4files
 from u4py.utils.convert import dict_to_hdf5
@@ -48,9 +49,9 @@ def load_pickle(pickle_path: os.PathLike) -> dict:
     return results, chunk_size
 
 
-def process_file(file_path, overwrite=False):
+def simple_file_process(file_path, overwrite=False):
     """
-    Does full processing for a single file
+    Does a simple processing for a single file using the simple linear decomposition.
     """
     base_path, fname = os.path.split(file_path)
     data = u4files.load_hdf5(file_path)
@@ -73,7 +74,7 @@ def process_file(file_path, overwrite=False):
         time_days = np.linspace(0, len(time) * 6, len(time))
         y = np.nanmedian(data["timeseries"], axis=0)
         slc = np.nonzero(np.isfinite(y))
-        time_components = time_analysis(time_days[slc], y[slc])
+        time_components = simple_decomposition(time_days[slc], y[slc])
         data["time_components"] = time_components
         dict_to_hdf5(file_path, data)
     else:
@@ -82,7 +83,7 @@ def process_file(file_path, overwrite=False):
     return (xmid, ymid, time_components)
 
 
-def process_file_list(file_list, fnc=process_file):
+def process_file_list(file_list, fnc=simple_file_process):
     """Uses parallel processing to process a list of files"""
     with Pool(u4config.cpu_count) as p:
         results = list(
@@ -101,35 +102,73 @@ def process_file_list(file_list, fnc=process_file):
     return (results, chunk_size)
 
 
-def time_analysis(time_days, y):
+def simple_decomposition(time_days: np.ndarray, y: np.ndarray) -> tuple:
     """
     Separates signal into linear and sinusoidal part and returns the components
     """
-    lin_popt, lin_pcov = spopt.curve_fit(
-        poly1,
-        time_days,
-        y,
+    lin_popt, _, _ = linear_component(time_days, y)
+    sin_popt, _, _ = sinus_component(
+        time_days, y - u4other.poly1(time_days, *lin_popt)
     )
-    # lin_perr = 2 * np.sqrt(np.diag(lin_pcov))
-    try:
-        sin_popt, sin_pcov = spopt.curve_fit(
-            sinefunc,
-            time_days,
-            y - poly1(time_days, *lin_popt),
-            p0=[2, 6 / 365.25, 0],
-        )
-        # sin_perr = 2 * np.sqrt(np.diag(sin_pcov))
-    except RuntimeError:
-        sin_popt = [np.nan, np.nan, np.nan]
     return (lin_popt[0], sin_popt[0], sin_popt[1], sin_popt[2])
 
 
-def sinefunc(x, amplitude, width, shift):
-    return amplitude * np.cos(width * (x + shift))
+def get_decomposed_signals(data: dict) -> dict:
+    """
+    Decomposes signal similar to `simple_decomposition` but also returns the back calculated data.
+    """
+    # Data Preparation
+    time = data["time"]
+    y_med = np.nanmedian(data["timeseries"], axis=0)
+
+    # Remove non finite elements
+    slc = np.nonzero(np.isfinite(y_med))
+    time = time[slc]
+    y_med = y_med[slc]
+
+    # Convert time to days
+    time_days = np.linspace(0, (time[-1] - time[0]).days, len(time))
+
+    # Linear component
+    lin_popt, _, _ = linear_component(time_days, y_med)
+    linear = u4other.poly1(time_days, *lin_popt)
+    y_detrend = y_med - linear
+
+    # Seasonal component
+    sin_popt, _, _ = sinus_component(time_days, y_detrend)
+    sinus = u4other.sinefunc(time_days, *sin_popt)
+    y_residual = y_detrend - sinus
+
+    results = {
+        "time": time,
+        "y_med": y_med,
+        "fits": {"lin": lin_popt, "sin": sin_popt},
+        "signals": {
+            "lin": linear,
+            "sin": sinus,
+            "res": y_residual,
+        },
+    }
+    return results
 
 
-def poly1(x, slope, offset):
-    return slope * x + offset
+def linear_component(x: np.ndarray, y: np.ndarray) -> tuple:
+    """Gets the linear fit of x and y"""
+    lin_popt, lin_pcov = spopt.curve_fit(u4other.poly1, x, y)
+    lin_perr = 2 * np.sqrt(np.diag(lin_pcov))
+    return (lin_popt, lin_pcov, lin_perr)
+
+
+def sinus_component(x: np.ndarray, y: np.ndarray) -> tuple:
+    """Gets the sinusoidal fit of x and y, adjusted to psi time in days"""
+    try:
+        sin_popt, sin_pcov = spopt.curve_fit(
+            u4other.sinefunc, x, y, p0=[2, 6 / 365.25, 0]
+        )
+        sin_perr = 2 * np.sqrt(np.diag(sin_pcov))
+    except RuntimeError:
+        sin_popt = [np.nan, np.nan, np.nan]
+    return (sin_popt, sin_pcov, sin_perr)
 
 
 def get_common_files(base_path: os.PathLike, path1="ASCE", path2="DESC"):

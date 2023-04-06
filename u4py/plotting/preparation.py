@@ -8,6 +8,7 @@ import scipy.optimize as spopt
 import scipy.stats as spstats
 
 import u4py.analysis.other as u4other
+import u4py.utils.convert as u4convert
 
 
 def convert_results_for_grid(
@@ -125,3 +126,55 @@ def get_linfit_each_timeseries(data: dict) -> np.ndarray:
         )
         lintrend.append(lin_popt[0] * 365)
     return lintrend
+
+
+def full_inv_single_comp(x: np.ndarray, *args) -> np.ndarray:
+    """Returns a full fit including (semi-)annual sines and cosines:
+
+    Structure of *args:
+        [0]: yaxis-offset
+        [1]: linear trend
+        [2]: semi-annual sine
+        [3]: semi-annual cosine
+        [4]: annual sine
+        [5]: annual cosine
+    Arguments:
+        x -- The x axis
+    """
+    result = (
+        args[0]  # yaxis-offset
+        + args[1] * x  # linear trend
+        + args[2] * np.sin(2 * np.pi * x)  # semi-annual sine
+        + args[3] * np.cos(2 * np.pi * x)  # semi-annual cosine
+        + args[4] * np.sin(4 * np.pi * x)  # annual sine
+        + args[5] * np.cos(4 * np.pi * x)  # annual cosine
+    )
+    return result
+
+
+def get_forward_model(
+    x: np.ndarray, inv_results: tuple, dir: str = "UD"
+) -> np.ndarray:
+    """Gets the forward model of the inversion results.
+
+    Arguments:
+        x -- The x axis (datetime).
+        inv_results -- A tuple of the inversion results.
+
+    Keyword Arguments:
+        dir -- The direction of the inversion results. Options are: "EW",
+        "NS", "UD" (default {"UD"})
+
+    Returns:
+        The forward model for the specified direction
+    """
+    directions = {  # Index where to start looking for the right components
+        "EW": 0,
+        "NS": 6,
+        "UD": 12,
+    }
+    ii = directions[dir]
+    args = inv_results[ii : ii + 6]
+    time = np.array([u4convert.get_floatyear(t) for t in x])
+    y = full_inv_single_comp(time, *args)
+    return y

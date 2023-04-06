@@ -40,7 +40,7 @@ def main():
     date_rhine, level_rhine = u4rivers.load_rhine_date(
         os.path.join(ext_path, "Wasserstand_Rhein_DD.csv")
     )
-    date_gas, level_gas = u4gas.load_gas_data(
+    date_gas, _, level_gas = u4gas.load_gas_data(
         os.path.join(ext_path, "Inventory Turnover Data_23.txt")
     )
     climate_data = u4climate.load_climate_data(
@@ -95,7 +95,7 @@ def main():
     u4plotfmt.add_copyright("Source: Stadt Düsseldorf", axes[5])
 
     # Gas data
-    axes[6].plot(date_gas, (level_gas / np.max(level_gas)) * 100, color="C2")
+    axes[6].plot(date_gas, level_gas, color="C2")
     axes[6].set_ylabel("Fill level of gas storage (%)")
     axes[6].set_ylim(
         0,

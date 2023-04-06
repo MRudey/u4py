@@ -10,7 +10,7 @@ import u4py.utils.files as u4files
 
 def main():
     # /mnt/Raid/Umwelt4/Converted_gpkg/Insar_chunks/L3/merged/PSI_chunk_x412750_y5545000.h5
-    file_path = u4files.get_file_paths(filetypes=(("*.h5", "*.h5"),))[0]
+    file_path = u4files.get_file_paths(filetypes=(("*.h5", "*.h5"),))
     show_h5_contents(file_path)
 
 

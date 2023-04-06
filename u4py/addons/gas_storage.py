@@ -4,6 +4,8 @@ Functions for working with gas storage data by MND Energies
 
 from datetime import datetime
 
+import numpy as np
+
 
 def _date2num_gas(y):
     "06. 12. 2020"
@@ -23,4 +25,5 @@ def load_gas_data(file_path):
             row_text = row.split("\t")
             date.append(_date2num_gas(row_text[0]))
             level.append(float(row_text[1].replace("\n", "").replace(" ", "")))
-    return date, level
+    level_perc = (level / np.max(level)) * 100
+    return date, level, level_perc

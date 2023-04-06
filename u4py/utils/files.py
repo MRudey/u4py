@@ -1,8 +1,9 @@
 """ Contains simple file and folder utilities for u4py """
-
 import os
+import pickle as pkl
 from datetime import datetime
 from tkinter import TclError, Tk, filedialog
+from typing import Tuple
 
 import geopandas as gp
 import h5py
@@ -30,7 +31,8 @@ def get_file_paths(**kwargs):
         file_list = filedialog.askopenfilenames(**kwargs)
     finally:
         root.destroy()
-
+    if len(file_list) == 1:
+        return file_list[0]
     return file_list
 
 
@@ -253,22 +255,106 @@ def get_region_points(region, region_name, psi_file_path, overwrite=False):
 
 
 def get_point_points(
-    point, radius, region_name, psi_file_path, overwrite=False
-):
-    base_folder, source_name = os.path.split(psi_file_path)
-    point_files_folder = os.path.join(
+    point: Tuple[float, float],
+    radius: float,
+    region_name: str,
+    source_file_path: os.PathLike,
+    overwrite: bool = False,
+) -> gp.GeoDataFrame:
+    """Returns the points from `source_file_path` that are within `radius` of
+    `point`. Creates a shape file with the extracted points, for quicker
+    repeated data access.
+
+    Arguments:
+        point -- The point where to start.
+        radius -- The search radius around point (in meters)
+        region_name -- A sensible name for the extraction point.
+        source_file_path -- The file where to extract the data.
+
+    Keyword Arguments:
+        overwrite -- Whether to overwrite the shape file (default: {False})
+
+    Returns:
+        A GeoDataFrame with the points including all relevant data.
+    """
+    base_folder, source_name = os.path.split(source_file_path)
+    output_folder = os.path.join(
         os.path.split(base_folder)[0], "selected_psi_points"
     )
-    os.makedirs(point_files_folder, exist_ok=True)
-    point_file_name = (
+    os.makedirs(output_folder, exist_ok=True)
+    output_file_name = (
         region_name + "_points_" + os.path.splitext(source_name)[0] + ".shp"
     )
-    point_file_path = os.path.join(point_files_folder, point_file_name)
+    output_file_path = os.path.join(output_folder, output_file_name)
 
-    if os.path.exists(point_file_path) and not overwrite:
-        points = gp.GeoDataFrame.from_file(point_file_path)
+    if os.path.exists(output_file_path) and not overwrite:
+        points = gp.GeoDataFrame.from_file(output_file_path)
     else:
-        points = u4spatial.select_points_point(point, radius, psi_file_path)
-        points.to_file(point_file_path)
-        points = gp.GeoDataFrame.from_file(point_file_path)
+        points = u4spatial.select_points_point(point, radius, source_file_path)
+        points.to_file(output_file_path)
+        points = gp.GeoDataFrame.from_file(output_file_path)
     return points
+
+
+def get_pickled_inversion_results(
+    file_path: os.PathLike, ind: slice = None, points: gp.GeoDataFrame = None
+) -> Tuple[list[tuple], float]:
+    """Loads data from selected pickle file and also returns avg. distance to
+    nearest inversion results.
+
+    Use only one of the selection criteria:
+        - ind: Uses the indices in the list to slice the data.
+        - points: Does a spatial search in the data to extract the data at the
+        coordinates of points.
+
+    Arguments:
+        file_path -- The file path of the pickle file
+
+    Keyword Arguments:
+        ind -- Indices where to look for data. If None takes all data. (default: {None})
+        points -- List of points where to look for data. If None takes all data. (default: {None})
+
+    Returns:
+        data (selection) and mean distance to data (only for point selection)
+    """
+    with open(file_path, "rb") as pklfile:
+        data = pkl.load(pklfile)[0]
+
+    if (ind is not None) and (points is not None):
+        ValueError("Two selections applied, either use ind or points!")
+    elif ind is not None:
+        if isinstance(ind, list):
+            return [data[ii] for ii in ind], 0
+        elif isinstance(ind, int):
+            return [data[ind]], 0
+    elif points is not None:
+        closest = u4spatial.spatial_lookup(data, points)
+        data = [data[c[1]] for c in closest]
+        distance = np.mean([c[0] for c in closest])
+        return data, distance
+    else:
+        return data, 0
+
+
+def load_data_from_points(
+    input_path: os.PathLike, points: gp.GeoDataFrame
+) -> dict:
+    """Gets the data at the specified points.
+
+    Arguments:
+        input_path -- The path to a hdf5 file or folder with files to load data.
+        points -- The points where to query the data.
+
+    Returns:
+        A dictionary containing the data.
+    """
+    # Loading for a single file:
+    if input_path.endswith(".h5"):
+        ind = points.source_ind.to_numpy()
+        data = load_hdf5(input_path, ind=ind)
+
+    # Loading for a folder of split files (better parallelization)
+    else:
+        data_filelist = points_to_filelist(points, input_path)
+        data = load_hdf5_list(data_filelist)
+    return data

@@ -18,10 +18,10 @@ import u4py.utils.files as u4files
 def main():
     psi_vert_path = u4files.get_file_paths(
         filetype=((".h5", ".h5"),), title="Select PSI Data file"
-    )[0]
+    )
     region_path = u4files.get_file_paths(
         filetype=((".shp", ".shp"),), title="Select region shape file."
-    )[0]
+    )
 
     # Get points from file, if not available creates new file
     region = gp.read_file(region_path)

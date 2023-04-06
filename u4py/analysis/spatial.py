@@ -1,4 +1,5 @@
 import os
+import pickle as pkl
 from os import PathLike
 from typing import Tuple
 
@@ -60,7 +61,7 @@ def reproject_raster(in_path, out_path, output_crs):
 
 def get_cKDTree(file_path):
     """
-    Loads all x and y coordinates from the given hdf5 file and returns a
+    Loads all x and y coordinates from the given file or folder and returns a
     cKDTree for easy spatial lookup.
     """
     coords = get_coords(file_path)
@@ -68,30 +69,97 @@ def get_cKDTree(file_path):
     return spspatial.cKDTree(coords)
 
 
-def get_coords(file_path: PathLike) -> list:
+def get_coords(input_data: PathLike | list) -> list:
     """
-    Loads all x and y coordinates from the given hdf5 file.
+    Loads all x and y coordinates from the given file or folder.
 
-    Works with single hdf files as well as folders with many files.
+    Works with single hdf or pkl files as well as folders with many files.
     """
-    if file_path.endswith(".h5"):
-        with h5py.File(file_path, "r") as h5file:
-            coords = np.array(
-                [
-                    shapely.Point(x, y)
-                    for x, y in zip(h5file["x"][()], h5file["y"][()])
-                ]
-            )
-    else:
-        coords = [
-            shapely.Point(
-                int(f[f.find("_x") + 2 : f.find("_y")]),
-                int(f[f.find("_y") + 2 : f.find(".h5")]),
-            )
-            for f in os.listdir(file_path)
-            if f.endswith(".h5")
-        ]
+    coords = None
+
+    if isinstance(input_data, list):
+        if isinstance(input_data[0], str):
+            coords = file_list_to_coords(input_data)
+        elif isinstance(input_data[0], tuple):
+            coords = tuple_list_to_coords(input_data)
+
+    elif isinstance(input_data, str):
+        if input_data.endswith(".h5"):
+            coords = h5_to_coords(input_data)
+        elif input_data.endswith(".pkl"):
+            coords = pkl_to_coords(input_data)
+
+    if coords is None:
+        raise NotImplementedError(
+            "Conversion of this type to lookup table not implemented!"
+        )
     return coords
+
+
+def file_list_to_coords(input_data: list) -> list:
+    """
+    Converts a file list of h5 files with x and y coordinates in their names
+    to a list of coordinates.
+    """
+    coords = [
+        shapely.Point(
+            int(f[f.find("_x") + 2 : f.find("_y")]),
+            int(f[f.find("_y") + 2 : f.find(".h5")]),
+        )
+        for f in os.listdir(input_data)
+        if f.endswith(".h5")
+    ]
+    return coords
+
+
+def h5_to_coords(h5file_path: os.PathLike) -> list:
+    """Converts a h5 file containing x and y to list of coordinates"""
+    with h5py.File(h5file_path, "r") as h5file:
+        coords = np.array(
+            [(x, y) for x, y in zip(h5file["x"][()], h5file["y"][()])]
+        )
+    return coords
+
+
+def tuple_list_to_coords(tuple_list: list) -> list:
+    """
+    Converts a list of tuples from a loaded pkl file to list of coordinates."""
+    coords = np.array([(d[0], d[1]) for d in tuple_list])
+    return coords
+
+
+def pkl_to_coords(pkl_path: os.PathLike) -> list:
+    """
+    Converts contents of a pickled inversion results file to list of
+    coordinates.
+    """
+    with open(pkl_path, "rb") as pklfile:
+        data = pkl.load(pklfile)[0]
+    coords = tuple_list_to_coords(data)
+    return coords
+
+
+def spatial_lookup(
+    input_feature, points: gp.GeoDataFrame, n: int = 1
+) -> list[Tuple[float, int]]:
+    """Does a spatial lookup for the nearest point to all points in `points`.
+    The data at `input_feature` has to have a valid format for creating a  lookup Tree.
+
+    Arguments:
+        input_feature -- A variable that contains some sort of x and y table
+          which can be converted to a lookup table with `get_cKDTree()`
+        points -- The points to query.
+
+    Keyword Arguments:
+        n -- The number of nearest neighbors (default: {1}).
+
+    Returns:
+        A list of `n` nearest neighbors for each point in the form of (distance, index)
+    """
+    lut = get_cKDTree(input_feature)
+    points = points.values
+    closest = [lut.query((p[1].x, p[1].y), n) for p in points]
+    return closest
 
 
 def select_points_osm(query, psi_file_path):
@@ -117,7 +185,8 @@ def select_points_osm(query, psi_file_path):
 
 def select_points_region(region, psi_file_path):
     """
-    Selects points from the specified file and crops them by the rectangles found in the given region
+    Selects points from the specified file and crops them by the rectangles
+    found in the given region.
     """
     if region.crs != "EPSG:32632":
         region = region.to_crs("EPSG:32632")

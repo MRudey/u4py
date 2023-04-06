@@ -49,12 +49,38 @@ def run_stat_mean(timeseries, fnc=spstats.norm):
 
 
 def get_stat_val(values, fnc=spstats.norm):
+    """
+    Fits the data and returns the mean of the given statistical distribution
+    """
     return fnc(*fnc.fit(values)).mean()
 
 
-def sinefunc(x, amplitude, width, shift):
+def sinefunc(
+    x: np.ndarray, amplitude: float, width: float, shift: float
+) -> np.ndarray:
+    """Returns the cosine function of the given data
+
+    Arguments:
+        x -- The x axis
+        amplitude -- The amplitude of the cosine
+        width -- The width/wavelength of the cosine
+        shift -- The phase shift
+
+    Returns:
+        `amplitude * cos(width * (x + shift))`
+    """
     return amplitude * np.cos(width * (x + shift))
 
 
-def poly1(x, slope, offset):
+def poly1(x: np.ndarray, slope: float, offset: float) -> np.ndarray:
+    """Returns a linear function of the given data
+
+    Arguments:
+        x -- The x axis
+        slope -- The slope of the function
+        offset -- The y-axis offset
+
+    Returns:
+        `slope * x * offset`
+    """
     return slope * x + offset

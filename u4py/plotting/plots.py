@@ -348,8 +348,8 @@ def plot_gridded(
     if bounds:
         axes[0].set_xlim(bounds[0], bounds[2])
         axes[0].set_ylim(bounds[1], bounds[3])
-        u4plotfmt.map_style(ax=axes[0])
-        u4plotfmt.map_style(ax=axes[1])
+    u4plotfmt.map_style(ax=axes[0])
+    u4plotfmt.map_style(ax=axes[1])
 
     # Save or show plot
     if save_path:

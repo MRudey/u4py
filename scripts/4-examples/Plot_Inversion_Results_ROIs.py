@@ -16,7 +16,7 @@ import u4py.utils.files as u4files
 def main():
     file_path = u4files.get_file_paths(
         filetypes=((".pkl", ".pkl"),), title="Select inversion results file."
-    )[0]
+    )
 
     base_path = u4files.get_folder_paths(title="Select basepath.")
 
