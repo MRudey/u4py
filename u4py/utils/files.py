@@ -38,6 +38,22 @@ def get_file_paths(**kwargs):
     return file_list
 
 
+def get_save_path(**kwargs):
+    """Save wrapper for filedialog by tkinter"""
+    try:
+        root = Tk()
+    except TclError:
+        print("No display detected.")
+        file_path = input("Enter file path:")
+        return file_path
+    try:
+        root.withdraw()
+        file_path = filedialog.asksaveasfilename(**kwargs)
+    finally:
+        root.destroy()
+    return file_path
+
+
 def get_folder_paths(**kwargs):
     """Safe wrapper for filedialog by tkinter"""
     folder_path = ""
