@@ -5,12 +5,15 @@ Converts the CSV File by the HLNUG to a pickled dictionary
 import csv
 import pickle as pkl
 from datetime import datetime
+from pathlib import Path
 
 from tqdm import tqdm
 
 
 def main():
-    path = r"C:\Users\Michael Rudolf\Documents\ArcGIS\ExternalData\GWStände_2015\GWStände_2015.CSV"
+    path = Path(
+        "~/Documents/ArcGIS/ExternalData/GWStände_2015/GWStände_2015.CSV"
+    ).expanduser()
     with open(path, "rt") as csv_file:
         csv_reader = csv.reader(csv_file, delimiter=";")
         next(csv_reader, None)  # skip header

@@ -1,6 +1,7 @@
 """ Test the lookup procedure for inversion files"""
 
 import os
+from pathlib import Path
 
 import geopandas as gp
 
@@ -8,7 +9,7 @@ import u4py.utils.files as u4files
 
 
 def main():
-    base_path = r"C:\Users\Michael Rudolf\Documents\ArcGIS"
+    base_path = Path("~/Documents/ArcGIS").expanduser()
     pklfile_path = os.path.join(
         base_path, "INSAR_results", "inversion_results_2023_data.pkl"
     )
