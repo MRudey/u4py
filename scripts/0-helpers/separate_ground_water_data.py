@@ -3,6 +3,7 @@ Converts the CSV File by the HLNUG to a pickled dictionary
 """
 
 import csv
+import os
 import pickle as pkl
 from datetime import datetime
 from pathlib import Path
@@ -14,6 +15,7 @@ def main():
     path = Path(
         "~/Documents/ArcGIS/ExternalData/GWStände_2015/GWStände_2015.CSV"
     ).expanduser()
+    output_file, _ = os.path.splitext(path)
     with open(path, "rt") as csv_file:
         csv_reader = csv.reader(csv_file, delimiter=";")
         next(csv_reader, None)  # skip header
@@ -30,7 +32,7 @@ def main():
                 stations[station["name"]] = station
                 station = new_station(row)
             first_run = False
-    with open(path.replace(".CSV", ".pkl"), "wb") as pkl_file:
+    with open(output_file + ".pkl", "wb") as pkl_file:
         pkl.dump(stations, pkl_file)
 
 
