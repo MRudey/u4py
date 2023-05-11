@@ -15,12 +15,12 @@ should follow the following template:
 import os
 from typing import Callable, Tuple
 
+import contextily
 import geopandas as gp
 import matplotlib.pyplot as plt
 import numpy as np
 import rasterio
 import rasterio.plot as rioplot
-import scipy.optimize as spopt
 import scipy.stats as spstats
 from matplotlib.axes import Axes
 from matplotlib.figure import Figure
@@ -29,7 +29,6 @@ from pyproj import CRS
 import u4py.analysis.other as u4other
 import u4py.analysis.processing as u4proc
 import u4py.plotting.preparation as u4plotprep
-import u4py.utils.convert as u4convert
 
 
 def add_or_create(internal_plot):
@@ -241,7 +240,7 @@ def add_shapefile(
     Returns:
         The figure and axis if there was no axis specified.
     """
-    kwgs = {"crs": "EPSG:23032"}
+    kwgs = {"crs": "EPSG:23032", "keys": None, "labels": None}
     kwgs.update(kwargs)
     shape = gp.read_file(shp_path)
     if isinstance(kwgs["crs"], str):
@@ -250,12 +249,26 @@ def add_shapefile(
     elif isinstance(kwgs["crs"], CRS):
         shape = shape.to_crs(kwgs["crs"])
     kwgs.pop("crs")
+
+    if kwgs["keys"]:
+        for k, l in zip(kwgs["keys"], kwgs["labels"]):
+            to_label = shape[shape.name == k]
+            ax.annotate(
+                l,
+                (to_label.geometry.x, to_label.geometry.y),
+                xytext=(5, -5),
+                textcoords="offset points",
+                color=kwgs["color"],
+            )
+
+    kwgs.pop("keys")
+    kwgs.pop("labels")
     shape.plot(ax=ax, **kwgs)
 
 
 @add_or_create
 def add_basemap(
-    base_map_path: os.PathLike, ax: Axes, **kwargs
+    base_map_path: os.PathLike = None, ax: Axes = None, **kwargs
 ) -> Tuple[Figure, Axes] | None:
     """Creates a plot with the basemap as the lowest layer
 
@@ -267,8 +280,15 @@ def add_basemap(
     Returns:
         The figure and axis if there was no axis specified.
     """
-    with rasterio.open(base_map_path) as base_map:
-        rioplot.show(base_map, ax=ax, zorder=0, **kwargs)
+    if base_map_path:
+        with rasterio.open(base_map_path) as base_map:
+            rioplot.show(base_map, ax=ax, zorder=0, **kwargs)
+    else:
+        contextily.add_basemap(
+            ax=ax,
+            crs="EPSG:23032",
+            source=contextily.providers.OpenStreetMap.Mapnik,
+        )
 
 
 @add_or_create
@@ -327,3 +347,6 @@ def plot_fit_residuals(
     y_res = y - y_fit
 
     ax.plot(time, y_res, ".", label="Residuals", **kwargs)
+
+
+# @add_or_create

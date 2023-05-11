@@ -42,10 +42,10 @@ def get_project(
     3. Paths are handed to the script as a `ConfigParser` object.
     """
     global PROJECT
-    PROJECT, proj_path = load_project(proj_path=proj_path, required=required)
+    PROJECT, proj_path = _load_project(proj_path=proj_path, required=required)
     _, proj_name = os.path.split(proj_path)
     if interactive:
-        path_dialog(
+        _path_dialog(
             required=required,
             project_name=proj_name,
             proj_path=proj_path,
@@ -53,7 +53,7 @@ def get_project(
     return PROJECT
 
 
-def load_project(
+def _load_project(
     proj_path: os.PathLike = "", required: list[str] = []
 ) -> configparser.ConfigParser:
     """Loads the project from a file or generates a new one based on defaults.
@@ -81,7 +81,7 @@ def load_project(
             logging.info("Config read.")
         else:
             logging.info("No config found, generating defaults.")
-            project = generate_default()
+            project = _generate_default()
             proj_path = u4files.get_save_path(
                 title="Save to project file.",
                 defaultextension=".u4project",
@@ -102,7 +102,7 @@ def load_project(
     return project, proj_path
 
 
-def generate_default() -> configparser.ConfigParser:
+def _generate_default() -> configparser.ConfigParser:
     """
     Generates the default config
     """
@@ -132,7 +132,7 @@ def generate_default() -> configparser.ConfigParser:
     return project
 
 
-def path_dialog(
+def _path_dialog(
     required: list,
     proj_path: os.PathLike,
     project_name: str = "Project Name",
@@ -162,7 +162,7 @@ def path_dialog(
         entry["var"].set(PROJECT["paths"][k])
         entry["var"].trace_add(
             "write",
-            lambda *args, entries=entries, required=required: check_paths(
+            lambda *args, entries=entries, required=required: _check_paths(
                 entries, required, *args
             ),
         )
@@ -173,7 +173,7 @@ def path_dialog(
         )
         entry["entry"].grid(column=2, row=ii + 1, sticky=(tk.W, tk.E))
         entry["button"] = ttk.Button(  # Button for opening path
-            mainframe, text="...", command=partial(set_path, entry)
+            mainframe, text="...", command=partial(_set_path, entry)
         )
         entry["button"].grid(column=3, row=ii + 1, sticky=tk.W)
         entries[k] = entry
@@ -182,7 +182,7 @@ def path_dialog(
     entries["start_button"] = ttk.Button(
         mainframe,
         text="Save and Continue...",
-        command=partial(save_n_go, root, entries, PROJECT, proj_path),
+        command=partial(_save_n_go, root, entries, PROJECT, proj_path),
     )
     entries["start_button"].grid(column=4, row=ii + 2, sticky=tk.W)
     entries["start_button"].focus()
@@ -191,23 +191,23 @@ def path_dialog(
     entries["save_go_button"] = ttk.Button(
         mainframe,
         text="Save As and Continue...",
-        command=partial(save_n_go, root, entries, PROJECT),
+        command=partial(_save_n_go, root, entries, PROJECT),
     )
     entries["save_go_button"].grid(column=3, row=ii + 2, sticky=tk.W)
     entries["save_go_button"].focus()
 
     # Check if paths are there for first run
-    check_paths(entries, required)
+    _check_paths(entries, required)
 
     root.bind(
-        "<Return>", partial(save_n_go, root, entries, PROJECT, proj_path)
+        "<Return>", partial(_save_n_go, root, entries, PROJECT, proj_path)
     )
 
     # Run UI
     root.mainloop()
 
 
-def check_paths(entries: dict, required: list, *args):
+def _check_paths(entries: dict, required: list, *args):
     """Checks the paths in the entry if they are required and colors the text boxes accordingly
 
     Arguments:
@@ -228,7 +228,7 @@ def check_paths(entries: dict, required: list, *args):
                     entries[k]["entry"].configure(foreground="orange")
 
 
-def set_path(entry):
+def _set_path(entry):
     """Callback for the open buttons
 
     Arguments:
@@ -250,7 +250,7 @@ def set_path(entry):
     entry["var"].set(path)
 
 
-def save_n_go(
+def _save_n_go(
     root: tk.Tk,
     entries: dict,
     project: configparser.ConfigParser,

@@ -11,47 +11,72 @@ import contextily
 import geopandas as gp
 import matplotlib.gridspec as gs
 import matplotlib.pyplot as plt
-import numpy as np
 from shapely.geometry import Polygon
 
 import u4py.addons.climate as u4climate
 import u4py.addons.gas_storage as u4gas
-import u4py.addons.rivers as u4rivers
+
+# import u4py.addons.rivers as u4rivers
+import u4py.addons.groundwater as u4gw
 import u4py.plotting.axes as u4ax
 import u4py.plotting.formatting as u4plotfmt
 import u4py.utils.files as u4files
+import u4py.utils.projects as u4proj
 
 
 def main():
     # Paths
     psi_source = "L3_BBD_Vert_2023"
-    base_path = u4files.get_folder_paths(title="Select base folder")
-    psivert_path = u4files.get_folder_paths(title="Select PSI data folder")
-    ext_path = os.path.join(base_path, "ExternalData")
-    places_path = os.path.join(base_path, "Places")
-    output_path = os.path.join(base_path, "INSAR_plots")
-    os.makedirs(output_path, exist_ok=True)
-    fig_path = os.path.join(output_path, "Crumstadt_" + psi_source)
+    project = u4proj.get_project(
+        required=[
+            "base_path",
+            "psivert_path",
+            "ext_path",
+            "places_path",
+            "output_path",
+        ]
+    )
+    # base_path = u4files.get_folder_paths(title="Select base folder")
+    # psivert_path = u4files.get_folder_paths(title="Select PSI data folder")
+    # ext_path = os.path.join(base_path, "ExternalData")
+    # places_path = os.path.join(base_path, "Places")
+    # output_path = os.path.join(base_path, "INSAR_plots")
+    # os.makedirs(output_path, exist_ok=True)
+
+    fig_path = os.path.join(
+        project["paths"]["output_path"], "Crumstadt_" + psi_source
+    )
 
     # Load Data
-    data, crs = get_data_within_osm_query(psivert_path)
-    data_region, _ = get_data_within_region(psivert_path, crs=crs)
-    data_well, _ = get_data_at_well(psivert_path)
-    date_rhine, level_rhine = u4rivers.load_rhine_date(
-        os.path.join(ext_path, "Wasserstand_Rhein_DD.csv")
+    data, crs = get_data_within_osm_query(project["paths"]["psivert_path"])
+    data_region, _ = get_data_within_region(
+        project["paths"]["psivert_path"], crs=crs
+    )
+    data_well, _ = get_data_at_well(project["paths"]["psivert_path"])
+    # date_rhine, level_rhine = u4rivers.load_rhine_date(
+    #     os.path.join(project["paths"]["ext_path"], "Wasserstand_Rhein_DD.csv")
+    # )
+    data_gw = u4gw.get_groundwater_data(
+        os.path.join(
+            project["paths"]["ext_path"], "GWStände_2015", "GWStände_2015.pkl"
+        )
     )
     date_gas, _, level_gas = u4gas.load_gas_data(
-        os.path.join(ext_path, "Inventory Turnover Data_23.txt")
+        os.path.join(
+            project["paths"]["ext_path"], "Inventory Turnover Data_23.txt"
+        )
     )
     climate_data = u4climate.load_climate_data(
-        os.path.join(ext_path, "Wetter_FFM.txt")
+        os.path.join(project["paths"]["ext_path"], "Wetter_FFM.txt")
     )
 
     # Create the figure
     fig, axes = prepare_figure()
 
     # The map
-    plot_map(axes, data_region, crs=crs, places_path=places_path)
+    plot_map(
+        axes, data_region, crs=crs, places_path=project["paths"]["places_path"]
+    )
 
     # Time series for Crumstadt
     add_timeseries(
@@ -89,10 +114,32 @@ def main():
     u4plotfmt.add_copyright("Source: DWD", axes[4])
 
     # Water Level
-    axes[5].plot(date_rhine, level_rhine, "s-", color="C1")
-    axes[5].set_ylabel("Avg. Water Level (cm)\n(Rhine in Düsseldorf)")
-    axes[5].set_ylim(0, 700)
-    u4plotfmt.add_copyright("Source: Stadt Düsseldorf", axes[5])
+    axes[5].plot(
+        data_gw["CRUMSTADT"]["time"],
+        data_gw["CRUMSTADT"]["height"],
+        ".-",
+        color="C0",
+        label="Crumstadt",
+    )
+    axes[5].plot(
+        data_gw["HAHN flach"]["time"],
+        data_gw["HAHN flach"]["height"],
+        ".-",
+        color="C1",
+        label="Hahn (shallow)",
+    )
+    axes[5].plot(
+        data_gw["ALLMENDFELD (alt)"]["time"],
+        data_gw["ALLMENDFELD (alt)"]["height"],
+        ".-",
+        color="C2",
+        label="Allmendfeld (old)",
+    )
+    axes[5].set_ylabel("Ground Water Level (m)")
+    # axes[5].set_ylim(0, 700)
+    u4plotfmt.add_copyright("Source: HLNUG", axes[5])
+    axes[5].set_ylim(85, 90)
+    axes[5].legend(loc="best")
 
     # Gas data
     axes[6].plot(date_gas, level_gas, color="C2")
@@ -182,7 +229,7 @@ def load_data_from_points(h5path, points):
 
 
 def prepare_figure():
-    fig = plt.figure(figsize=(12, 12), dpi=150)
+    fig = plt.figure(figsize=(12, 12), dpi=300)
     grid = gs.GridSpec(ncols=2, nrows=4)
     axes = [
         fig.add_subplot(grid[:2, 0]),
@@ -193,7 +240,6 @@ def prepare_figure():
         fig.add_subplot(grid[3, 0]),
         fig.add_subplot(grid[3, 1]),
     ]
-
     u4plotfmt.numerate_axes(fig)
     return fig, axes
 
@@ -238,6 +284,18 @@ def plot_map(axes, data_region, crs, places_path):
         color="k",
         label="Faults",
         zorder=1,
+    )
+
+    u4ax.add_shapefile(
+        os.path.join(places_path, "GW_Stations.shp"),
+        ax=axes[0],
+        marker=u4plotfmt.drop_shape(),
+        color="b",
+        markersize=50,
+        zorder=1,
+        label="Groundwater Wells",
+        keys=["CRUMSTADT", "HAHN flach", "ALLMENDFELD (alt)"],
+        labels=["Crumstadt", "Hahn\n(shallow)", "Allmendfeld\n(old)"],
     )
 
     axes[0].set_xlim(463200, 469500)
