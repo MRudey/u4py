@@ -11,6 +11,7 @@ should follow the following template:
 - The input `data` is required.
 - For flexibility keywords can be added.
 """
+from __future__ import annotations
 
 import os
 from typing import Callable, Tuple
@@ -297,7 +298,7 @@ def plot_inversion_fit(
     inv_results: tuple,
     ax: Axes,
     direction: str = "UD",
-    **kwargs
+    **kwargs,
 ) -> Tuple[Figure, Axes] | None:
     """Creates a plot from inversion results.
 
