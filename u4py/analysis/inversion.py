@@ -1,3 +1,10 @@
+"""
+This code has been transcribed from the Matlab source code of Bedford, J., &
+Bevis, M. (2018). Greedy automatic signal decomposition and its application to
+daily GPS time series. Journal of Geophysical Research: Solid Earth, 123,
+6992-7003. https://doi.org/10.1029/2017JB014765
+"""
+
 import random
 
 import numpy as np
