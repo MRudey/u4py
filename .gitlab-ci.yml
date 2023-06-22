@@ -1,0 +1,8 @@
+pages:
+  stage: deploy
+  environment: production
+  artifacts:
+    paths:
+      - doc/build/html
+  rules:
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
