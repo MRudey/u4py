@@ -26,7 +26,9 @@ if errorlevel 9009 (
 if "%1" == "" goto help
 
 %SPHINXBUILD% -M %1 %SOURCEDIR% %BUILDDIR% %SPHINXOPTS% %O%
-cp -r build/html/* ../public
+if "%1" == "html" (
+	cp -r build/html/* ../public
+)
 goto end
 
 :help
