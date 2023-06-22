@@ -8,6 +8,9 @@ requirements.txt
 *.pdf
 cache/
 
+# Include images for GitLab Page
+!/public/_static/*.png
+
 # External Libraries
 external/
 
