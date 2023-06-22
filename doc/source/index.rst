@@ -23,6 +23,16 @@ This Python module was created in the framework of the project Umwelt 4.0 financ
    :undoc-members:
    :show-inheritance:
 
+.. automodule:: scripts
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+.. automodule:: notebooks
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
 Indices and tables
 ==================
 
