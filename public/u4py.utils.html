@@ -1,0 +1,651 @@
+<!DOCTYPE html>
+
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+    <title>u4py.utils package &#8212; U4Py 0.0.2dev documentation</title>
+    <link rel="stylesheet" type="text/css" href="_static/pygments.css" />
+    <link rel="stylesheet" type="text/css" href="_static/classic.css" />
+    
+    <script data-url_root="./" id="documentation_options" src="_static/documentation_options.js"></script>
+    <script src="_static/doctools.js"></script>
+    <script src="_static/sphinx_highlight.js"></script>
+    
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" /> 
+  </head><body>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="nav-item nav-item-0"><a href="index.html">U4Py 0.0.2dev documentation</a> &#187;</li>
+        <li class="nav-item nav-item-this"><a href="">u4py.utils package</a></li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <section id="u4py-utils-package">
+<h1>u4py.utils package<a class="headerlink" href="#u4py-utils-package" title="Permalink to this heading">¶</a></h1>
+<section id="submodules">
+<h2>Submodules<a class="headerlink" href="#submodules" title="Permalink to this heading">¶</a></h2>
+</section>
+<section id="module-u4py.utils.cmd_args">
+<span id="u4py-utils-cmd-args-module"></span><h2>u4py.utils.cmd_args module<a class="headerlink" href="#module-u4py.utils.cmd_args" title="Permalink to this heading">¶</a></h2>
+<p>Implements the command line arguments</p>
+<dl class="py function">
+<dt class="sig sig-object py" id="u4py.utils.cmd_args.load">
+<span class="sig-prename descclassname"><span class="pre">u4py.utils.cmd_args.</span></span><span class="sig-name descname"><span class="pre">load</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">module_descript</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">'No</span> <span class="pre">description</span> <span class="pre">given.'</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#u4py.utils.cmd_args.load" title="Permalink to this definition">¶</a></dt>
+<dd><p>Loads the commandline parser and sets everything in the config for later
+use.</p>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="u4py.utils.cmd_args.log_level_str">
+<span class="sig-prename descclassname"><span class="pre">u4py.utils.cmd_args.</span></span><span class="sig-name descname"><span class="pre">log_level_str</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">num</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">str</span></span></span><a class="headerlink" href="#u4py.utils.cmd_args.log_level_str" title="Permalink to this definition">¶</a></dt>
+<dd><p>Converts loglevel number into string</p>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="u4py.utils.cmd_args.setup_parser">
+<span class="sig-prename descclassname"><span class="pre">u4py.utils.cmd_args.</span></span><span class="sig-name descname"><span class="pre">setup_parser</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">module_descript</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#u4py.utils.cmd_args.setup_parser" title="Permalink to this definition">¶</a></dt>
+<dd><p>Sets all command line arguments</p>
+</dd></dl>
+
+</section>
+<section id="module-u4py.utils.config">
+<span id="u4py-utils-config-module"></span><h2>u4py.utils.config module<a class="headerlink" href="#module-u4py.utils.config" title="Permalink to this heading">¶</a></h2>
+</section>
+<section id="module-u4py.utils.convert">
+<span id="u4py-utils-convert-module"></span><h2>u4py.utils.convert module<a class="headerlink" href="#module-u4py.utils.convert" title="Permalink to this heading">¶</a></h2>
+<p>Contains functions for file conversion</p>
+<dl class="py function">
+<dt class="sig sig-object py" id="u4py.utils.convert.chunk_data">
+<span class="sig-prename descclassname"><span class="pre">u4py.utils.convert.</span></span><span class="sig-name descname"><span class="pre">chunk_data</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">data</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">save_folder</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">chunksize</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1000</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">min_values</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">5</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">compress</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#u4py.utils.convert.chunk_data" title="Permalink to this definition">¶</a></dt>
+<dd><p>Chunks data into many smaller files with spanning a square of <cite>chunksize</cite>
+meters. Discards chunks with less than <cite>min_values</cite>.</p>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="u4py.utils.convert.chunk_data_numba">
+<span class="sig-prename descclassname"><span class="pre">u4py.utils.convert.</span></span><span class="sig-name descname"><span class="pre">chunk_data_numba</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">data</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">dict</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">save_folder</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">PathLike</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">chunksize</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">1000</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">min_values</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">5</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">compress</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#u4py.utils.convert.chunk_data_numba" title="Permalink to this definition">¶</a></dt>
+<dd><p>Chunks data into many smaller files with spanning a square of <cite>chunksize</cite>
+meters. Discards chunks with less than <cite>min_values</cite>.</p>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="u4py.utils.convert.chunking_worker">
+<span class="sig-prename descclassname"><span class="pre">u4py.utils.convert.</span></span><span class="sig-name descname"><span class="pre">chunking_worker</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">args</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">str</span></span></span><a class="headerlink" href="#u4py.utils.convert.chunking_worker" title="Permalink to this definition">¶</a></dt>
+<dd><p>Encapsulated worker for getting a chunk out of the data.</p>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="u4py.utils.convert.convert_dpkg">
+<span class="sig-prename descclassname"><span class="pre">u4py.utils.convert.</span></span><span class="sig-name descname"><span class="pre">convert_dpkg</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">file_path</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">PathLike</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#u4py.utils.convert.convert_dpkg" title="Permalink to this definition">¶</a></dt>
+<dd><p>Converts the given dpkg file into a h5 file. The h5 file only contains the
+necessary information and is zipped with gzip.</p>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="u4py.utils.convert.convert_shapefile">
+<span class="sig-prename descclassname"><span class="pre">u4py.utils.convert.</span></span><span class="sig-name descname"><span class="pre">convert_shapefile</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">file_path</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">PathLike</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#u4py.utils.convert.convert_shapefile" title="Permalink to this definition">¶</a></dt>
+<dd><p>Converts the given dbf file into a h5 file. The h5 file only contains the
+necessary information and is zipped with gzip.</p>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="u4py.utils.convert.create_datasets">
+<span class="sig-prename descclassname"><span class="pre">u4py.utils.convert.</span></span><span class="sig-name descname"><span class="pre">create_datasets</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">h5group</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">k</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">v</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">compression</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">compression_opts</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#u4py.utils.convert.create_datasets" title="Permalink to this definition">¶</a></dt>
+<dd><p>Creates a dataset depending on the content of <cite>v</cite></p>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="u4py.utils.convert.dbf_to_dict">
+<span class="sig-prename descclassname"><span class="pre">u4py.utils.convert.</span></span><span class="sig-name descname"><span class="pre">dbf_to_dict</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">file_in</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">PathLike</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#u4py.utils.convert.dbf_to_dict" title="Permalink to this definition">¶</a></dt>
+<dd><p>Generic conversion of dbf file to dictionary</p>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="u4py.utils.convert.dict_to_hdf5">
+<span class="sig-prename descclassname"><span class="pre">u4py.utils.convert.</span></span><span class="sig-name descname"><span class="pre">dict_to_hdf5</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">h5path</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">PathLike</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">data</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">dict</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">compression</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'gzip'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">compression_opts</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">9</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#u4py.utils.convert.dict_to_hdf5" title="Permalink to this definition">¶</a></dt>
+<dd><p>Saves contents of dictionary into given h5 file. Dates are converted to
+strings following ISO date formatting.</p>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="u4py.utils.convert.get_bounds">
+<span class="sig-prename descclassname"><span class="pre">u4py.utils.convert.</span></span><span class="sig-name descname"><span class="pre">get_bounds</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">minval</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">maxval</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">chunksize</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">ndarray</span></span></span><a class="headerlink" href="#u4py.utils.convert.get_bounds" title="Permalink to this definition">¶</a></dt>
+<dd><p>Returns boundaries for given chunksize</p>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="u4py.utils.convert.get_chunks">
+<span class="sig-prename descclassname"><span class="pre">u4py.utils.convert.</span></span><span class="sig-name descname"><span class="pre">get_chunks</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">xrange</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">ndarray</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">yrange</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">ndarray</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">list</span></span></span><a class="headerlink" href="#u4py.utils.convert.get_chunks" title="Permalink to this definition">¶</a></dt>
+<dd><p>Returns the corners for chunking</p>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="u4py.utils.convert.get_floatyear">
+<span class="sig-prename descclassname"><span class="pre">u4py.utils.convert.</span></span><span class="sig-name descname"><span class="pre">get_floatyear</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">timestr</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#u4py.utils.convert.get_floatyear" title="Permalink to this definition">¶</a></dt>
+<dd><p>Converts to a float based year</p>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="u4py.utils.convert.gnss_dat_to_dict">
+<span class="sig-prename descclassname"><span class="pre">u4py.utils.convert.</span></span><span class="sig-name descname"><span class="pre">gnss_dat_to_dict</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">file_in</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">PathLike</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#u4py.utils.convert.gnss_dat_to_dict" title="Permalink to this definition">¶</a></dt>
+<dd><p>Converts a gnss dat file to dictionary</p>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="u4py.utils.convert.gps_week_to_time">
+<span class="sig-prename descclassname"><span class="pre">u4py.utils.convert.</span></span><span class="sig-name descname"><span class="pre">gps_week_to_time</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">gps_week</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#u4py.utils.convert.gps_week_to_time" title="Permalink to this definition">¶</a></dt>
+<dd><p>Converts a gpsweek timestamp to datetime</p>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="u4py.utils.convert.key_to_time">
+<span class="sig-prename descclassname"><span class="pre">u4py.utils.convert.</span></span><span class="sig-name descname"><span class="pre">key_to_time</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">key</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">starttime</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">datetime.datetime(2015,</span> <span class="pre">4,</span> <span class="pre">4,</span> <span class="pre">0,</span> <span class="pre">0)</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">startindex</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">20150</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">acqdiff</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">datetime.timedelta(days=6)</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#u4py.utils.convert.key_to_time" title="Permalink to this definition">¶</a></dt>
+<dd><p>Converts a key timestamp to a datetime</p>
+<dl class="simple">
+<dt>Args:</dt><dd><dl class="simple">
+<dt>key (str):</dt><dd><p>Timestamp key</p>
+</dd>
+<dt>starttime (datetime, optional):</dt><dd><p>Time when first PSI data was taken. Defaults to datetime(2016,4,1).</p>
+</dd>
+<dt>startindex (int, optional):</dt><dd><p>First index when counting is started. Defaults to 20150.</p>
+</dd>
+<dt>acqdiff (timedelta, optional):</dt><dd><p>Timedifference between acquisitions. Defaults to timedelta(days=6).</p>
+</dd>
+</dl>
+</dd>
+<dt>Returns:</dt><dd><p>datetime: converted and referenced datetime</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="u4py.utils.convert.merge_data">
+<span class="sig-prename descclassname"><span class="pre">u4py.utils.convert.</span></span><span class="sig-name descname"><span class="pre">merge_data</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">inputs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#u4py.utils.convert.merge_data" title="Permalink to this definition">¶</a></dt>
+<dd><p>Converts average LOS movement into EW and UD component</p>
+<dl class="simple">
+<dt>Args:</dt><dd><p>base_path (os.PathLike): Path to folder with ASCE and DESC folder
+file_name (os.PathLike): Common file for calculation</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="u4py.utils.convert.numba_chunking">
+<span class="sig-prename descclassname"><span class="pre">u4py.utils.convert.</span></span><span class="sig-name descname"><span class="pre">numba_chunking</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">total</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">chunk_list</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">list</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">chunksize</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">min_values</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">compress</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">save_folder</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">PathLike</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">data</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">dict</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">progress_proxy</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">ProgressBar</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#u4py.utils.convert.numba_chunking" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="u4py.utils.convert.psi_dbf_to_dict">
+<span class="sig-prename descclassname"><span class="pre">u4py.utils.convert.</span></span><span class="sig-name descname"><span class="pre">psi_dbf_to_dict</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">file_in</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">PathLike</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#u4py.utils.convert.psi_dbf_to_dict" title="Permalink to this definition">¶</a></dt>
+<dd><p>Takes a dbf file and returns a dictionary with numpy arrays for x, y, z
+coordinates, PS_ID and timeseries for each entry.</p>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="u4py.utils.convert.slice_array">
+<span class="sig-prename descclassname"><span class="pre">u4py.utils.convert.</span></span><span class="sig-name descname"><span class="pre">slice_array</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">data</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">dict</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">slc</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">slice</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">dict</span></span></span><a class="headerlink" href="#u4py.utils.convert.slice_array" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</section>
+<section id="module-u4py.utils.files">
+<span id="u4py-utils-files-module"></span><h2>u4py.utils.files module<a class="headerlink" href="#module-u4py.utils.files" title="Permalink to this heading">¶</a></h2>
+<p>Contains simple file and folder utilities for u4py</p>
+<dl class="py function">
+<dt class="sig sig-object py" id="u4py.utils.files.get_data">
+<span class="sig-prename descclassname"><span class="pre">u4py.utils.files.</span></span><span class="sig-name descname"><span class="pre">get_data</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">h5group</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">timefmt</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'datetime'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ind</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">array([],</span> <span class="pre">dtype=float64)</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#u4py.utils.files.get_data" title="Permalink to this definition">¶</a></dt>
+<dd><p>Recursively gets data from a group. Going deeper if a group is found.</p>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="u4py.utils.files.get_data_for_inversion">
+<span class="sig-prename descclassname"><span class="pre">u4py.utils.files.</span></span><span class="sig-name descname"><span class="pre">get_data_for_inversion</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">file_path</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#u4py.utils.files.get_data_for_inversion" title="Permalink to this definition">¶</a></dt>
+<dd><p>Loads file and prepares dataset for inversion</p>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="u4py.utils.files.get_file_list">
+<span class="sig-prename descclassname"><span class="pre">u4py.utils.files.</span></span><span class="sig-name descname"><span class="pre">get_file_list</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">filetype</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">'.h5'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">folder_path</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">PathLike</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">recursive</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#u4py.utils.files.get_file_list" title="Permalink to this definition">¶</a></dt>
+<dd><p>Asks for folder and returns all files of given filetype</p>
+<dl class="simple">
+<dt>Keyword Arguments:</dt><dd><p>filetype – The filetype to create the list from (default: {“.h5”})
+folder_path – The base path to look for files, if emtpy the user is asked to select a folder (default: {None})
+recursive – When True, recurses through all subfolders (default: {False})</p>
+</dd>
+<dt>Returns:</dt><dd><p>A list of filepaths to files of the given filetype within the folderpath.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="u4py.utils.files.get_file_paths">
+<span class="sig-prename descclassname"><span class="pre">u4py.utils.files.</span></span><span class="sig-name descname"><span class="pre">get_file_paths</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#u4py.utils.files.get_file_paths" title="Permalink to this definition">¶</a></dt>
+<dd><p>Safe wrapper for filedialog by tkinter</p>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="u4py.utils.files.get_folder_paths">
+<span class="sig-prename descclassname"><span class="pre">u4py.utils.files.</span></span><span class="sig-name descname"><span class="pre">get_folder_paths</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#u4py.utils.files.get_folder_paths" title="Permalink to this definition">¶</a></dt>
+<dd><p>Safe wrapper for filedialog by tkinter</p>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="u4py.utils.files.get_pickled_inversion_results">
+<span class="sig-prename descclassname"><span class="pre">u4py.utils.files.</span></span><span class="sig-name descname"><span class="pre">get_pickled_inversion_results</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">file_path</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">PathLike</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ind</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">slice</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">points</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">GeoDataFrame</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">Tuple</span><span class="p"><span class="pre">[</span></span><span class="pre">list</span><span class="p"><span class="pre">[</span></span><span class="pre">tuple</span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">float</span><span class="p"><span class="pre">]</span></span></span></span><a class="headerlink" href="#u4py.utils.files.get_pickled_inversion_results" title="Permalink to this definition">¶</a></dt>
+<dd><p>Loads data from selected pickle file and also returns avg. distance to
+nearest inversion results.</p>
+<dl>
+<dt>Use only one of the selection criteria:</dt><dd><ul class="simple">
+<li><p>ind: Uses the indices in the list to slice the data.</p></li>
+<li><p>points: Does a spatial search in the data to extract the data at the</p></li>
+</ul>
+<p>coordinates of points.</p>
+</dd>
+<dt>Arguments:</dt><dd><p>file_path – The file path of the pickle file</p>
+</dd>
+<dt>Keyword Arguments:</dt><dd><p>ind – Indices where to look for data. If None takes all data. (default: {None})
+points – List of points where to look for data. If None takes all data. (default: {None})</p>
+</dd>
+<dt>Returns:</dt><dd><p>data (selection) and mean distance to data (only for point selection)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="u4py.utils.files.get_point_points">
+<span class="sig-prename descclassname"><span class="pre">u4py.utils.files.</span></span><span class="sig-name descname"><span class="pre">get_point_points</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">point</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Tuple</span><span class="p"><span class="pre">[</span></span><span class="pre">float</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">float</span><span class="p"><span class="pre">]</span></span></span></em>, <em class="sig-param"><span class="n"><span class="pre">radius</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">region_name</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">source_file_path</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">PathLike</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">overwrite</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">GeoDataFrame</span></span></span><a class="headerlink" href="#u4py.utils.files.get_point_points" title="Permalink to this definition">¶</a></dt>
+<dd><p>Returns the points from <cite>source_file_path</cite> that are within <cite>radius</cite> of
+<cite>point</cite>. Creates a shape file with the extracted points, for quicker
+repeated data access.</p>
+<dl class="simple">
+<dt>Arguments:</dt><dd><p>point – The point where to start.
+radius – The search radius around point (in meters)
+region_name – A sensible name for the extraction point.
+source_file_path – The file where to extract the data.</p>
+</dd>
+<dt>Keyword Arguments:</dt><dd><p>overwrite – Whether to overwrite the shape file (default: {False})</p>
+</dd>
+<dt>Returns:</dt><dd><p>A GeoDataFrame with the points including all relevant data.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="u4py.utils.files.get_region_points">
+<span class="sig-prename descclassname"><span class="pre">u4py.utils.files.</span></span><span class="sig-name descname"><span class="pre">get_region_points</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">region</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">GeoDataFrame</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">region_name</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">psi_file_path</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">PathLike</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">overwrite</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">crs</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">'EPSG:32632'</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">Tuple</span><span class="p"><span class="pre">[</span></span><span class="pre">GeoDataFrame</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">PathLike</span><span class="p"><span class="pre">]</span></span></span></span><a class="headerlink" href="#u4py.utils.files.get_region_points" title="Permalink to this definition">¶</a></dt>
+<dd><p>Gets the PSI points in a region and saves them into a shape file for
+faster access.</p>
+<dl class="simple">
+<dt>Arguments:</dt><dd><p>region – A <cite>GeoDataFrame</cite> of the region, e.g. from a shape file
+region_name – The name of the region.
+psi_file_path – Path to folder or file where the PSI data is found.</p>
+</dd>
+<dt>Keyword Arguments:</dt><dd><p>overwrite – Whether to overwrite the output shape file. (default: {False})
+crs – The CRS of the input shapes. (default: {“EPSG:32632”})</p>
+</dd>
+<dt>Returns:</dt><dd><p>Returns the points as GeoDataFrame with time series attached and the
+path where the folder is found.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="u4py.utils.files.get_save_path">
+<span class="sig-prename descclassname"><span class="pre">u4py.utils.files.</span></span><span class="sig-name descname"><span class="pre">get_save_path</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#u4py.utils.files.get_save_path" title="Permalink to this definition">¶</a></dt>
+<dd><p>Save wrapper for filedialog by tkinter</p>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="u4py.utils.files.get_select_points_osm">
+<span class="sig-prename descclassname"><span class="pre">u4py.utils.files.</span></span><span class="sig-name descname"><span class="pre">get_select_points_osm</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">query</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">psi_file_path</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">overwrite</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#u4py.utils.files.get_select_points_osm" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="u4py.utils.files.get_tiff_regions">
+<span class="sig-prename descclassname"><span class="pre">u4py.utils.files.</span></span><span class="sig-name descname"><span class="pre">get_tiff_regions</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">project</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">ConfigParser</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">overwrite</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">GeoDataFrame</span></span></span><a class="headerlink" href="#u4py.utils.files.get_tiff_regions" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="u4py.utils.files.load_data_from_points">
+<span class="sig-prename descclassname"><span class="pre">u4py.utils.files.</span></span><span class="sig-name descname"><span class="pre">load_data_from_points</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">input_path</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">PathLike</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">points</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">GeoDataFrame</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">dict</span></span></span><a class="headerlink" href="#u4py.utils.files.load_data_from_points" title="Permalink to this definition">¶</a></dt>
+<dd><p>Gets the data at the specified points.</p>
+<dl class="simple">
+<dt>Arguments:</dt><dd><p>input_path – The path to a hdf5 file or folder with files to load data.
+points – The points where to query the data.</p>
+</dd>
+<dt>Returns:</dt><dd><p>A dictionary containing the data.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="u4py.utils.files.load_hdf5">
+<span class="sig-prename descclassname"><span class="pre">u4py.utils.files.</span></span><span class="sig-name descname"><span class="pre">load_hdf5</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">file_path</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">timefmt</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'datetime'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ind</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">array([],</span> <span class="pre">dtype=float64)</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">dict</span></span></span><a class="headerlink" href="#u4py.utils.files.load_hdf5" title="Permalink to this definition">¶</a></dt>
+<dd><p>Loads data from a hdf5 file. Converts timestamps to datetime.</p>
+<dl class="simple">
+<dt>Arguments:</dt><dd><p>file_path – The path to the hdf5 file.</p>
+</dd>
+<dt>Keyword Arguments:</dt><dd><dl class="simple">
+<dt>timefmt – Converts timestamps to datetime. (default: {“datetime”})</dt><dd><dl class="simple">
+<dt>Different timestamp formats are supported:</dt><dd><p>datetime: Python built-in datetime
+floatyear: Years in float point numbers</p>
+</dd>
+</dl>
+</dd>
+<dt>ind – The indices of the timeseries to load. Creates a subset of the</dt><dd><p>data from the file (default: {np.array([])})</p>
+</dd>
+</dl>
+</dd>
+<dt>Returns:</dt><dd><p>The data as a dictionary.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="u4py.utils.files.load_hdf5_list">
+<span class="sig-prename descclassname"><span class="pre">u4py.utils.files.</span></span><span class="sig-name descname"><span class="pre">load_hdf5_list</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">file_list</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">list</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">timefmt</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">'datetime'</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">dict</span></span></span><a class="headerlink" href="#u4py.utils.files.load_hdf5_list" title="Permalink to this definition">¶</a></dt>
+<dd><p>Loads and merges all data from all files in the file list.</p>
+<dl class="simple">
+<dt>Arguments:</dt><dd><p>file_list – A list of hdf5 files created from a gpkg file</p>
+</dd>
+<dt>Keyword Arguments:</dt><dd><p>timefmt – Timestamp format for ‘load_hdf5’ (default: {“datetime”})</p>
+</dd>
+<dt>Returns:</dt><dd><p>The data as a dictionary.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="u4py.utils.files.load_tiff">
+<span class="sig-prename descclassname"><span class="pre">u4py.utils.files.</span></span><span class="sig-name descname"><span class="pre">load_tiff</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">tiff_file_path</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">PathLike</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#u4py.utils.files.load_tiff" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="u4py.utils.files.merge_data">
+<span class="sig-prename descclassname"><span class="pre">u4py.utils.files.</span></span><span class="sig-name descname"><span class="pre">merge_data</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">data</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">dict</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">data_new</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">dict</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">dict</span></span></span><a class="headerlink" href="#u4py.utils.files.merge_data" title="Permalink to this definition">¶</a></dt>
+<dd><p>Updates the contents of data depending on the content</p>
+<dl class="simple">
+<dt>Args:</dt><dd><p>data (dict): The current data dictionary
+data_new (dict): The data to be added</p>
+</dd>
+<dt>Returns:</dt><dd><p>dict: Merged data dictionary</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="u4py.utils.files.multi_split">
+<span class="sig-prename descclassname"><span class="pre">u4py.utils.files.</span></span><span class="sig-name descname"><span class="pre">multi_split</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">file_path</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">PathLike</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">nsplits</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#u4py.utils.files.multi_split" title="Permalink to this definition">¶</a></dt>
+<dd><p>Splits the filepath multiple times</p>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="u4py.utils.files.ndarray_to_geotiff">
+<span class="sig-prename descclassname"><span class="pre">u4py.utils.files.</span></span><span class="sig-name descname"><span class="pre">ndarray_to_geotiff</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">Z</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">ndarray</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">bounds</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">tuple</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">file_path</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">PathLike</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">crs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#u4py.utils.files.ndarray_to_geotiff" title="Permalink to this definition">¶</a></dt>
+<dd><p>Saves a numpy nd array and its bounds to a georeferenced tiff</p>
+<dl class="simple">
+<dt>Arguments:</dt><dd><p>Z – The array
+bounds – The edges of the array in real world coordinates
+file_path – the savepath
+crs – The coordinate system to use.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="u4py.utils.files.points_to_filelist">
+<span class="sig-prename descclassname"><span class="pre">u4py.utils.files.</span></span><span class="sig-name descname"><span class="pre">points_to_filelist</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">gdf</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">GeoDataFrame</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">data_folder</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">PathLike</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">list</span></span></span><a class="headerlink" href="#u4py.utils.files.points_to_filelist" title="Permalink to this definition">¶</a></dt>
+<dd><p>Gets a list of files to load the data from</p>
+<dl class="simple">
+<dt>Args:</dt><dd><p>gdf (gp.GeoDataFrame): A dataframe containing the points.
+data_folder (os.PathLike): Folder path where a hdf5 file for each
+point in the dataframe is found.</p>
+</dd>
+<dt>Returns:</dt><dd><p>list: List of all files to be loaded for data aggregation.</p>
+</dd>
+</dl>
+</dd></dl>
+
+</section>
+<section id="module-u4py.utils.projects">
+<span id="u4py-utils-projects-module"></span><h2>u4py.utils.projects module<a class="headerlink" href="#module-u4py.utils.projects" title="Permalink to this heading">¶</a></h2>
+<p>Submodule for managing paths as config files (projects)</p>
+<dl class="py function">
+<dt class="sig sig-object py" id="u4py.utils.projects.get_project">
+<span class="sig-prename descclassname"><span class="pre">u4py.utils.projects.</span></span><span class="sig-name descname"><span class="pre">get_project</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">proj_path</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">PathLike</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">''</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">required</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">list</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">['base_path']</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">interactive</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">ConfigParser</span></span></span><a class="headerlink" href="#u4py.utils.projects.get_project" title="Permalink to this definition">¶</a></dt>
+<dd><p>Interactive project path loader.</p>
+<p>A project file stores all relevant paths for specific plots. Typically used
+paths are interpolated using <cite>configparser.BasicInterpolation</cite>.</p>
+<p>When a script that uses one of the paths below is run:
+1. It tries to load an existing project file from <cite>proj_path</cite>:</p>
+<blockquote>
+<div><ul class="simple">
+<li><p>either hard coded input, or</p></li>
+<li><p>interactive opening of project file</p></li>
+<li><p>if <cite>None</cite> is given a new project file is created.</p></li>
+</ul>
+</div></blockquote>
+<ol class="arabic simple" start="2">
+<li><dl class="simple">
+<dt>After loading the paths are shown in a dialog</dt><dd><ul class="simple">
+<li><p>A keyword argument indicates if path existance should be enforced</p></li>
+<li><p>Required paths are given as a list of path names</p></li>
+<li><dl class="simple">
+<dt>Markups indicate if a path exists</dt><dd><ul>
+<li><dl class="field-list simple">
+<dt class="field-odd">green<span class="colon">:</span></dt>
+<dd class="field-odd"><p>folder/file exists</p>
+</dd>
+</dl>
+</li>
+<li><dl class="field-list simple">
+<dt class="field-odd">orange<span class="colon">:</span></dt>
+<dd class="field-odd"><p>folder/file does not exist but is not required</p>
+</dd>
+</dl>
+</li>
+<li><dl class="field-list simple">
+<dt class="field-odd">red<span class="colon">:</span></dt>
+<dd class="field-odd"><p>folder/file does not exist but is required for script</p>
+</dd>
+</dl>
+</li>
+</ul>
+</dd>
+</dl>
+</li>
+<li><p>When <cite>interactive=False</cite> no dialog is shown</p></li>
+</ul>
+</dd>
+</dl>
+</li>
+<li><p>Paths are handed to the script as a <cite>ConfigParser</cite> object.</p></li>
+</ol>
+</dd></dl>
+
+</section>
+<section id="module-u4py.utils.sql">
+<span id="u4py-utils-sql-module"></span><h2>u4py.utils.sql module<a class="headerlink" href="#module-u4py.utils.sql" title="Permalink to this heading">¶</a></h2>
+<p>Contains all sqlite functions for working with gpkg files</p>
+<dl class="py function">
+<dt class="sig sig-object py" id="u4py.utils.sql.get_table_names">
+<span class="sig-prename descclassname"><span class="pre">u4py.utils.sql.</span></span><span class="sig-name descname"><span class="pre">get_table_names</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">file_path</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">PathLike</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">list</span></span></span><a class="headerlink" href="#u4py.utils.sql.get_table_names" title="Permalink to this definition">¶</a></dt>
+<dd><dl class="simple">
+<dt>Gets all tables which start with:</dt><dd><p>‘<a href="#id1"><span class="problematic" id="id2">Zeitreihe_</span></a>’,
+‘Ost_West’, or
+‘vertikal’</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="u4py.utils.sql.map_queries">
+<span class="sig-prename descclassname"><span class="pre">u4py.utils.sql.</span></span><span class="sig-name descname"><span class="pre">map_queries</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">queries</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#u4py.utils.sql.map_queries" title="Permalink to this definition">¶</a></dt>
+<dd><p>Maps Queries to a parallel processing pool</p>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="u4py.utils.sql.multi_proc_query">
+<span class="sig-prename descclassname"><span class="pre">u4py.utils.sql.</span></span><span class="sig-name descname"><span class="pre">multi_proc_query</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">args</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#u4py.utils.sql.multi_proc_query" title="Permalink to this definition">¶</a></dt>
+<dd><p>Multiprocessing wrapper for sql queries</p>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="u4py.utils.sql.single_query">
+<span class="sig-prename descclassname"><span class="pre">u4py.utils.sql.</span></span><span class="sig-name descname"><span class="pre">single_query</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">file_path</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">PathLike</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">query</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">jj</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">-1</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#u4py.utils.sql.single_query" title="Permalink to this definition">¶</a></dt>
+<dd><p>Executes a single sql query for the given db-file</p>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="u4py.utils.sql.sql_key_to_time">
+<span class="sig-prename descclassname"><span class="pre">u4py.utils.sql.</span></span><span class="sig-name descname"><span class="pre">sql_key_to_time</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">key</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#u4py.utils.sql.sql_key_to_time" title="Permalink to this definition">¶</a></dt>
+<dd><p>Returns a datetime object for the given date</p>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="u4py.utils.sql.table_to_dict">
+<span class="sig-prename descclassname"><span class="pre">u4py.utils.sql.</span></span><span class="sig-name descname"><span class="pre">table_to_dict</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">file_path</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">PathLike</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">table</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">dict</span></span></span><a class="headerlink" href="#u4py.utils.sql.table_to_dict" title="Permalink to this definition">¶</a></dt>
+<dd><p>Opens the given sql database and gets all content of the given table</p>
+</dd></dl>
+
+</section>
+<section id="module-u4py.utils">
+<span id="module-contents"></span><h2>Module contents<a class="headerlink" href="#module-u4py.utils" title="Permalink to this heading">¶</a></h2>
+</section>
+</section>
+
+
+            <div class="clearer"></div>
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+  <div>
+    <h3><a href="index.html">Table of Contents</a></h3>
+    <ul>
+<li><a class="reference internal" href="#">u4py.utils package</a><ul>
+<li><a class="reference internal" href="#submodules">Submodules</a></li>
+<li><a class="reference internal" href="#module-u4py.utils.cmd_args">u4py.utils.cmd_args module</a><ul>
+<li><a class="reference internal" href="#u4py.utils.cmd_args.load"><code class="docutils literal notranslate"><span class="pre">load()</span></code></a></li>
+<li><a class="reference internal" href="#u4py.utils.cmd_args.log_level_str"><code class="docutils literal notranslate"><span class="pre">log_level_str()</span></code></a></li>
+<li><a class="reference internal" href="#u4py.utils.cmd_args.setup_parser"><code class="docutils literal notranslate"><span class="pre">setup_parser()</span></code></a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#module-u4py.utils.config">u4py.utils.config module</a></li>
+<li><a class="reference internal" href="#module-u4py.utils.convert">u4py.utils.convert module</a><ul>
+<li><a class="reference internal" href="#u4py.utils.convert.chunk_data"><code class="docutils literal notranslate"><span class="pre">chunk_data()</span></code></a></li>
+<li><a class="reference internal" href="#u4py.utils.convert.chunk_data_numba"><code class="docutils literal notranslate"><span class="pre">chunk_data_numba()</span></code></a></li>
+<li><a class="reference internal" href="#u4py.utils.convert.chunking_worker"><code class="docutils literal notranslate"><span class="pre">chunking_worker()</span></code></a></li>
+<li><a class="reference internal" href="#u4py.utils.convert.convert_dpkg"><code class="docutils literal notranslate"><span class="pre">convert_dpkg()</span></code></a></li>
+<li><a class="reference internal" href="#u4py.utils.convert.convert_shapefile"><code class="docutils literal notranslate"><span class="pre">convert_shapefile()</span></code></a></li>
+<li><a class="reference internal" href="#u4py.utils.convert.create_datasets"><code class="docutils literal notranslate"><span class="pre">create_datasets()</span></code></a></li>
+<li><a class="reference internal" href="#u4py.utils.convert.dbf_to_dict"><code class="docutils literal notranslate"><span class="pre">dbf_to_dict()</span></code></a></li>
+<li><a class="reference internal" href="#u4py.utils.convert.dict_to_hdf5"><code class="docutils literal notranslate"><span class="pre">dict_to_hdf5()</span></code></a></li>
+<li><a class="reference internal" href="#u4py.utils.convert.get_bounds"><code class="docutils literal notranslate"><span class="pre">get_bounds()</span></code></a></li>
+<li><a class="reference internal" href="#u4py.utils.convert.get_chunks"><code class="docutils literal notranslate"><span class="pre">get_chunks()</span></code></a></li>
+<li><a class="reference internal" href="#u4py.utils.convert.get_floatyear"><code class="docutils literal notranslate"><span class="pre">get_floatyear()</span></code></a></li>
+<li><a class="reference internal" href="#u4py.utils.convert.gnss_dat_to_dict"><code class="docutils literal notranslate"><span class="pre">gnss_dat_to_dict()</span></code></a></li>
+<li><a class="reference internal" href="#u4py.utils.convert.gps_week_to_time"><code class="docutils literal notranslate"><span class="pre">gps_week_to_time()</span></code></a></li>
+<li><a class="reference internal" href="#u4py.utils.convert.key_to_time"><code class="docutils literal notranslate"><span class="pre">key_to_time()</span></code></a></li>
+<li><a class="reference internal" href="#u4py.utils.convert.merge_data"><code class="docutils literal notranslate"><span class="pre">merge_data()</span></code></a></li>
+<li><a class="reference internal" href="#u4py.utils.convert.numba_chunking"><code class="docutils literal notranslate"><span class="pre">numba_chunking()</span></code></a></li>
+<li><a class="reference internal" href="#u4py.utils.convert.psi_dbf_to_dict"><code class="docutils literal notranslate"><span class="pre">psi_dbf_to_dict()</span></code></a></li>
+<li><a class="reference internal" href="#u4py.utils.convert.slice_array"><code class="docutils literal notranslate"><span class="pre">slice_array()</span></code></a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#module-u4py.utils.files">u4py.utils.files module</a><ul>
+<li><a class="reference internal" href="#u4py.utils.files.get_data"><code class="docutils literal notranslate"><span class="pre">get_data()</span></code></a></li>
+<li><a class="reference internal" href="#u4py.utils.files.get_data_for_inversion"><code class="docutils literal notranslate"><span class="pre">get_data_for_inversion()</span></code></a></li>
+<li><a class="reference internal" href="#u4py.utils.files.get_file_list"><code class="docutils literal notranslate"><span class="pre">get_file_list()</span></code></a></li>
+<li><a class="reference internal" href="#u4py.utils.files.get_file_paths"><code class="docutils literal notranslate"><span class="pre">get_file_paths()</span></code></a></li>
+<li><a class="reference internal" href="#u4py.utils.files.get_folder_paths"><code class="docutils literal notranslate"><span class="pre">get_folder_paths()</span></code></a></li>
+<li><a class="reference internal" href="#u4py.utils.files.get_pickled_inversion_results"><code class="docutils literal notranslate"><span class="pre">get_pickled_inversion_results()</span></code></a></li>
+<li><a class="reference internal" href="#u4py.utils.files.get_point_points"><code class="docutils literal notranslate"><span class="pre">get_point_points()</span></code></a></li>
+<li><a class="reference internal" href="#u4py.utils.files.get_region_points"><code class="docutils literal notranslate"><span class="pre">get_region_points()</span></code></a></li>
+<li><a class="reference internal" href="#u4py.utils.files.get_save_path"><code class="docutils literal notranslate"><span class="pre">get_save_path()</span></code></a></li>
+<li><a class="reference internal" href="#u4py.utils.files.get_select_points_osm"><code class="docutils literal notranslate"><span class="pre">get_select_points_osm()</span></code></a></li>
+<li><a class="reference internal" href="#u4py.utils.files.get_tiff_regions"><code class="docutils literal notranslate"><span class="pre">get_tiff_regions()</span></code></a></li>
+<li><a class="reference internal" href="#u4py.utils.files.load_data_from_points"><code class="docutils literal notranslate"><span class="pre">load_data_from_points()</span></code></a></li>
+<li><a class="reference internal" href="#u4py.utils.files.load_hdf5"><code class="docutils literal notranslate"><span class="pre">load_hdf5()</span></code></a></li>
+<li><a class="reference internal" href="#u4py.utils.files.load_hdf5_list"><code class="docutils literal notranslate"><span class="pre">load_hdf5_list()</span></code></a></li>
+<li><a class="reference internal" href="#u4py.utils.files.load_tiff"><code class="docutils literal notranslate"><span class="pre">load_tiff()</span></code></a></li>
+<li><a class="reference internal" href="#u4py.utils.files.merge_data"><code class="docutils literal notranslate"><span class="pre">merge_data()</span></code></a></li>
+<li><a class="reference internal" href="#u4py.utils.files.multi_split"><code class="docutils literal notranslate"><span class="pre">multi_split()</span></code></a></li>
+<li><a class="reference internal" href="#u4py.utils.files.ndarray_to_geotiff"><code class="docutils literal notranslate"><span class="pre">ndarray_to_geotiff()</span></code></a></li>
+<li><a class="reference internal" href="#u4py.utils.files.points_to_filelist"><code class="docutils literal notranslate"><span class="pre">points_to_filelist()</span></code></a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#module-u4py.utils.projects">u4py.utils.projects module</a><ul>
+<li><a class="reference internal" href="#u4py.utils.projects.get_project"><code class="docutils literal notranslate"><span class="pre">get_project()</span></code></a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#module-u4py.utils.sql">u4py.utils.sql module</a><ul>
+<li><a class="reference internal" href="#u4py.utils.sql.get_table_names"><code class="docutils literal notranslate"><span class="pre">get_table_names()</span></code></a></li>
+<li><a class="reference internal" href="#u4py.utils.sql.map_queries"><code class="docutils literal notranslate"><span class="pre">map_queries()</span></code></a></li>
+<li><a class="reference internal" href="#u4py.utils.sql.multi_proc_query"><code class="docutils literal notranslate"><span class="pre">multi_proc_query()</span></code></a></li>
+<li><a class="reference internal" href="#u4py.utils.sql.single_query"><code class="docutils literal notranslate"><span class="pre">single_query()</span></code></a></li>
+<li><a class="reference internal" href="#u4py.utils.sql.sql_key_to_time"><code class="docutils literal notranslate"><span class="pre">sql_key_to_time()</span></code></a></li>
+<li><a class="reference internal" href="#u4py.utils.sql.table_to_dict"><code class="docutils literal notranslate"><span class="pre">table_to_dict()</span></code></a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#module-u4py.utils">Module contents</a></li>
+</ul>
+</li>
+</ul>
+
+  </div>
+  <div role="note" aria-label="source link">
+    <h3>This Page</h3>
+    <ul class="this-page-menu">
+      <li><a href="_sources/u4py.utils.rst.txt"
+            rel="nofollow">Show Source</a></li>
+    </ul>
+   </div>
+<div id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"/>
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</div>
+<script>document.getElementById('searchbox').style.display = "block"</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="nav-item nav-item-0"><a href="index.html">U4Py 0.0.2dev documentation</a> &#187;</li>
+        <li class="nav-item nav-item-this"><a href="">u4py.utils package</a></li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &#169; Copyright 2023, T. Treffeisen, M. Rudolf.
+      Created using <a href="https://www.sphinx-doc.org/">Sphinx</a> 7.0.1.
+    </div>
+  </body>
+</html>

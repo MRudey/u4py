@@ -1,0 +1,543 @@
+<!DOCTYPE html>
+
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+    <title>u4py.analysis package &#8212; U4Py 0.0.2dev documentation</title>
+    <link rel="stylesheet" type="text/css" href="_static/pygments.css" />
+    <link rel="stylesheet" type="text/css" href="_static/classic.css" />
+    
+    <script data-url_root="./" id="documentation_options" src="_static/documentation_options.js"></script>
+    <script src="_static/doctools.js"></script>
+    <script src="_static/sphinx_highlight.js"></script>
+    
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" /> 
+  </head><body>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             accesskey="I">index</a></li>
+        <li class="right" >
+          <a href="py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="nav-item nav-item-0"><a href="index.html">U4Py 0.0.2dev documentation</a> &#187;</li>
+        <li class="nav-item nav-item-this"><a href="">u4py.analysis package</a></li> 
+      </ul>
+    </div>  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          <div class="body" role="main">
+            
+  <section id="u4py-analysis-package">
+<h1>u4py.analysis package<a class="headerlink" href="#u4py-analysis-package" title="Permalink to this heading">¶</a></h1>
+<section id="submodules">
+<h2>Submodules<a class="headerlink" href="#submodules" title="Permalink to this heading">¶</a></h2>
+</section>
+<section id="module-u4py.analysis.inversion">
+<span id="u4py-analysis-inversion-module"></span><h2>u4py.analysis.inversion module<a class="headerlink" href="#module-u4py.analysis.inversion" title="Permalink to this heading">¶</a></h2>
+<p>This code has been transcribed from the Matlab source code of Bedford, J., &amp;
+Bevis, M. (2018). Greedy automatic signal decomposition and its application to
+daily GPS time series. Journal of Geophysical Research: Solid Earth, 123,
+6992-7003. <a class="reference external" href="https://doi.org/10.1029/2017JB014765">https://doi.org/10.1029/2017JB014765</a></p>
+<dl class="py function">
+<dt class="sig sig-object py" id="u4py.analysis.inversion.clean_inputs">
+<span class="sig-prename descclassname"><span class="pre">u4py.analysis.inversion.</span></span><span class="sig-name descname"><span class="pre">clean_inputs</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">data</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#u4py.analysis.inversion.clean_inputs" title="Permalink to this definition">¶</a></dt>
+<dd><p>Cleans all nonfinite data from input</p>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="u4py.analysis.inversion.create_synthetic_data">
+<span class="sig-prename descclassname"><span class="pre">u4py.analysis.inversion.</span></span><span class="sig-name descname"><span class="pre">create_synthetic_data</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#u4py.analysis.inversion.create_synthetic_data" title="Permalink to this definition">¶</a></dt>
+<dd><p>Test data for inversion</p>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="u4py.analysis.inversion.downsample_timeseries">
+<span class="sig-prename descclassname"><span class="pre">u4py.analysis.inversion.</span></span><span class="sig-name descname"><span class="pre">downsample_timeseries</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">time_series</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">maxn</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#u4py.analysis.inversion.downsample_timeseries" title="Permalink to this definition">¶</a></dt>
+<dd><p>Randomly takes maxn datapoints from the timeseries to circumvent memory
+limitations.</p>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="u4py.analysis.inversion.forward_model">
+<span class="sig-prename descclassname"><span class="pre">u4py.analysis.inversion.</span></span><span class="sig-name descname"><span class="pre">forward_model</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">M</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">G</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">data</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ind</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ori</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#u4py.analysis.inversion.forward_model" title="Permalink to this definition">¶</a></dt>
+<dd><p>Forward model the data using the model parameters:
+Separation of the big DHAT-vector into different components</p>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="u4py.analysis.inversion.invert">
+<span class="sig-prename descclassname"><span class="pre">u4py.analysis.inversion.</span></span><span class="sig-name descname"><span class="pre">invert</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">G</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">ndarray</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">D</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">ndarray</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">S</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">array([],</span> <span class="pre">dtype=float64)</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#u4py.analysis.inversion.invert" title="Permalink to this definition">¶</a></dt>
+<dd><p>Invert for your model parameters
+Dimension: #parameters x 1</p>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="u4py.analysis.inversion.invert_np">
+<span class="sig-prename descclassname"><span class="pre">u4py.analysis.inversion.</span></span><span class="sig-name descname"><span class="pre">invert_np</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">G</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">ndarray</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">D</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">ndarray</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">S</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">array([],</span> <span class="pre">dtype=float64)</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#u4py.analysis.inversion.invert_np" title="Permalink to this definition">¶</a></dt>
+<dd><p>Invert for your model parameters
+Dimension: #parameters x 1</p>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="u4py.analysis.inversion.invert_time_series">
+<span class="sig-prename descclassname"><span class="pre">u4py.analysis.inversion.</span></span><span class="sig-name descname"><span class="pre">invert_time_series</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">data</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">t_AT</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">[]</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">t_EQ</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">[]</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ind</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">num_coeffs</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">t_relative</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">use_tensorflow</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">use_sparse</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#u4py.analysis.inversion.invert_time_series" title="Permalink to this definition">¶</a></dt>
+<dd><p>Inverts the timeseries</p>
+<p>### Inversion Theory
+NB: The problem must be linear, otherwise you cannot invert!</p>
+<p>(d: data, G: solver matrix, m: model parameters)</p>
+<blockquote>
+<div><p>d = G * m            =&gt;      m = np.linalg.inv(G’<a href="#id1"><span class="problematic" id="id2">*</span></a>G) * G’ * d</p>
+</div></blockquote>
+<p>and, using weights:</p>
+<blockquote>
+<div><p>W * d = W * G * m    ==&gt;     m = np.linalg.inv(G’ * np.linalg.inv(S) * G) * G’ * np.linalg.inv(S) * d</p>
+</div></blockquote>
+<p>with W’* W = np.linalg.inv(S), or, simplified: S = s^2</p>
+<p>### SET UP THE G-MATRIX
+The full G-Matrix contains a linear trend, offset, oscillation and a
+postseismic signal:</p>
+<p>A1 + A2*(t-tR)     + A3 * (t-tR)^2       + …
+B1 * sin(2*pi*t)   + B2 * cos(2*pi*t)    + …
+B3 * sin(4*pi*t)   + B4 * cos(4*pi*t)    + …
+C1 * tH(ant.off.)  + C2 * tH(EQ.offs.)   + …
+D1 * log(1+t/dT1)  + D2 * log(1+t/dT2)   + …</p>
+<p>In this equation, the following model parameters are included:</p>
+<dl class="simple">
+<dt>A1-…  - General offset and steady rate (can be steady, linear , for</dt><dd><p>interseismic deformation, or quadratic, for GIA adjustment)</p>
+</dd>
+</dl>
+<p>B1-…  - Amplitudes of annual and semi-annual oscillations
+C1-…  - Amplitude of Heaviside function (EQ_offsets/AT_offsets)</p>
+<blockquote>
+<div><p>starting at t_eq or t_at</p>
+</div></blockquote>
+<p>D1-…  - Amplitude of postseismic signal starting at t_EQ</p>
+<p>The G-Matrix needs to be individualized for each station, depending if
+it is affected by these signals. You should create a GLOBAL G-Matrix
+including ALL stations and not solve this for each single station. You do
+that by concatenating all stations and components into one big G-Matrix.
+In this example, I only show how it is done simultaneously for the three
+components of one station.</p>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="u4py.analysis.inversion.main">
+<span class="sig-prename descclassname"><span class="pre">u4py.analysis.inversion.</span></span><span class="sig-name descname"><span class="pre">main</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#u4py.analysis.inversion.main" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="u4py.analysis.inversion.medianize_station">
+<span class="sig-prename descclassname"><span class="pre">u4py.analysis.inversion.</span></span><span class="sig-name descname"><span class="pre">medianize_station</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">dataset</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">dict</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">data_keys</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">list</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">include_sigma</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#u4py.analysis.inversion.medianize_station" title="Permalink to this definition">¶</a></dt>
+<dd><p>Takes the median of the dataset and returns it as a timeseries</p>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="u4py.analysis.inversion.prepare_g_functions">
+<span class="sig-prename descclassname"><span class="pre">u4py.analysis.inversion.</span></span><span class="sig-name descname"><span class="pre">prepare_g_functions</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">data</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ind</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">t_AT</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">[]</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">t_EQ</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">[]</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">num_coeffs</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">2</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">t_relative</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">0</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#u4py.analysis.inversion.prepare_g_functions" title="Permalink to this definition">¶</a></dt>
+<dd><p>Prepares the Green’s functions</p>
+<dl class="simple">
+<dt>Args:</dt><dd><p>data (_type_): _description_
+ind (_type_): _description_
+t_AT (list, optional): _description_. Defaults to [].
+t_EQ (list, optional): _description_. Defaults to [].
+num_coeffs (int, optional): _description_. Defaults to 1.
+t_relative (int, optional): _description_. Defaults to 0.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="u4py.analysis.inversion.print_inversion_results">
+<span class="sig-prename descclassname"><span class="pre">u4py.analysis.inversion.</span></span><span class="sig-name descname"><span class="pre">print_inversion_results</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">matrix</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#u4py.analysis.inversion.print_inversion_results" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="u4py.analysis.inversion.remove_outliers">
+<span class="sig-prename descclassname"><span class="pre">u4py.analysis.inversion.</span></span><span class="sig-name descname"><span class="pre">remove_outliers</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">data</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">threshold</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">2.5</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#u4py.analysis.inversion.remove_outliers" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="u4py.analysis.inversion.set_g_matrices">
+<span class="sig-prename descclassname"><span class="pre">u4py.analysis.inversion.</span></span><span class="sig-name descname"><span class="pre">set_g_matrices</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">g_TREND</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">g_ANNUAL</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">g_HEAVIS_AT</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">g_HEAVIS_EQ</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">g_POSTSM</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#u4py.analysis.inversion.set_g_matrices" title="Permalink to this definition">¶</a></dt>
+<dd><p>Set up a G-matrices for each component and then the full, global G-matrix</p>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="u4py.analysis.inversion.stack_data">
+<span class="sig-prename descclassname"><span class="pre">u4py.analysis.inversion.</span></span><span class="sig-name descname"><span class="pre">stack_data</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">dataset</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">dict</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#u4py.analysis.inversion.stack_data" title="Permalink to this definition">¶</a></dt>
+<dd><p>Stacks all datapoints for inversion</p>
+</dd></dl>
+
+</section>
+<section id="module-u4py.analysis.other">
+<span id="u4py-analysis-other-module"></span><h2>u4py.analysis.other module<a class="headerlink" href="#module-u4py.analysis.other" title="Permalink to this heading">¶</a></h2>
+<p>General functions for data analysis</p>
+<dl class="py function">
+<dt class="sig sig-object py" id="u4py.analysis.other.cwt">
+<span class="sig-prename descclassname"><span class="pre">u4py.analysis.other.</span></span><span class="sig-name descname"><span class="pre">cwt</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">y</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dt</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#u4py.analysis.other.cwt" title="Permalink to this definition">¶</a></dt>
+<dd><p>Does a continuous wavelet transformation of the input data with a Morlet</p>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="u4py.analysis.other.get_stat_val">
+<span class="sig-prename descclassname"><span class="pre">u4py.analysis.other.</span></span><span class="sig-name descname"><span class="pre">get_stat_val</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">values</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">fnc=&lt;scipy.stats._continuous_distns.norm_gen</span> <span class="pre">object&gt;</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#u4py.analysis.other.get_stat_val" title="Permalink to this definition">¶</a></dt>
+<dd><p>Fits the data and returns the mean of the given statistical distribution</p>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="u4py.analysis.other.poly1">
+<span class="sig-prename descclassname"><span class="pre">u4py.analysis.other.</span></span><span class="sig-name descname"><span class="pre">poly1</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">x</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">ndarray</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">slope</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">offset</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">ndarray</span></span></span><a class="headerlink" href="#u4py.analysis.other.poly1" title="Permalink to this definition">¶</a></dt>
+<dd><p>Returns a linear function of the given data</p>
+<dl class="simple">
+<dt>Arguments:</dt><dd><p>x – The x axis
+slope – The slope of the function
+offset – The y-axis offset</p>
+</dd>
+<dt>Returns:</dt><dd><p><cite>slope * x * offset</cite></p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="u4py.analysis.other.run_stat_mean">
+<span class="sig-prename descclassname"><span class="pre">u4py.analysis.other.</span></span><span class="sig-name descname"><span class="pre">run_stat_mean</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">timeseries</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">fnc=&lt;scipy.stats._continuous_distns.norm_gen</span> <span class="pre">object&gt;</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#u4py.analysis.other.run_stat_mean" title="Permalink to this definition">¶</a></dt>
+<dd><p>Computes the running mean/median with the given statistical distribution</p>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="u4py.analysis.other.sinefunc">
+<span class="sig-prename descclassname"><span class="pre">u4py.analysis.other.</span></span><span class="sig-name descname"><span class="pre">sinefunc</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">x</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">ndarray</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">amplitude</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">width</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">shift</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">ndarray</span></span></span><a class="headerlink" href="#u4py.analysis.other.sinefunc" title="Permalink to this definition">¶</a></dt>
+<dd><p>Returns the cosine function of the given data</p>
+<dl class="simple">
+<dt>Arguments:</dt><dd><p>x – The x axis
+amplitude – The amplitude of the cosine
+width – The width/wavelength of the cosine
+shift – The phase shift</p>
+</dd>
+<dt>Returns:</dt><dd><p><cite>amplitude * cos(width * (x + shift))</cite></p>
+</dd>
+</dl>
+</dd></dl>
+
+</section>
+<section id="module-u4py.analysis.processing">
+<span id="u4py-analysis-processing-module"></span><h2>u4py.analysis.processing module<a class="headerlink" href="#module-u4py.analysis.processing" title="Permalink to this heading">¶</a></h2>
+<dl class="py function">
+<dt class="sig sig-object py" id="u4py.analysis.processing.get_common_files">
+<span class="sig-prename descclassname"><span class="pre">u4py.analysis.processing.</span></span><span class="sig-name descname"><span class="pre">get_common_files</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">base_path</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">PathLike</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">path1</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'ASCE'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">path2</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'DESC'</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#u4py.analysis.processing.get_common_files" title="Permalink to this definition">¶</a></dt>
+<dd><p>Goes through the ASCE and DESC folders in base_path to find matches</p>
+<dl class="simple">
+<dt>Args:</dt><dd><p>base_path (os.PathLike): Folder path where the ASCE and DESC folder
+are located</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="u4py.analysis.processing.get_decomposed_signals">
+<span class="sig-prename descclassname"><span class="pre">u4py.analysis.processing.</span></span><span class="sig-name descname"><span class="pre">get_decomposed_signals</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">data</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">dict</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">dict</span></span></span><a class="headerlink" href="#u4py.analysis.processing.get_decomposed_signals" title="Permalink to this definition">¶</a></dt>
+<dd><p>Decomposes signal similar to <cite>simple_decomposition</cite> but also returns the back calculated data.</p>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="u4py.analysis.processing.get_inversion_results">
+<span class="sig-prename descclassname"><span class="pre">u4py.analysis.processing.</span></span><span class="sig-name descname"><span class="pre">get_inversion_results</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">file_list</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">overwrite</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#u4py.analysis.processing.get_inversion_results" title="Permalink to this definition">¶</a></dt>
+<dd><p>Checks if inversion results are there and reprocesses if not or
+overwrite=True</p>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="u4py.analysis.processing.get_processing_results">
+<span class="sig-prename descclassname"><span class="pre">u4py.analysis.processing.</span></span><span class="sig-name descname"><span class="pre">get_processing_results</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">file_list</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">overwrite</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#u4py.analysis.processing.get_processing_results" title="Permalink to this definition">¶</a></dt>
+<dd><p>Checks if processing results are there and reprocesses if not or
+overwrite=True</p>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="u4py.analysis.processing.invert_file">
+<span class="sig-prename descclassname"><span class="pre">u4py.analysis.processing.</span></span><span class="sig-name descname"><span class="pre">invert_file</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">file_path</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">overwrite</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#u4py.analysis.processing.invert_file" title="Permalink to this definition">¶</a></dt>
+<dd><p>Does full processing for a single file</p>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="u4py.analysis.processing.linear_component">
+<span class="sig-prename descclassname"><span class="pre">u4py.analysis.processing.</span></span><span class="sig-name descname"><span class="pre">linear_component</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">x</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">ndarray</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">y</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">ndarray</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">tuple</span></span></span><a class="headerlink" href="#u4py.analysis.processing.linear_component" title="Permalink to this definition">¶</a></dt>
+<dd><p>Gets the linear fit of x and y</p>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="u4py.analysis.processing.load_pickle">
+<span class="sig-prename descclassname"><span class="pre">u4py.analysis.processing.</span></span><span class="sig-name descname"><span class="pre">load_pickle</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">pickle_path</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">PathLike</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">dict</span></span></span><a class="headerlink" href="#u4py.analysis.processing.load_pickle" title="Permalink to this definition">¶</a></dt>
+<dd><p>Loads the given pickle file for plotting</p>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="u4py.analysis.processing.process_file_list">
+<span class="sig-prename descclassname"><span class="pre">u4py.analysis.processing.</span></span><span class="sig-name descname"><span class="pre">process_file_list</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">file_list</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">fnc=&lt;function</span> <span class="pre">simple_file_process&gt;</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#u4py.analysis.processing.process_file_list" title="Permalink to this definition">¶</a></dt>
+<dd><p>Uses parallel processing to process a list of files</p>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="u4py.analysis.processing.simple_decomposition">
+<span class="sig-prename descclassname"><span class="pre">u4py.analysis.processing.</span></span><span class="sig-name descname"><span class="pre">simple_decomposition</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">time_days</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">ndarray</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">y</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">ndarray</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">tuple</span></span></span><a class="headerlink" href="#u4py.analysis.processing.simple_decomposition" title="Permalink to this definition">¶</a></dt>
+<dd><p>Separates signal into linear and sinusoidal part and returns the components</p>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="u4py.analysis.processing.simple_file_process">
+<span class="sig-prename descclassname"><span class="pre">u4py.analysis.processing.</span></span><span class="sig-name descname"><span class="pre">simple_file_process</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">file_path</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">overwrite</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#u4py.analysis.processing.simple_file_process" title="Permalink to this definition">¶</a></dt>
+<dd><p>Does a simple processing for a single file using the simple linear decomposition.</p>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="u4py.analysis.processing.sinus_component">
+<span class="sig-prename descclassname"><span class="pre">u4py.analysis.processing.</span></span><span class="sig-name descname"><span class="pre">sinus_component</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">x</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">ndarray</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">y</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">ndarray</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">tuple</span></span></span><a class="headerlink" href="#u4py.analysis.processing.sinus_component" title="Permalink to this definition">¶</a></dt>
+<dd><p>Gets the sinusoidal fit of x and y, adjusted to psi time in days</p>
+</dd></dl>
+
+</section>
+<section id="module-u4py.analysis.spatial">
+<span id="u4py-analysis-spatial-module"></span><h2>u4py.analysis.spatial module<a class="headerlink" href="#module-u4py.analysis.spatial" title="Permalink to this heading">¶</a></h2>
+<dl class="py function">
+<dt class="sig sig-object py" id="u4py.analysis.spatial.bounds_to_polygon">
+<span class="sig-prename descclassname"><span class="pre">u4py.analysis.spatial.</span></span><span class="sig-name descname"><span class="pre">bounds_to_polygon</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">bounds</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">BoundingBox</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">Polygon</span></span></span><a class="headerlink" href="#u4py.analysis.spatial.bounds_to_polygon" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="u4py.analysis.spatial.file_list_to_coords">
+<span class="sig-prename descclassname"><span class="pre">u4py.analysis.spatial.</span></span><span class="sig-name descname"><span class="pre">file_list_to_coords</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">input_data</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">list</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">list</span></span></span><a class="headerlink" href="#u4py.analysis.spatial.file_list_to_coords" title="Permalink to this definition">¶</a></dt>
+<dd><p>Converts a file list of h5 files with x and y coordinates in their names
+to a list of coordinates.</p>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="u4py.analysis.spatial.get_cKDTree">
+<span class="sig-prename descclassname"><span class="pre">u4py.analysis.spatial.</span></span><span class="sig-name descname"><span class="pre">get_cKDTree</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">file_path</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#u4py.analysis.spatial.get_cKDTree" title="Permalink to this definition">¶</a></dt>
+<dd><p>Loads all x and y coordinates from the given file or folder and returns a
+cKDTree for easy spatial lookup.</p>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="u4py.analysis.spatial.get_coords">
+<span class="sig-prename descclassname"><span class="pre">u4py.analysis.spatial.</span></span><span class="sig-name descname"><span class="pre">get_coords</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">input_data</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">PathLike</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">list</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">list</span></span></span><a class="headerlink" href="#u4py.analysis.spatial.get_coords" title="Permalink to this definition">¶</a></dt>
+<dd><p>Loads all x and y coordinates from the given file or folder.</p>
+<p>Works with single hdf or pkl files as well as folders with many files.</p>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="u4py.analysis.spatial.get_features">
+<span class="sig-prename descclassname"><span class="pre">u4py.analysis.spatial.</span></span><span class="sig-name descname"><span class="pre">get_features</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">in_dict</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">dict</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">features</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">list</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#u4py.analysis.spatial.get_features" title="Permalink to this definition">¶</a></dt>
+<dd><p>Gets specied features from input dictionary</p>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="u4py.analysis.spatial.get_rois">
+<span class="sig-prename descclassname"><span class="pre">u4py.analysis.spatial.</span></span><span class="sig-name descname"><span class="pre">get_rois</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">file_path</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">PathLike</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">list</span><span class="p"><span class="pre">[</span></span><span class="pre">Tuple</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">geopandas.geodataframe.GeoDataFrame</span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span></span></span><a class="headerlink" href="#u4py.analysis.spatial.get_rois" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="u4py.analysis.spatial.h5_to_coords">
+<span class="sig-prename descclassname"><span class="pre">u4py.analysis.spatial.</span></span><span class="sig-name descname"><span class="pre">h5_to_coords</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">h5file_path</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">PathLike</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">list</span></span></span><a class="headerlink" href="#u4py.analysis.spatial.h5_to_coords" title="Permalink to this definition">¶</a></dt>
+<dd><p>Converts a h5 file containing x and y to list of coordinates</p>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="u4py.analysis.spatial.pkl_to_coords">
+<span class="sig-prename descclassname"><span class="pre">u4py.analysis.spatial.</span></span><span class="sig-name descname"><span class="pre">pkl_to_coords</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">pkl_path</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">PathLike</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">list</span></span></span><a class="headerlink" href="#u4py.analysis.spatial.pkl_to_coords" title="Permalink to this definition">¶</a></dt>
+<dd><p>Converts contents of a pickled inversion results file to list of
+coordinates.</p>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="u4py.analysis.spatial.reproject_raster">
+<span class="sig-prename descclassname"><span class="pre">u4py.analysis.spatial.</span></span><span class="sig-name descname"><span class="pre">reproject_raster</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">in_path</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">out_path</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">output_crs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#u4py.analysis.spatial.reproject_raster" title="Permalink to this definition">¶</a></dt>
+<dd><p>reproject raster to project crs</p>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="u4py.analysis.spatial.select_points_osm">
+<span class="sig-prename descclassname"><span class="pre">u4py.analysis.spatial.</span></span><span class="sig-name descname"><span class="pre">select_points_osm</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">query</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">psi_file_path</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#u4py.analysis.spatial.select_points_osm" title="Permalink to this definition">¶</a></dt>
+<dd><p>Selects points from the specified file or files in folder
+and crops them by the rectangles found in the given osm query.</p>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="u4py.analysis.spatial.select_points_point">
+<span class="sig-prename descclassname"><span class="pre">u4py.analysis.spatial.</span></span><span class="sig-name descname"><span class="pre">select_points_point</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">point</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">radius</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">psi_file_path</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#u4py.analysis.spatial.select_points_point" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="u4py.analysis.spatial.select_points_region">
+<span class="sig-prename descclassname"><span class="pre">u4py.analysis.spatial.</span></span><span class="sig-name descname"><span class="pre">select_points_region</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">region</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">GeoDataFrame</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">GeoSeries</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">psi_file_path</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">PathLike</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">crs</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">''</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">GeoDataFrame</span></span></span><a class="headerlink" href="#u4py.analysis.spatial.select_points_region" title="Permalink to this definition">¶</a></dt>
+<dd><p>Selects points from the specified file and crops them by the rectangles
+found in the given region.</p>
+<dl class="simple">
+<dt>Arguments:</dt><dd><p>region – The region to crop the data
+psi_file_path – The file to select from</p>
+</dd>
+<dt>Keyword Arguments:</dt><dd><p>crs – The CRS of the input region (default: {“”})</p>
+</dd>
+<dt>Returns:</dt><dd><p>The points from <cite>psi_file_path</cite> cropped to the <cite>region</cite>.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="u4py.analysis.spatial.spatial_lookup">
+<span class="sig-prename descclassname"><span class="pre">u4py.analysis.spatial.</span></span><span class="sig-name descname"><span class="pre">spatial_lookup</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">input_feature</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">points</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">GeoDataFrame</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">n</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">1</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">list</span><span class="p"><span class="pre">[</span></span><span class="pre">Tuple</span><span class="p"><span class="pre">[</span></span><span class="pre">float</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">int</span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span></span></span><a class="headerlink" href="#u4py.analysis.spatial.spatial_lookup" title="Permalink to this definition">¶</a></dt>
+<dd><p>Does a spatial lookup for the nearest point to all points in <cite>points</cite>.
+The data at <cite>input_feature</cite> has to have a valid format for creating a  lookup Tree.</p>
+<dl>
+<dt>Arguments:</dt><dd><dl class="simple">
+<dt>input_feature – A variable that contains some sort of x and y table</dt><dd><p>which can be converted to a lookup table with <cite>get_cKDTree()</cite></p>
+</dd>
+</dl>
+<p>points – The points to query.</p>
+</dd>
+<dt>Keyword Arguments:</dt><dd><p>n – The number of nearest neighbors (default: {1}).</p>
+</dd>
+<dt>Returns:</dt><dd><p>A list of <cite>n</cite> nearest neighbors for each point in the form of (distance, index)</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="u4py.analysis.spatial.tuple_list_to_coords">
+<span class="sig-prename descclassname"><span class="pre">u4py.analysis.spatial.</span></span><span class="sig-name descname"><span class="pre">tuple_list_to_coords</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">tuple_list</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">list</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">list</span></span></span><a class="headerlink" href="#u4py.analysis.spatial.tuple_list_to_coords" title="Permalink to this definition">¶</a></dt>
+<dd><p>Converts a list of tuples from a loaded pkl file to list of coordinates.</p>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="u4py.analysis.spatial.xy_to_point">
+<span class="sig-prename descclassname"><span class="pre">u4py.analysis.spatial.</span></span><span class="sig-name descname"><span class="pre">xy_to_point</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">xy</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">tuple</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">Point</span></span></span><a class="headerlink" href="#u4py.analysis.spatial.xy_to_point" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</section>
+<section id="module-u4py.analysis">
+<span id="module-contents"></span><h2>Module contents<a class="headerlink" href="#module-u4py.analysis" title="Permalink to this heading">¶</a></h2>
+</section>
+</section>
+
+
+            <div class="clearer"></div>
+          </div>
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+  <div>
+    <h3><a href="index.html">Table of Contents</a></h3>
+    <ul>
+<li><a class="reference internal" href="#">u4py.analysis package</a><ul>
+<li><a class="reference internal" href="#submodules">Submodules</a></li>
+<li><a class="reference internal" href="#module-u4py.analysis.inversion">u4py.analysis.inversion module</a><ul>
+<li><a class="reference internal" href="#u4py.analysis.inversion.clean_inputs"><code class="docutils literal notranslate"><span class="pre">clean_inputs()</span></code></a></li>
+<li><a class="reference internal" href="#u4py.analysis.inversion.create_synthetic_data"><code class="docutils literal notranslate"><span class="pre">create_synthetic_data()</span></code></a></li>
+<li><a class="reference internal" href="#u4py.analysis.inversion.downsample_timeseries"><code class="docutils literal notranslate"><span class="pre">downsample_timeseries()</span></code></a></li>
+<li><a class="reference internal" href="#u4py.analysis.inversion.forward_model"><code class="docutils literal notranslate"><span class="pre">forward_model()</span></code></a></li>
+<li><a class="reference internal" href="#u4py.analysis.inversion.invert"><code class="docutils literal notranslate"><span class="pre">invert()</span></code></a></li>
+<li><a class="reference internal" href="#u4py.analysis.inversion.invert_np"><code class="docutils literal notranslate"><span class="pre">invert_np()</span></code></a></li>
+<li><a class="reference internal" href="#u4py.analysis.inversion.invert_time_series"><code class="docutils literal notranslate"><span class="pre">invert_time_series()</span></code></a></li>
+<li><a class="reference internal" href="#u4py.analysis.inversion.main"><code class="docutils literal notranslate"><span class="pre">main()</span></code></a></li>
+<li><a class="reference internal" href="#u4py.analysis.inversion.medianize_station"><code class="docutils literal notranslate"><span class="pre">medianize_station()</span></code></a></li>
+<li><a class="reference internal" href="#u4py.analysis.inversion.prepare_g_functions"><code class="docutils literal notranslate"><span class="pre">prepare_g_functions()</span></code></a></li>
+<li><a class="reference internal" href="#u4py.analysis.inversion.print_inversion_results"><code class="docutils literal notranslate"><span class="pre">print_inversion_results()</span></code></a></li>
+<li><a class="reference internal" href="#u4py.analysis.inversion.remove_outliers"><code class="docutils literal notranslate"><span class="pre">remove_outliers()</span></code></a></li>
+<li><a class="reference internal" href="#u4py.analysis.inversion.set_g_matrices"><code class="docutils literal notranslate"><span class="pre">set_g_matrices()</span></code></a></li>
+<li><a class="reference internal" href="#u4py.analysis.inversion.stack_data"><code class="docutils literal notranslate"><span class="pre">stack_data()</span></code></a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#module-u4py.analysis.other">u4py.analysis.other module</a><ul>
+<li><a class="reference internal" href="#u4py.analysis.other.cwt"><code class="docutils literal notranslate"><span class="pre">cwt()</span></code></a></li>
+<li><a class="reference internal" href="#u4py.analysis.other.get_stat_val"><code class="docutils literal notranslate"><span class="pre">get_stat_val()</span></code></a></li>
+<li><a class="reference internal" href="#u4py.analysis.other.poly1"><code class="docutils literal notranslate"><span class="pre">poly1()</span></code></a></li>
+<li><a class="reference internal" href="#u4py.analysis.other.run_stat_mean"><code class="docutils literal notranslate"><span class="pre">run_stat_mean()</span></code></a></li>
+<li><a class="reference internal" href="#u4py.analysis.other.sinefunc"><code class="docutils literal notranslate"><span class="pre">sinefunc()</span></code></a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#module-u4py.analysis.processing">u4py.analysis.processing module</a><ul>
+<li><a class="reference internal" href="#u4py.analysis.processing.get_common_files"><code class="docutils literal notranslate"><span class="pre">get_common_files()</span></code></a></li>
+<li><a class="reference internal" href="#u4py.analysis.processing.get_decomposed_signals"><code class="docutils literal notranslate"><span class="pre">get_decomposed_signals()</span></code></a></li>
+<li><a class="reference internal" href="#u4py.analysis.processing.get_inversion_results"><code class="docutils literal notranslate"><span class="pre">get_inversion_results()</span></code></a></li>
+<li><a class="reference internal" href="#u4py.analysis.processing.get_processing_results"><code class="docutils literal notranslate"><span class="pre">get_processing_results()</span></code></a></li>
+<li><a class="reference internal" href="#u4py.analysis.processing.invert_file"><code class="docutils literal notranslate"><span class="pre">invert_file()</span></code></a></li>
+<li><a class="reference internal" href="#u4py.analysis.processing.linear_component"><code class="docutils literal notranslate"><span class="pre">linear_component()</span></code></a></li>
+<li><a class="reference internal" href="#u4py.analysis.processing.load_pickle"><code class="docutils literal notranslate"><span class="pre">load_pickle()</span></code></a></li>
+<li><a class="reference internal" href="#u4py.analysis.processing.process_file_list"><code class="docutils literal notranslate"><span class="pre">process_file_list()</span></code></a></li>
+<li><a class="reference internal" href="#u4py.analysis.processing.simple_decomposition"><code class="docutils literal notranslate"><span class="pre">simple_decomposition()</span></code></a></li>
+<li><a class="reference internal" href="#u4py.analysis.processing.simple_file_process"><code class="docutils literal notranslate"><span class="pre">simple_file_process()</span></code></a></li>
+<li><a class="reference internal" href="#u4py.analysis.processing.sinus_component"><code class="docutils literal notranslate"><span class="pre">sinus_component()</span></code></a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#module-u4py.analysis.spatial">u4py.analysis.spatial module</a><ul>
+<li><a class="reference internal" href="#u4py.analysis.spatial.bounds_to_polygon"><code class="docutils literal notranslate"><span class="pre">bounds_to_polygon()</span></code></a></li>
+<li><a class="reference internal" href="#u4py.analysis.spatial.file_list_to_coords"><code class="docutils literal notranslate"><span class="pre">file_list_to_coords()</span></code></a></li>
+<li><a class="reference internal" href="#u4py.analysis.spatial.get_cKDTree"><code class="docutils literal notranslate"><span class="pre">get_cKDTree()</span></code></a></li>
+<li><a class="reference internal" href="#u4py.analysis.spatial.get_coords"><code class="docutils literal notranslate"><span class="pre">get_coords()</span></code></a></li>
+<li><a class="reference internal" href="#u4py.analysis.spatial.get_features"><code class="docutils literal notranslate"><span class="pre">get_features()</span></code></a></li>
+<li><a class="reference internal" href="#u4py.analysis.spatial.get_rois"><code class="docutils literal notranslate"><span class="pre">get_rois()</span></code></a></li>
+<li><a class="reference internal" href="#u4py.analysis.spatial.h5_to_coords"><code class="docutils literal notranslate"><span class="pre">h5_to_coords()</span></code></a></li>
+<li><a class="reference internal" href="#u4py.analysis.spatial.pkl_to_coords"><code class="docutils literal notranslate"><span class="pre">pkl_to_coords()</span></code></a></li>
+<li><a class="reference internal" href="#u4py.analysis.spatial.reproject_raster"><code class="docutils literal notranslate"><span class="pre">reproject_raster()</span></code></a></li>
+<li><a class="reference internal" href="#u4py.analysis.spatial.select_points_osm"><code class="docutils literal notranslate"><span class="pre">select_points_osm()</span></code></a></li>
+<li><a class="reference internal" href="#u4py.analysis.spatial.select_points_point"><code class="docutils literal notranslate"><span class="pre">select_points_point()</span></code></a></li>
+<li><a class="reference internal" href="#u4py.analysis.spatial.select_points_region"><code class="docutils literal notranslate"><span class="pre">select_points_region()</span></code></a></li>
+<li><a class="reference internal" href="#u4py.analysis.spatial.spatial_lookup"><code class="docutils literal notranslate"><span class="pre">spatial_lookup()</span></code></a></li>
+<li><a class="reference internal" href="#u4py.analysis.spatial.tuple_list_to_coords"><code class="docutils literal notranslate"><span class="pre">tuple_list_to_coords()</span></code></a></li>
+<li><a class="reference internal" href="#u4py.analysis.spatial.xy_to_point"><code class="docutils literal notranslate"><span class="pre">xy_to_point()</span></code></a></li>
+</ul>
+</li>
+<li><a class="reference internal" href="#module-u4py.analysis">Module contents</a></li>
+</ul>
+</li>
+</ul>
+
+  </div>
+  <div role="note" aria-label="source link">
+    <h3>This Page</h3>
+    <ul class="this-page-menu">
+      <li><a href="_sources/u4py.analysis.rst.txt"
+            rel="nofollow">Show Source</a></li>
+    </ul>
+   </div>
+<div id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"/>
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</div>
+<script>document.getElementById('searchbox').style.display = "block"</script>
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="related" role="navigation" aria-label="related navigation">
+      <h3>Navigation</h3>
+      <ul>
+        <li class="right" style="margin-right: 10px">
+          <a href="genindex.html" title="General Index"
+             >index</a></li>
+        <li class="right" >
+          <a href="py-modindex.html" title="Python Module Index"
+             >modules</a> |</li>
+        <li class="nav-item nav-item-0"><a href="index.html">U4Py 0.0.2dev documentation</a> &#187;</li>
+        <li class="nav-item nav-item-this"><a href="">u4py.analysis package</a></li> 
+      </ul>
+    </div>
+    <div class="footer" role="contentinfo">
+        &#169; Copyright 2023, T. Treffeisen, M. Rudolf.
+      Created using <a href="https://www.sphinx-doc.org/">Sphinx</a> 7.0.1.
+    </div>
+  </body>
+</html>
