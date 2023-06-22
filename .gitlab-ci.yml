@@ -1,6 +1,8 @@
 pages:
   stage: deploy
   environment: production
+  script:
+      - echo "Running deploy"
   artifacts:
     paths:
       - doc/build/html
