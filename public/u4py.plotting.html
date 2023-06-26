@@ -1,452 +1,155 @@
 <!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" /><meta name="generator" content="Docutils 0.18.1: http://docutils.sourceforge.net/" />
 
-<html lang="en">
-  <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
-
-    <title>u4py.plotting package &#8212; U4Py 0.0.2dev documentation</title>
-    <link rel="stylesheet" type="text/css" href="_static/pygments.css" />
-    <link rel="stylesheet" type="text/css" href="_static/classic.css" />
-    
-    <script data-url_root="./" id="documentation_options" src="_static/documentation_options.js"></script>
-    <script src="_static/doctools.js"></script>
-    <script src="_static/sphinx_highlight.js"></script>
-    
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>u4py.plotting package &mdash; U4Py 0.0.2dev documentation</title>
+      <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+      <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
+  <!--[if lt IE 9]>
+    <script src="_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script src="_static/jquery.js"></script>
+        <script src="_static/_sphinx_javascript_frameworks_compat.js"></script>
+        <script data-url_root="./" id="documentation_options" src="_static/documentation_options.js"></script>
+        <script src="_static/doctools.js"></script>
+        <script src="_static/sphinx_highlight.js"></script>
+    <script src="_static/js/theme.js"></script>
     <link rel="index" title="Index" href="genindex.html" />
     <link rel="search" title="Search" href="search.html" /> 
-  </head><body>
-    <div class="related" role="navigation" aria-label="related navigation">
-      <h3>Navigation</h3>
-      <ul>
-        <li class="right" style="margin-right: 10px">
-          <a href="genindex.html" title="General Index"
-             accesskey="I">index</a></li>
-        <li class="right" >
-          <a href="py-modindex.html" title="Python Module Index"
-             >modules</a> |</li>
-        <li class="nav-item nav-item-0"><a href="index.html">U4Py 0.0.2dev documentation</a> &#187;</li>
-        <li class="nav-item nav-item-this"><a href="">u4py.plotting package</a></li> 
-      </ul>
-    </div>  
+</head>
 
-    <div class="document">
-      <div class="documentwrapper">
-        <div class="bodywrapper">
-          <div class="body" role="main">
-            
-  <section id="u4py-plotting-package">
-<h1>u4py.plotting package<a class="headerlink" href="#u4py-plotting-package" title="Permalink to this heading">¶</a></h1>
-<section id="submodules">
-<h2>Submodules<a class="headerlink" href="#submodules" title="Permalink to this heading">¶</a></h2>
-</section>
-<section id="module-u4py.plotting.axes">
-<span id="u4py-plotting-axes-module"></span><h2>u4py.plotting.axes module<a class="headerlink" href="#module-u4py.plotting.axes" title="Permalink to this heading">¶</a></h2>
-<p>Contains functions to create plots from a data dictionary. All functions
-should follow the following template:</p>
-<blockquote>
-<div><p>plot_FUNCNAME(<a class="reference external" href="data:dict">data:dict</a>, ax: Axes=None, KEYWORDS) -&gt; None, Tuple[Figure, Axes]</p>
-</div></blockquote>
-<ul class="simple">
-<li><p>Functions may also be used to add the plot to an existing plot. If given an
-<cite>Axes</cite> the function will plot into the given axis (useful for subplots). If
-no <cite>Axes</cite> is given the function will create a Figure and return both, an
-<cite>Axes</cite> and <cite>Figure</cite> object.</p></li>
-<li><p>The input <cite>data</cite> is required.</p></li>
-<li><p>For flexibility keywords can be added.</p></li>
-</ul>
-<dl class="py function">
-<dt class="sig sig-object py" id="u4py.plotting.axes.add_basemap">
-<span class="sig-prename descclassname"><span class="pre">u4py.plotting.axes.</span></span><span class="sig-name descname"><span class="pre">add_basemap</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ax</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#u4py.plotting.axes.add_basemap" title="Permalink to this definition">¶</a></dt>
-<dd></dd></dl>
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
 
-<dl class="py function">
-<dt class="sig sig-object py" id="u4py.plotting.axes.add_or_create">
-<span class="sig-prename descclassname"><span class="pre">u4py.plotting.axes.</span></span><span class="sig-name descname"><span class="pre">add_or_create</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">internal_plot</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#u4py.plotting.axes.add_or_create" title="Permalink to this definition">¶</a></dt>
-<dd><p>Decorator for all functions in this module</p>
-<p>Functions decorated can either add their plot to the axis (if <cite>ax</cite> is set).
-Otherwise the decorator creates a new plot with <cite>plt.subplots</cite></p>
-</dd></dl>
-
-<dl class="py function">
-<dt class="sig sig-object py" id="u4py.plotting.axes.add_shapefile">
-<span class="sig-prename descclassname"><span class="pre">u4py.plotting.axes.</span></span><span class="sig-name descname"><span class="pre">add_shapefile</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ax</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#u4py.plotting.axes.add_shapefile" title="Permalink to this definition">¶</a></dt>
-<dd></dd></dl>
-
-<dl class="py function">
-<dt class="sig sig-object py" id="u4py.plotting.axes.add_tile">
-<span class="sig-prename descclassname"><span class="pre">u4py.plotting.axes.</span></span><span class="sig-name descname"><span class="pre">add_tile</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ax</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#u4py.plotting.axes.add_tile" title="Permalink to this definition">¶</a></dt>
-<dd></dd></dl>
-
-<dl class="py function">
-<dt class="sig sig-object py" id="u4py.plotting.axes.plot_cwt">
-<span class="sig-prename descclassname"><span class="pre">u4py.plotting.axes.</span></span><span class="sig-name descname"><span class="pre">plot_cwt</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ax</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#u4py.plotting.axes.plot_cwt" title="Permalink to this definition">¶</a></dt>
-<dd></dd></dl>
-
-<dl class="py function">
-<dt class="sig sig-object py" id="u4py.plotting.axes.plot_fit_residuals">
-<span class="sig-prename descclassname"><span class="pre">u4py.plotting.axes.</span></span><span class="sig-name descname"><span class="pre">plot_fit_residuals</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ax</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#u4py.plotting.axes.plot_fit_residuals" title="Permalink to this definition">¶</a></dt>
-<dd></dd></dl>
-
-<dl class="py function">
-<dt class="sig sig-object py" id="u4py.plotting.axes.plot_inversion_fit">
-<span class="sig-prename descclassname"><span class="pre">u4py.plotting.axes.</span></span><span class="sig-name descname"><span class="pre">plot_inversion_fit</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ax</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#u4py.plotting.axes.plot_inversion_fit" title="Permalink to this definition">¶</a></dt>
-<dd></dd></dl>
-
-<dl class="py function">
-<dt class="sig sig-object py" id="u4py.plotting.axes.plot_pdf">
-<span class="sig-prename descclassname"><span class="pre">u4py.plotting.axes.</span></span><span class="sig-name descname"><span class="pre">plot_pdf</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ax</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#u4py.plotting.axes.plot_pdf" title="Permalink to this definition">¶</a></dt>
-<dd></dd></dl>
-
-<dl class="py function">
-<dt class="sig sig-object py" id="u4py.plotting.axes.plot_region_trend">
-<span class="sig-prename descclassname"><span class="pre">u4py.plotting.axes.</span></span><span class="sig-name descname"><span class="pre">plot_region_trend</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ax</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#u4py.plotting.axes.plot_region_trend" title="Permalink to this definition">¶</a></dt>
-<dd></dd></dl>
-
-<dl class="py function">
-<dt class="sig sig-object py" id="u4py.plotting.axes.plot_stat_func">
-<span class="sig-prename descclassname"><span class="pre">u4py.plotting.axes.</span></span><span class="sig-name descname"><span class="pre">plot_stat_func</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ax</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#u4py.plotting.axes.plot_stat_func" title="Permalink to this definition">¶</a></dt>
-<dd></dd></dl>
-
-<dl class="py function">
-<dt class="sig sig-object py" id="u4py.plotting.axes.plot_timeseries">
-<span class="sig-prename descclassname"><span class="pre">u4py.plotting.axes.</span></span><span class="sig-name descname"><span class="pre">plot_timeseries</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ax</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#u4py.plotting.axes.plot_timeseries" title="Permalink to this definition">¶</a></dt>
-<dd></dd></dl>
-
-<dl class="py function">
-<dt class="sig sig-object py" id="u4py.plotting.axes.plot_timeseries_fit">
-<span class="sig-prename descclassname"><span class="pre">u4py.plotting.axes.</span></span><span class="sig-name descname"><span class="pre">plot_timeseries_fit</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ax</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#u4py.plotting.axes.plot_timeseries_fit" title="Permalink to this definition">¶</a></dt>
-<dd></dd></dl>
-
-</section>
-<section id="module-u4py.plotting.formatting">
-<span id="u4py-plotting-formatting-module"></span><h2>u4py.plotting.formatting module<a class="headerlink" href="#module-u4py.plotting.formatting" title="Permalink to this heading">¶</a></h2>
-<p>Contains functions for consistent figure and axis formatting.</p>
-<dl class="py function">
-<dt class="sig sig-object py" id="u4py.plotting.formatting.add_copyright">
-<span class="sig-prename descclassname"><span class="pre">u4py.plotting.formatting.</span></span><span class="sig-name descname"><span class="pre">add_copyright</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">text</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ax</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Axes</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#u4py.plotting.formatting.add_copyright" title="Permalink to this definition">¶</a></dt>
-<dd><p>Adds a small copyright string to the lower left of the plot.</p>
-<dl class="simple">
-<dt>Arguments:</dt><dd><p>text – The text to add
-ax – The axis where to add the text.</p>
-</dd>
-</dl>
-</dd></dl>
-
-<dl class="py function">
-<dt class="sig sig-object py" id="u4py.plotting.formatting.add_map_label">
-<span class="sig-prename descclassname"><span class="pre">u4py.plotting.formatting.</span></span><span class="sig-name descname"><span class="pre">add_map_label</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">text</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">coords</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">tuple</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ax</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Axes</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#u4py.plotting.formatting.add_map_label" title="Permalink to this definition">¶</a></dt>
-<dd><p>Adds a label at the specified coordinates to the axes</p>
-<dl class="simple">
-<dt>Arguments:</dt><dd><p>text – The text.
-coords – The coordinates where to label.
-ax – The axes to label.</p>
-</dd>
-</dl>
-</dd></dl>
-
-<dl class="py function">
-<dt class="sig sig-object py" id="u4py.plotting.formatting.coordinate_formatter">
-<span class="sig-prename descclassname"><span class="pre">u4py.plotting.formatting.</span></span><span class="sig-name descname"><span class="pre">coordinate_formatter</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">x</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">pos</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#u4py.plotting.formatting.coordinate_formatter" title="Permalink to this definition">¶</a></dt>
-<dd><p>An axis formatter for UTM style coordinates</p>
-<dl class="simple">
-<dt>Arguments:</dt><dd><p>x – The value to be formatted
-pos – The position of the number</p>
-</dd>
-</dl>
-</dd></dl>
-
-<dl class="py function">
-<dt class="sig sig-object py" id="u4py.plotting.formatting.drop_shape">
-<span class="sig-prename descclassname"><span class="pre">u4py.plotting.formatting.</span></span><span class="sig-name descname"><span class="pre">drop_shape</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">PathPatch</span></span></span><a class="headerlink" href="#u4py.plotting.formatting.drop_shape" title="Permalink to this definition">¶</a></dt>
-<dd><p>Generates a drop shape for plotting</p>
-<dl class="simple">
-<dt>Returns:</dt><dd><p>A <cite>PathPatch</cite> that can be used as a marker.</p>
-</dd>
-</dl>
-</dd></dl>
-
-<dl class="py function">
-<dt class="sig sig-object py" id="u4py.plotting.formatting.map_style">
-<span class="sig-prename descclassname"><span class="pre">u4py.plotting.formatting.</span></span><span class="sig-name descname"><span class="pre">map_style</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">ax</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Axes</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">divisor</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">grid</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">crs</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">''</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#u4py.plotting.formatting.map_style" title="Permalink to this definition">¶</a></dt>
-<dd><p>Changes axis to be in a good format for a map.</p>
-<dl class="simple">
-<dt>Arguments:</dt><dd><p>ax – The axis object containing the map.</p>
-</dd>
-<dt>Keyword Arguments:</dt><dd><p>divisor – The tick divisor (default: {0}).
-grid – Plot a red grid (default: {True}).</p>
-</dd>
-</dl>
-</dd></dl>
-
-<dl class="py function">
-<dt class="sig sig-object py" id="u4py.plotting.formatting.numerate_axes">
-<span class="sig-prename descclassname"><span class="pre">u4py.plotting.formatting.</span></span><span class="sig-name descname"><span class="pre">numerate_axes</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">fig</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Figure</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">n</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">step</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">1</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#u4py.plotting.formatting.numerate_axes" title="Permalink to this definition">¶</a></dt>
-<dd><p>Adds numbering to all axes in a figure.</p>
-<dl class="simple">
-<dt>Arguments:</dt><dd><p>fig – The Figure containing the axes.</p>
-</dd>
-<dt>Keyword Arguments:</dt><dd><p>n – starting index (default: {0}).
-step – step index (default: {1}).</p>
-</dd>
-</dl>
-</dd></dl>
-
-<dl class="py function">
-<dt class="sig sig-object py" id="u4py.plotting.formatting.svg_parse">
-<span class="sig-prename descclassname"><span class="pre">u4py.plotting.formatting.</span></span><span class="sig-name descname"><span class="pre">svg_parse</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">svg_code</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">Tuple</span><span class="p"><span class="pre">[</span></span><span class="pre">ndarray</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">ndarray</span><span class="p"><span class="pre">]</span></span></span></span><a class="headerlink" href="#u4py.plotting.formatting.svg_parse" title="Permalink to this definition">¶</a></dt>
-<dd><p>Parses a simple svg string into codes and vertices for matplotlib paths.</p>
-<p>Adapted from the matplotlib documentation.</p>
-<dl class="simple">
-<dt>Arguments:</dt><dd><p>svg_code – A svg string without spaces</p>
-</dd>
-<dt>Returns:</dt><dd><p>Codes and Vertices for a matplotlib path</p>
-</dd>
-</dl>
-</dd></dl>
-
-</section>
-<section id="module-u4py.plotting.plots">
-<span id="u4py-plotting-plots-module"></span><h2>u4py.plotting.plots module<a class="headerlink" href="#module-u4py.plotting.plots" title="Permalink to this heading">¶</a></h2>
-<p>Contains functions with ready made plots. Each function should contain a
-save_path if possible.</p>
-<dl class="py function">
-<dt class="sig sig-object py" id="u4py.plotting.plots.plot_gridded">
-<span class="sig-prename descclassname"><span class="pre">u4py.plotting.plots.</span></span><span class="sig-name descname"><span class="pre">plot_gridded</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">lin_2d</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">ndarray</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">sin_2d</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">ndarray</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">extent</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">tuple</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">suptitle</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">''</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">base_map_path</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">PathLike</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">tektonik_path</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">PathLike</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">roi</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">GeoDataFrame</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">save_path</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">PathLike</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">perc</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">95</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dpi</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">300</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#u4py.plotting.plots.plot_gridded" title="Permalink to this definition">¶</a></dt>
-<dd><p>Creates a plot for gridded data</p>
-<dl class="simple">
-<dt>Arguments:</dt><dd><p>lin_2d – A 2D Array containing the linear trend data.
-sin_2d – A 2D Array containing the seasonal variation data.
-extent – The extend of the 2D grid as (minx, maxx, miny, maxy) tuple.</p>
-</dd>
-<dt>Keyword Arguments:</dt><dd><p>suptitle – The title for the plot. (default: {‘’})
-places_path – Path to the file containing the additional shape files
-to be plotted. (default: {None})
-tektonik_hessen – GeoDataFrame with tectonic information of hessen.
-(default: {None})
-roi – GeoDataFrame containing the regions of interest for detailed
-plots. (default: {None})
-save_path – Path where to save the plot. (default: {None})
-perc – Percentile for the visualization. (default: {95})
-dpi – Resolution of the plot for saving to png. (default: {300})</p>
-</dd>
-</dl>
-</dd></dl>
-
-<dl class="py function">
-<dt class="sig sig-object py" id="u4py.plotting.plots.plot_inversion_results">
-<span class="sig-prename descclassname"><span class="pre">u4py.plotting.plots.</span></span><span class="sig-name descname"><span class="pre">plot_inversion_results</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">time</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">time2</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">data</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">inversion_results</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">save_path</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#u4py.plotting.plots.plot_inversion_results" title="Permalink to this definition">¶</a></dt>
-<dd></dd></dl>
-
-<dl class="py function">
-<dt class="sig sig-object py" id="u4py.plotting.plots.plot_iterative_fit">
-<span class="sig-prename descclassname"><span class="pre">u4py.plotting.plots.</span></span><span class="sig-name descname"><span class="pre">plot_iterative_fit</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">data</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">dict</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">save_path</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">PathLike</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#u4py.plotting.plots.plot_iterative_fit" title="Permalink to this definition">¶</a></dt>
-<dd><p>Creates a plot with step by step fitting each in a separate subplot.</p>
-<dl class="simple">
-<dt>Arguments:</dt><dd><p>data – Data dictionary according to u4py standard (e.g. read from h5).</p>
-</dd>
-<dt>Keyword Arguments:</dt><dd><p>save_path – The Path where to store the data (default: {None})</p>
-</dd>
-</dl>
-</dd></dl>
-
-<dl class="py function">
-<dt class="sig sig-object py" id="u4py.plotting.plots.plot_statistics">
-<span class="sig-prename descclassname"><span class="pre">u4py.plotting.plots.</span></span><span class="sig-name descname"><span class="pre">plot_statistics</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">data</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">timeslot</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#u4py.plotting.plots.plot_statistics" title="Permalink to this definition">¶</a></dt>
-<dd></dd></dl>
-
-</section>
-<section id="module-u4py.plotting.preparation">
-<span id="u4py-plotting-preparation-module"></span><h2>u4py.plotting.preparation module<a class="headerlink" href="#module-u4py.plotting.preparation" title="Permalink to this heading">¶</a></h2>
-<p>Contains functions to modify or reformat data for plotting</p>
-<dl class="py function">
-<dt class="sig sig-object py" id="u4py.plotting.preparation.clean_points">
-<span class="sig-prename descclassname"><span class="pre">u4py.plotting.preparation.</span></span><span class="sig-name descname"><span class="pre">clean_points</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">points:</span> <span class="pre">~numpy.ndarray</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">sigma:</span> <span class="pre">int</span> <span class="pre">=</span> <span class="pre">2</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">fnc:</span> <span class="pre">~typing.Callable</span> <span class="pre">=</span> <span class="pre">&lt;scipy.stats._continuous_distns.norm_gen</span> <span class="pre">object&gt;</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">ndarray</span></span></span><a class="headerlink" href="#u4py.plotting.preparation.clean_points" title="Permalink to this definition">¶</a></dt>
-<dd><p>Creates a numpy array for slicing that removes all outliers from the
-given points array. The outliers are defined by the standard deviation of
-the given statistical function which can be any scipy statistics function
-that supports standard deviations.</p>
-<dl class="simple">
-<dt>Arguments:</dt><dd><p>points – The array of points to clean</p>
-</dd>
-<dt>Keyword Arguments:</dt><dd><p>sigma – The amounts of standard deviations to use (default: {2})
-fnc – The statistical function to use (default: {spstats.norm})</p>
-</dd>
-<dt>Returns:</dt><dd><p>A numpy array that can be used to slice other arrays</p>
-</dd>
-</dl>
-</dd></dl>
-
-<dl class="py function">
-<dt class="sig sig-object py" id="u4py.plotting.preparation.convert_results_for_grid">
-<span class="sig-prename descclassname"><span class="pre">u4py.plotting.preparation.</span></span><span class="sig-name descname"><span class="pre">convert_results_for_grid</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">results</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">list</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">chunk_size</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">250</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">Tuple</span><span class="p"><span class="pre">[</span></span><span class="pre">list</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">list</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">list</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">list</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">int</span><span class="p"><span class="pre">]</span></span></span></span><a class="headerlink" href="#u4py.plotting.preparation.convert_results_for_grid" title="Permalink to this definition">¶</a></dt>
-<dd><p>Returns the loaded data prepared for gridding</p>
-</dd></dl>
-
-<dl class="py function">
-<dt class="sig sig-object py" id="u4py.plotting.preparation.full_inv_single_comp">
-<span class="sig-prename descclassname"><span class="pre">u4py.plotting.preparation.</span></span><span class="sig-name descname"><span class="pre">full_inv_single_comp</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">x</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">ndarray</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">ndarray</span></span></span><a class="headerlink" href="#u4py.plotting.preparation.full_inv_single_comp" title="Permalink to this definition">¶</a></dt>
-<dd><p>Returns a full fit including (semi-)annual sines and cosines:</p>
-<dl class="simple">
-<dt>Structure of <a href="#id1"><span class="problematic" id="id2">*</span></a>args:</dt><dd><p>[0]: yaxis-offset
-[1]: linear trend
-[2]: semi-annual sine
-[3]: semi-annual cosine
-[4]: annual sine
-[5]: annual cosine</p>
-</dd>
-<dt>Arguments:</dt><dd><p>x – The x axis</p>
-</dd>
-</dl>
-</dd></dl>
-
-<dl class="py function">
-<dt class="sig sig-object py" id="u4py.plotting.preparation.get_forward_model">
-<span class="sig-prename descclassname"><span class="pre">u4py.plotting.preparation.</span></span><span class="sig-name descname"><span class="pre">get_forward_model</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">x</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">ndarray</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">inv_results</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">tuple</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dir</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">'UD'</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">ndarray</span></span></span><a class="headerlink" href="#u4py.plotting.preparation.get_forward_model" title="Permalink to this definition">¶</a></dt>
-<dd><p>Gets the forward model of the inversion results.</p>
-<dl class="simple">
-<dt>Arguments:</dt><dd><p>x – The x axis (datetime).
-inv_results – A tuple of the inversion results.</p>
-</dd>
-<dt>Keyword Arguments:</dt><dd><p>dir – The direction of the inversion results. Options are: “EW”,
-“NS”, “UD” (default {“UD”})</p>
-</dd>
-<dt>Returns:</dt><dd><p>The forward model for the specified direction</p>
-</dd>
-</dl>
-</dd></dl>
-
-<dl class="py function">
-<dt class="sig sig-object py" id="u4py.plotting.preparation.get_linfit_each_timeseries">
-<span class="sig-prename descclassname"><span class="pre">u4py.plotting.preparation.</span></span><span class="sig-name descname"><span class="pre">get_linfit_each_timeseries</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">data</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">dict</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">ndarray</span></span></span><a class="headerlink" href="#u4py.plotting.preparation.get_linfit_each_timeseries" title="Permalink to this definition">¶</a></dt>
-<dd><p>Fits each timeseries in the data dictionary. Suitable only for small
-datasets. Good for creating scatter plots.</p>
-<dl class="simple">
-<dt>Arguments:</dt><dd><p>data – data – Data dictionary according to u4py standard (e.g. read from h5)</p>
-</dd>
-<dt>Returns:</dt><dd><p>An array containing all linear fits in the dictionary.</p>
-</dd>
-</dl>
-</dd></dl>
-
-<dl class="py function">
-<dt class="sig sig-object py" id="u4py.plotting.preparation.make_gridded_data">
-<span class="sig-prename descclassname"><span class="pre">u4py.plotting.preparation.</span></span><span class="sig-name descname"><span class="pre">make_gridded_data</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">xmids</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">ndarray</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ymids</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">ndarray</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">lintrend</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">ndarray</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">sinusoid</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">ndarray</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">chunk_size</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">Tuple</span><span class="p"><span class="pre">[</span></span><span class="pre">ndarray</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">ndarray</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">tuple</span><span class="p"><span class="pre">]</span></span></span></span><a class="headerlink" href="#u4py.plotting.preparation.make_gridded_data" title="Permalink to this definition">¶</a></dt>
-<dd><p>Converts the data into a nice gridded format for plotting with mpl.</p>
-<dl class="simple">
-<dt>Arguments:</dt><dd><p>xmids – The x coordinates of the midpoints.
-ymids – The y coordinates of the midpoints.
-lintrend – The linear trend for the region
-sinusoid – The sinusoidal variation for the region
-chunk_size – Chunk size to generate X and Y Grid</p>
-</dd>
-<dt>Returns:</dt><dd><p>Linear and sinusoidal components each as array and the extend for plotting.</p>
-</dd>
-</dl>
-</dd></dl>
-
-</section>
-<section id="module-u4py.plotting">
-<span id="module-contents"></span><h2>Module contents<a class="headerlink" href="#module-u4py.plotting" title="Permalink to this heading">¶</a></h2>
-</section>
-</section>
-
-
-            <div class="clearer"></div>
-          </div>
-        </div>
-      </div>
-      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
-        <div class="sphinxsidebarwrapper">
-  <div>
-    <h3><a href="index.html">Table of Contents</a></h3>
-    <ul>
+          
+          
+          <a href="index.html" class="icon icon-home">
+            U4Py
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <!-- Local TOC -->
+              <div class="local-toc"><ul>
 <li><a class="reference internal" href="#">u4py.plotting package</a><ul>
 <li><a class="reference internal" href="#submodules">Submodules</a></li>
-<li><a class="reference internal" href="#module-u4py.plotting.axes">u4py.plotting.axes module</a><ul>
-<li><a class="reference internal" href="#u4py.plotting.axes.add_basemap"><code class="docutils literal notranslate"><span class="pre">add_basemap()</span></code></a></li>
-<li><a class="reference internal" href="#u4py.plotting.axes.add_or_create"><code class="docutils literal notranslate"><span class="pre">add_or_create()</span></code></a></li>
-<li><a class="reference internal" href="#u4py.plotting.axes.add_shapefile"><code class="docutils literal notranslate"><span class="pre">add_shapefile()</span></code></a></li>
-<li><a class="reference internal" href="#u4py.plotting.axes.add_tile"><code class="docutils literal notranslate"><span class="pre">add_tile()</span></code></a></li>
-<li><a class="reference internal" href="#u4py.plotting.axes.plot_cwt"><code class="docutils literal notranslate"><span class="pre">plot_cwt()</span></code></a></li>
-<li><a class="reference internal" href="#u4py.plotting.axes.plot_fit_residuals"><code class="docutils literal notranslate"><span class="pre">plot_fit_residuals()</span></code></a></li>
-<li><a class="reference internal" href="#u4py.plotting.axes.plot_inversion_fit"><code class="docutils literal notranslate"><span class="pre">plot_inversion_fit()</span></code></a></li>
-<li><a class="reference internal" href="#u4py.plotting.axes.plot_pdf"><code class="docutils literal notranslate"><span class="pre">plot_pdf()</span></code></a></li>
-<li><a class="reference internal" href="#u4py.plotting.axes.plot_region_trend"><code class="docutils literal notranslate"><span class="pre">plot_region_trend()</span></code></a></li>
-<li><a class="reference internal" href="#u4py.plotting.axes.plot_stat_func"><code class="docutils literal notranslate"><span class="pre">plot_stat_func()</span></code></a></li>
-<li><a class="reference internal" href="#u4py.plotting.axes.plot_timeseries"><code class="docutils literal notranslate"><span class="pre">plot_timeseries()</span></code></a></li>
-<li><a class="reference internal" href="#u4py.plotting.axes.plot_timeseries_fit"><code class="docutils literal notranslate"><span class="pre">plot_timeseries_fit()</span></code></a></li>
-</ul>
-</li>
-<li><a class="reference internal" href="#module-u4py.plotting.formatting">u4py.plotting.formatting module</a><ul>
-<li><a class="reference internal" href="#u4py.plotting.formatting.add_copyright"><code class="docutils literal notranslate"><span class="pre">add_copyright()</span></code></a></li>
-<li><a class="reference internal" href="#u4py.plotting.formatting.add_map_label"><code class="docutils literal notranslate"><span class="pre">add_map_label()</span></code></a></li>
-<li><a class="reference internal" href="#u4py.plotting.formatting.coordinate_formatter"><code class="docutils literal notranslate"><span class="pre">coordinate_formatter()</span></code></a></li>
-<li><a class="reference internal" href="#u4py.plotting.formatting.drop_shape"><code class="docutils literal notranslate"><span class="pre">drop_shape()</span></code></a></li>
-<li><a class="reference internal" href="#u4py.plotting.formatting.map_style"><code class="docutils literal notranslate"><span class="pre">map_style()</span></code></a></li>
-<li><a class="reference internal" href="#u4py.plotting.formatting.numerate_axes"><code class="docutils literal notranslate"><span class="pre">numerate_axes()</span></code></a></li>
-<li><a class="reference internal" href="#u4py.plotting.formatting.svg_parse"><code class="docutils literal notranslate"><span class="pre">svg_parse()</span></code></a></li>
-</ul>
-</li>
-<li><a class="reference internal" href="#module-u4py.plotting.plots">u4py.plotting.plots module</a><ul>
-<li><a class="reference internal" href="#u4py.plotting.plots.plot_gridded"><code class="docutils literal notranslate"><span class="pre">plot_gridded()</span></code></a></li>
-<li><a class="reference internal" href="#u4py.plotting.plots.plot_inversion_results"><code class="docutils literal notranslate"><span class="pre">plot_inversion_results()</span></code></a></li>
-<li><a class="reference internal" href="#u4py.plotting.plots.plot_iterative_fit"><code class="docutils literal notranslate"><span class="pre">plot_iterative_fit()</span></code></a></li>
-<li><a class="reference internal" href="#u4py.plotting.plots.plot_statistics"><code class="docutils literal notranslate"><span class="pre">plot_statistics()</span></code></a></li>
-</ul>
-</li>
-<li><a class="reference internal" href="#module-u4py.plotting.preparation">u4py.plotting.preparation module</a><ul>
-<li><a class="reference internal" href="#u4py.plotting.preparation.clean_points"><code class="docutils literal notranslate"><span class="pre">clean_points()</span></code></a></li>
-<li><a class="reference internal" href="#u4py.plotting.preparation.convert_results_for_grid"><code class="docutils literal notranslate"><span class="pre">convert_results_for_grid()</span></code></a></li>
-<li><a class="reference internal" href="#u4py.plotting.preparation.full_inv_single_comp"><code class="docutils literal notranslate"><span class="pre">full_inv_single_comp()</span></code></a></li>
-<li><a class="reference internal" href="#u4py.plotting.preparation.get_forward_model"><code class="docutils literal notranslate"><span class="pre">get_forward_model()</span></code></a></li>
-<li><a class="reference internal" href="#u4py.plotting.preparation.get_linfit_each_timeseries"><code class="docutils literal notranslate"><span class="pre">get_linfit_each_timeseries()</span></code></a></li>
-<li><a class="reference internal" href="#u4py.plotting.preparation.make_gridded_data"><code class="docutils literal notranslate"><span class="pre">make_gridded_data()</span></code></a></li>
-</ul>
-</li>
-<li><a class="reference internal" href="#module-u4py.plotting">Module contents</a></li>
 </ul>
 </li>
 </ul>
-
-  </div>
-  <div role="note" aria-label="source link">
-    <h3>This Page</h3>
-    <ul class="this-page-menu">
-      <li><a href="_sources/u4py.plotting.rst.txt"
-            rel="nofollow">Show Source</a></li>
-    </ul>
-   </div>
-<div id="searchbox" style="display: none" role="search">
-  <h3 id="searchlabel">Quick search</h3>
-    <div class="searchformwrapper">
-    <form class="search" action="search.html" method="get">
-      <input type="text" name="q" aria-labelledby="searchlabel" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"/>
-      <input type="submit" value="Go" />
-    </form>
-    </div>
 </div>
-<script>document.getElementById('searchbox').style.display = "block"</script>
         </div>
       </div>
-      <div class="clearer"></div>
-    </div>
-    <div class="related" role="navigation" aria-label="related navigation">
-      <h3>Navigation</h3>
-      <ul>
-        <li class="right" style="margin-right: 10px">
-          <a href="genindex.html" title="General Index"
-             >index</a></li>
-        <li class="right" >
-          <a href="py-modindex.html" title="Python Module Index"
-             >modules</a> |</li>
-        <li class="nav-item nav-item-0"><a href="index.html">U4Py 0.0.2dev documentation</a> &#187;</li>
-        <li class="nav-item nav-item-this"><a href="">u4py.plotting package</a></li> 
-      </ul>
-    </div>
-    <div class="footer" role="contentinfo">
-        &#169; Copyright 2023, T. Treffeisen, M. Rudolf.
-      Created using <a href="https://www.sphinx-doc.org/">Sphinx</a> 7.0.1.
-    </div>
-  </body>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">U4Py</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="index.html" class="icon icon-home" aria-label="Home"></a></li>
+      <li class="breadcrumb-item active">u4py.plotting package</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="_sources/u4py.plotting.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="module-u4py.plotting">
+<span id="u4py-plotting-package"></span><h1>u4py.plotting package<a class="headerlink" href="#module-u4py.plotting" title="Permalink to this heading"></a></h1>
+<section id="submodules">
+<h2>Submodules<a class="headerlink" href="#submodules" title="Permalink to this heading"></a></h2>
+<div class="toctree-wrapper compound">
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="u4py.plotting.axes.html">u4py.plotting.axes module</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="u4py.plotting.axes.html#u4py.plotting.axes.add_basemap"><code class="docutils literal notranslate"><span class="pre">add_basemap()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="u4py.plotting.axes.html#u4py.plotting.axes.add_or_create"><code class="docutils literal notranslate"><span class="pre">add_or_create()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="u4py.plotting.axes.html#u4py.plotting.axes.add_shapefile"><code class="docutils literal notranslate"><span class="pre">add_shapefile()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="u4py.plotting.axes.html#u4py.plotting.axes.add_tile"><code class="docutils literal notranslate"><span class="pre">add_tile()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="u4py.plotting.axes.html#u4py.plotting.axes.plot_cwt"><code class="docutils literal notranslate"><span class="pre">plot_cwt()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="u4py.plotting.axes.html#u4py.plotting.axes.plot_fit_residuals"><code class="docutils literal notranslate"><span class="pre">plot_fit_residuals()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="u4py.plotting.axes.html#u4py.plotting.axes.plot_inversion_fit"><code class="docutils literal notranslate"><span class="pre">plot_inversion_fit()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="u4py.plotting.axes.html#u4py.plotting.axes.plot_pdf"><code class="docutils literal notranslate"><span class="pre">plot_pdf()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="u4py.plotting.axes.html#u4py.plotting.axes.plot_region_trend"><code class="docutils literal notranslate"><span class="pre">plot_region_trend()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="u4py.plotting.axes.html#u4py.plotting.axes.plot_stat_func"><code class="docutils literal notranslate"><span class="pre">plot_stat_func()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="u4py.plotting.axes.html#u4py.plotting.axes.plot_timeseries"><code class="docutils literal notranslate"><span class="pre">plot_timeseries()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="u4py.plotting.axes.html#u4py.plotting.axes.plot_timeseries_fit"><code class="docutils literal notranslate"><span class="pre">plot_timeseries_fit()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="u4py.plotting.formatting.html">u4py.plotting.formatting module</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="u4py.plotting.formatting.html#u4py.plotting.formatting.add_copyright"><code class="docutils literal notranslate"><span class="pre">add_copyright()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="u4py.plotting.formatting.html#u4py.plotting.formatting.add_map_label"><code class="docutils literal notranslate"><span class="pre">add_map_label()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="u4py.plotting.formatting.html#u4py.plotting.formatting.coordinate_formatter"><code class="docutils literal notranslate"><span class="pre">coordinate_formatter()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="u4py.plotting.formatting.html#u4py.plotting.formatting.drop_shape"><code class="docutils literal notranslate"><span class="pre">drop_shape()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="u4py.plotting.formatting.html#u4py.plotting.formatting.map_style"><code class="docutils literal notranslate"><span class="pre">map_style()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="u4py.plotting.formatting.html#u4py.plotting.formatting.numerate_axes"><code class="docutils literal notranslate"><span class="pre">numerate_axes()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="u4py.plotting.formatting.html#u4py.plotting.formatting.svg_parse"><code class="docutils literal notranslate"><span class="pre">svg_parse()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="u4py.plotting.plots.html">u4py.plotting.plots module</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="u4py.plotting.plots.html#u4py.plotting.plots.plot_gridded"><code class="docutils literal notranslate"><span class="pre">plot_gridded()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="u4py.plotting.plots.html#u4py.plotting.plots.plot_inversion_results"><code class="docutils literal notranslate"><span class="pre">plot_inversion_results()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="u4py.plotting.plots.html#u4py.plotting.plots.plot_iterative_fit"><code class="docutils literal notranslate"><span class="pre">plot_iterative_fit()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="u4py.plotting.plots.html#u4py.plotting.plots.plot_statistics"><code class="docutils literal notranslate"><span class="pre">plot_statistics()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="u4py.plotting.preparation.html">u4py.plotting.preparation module</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="u4py.plotting.preparation.html#u4py.plotting.preparation.clean_points"><code class="docutils literal notranslate"><span class="pre">clean_points()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="u4py.plotting.preparation.html#u4py.plotting.preparation.convert_results_for_grid"><code class="docutils literal notranslate"><span class="pre">convert_results_for_grid()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="u4py.plotting.preparation.html#u4py.plotting.preparation.full_inv_single_comp"><code class="docutils literal notranslate"><span class="pre">full_inv_single_comp()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="u4py.plotting.preparation.html#u4py.plotting.preparation.get_forward_model"><code class="docutils literal notranslate"><span class="pre">get_forward_model()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="u4py.plotting.preparation.html#u4py.plotting.preparation.get_linfit_each_timeseries"><code class="docutils literal notranslate"><span class="pre">get_linfit_each_timeseries()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="u4py.plotting.preparation.html#u4py.plotting.preparation.make_gridded_data"><code class="docutils literal notranslate"><span class="pre">make_gridded_data()</span></code></a></li>
+</ul>
+</li>
+</ul>
+</div>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2023, M. Rudolf.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
 </html>

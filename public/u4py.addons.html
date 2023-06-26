@@ -1,236 +1,142 @@
 <!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" /><meta name="generator" content="Docutils 0.18.1: http://docutils.sourceforge.net/" />
 
-<html lang="en">
-  <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
-
-    <title>u4py.addons package &#8212; U4Py 0.0.2dev documentation</title>
-    <link rel="stylesheet" type="text/css" href="_static/pygments.css" />
-    <link rel="stylesheet" type="text/css" href="_static/classic.css" />
-    
-    <script data-url_root="./" id="documentation_options" src="_static/documentation_options.js"></script>
-    <script src="_static/doctools.js"></script>
-    <script src="_static/sphinx_highlight.js"></script>
-    
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>u4py.addons package &mdash; U4Py 0.0.2dev documentation</title>
+      <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+      <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
+  <!--[if lt IE 9]>
+    <script src="_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script src="_static/jquery.js"></script>
+        <script src="_static/_sphinx_javascript_frameworks_compat.js"></script>
+        <script data-url_root="./" id="documentation_options" src="_static/documentation_options.js"></script>
+        <script src="_static/doctools.js"></script>
+        <script src="_static/sphinx_highlight.js"></script>
+    <script src="_static/js/theme.js"></script>
     <link rel="index" title="Index" href="genindex.html" />
     <link rel="search" title="Search" href="search.html" /> 
-  </head><body>
-    <div class="related" role="navigation" aria-label="related navigation">
-      <h3>Navigation</h3>
-      <ul>
-        <li class="right" style="margin-right: 10px">
-          <a href="genindex.html" title="General Index"
-             accesskey="I">index</a></li>
-        <li class="right" >
-          <a href="py-modindex.html" title="Python Module Index"
-             >modules</a> |</li>
-        <li class="nav-item nav-item-0"><a href="index.html">U4Py 0.0.2dev documentation</a> &#187;</li>
-        <li class="nav-item nav-item-this"><a href="">u4py.addons package</a></li> 
-      </ul>
-    </div>  
+</head>
 
-    <div class="document">
-      <div class="documentwrapper">
-        <div class="bodywrapper">
-          <div class="body" role="main">
-            
-  <section id="u4py-addons-package">
-<h1>u4py.addons package<a class="headerlink" href="#u4py-addons-package" title="Permalink to this heading">¶</a></h1>
-<section id="submodules">
-<h2>Submodules<a class="headerlink" href="#submodules" title="Permalink to this heading">¶</a></h2>
-</section>
-<section id="module-u4py.addons.climate">
-<span id="u4py-addons-climate-module"></span><h2>u4py.addons.climate module<a class="headerlink" href="#module-u4py.addons.climate" title="Permalink to this heading">¶</a></h2>
-<p>Contains functions to work with climate data.</p>
-<dl class="py function">
-<dt class="sig sig-object py" id="u4py.addons.climate.load_climate_data">
-<span class="sig-prename descclassname"><span class="pre">u4py.addons.climate.</span></span><span class="sig-name descname"><span class="pre">load_climate_data</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">file_path</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">PathLike</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">dict</span></span></span><a class="headerlink" href="#u4py.addons.climate.load_climate_data" title="Permalink to this definition">¶</a></dt>
-<dd><p>Loads the weather data from a climate archive dataset.</p>
-<dl class="simple">
-<dt>Arguments:</dt><dd><p>file_path – The text file containing the data</p>
-</dd>
-<dt>Returns:</dt><dd><p>A dictionary including temperature (avg, min, max) and rainfall.</p>
-</dd>
-</dl>
-</dd></dl>
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
 
-</section>
-<section id="module-u4py.addons.gas_storage">
-<span id="u4py-addons-gas-storage-module"></span><h2>u4py.addons.gas_storage module<a class="headerlink" href="#module-u4py.addons.gas_storage" title="Permalink to this heading">¶</a></h2>
-<p>Functions for working with gas storage data by MND Energies</p>
-<dl class="py function">
-<dt class="sig sig-object py" id="u4py.addons.gas_storage.load_gas_data">
-<span class="sig-prename descclassname"><span class="pre">u4py.addons.gas_storage.</span></span><span class="sig-name descname"><span class="pre">load_gas_data</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">file_path</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#u4py.addons.gas_storage.load_gas_data" title="Permalink to this definition">¶</a></dt>
-<dd></dd></dl>
-
-</section>
-<section id="module-u4py.addons.geology">
-<span id="u4py-addons-geology-module"></span><h2>u4py.addons.geology module<a class="headerlink" href="#module-u4py.addons.geology" title="Permalink to this heading">¶</a></h2>
-<p>Contains functions to work with geological data.</p>
-<dl class="py function">
-<dt class="sig sig-object py" id="u4py.addons.geology.get_tektonik_hessen">
-<span class="sig-prename descclassname"><span class="pre">u4py.addons.geology.</span></span><span class="sig-name descname"><span class="pre">get_tektonik_hessen</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">tektonik_path</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">bld_path</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#u4py.addons.geology.get_tektonik_hessen" title="Permalink to this definition">¶</a></dt>
-<dd></dd></dl>
-
-</section>
-<section id="module-u4py.addons.groundwater">
-<span id="u4py-addons-groundwater-module"></span><h2>u4py.addons.groundwater module<a class="headerlink" href="#module-u4py.addons.groundwater" title="Permalink to this heading">¶</a></h2>
-<p>Contains functions to work with groundwater data</p>
-<dl class="py function">
-<dt class="sig sig-object py" id="u4py.addons.groundwater.convert_GW_csv">
-<span class="sig-prename descclassname"><span class="pre">u4py.addons.groundwater.</span></span><span class="sig-name descname"><span class="pre">convert_GW_csv</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">file_path</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">PathLike</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">dict</span></span></span><a class="headerlink" href="#u4py.addons.groundwater.convert_GW_csv" title="Permalink to this definition">¶</a></dt>
-<dd><p>Opens a CSV file with groundwater data by hlnug into a dictionary</p>
-<dl class="simple">
-<dt>Arguments:</dt><dd><p>file_path – path of the csv file</p>
-</dd>
-<dt>Returns:</dt><dd><p>dictionary with the data</p>
-</dd>
-</dl>
-</dd></dl>
-
-<dl class="py function">
-<dt class="sig sig-object py" id="u4py.addons.groundwater.dec2float">
-<span class="sig-prename descclassname"><span class="pre">u4py.addons.groundwater.</span></span><span class="sig-name descname"><span class="pre">dec2float</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">string</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">float</span></span></span><a class="headerlink" href="#u4py.addons.groundwater.dec2float" title="Permalink to this definition">¶</a></dt>
-<dd><p>Returns a float from a string containing a comma as decimal separator</p>
-<dl class="simple">
-<dt>Arguments:</dt><dd><p>string – string to be converted</p>
-</dd>
-<dt>Returns:</dt><dd><p>float of the string</p>
-</dd>
-</dl>
-</dd></dl>
-
-<dl class="py function">
-<dt class="sig sig-object py" id="u4py.addons.groundwater.get_groundwater_data">
-<span class="sig-prename descclassname"><span class="pre">u4py.addons.groundwater.</span></span><span class="sig-name descname"><span class="pre">get_groundwater_data</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">file_path</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">PathLike</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">dict</span></span></span><a class="headerlink" href="#u4py.addons.groundwater.get_groundwater_data" title="Permalink to this definition">¶</a></dt>
-<dd><p>Loads data from pickled file</p>
-<dl class="simple">
-<dt>Arguments:</dt><dd><p>file_path – path to the pickle file</p>
-</dd>
-<dt>Returns:</dt><dd><p>The data as dictionary</p>
-</dd>
-</dl>
-</dd></dl>
-
-<dl class="py function">
-<dt class="sig sig-object py" id="u4py.addons.groundwater.get_stations">
-<span class="sig-prename descclassname"><span class="pre">u4py.addons.groundwater.</span></span><span class="sig-name descname"><span class="pre">get_stations</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">stations</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">dict</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">GeoDataFrame</span></span></span><a class="headerlink" href="#u4py.addons.groundwater.get_stations" title="Permalink to this definition">¶</a></dt>
-<dd><p>Gets coordinates from stations and returns a <cite>GeoDataFrame</cite></p>
-<dl class="simple">
-<dt>Arguments:</dt><dd><p>stations – dictionary with stations</p>
-</dd>
-<dt>Returns:</dt><dd><p><cite>GeoDataFrame</cite> with stations as points</p>
-</dd>
-</dl>
-</dd></dl>
-
-<dl class="py function">
-<dt class="sig sig-object py" id="u4py.addons.groundwater.new_station">
-<span class="sig-prename descclassname"><span class="pre">u4py.addons.groundwater.</span></span><span class="sig-name descname"><span class="pre">new_station</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">row</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">list</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">dict</span></span></span><a class="headerlink" href="#u4py.addons.groundwater.new_station" title="Permalink to this definition">¶</a></dt>
-<dd><p>Creates a new station from the entries in the row</p>
-<dl class="simple">
-<dt>Arguments:</dt><dd><p>row – row read from the csv file</p>
-</dd>
-<dt>Returns:</dt><dd><p>dictionary with single entry</p>
-</dd>
-</dl>
-</dd></dl>
-
-</section>
-<section id="module-u4py.addons.rivers">
-<span id="u4py-addons-rivers-module"></span><h2>u4py.addons.rivers module<a class="headerlink" href="#module-u4py.addons.rivers" title="Permalink to this heading">¶</a></h2>
-<p>Functions for working with river level data</p>
-<dl class="py function">
-<dt class="sig sig-object py" id="u4py.addons.rivers.load_rhine_date">
-<span class="sig-prename descclassname"><span class="pre">u4py.addons.rivers.</span></span><span class="sig-name descname"><span class="pre">load_rhine_date</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">file_path</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#u4py.addons.rivers.load_rhine_date" title="Permalink to this definition">¶</a></dt>
-<dd></dd></dl>
-
-</section>
-<section id="module-u4py.addons">
-<span id="module-contents"></span><h2>Module contents<a class="headerlink" href="#module-u4py.addons" title="Permalink to this heading">¶</a></h2>
-</section>
-</section>
-
-
-            <div class="clearer"></div>
-          </div>
-        </div>
-      </div>
-      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
-        <div class="sphinxsidebarwrapper">
-  <div>
-    <h3><a href="index.html">Table of Contents</a></h3>
-    <ul>
+          
+          
+          <a href="index.html" class="icon icon-home">
+            U4Py
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <!-- Local TOC -->
+              <div class="local-toc"><ul>
 <li><a class="reference internal" href="#">u4py.addons package</a><ul>
 <li><a class="reference internal" href="#submodules">Submodules</a></li>
-<li><a class="reference internal" href="#module-u4py.addons.climate">u4py.addons.climate module</a><ul>
-<li><a class="reference internal" href="#u4py.addons.climate.load_climate_data"><code class="docutils literal notranslate"><span class="pre">load_climate_data()</span></code></a></li>
-</ul>
-</li>
-<li><a class="reference internal" href="#module-u4py.addons.gas_storage">u4py.addons.gas_storage module</a><ul>
-<li><a class="reference internal" href="#u4py.addons.gas_storage.load_gas_data"><code class="docutils literal notranslate"><span class="pre">load_gas_data()</span></code></a></li>
-</ul>
-</li>
-<li><a class="reference internal" href="#module-u4py.addons.geology">u4py.addons.geology module</a><ul>
-<li><a class="reference internal" href="#u4py.addons.geology.get_tektonik_hessen"><code class="docutils literal notranslate"><span class="pre">get_tektonik_hessen()</span></code></a></li>
-</ul>
-</li>
-<li><a class="reference internal" href="#module-u4py.addons.groundwater">u4py.addons.groundwater module</a><ul>
-<li><a class="reference internal" href="#u4py.addons.groundwater.convert_GW_csv"><code class="docutils literal notranslate"><span class="pre">convert_GW_csv()</span></code></a></li>
-<li><a class="reference internal" href="#u4py.addons.groundwater.dec2float"><code class="docutils literal notranslate"><span class="pre">dec2float()</span></code></a></li>
-<li><a class="reference internal" href="#u4py.addons.groundwater.get_groundwater_data"><code class="docutils literal notranslate"><span class="pre">get_groundwater_data()</span></code></a></li>
-<li><a class="reference internal" href="#u4py.addons.groundwater.get_stations"><code class="docutils literal notranslate"><span class="pre">get_stations()</span></code></a></li>
-<li><a class="reference internal" href="#u4py.addons.groundwater.new_station"><code class="docutils literal notranslate"><span class="pre">new_station()</span></code></a></li>
-</ul>
-</li>
-<li><a class="reference internal" href="#module-u4py.addons.rivers">u4py.addons.rivers module</a><ul>
-<li><a class="reference internal" href="#u4py.addons.rivers.load_rhine_date"><code class="docutils literal notranslate"><span class="pre">load_rhine_date()</span></code></a></li>
-</ul>
-</li>
-<li><a class="reference internal" href="#module-u4py.addons">Module contents</a></li>
 </ul>
 </li>
 </ul>
-
-  </div>
-  <div role="note" aria-label="source link">
-    <h3>This Page</h3>
-    <ul class="this-page-menu">
-      <li><a href="_sources/u4py.addons.rst.txt"
-            rel="nofollow">Show Source</a></li>
-    </ul>
-   </div>
-<div id="searchbox" style="display: none" role="search">
-  <h3 id="searchlabel">Quick search</h3>
-    <div class="searchformwrapper">
-    <form class="search" action="search.html" method="get">
-      <input type="text" name="q" aria-labelledby="searchlabel" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"/>
-      <input type="submit" value="Go" />
-    </form>
-    </div>
 </div>
-<script>document.getElementById('searchbox').style.display = "block"</script>
         </div>
       </div>
-      <div class="clearer"></div>
-    </div>
-    <div class="related" role="navigation" aria-label="related navigation">
-      <h3>Navigation</h3>
-      <ul>
-        <li class="right" style="margin-right: 10px">
-          <a href="genindex.html" title="General Index"
-             >index</a></li>
-        <li class="right" >
-          <a href="py-modindex.html" title="Python Module Index"
-             >modules</a> |</li>
-        <li class="nav-item nav-item-0"><a href="index.html">U4Py 0.0.2dev documentation</a> &#187;</li>
-        <li class="nav-item nav-item-this"><a href="">u4py.addons package</a></li> 
-      </ul>
-    </div>
-    <div class="footer" role="contentinfo">
-        &#169; Copyright 2023, T. Treffeisen, M. Rudolf.
-      Created using <a href="https://www.sphinx-doc.org/">Sphinx</a> 7.0.1.
-    </div>
-  </body>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">U4Py</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="index.html" class="icon icon-home" aria-label="Home"></a></li>
+      <li class="breadcrumb-item active">u4py.addons package</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="_sources/u4py.addons.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="module-u4py.addons">
+<span id="u4py-addons-package"></span><h1>u4py.addons package<a class="headerlink" href="#module-u4py.addons" title="Permalink to this heading"></a></h1>
+<p><strong>Package for additional data import and preparation.</strong></p>
+<p>Usually other data is supplied in various file formats and also sometimes
+formatted in non-standard ways. The submodules in this package implement
+specific procedures to import and convert data in formats that are not easily
+read by <cite>GeoPandas</cite> or <cite>NumPy</cite>. In some cases the data has to be converted to
+match the other datatypes in our projects.</p>
+<section id="submodules">
+<h2>Submodules<a class="headerlink" href="#submodules" title="Permalink to this heading"></a></h2>
+<div class="toctree-wrapper compound">
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="u4py.addons.climate.html">u4py.addons.climate module</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="u4py.addons.climate.html#u4py.addons.climate.load_climate_data"><code class="docutils literal notranslate"><span class="pre">load_climate_data()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="u4py.addons.gas_storage.html">u4py.addons.gas_storage module</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="u4py.addons.gas_storage.html#u4py.addons.gas_storage.load_gas_data"><code class="docutils literal notranslate"><span class="pre">load_gas_data()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="u4py.addons.geology.html">u4py.addons.geology module</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="u4py.addons.geology.html#u4py.addons.geology.get_tektonik_hessen"><code class="docutils literal notranslate"><span class="pre">get_tektonik_hessen()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="u4py.addons.groundwater.html">u4py.addons.groundwater module</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="u4py.addons.groundwater.html#u4py.addons.groundwater.convert_GW_csv"><code class="docutils literal notranslate"><span class="pre">convert_GW_csv()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="u4py.addons.groundwater.html#u4py.addons.groundwater.get_groundwater_data"><code class="docutils literal notranslate"><span class="pre">get_groundwater_data()</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="u4py.addons.groundwater.html#u4py.addons.groundwater.get_stations"><code class="docutils literal notranslate"><span class="pre">get_stations()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="u4py.addons.rivers.html">u4py.addons.rivers module</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="u4py.addons.rivers.html#u4py.addons.rivers.load_rhine_date"><code class="docutils literal notranslate"><span class="pre">load_rhine_date()</span></code></a></li>
+</ul>
+</li>
+</ul>
+</div>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2023, M. Rudolf.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
 </html>

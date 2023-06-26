@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" /><meta name="generator" content="Docutils 0.18.1: http://docutils.sourceforge.net/" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>u4py.utils.convert module &mdash; U4Py 0.0.2dev documentation</title>
+      <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+      <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
+  <!--[if lt IE 9]>
+    <script src="_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script src="_static/jquery.js"></script>
+        <script src="_static/_sphinx_javascript_frameworks_compat.js"></script>
+        <script data-url_root="./" id="documentation_options" src="_static/documentation_options.js"></script>
+        <script src="_static/doctools.js"></script>
+        <script src="_static/sphinx_highlight.js"></script>
+    <script src="_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+
+          
+          
+          <a href="index.html" class="icon icon-home">
+            U4Py
+          </a>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" aria-label="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <!-- Local TOC -->
+              <div class="local-toc"><ul>
+<li><a class="reference internal" href="#">u4py.utils.convert module</a><ul>
+<li><a class="reference internal" href="#u4py.utils.convert.chunk_data"><code class="docutils literal notranslate"><span class="pre">chunk_data()</span></code></a></li>
+<li><a class="reference internal" href="#u4py.utils.convert.chunk_data_numba"><code class="docutils literal notranslate"><span class="pre">chunk_data_numba()</span></code></a></li>
+<li><a class="reference internal" href="#u4py.utils.convert.chunking_worker"><code class="docutils literal notranslate"><span class="pre">chunking_worker()</span></code></a></li>
+<li><a class="reference internal" href="#u4py.utils.convert.convert_dpkg"><code class="docutils literal notranslate"><span class="pre">convert_dpkg()</span></code></a></li>
+<li><a class="reference internal" href="#u4py.utils.convert.convert_shapefile"><code class="docutils literal notranslate"><span class="pre">convert_shapefile()</span></code></a></li>
+<li><a class="reference internal" href="#u4py.utils.convert.create_datasets"><code class="docutils literal notranslate"><span class="pre">create_datasets()</span></code></a></li>
+<li><a class="reference internal" href="#u4py.utils.convert.dbf_to_dict"><code class="docutils literal notranslate"><span class="pre">dbf_to_dict()</span></code></a></li>
+<li><a class="reference internal" href="#u4py.utils.convert.dict_to_hdf5"><code class="docutils literal notranslate"><span class="pre">dict_to_hdf5()</span></code></a></li>
+<li><a class="reference internal" href="#u4py.utils.convert.floatyear_to_datetime"><code class="docutils literal notranslate"><span class="pre">floatyear_to_datetime()</span></code></a></li>
+<li><a class="reference internal" href="#u4py.utils.convert.get_bounds"><code class="docutils literal notranslate"><span class="pre">get_bounds()</span></code></a></li>
+<li><a class="reference internal" href="#u4py.utils.convert.get_chunks"><code class="docutils literal notranslate"><span class="pre">get_chunks()</span></code></a></li>
+<li><a class="reference internal" href="#u4py.utils.convert.get_floatyear"><code class="docutils literal notranslate"><span class="pre">get_floatyear()</span></code></a></li>
+<li><a class="reference internal" href="#u4py.utils.convert.gnss_dat_to_dict"><code class="docutils literal notranslate"><span class="pre">gnss_dat_to_dict()</span></code></a></li>
+<li><a class="reference internal" href="#u4py.utils.convert.gps_week_to_time"><code class="docutils literal notranslate"><span class="pre">gps_week_to_time()</span></code></a></li>
+<li><a class="reference internal" href="#u4py.utils.convert.key_to_time"><code class="docutils literal notranslate"><span class="pre">key_to_time()</span></code></a></li>
+<li><a class="reference internal" href="#u4py.utils.convert.numba_chunking"><code class="docutils literal notranslate"><span class="pre">numba_chunking()</span></code></a></li>
+<li><a class="reference internal" href="#u4py.utils.convert.psi_dbf_to_dict"><code class="docutils literal notranslate"><span class="pre">psi_dbf_to_dict()</span></code></a></li>
+<li><a class="reference internal" href="#u4py.utils.convert.slice_array"><code class="docutils literal notranslate"><span class="pre">slice_array()</span></code></a></li>
+</ul>
+</li>
+</ul>
+</div>
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">U4Py</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="index.html" class="icon icon-home" aria-label="Home"></a></li>
+      <li class="breadcrumb-item active">u4py.utils.convert module</li>
+      <li class="wy-breadcrumbs-aside">
+            <a href="_sources/u4py.utils.convert.rst.txt" rel="nofollow"> View page source</a>
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="module-u4py.utils.convert">
+<span id="u4py-utils-convert-module"></span><h1>u4py.utils.convert module<a class="headerlink" href="#module-u4py.utils.convert" title="Permalink to this heading"></a></h1>
+<p>Contains functions for file conversion</p>
+<dl class="py function">
+<dt class="sig sig-object py" id="u4py.utils.convert.chunk_data">
+<span class="sig-prename descclassname"><span class="pre">u4py.utils.convert.</span></span><span class="sig-name descname"><span class="pre">chunk_data</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">data</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">save_folder</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">chunksize</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">1000</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">min_values</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">5</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">compress</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#u4py.utils.convert.chunk_data" title="Permalink to this definition"></a></dt>
+<dd><p>Chunks data into many smaller files with spanning a square of <cite>chunksize</cite>
+meters. Discards chunks with less than <cite>min_values</cite>.</p>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="u4py.utils.convert.chunk_data_numba">
+<span class="sig-prename descclassname"><span class="pre">u4py.utils.convert.</span></span><span class="sig-name descname"><span class="pre">chunk_data_numba</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">data</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">dict</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">save_folder</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">PathLike</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">chunksize</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">1000</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">min_values</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">5</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">compress</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#u4py.utils.convert.chunk_data_numba" title="Permalink to this definition"></a></dt>
+<dd><p>Chunks data into many smaller files with spanning a square of <cite>chunksize</cite>
+meters. Discards chunks with less than <cite>min_values</cite>.</p>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="u4py.utils.convert.chunking_worker">
+<span class="sig-prename descclassname"><span class="pre">u4py.utils.convert.</span></span><span class="sig-name descname"><span class="pre">chunking_worker</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">args</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">str</span></span></span><a class="headerlink" href="#u4py.utils.convert.chunking_worker" title="Permalink to this definition"></a></dt>
+<dd><p>Encapsulated worker for getting a chunk out of the data.</p>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="u4py.utils.convert.convert_dpkg">
+<span class="sig-prename descclassname"><span class="pre">u4py.utils.convert.</span></span><span class="sig-name descname"><span class="pre">convert_dpkg</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">file_path</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">PathLike</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#u4py.utils.convert.convert_dpkg" title="Permalink to this definition"></a></dt>
+<dd><p>Converts the given dpkg file into a h5 file. The h5 file only contains the
+necessary information and is zipped with gzip.</p>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="u4py.utils.convert.convert_shapefile">
+<span class="sig-prename descclassname"><span class="pre">u4py.utils.convert.</span></span><span class="sig-name descname"><span class="pre">convert_shapefile</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">file_path</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">PathLike</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#u4py.utils.convert.convert_shapefile" title="Permalink to this definition"></a></dt>
+<dd><p>Converts the given dbf file into a h5 file. The h5 file only contains the
+necessary information and is zipped with gzip.</p>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="u4py.utils.convert.create_datasets">
+<span class="sig-prename descclassname"><span class="pre">u4py.utils.convert.</span></span><span class="sig-name descname"><span class="pre">create_datasets</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">h5group</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">k</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">v</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">compression</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">compression_opts</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#u4py.utils.convert.create_datasets" title="Permalink to this definition"></a></dt>
+<dd><p>Creates a dataset depending on the content of <cite>v</cite></p>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="u4py.utils.convert.dbf_to_dict">
+<span class="sig-prename descclassname"><span class="pre">u4py.utils.convert.</span></span><span class="sig-name descname"><span class="pre">dbf_to_dict</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">file_in</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">PathLike</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#u4py.utils.convert.dbf_to_dict" title="Permalink to this definition"></a></dt>
+<dd><p>Generic conversion of dbf file to dictionary</p>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="u4py.utils.convert.dict_to_hdf5">
+<span class="sig-prename descclassname"><span class="pre">u4py.utils.convert.</span></span><span class="sig-name descname"><span class="pre">dict_to_hdf5</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">h5path</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">PathLike</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">data</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">dict</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">compression</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'gzip'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">compression_opts</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">9</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#u4py.utils.convert.dict_to_hdf5" title="Permalink to this definition"></a></dt>
+<dd><p>Saves contents of dictionary into given h5 file. Dates are converted to
+strings following ISO date formatting.</p>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="u4py.utils.convert.floatyear_to_datetime">
+<span class="sig-prename descclassname"><span class="pre">u4py.utils.convert.</span></span><span class="sig-name descname"><span class="pre">floatyear_to_datetime</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">time</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">datetime</span></span></span><a class="headerlink" href="#u4py.utils.convert.floatyear_to_datetime" title="Permalink to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="u4py.utils.convert.get_bounds">
+<span class="sig-prename descclassname"><span class="pre">u4py.utils.convert.</span></span><span class="sig-name descname"><span class="pre">get_bounds</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">minval</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">maxval</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">chunksize</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">ndarray</span></span></span><a class="headerlink" href="#u4py.utils.convert.get_bounds" title="Permalink to this definition"></a></dt>
+<dd><p>Returns boundaries for given chunksize</p>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="u4py.utils.convert.get_chunks">
+<span class="sig-prename descclassname"><span class="pre">u4py.utils.convert.</span></span><span class="sig-name descname"><span class="pre">get_chunks</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">xrange</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">ndarray</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">yrange</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">ndarray</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">list</span></span></span><a class="headerlink" href="#u4py.utils.convert.get_chunks" title="Permalink to this definition"></a></dt>
+<dd><p>Returns the corners for chunking</p>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="u4py.utils.convert.get_floatyear">
+<span class="sig-prename descclassname"><span class="pre">u4py.utils.convert.</span></span><span class="sig-name descname"><span class="pre">get_floatyear</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">timestr</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#u4py.utils.convert.get_floatyear" title="Permalink to this definition"></a></dt>
+<dd><p>Converts to a float based year</p>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="u4py.utils.convert.gnss_dat_to_dict">
+<span class="sig-prename descclassname"><span class="pre">u4py.utils.convert.</span></span><span class="sig-name descname"><span class="pre">gnss_dat_to_dict</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">file_in</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">PathLike</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#u4py.utils.convert.gnss_dat_to_dict" title="Permalink to this definition"></a></dt>
+<dd><p>Converts a gnss dat file to dictionary</p>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="u4py.utils.convert.gps_week_to_time">
+<span class="sig-prename descclassname"><span class="pre">u4py.utils.convert.</span></span><span class="sig-name descname"><span class="pre">gps_week_to_time</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">gps_week</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#u4py.utils.convert.gps_week_to_time" title="Permalink to this definition"></a></dt>
+<dd><p>Converts a gpsweek timestamp to datetime</p>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="u4py.utils.convert.key_to_time">
+<span class="sig-prename descclassname"><span class="pre">u4py.utils.convert.</span></span><span class="sig-name descname"><span class="pre">key_to_time</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">key</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">starttime</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">datetime.datetime(2015,</span> <span class="pre">4,</span> <span class="pre">4,</span> <span class="pre">0,</span> <span class="pre">0)</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">startindex</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">20150</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">acqdiff</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">datetime.timedelta(days=6)</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#u4py.utils.convert.key_to_time" title="Permalink to this definition"></a></dt>
+<dd><p>Converts a key timestamp to a datetime</p>
+<dl class="simple">
+<dt>Args:</dt><dd><dl class="simple">
+<dt>key (str):</dt><dd><p>Timestamp key</p>
+</dd>
+<dt>starttime (datetime, optional):</dt><dd><p>Time when first PSI data was taken. Defaults to datetime(2016,4,1).</p>
+</dd>
+<dt>startindex (int, optional):</dt><dd><p>First index when counting is started. Defaults to 20150.</p>
+</dd>
+<dt>acqdiff (timedelta, optional):</dt><dd><p>Timedifference between acquisitions. Defaults to timedelta(days=6).</p>
+</dd>
+</dl>
+</dd>
+<dt>Returns:</dt><dd><p>datetime: converted and referenced datetime</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="u4py.utils.convert.numba_chunking">
+<span class="sig-prename descclassname"><span class="pre">u4py.utils.convert.</span></span><span class="sig-name descname"><span class="pre">numba_chunking</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">total</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">chunk_list</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">list</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">chunksize</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">min_values</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">compress</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">save_folder</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">PathLike</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">data</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">dict</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">progress_proxy</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">ProgressBar</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#u4py.utils.convert.numba_chunking" title="Permalink to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="u4py.utils.convert.psi_dbf_to_dict">
+<span class="sig-prename descclassname"><span class="pre">u4py.utils.convert.</span></span><span class="sig-name descname"><span class="pre">psi_dbf_to_dict</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">file_in</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">PathLike</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#u4py.utils.convert.psi_dbf_to_dict" title="Permalink to this definition"></a></dt>
+<dd><p>Takes a dbf file and returns a dictionary with numpy arrays for x, y, z
+coordinates, PS_ID and timeseries for each entry.</p>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="u4py.utils.convert.slice_array">
+<span class="sig-prename descclassname"><span class="pre">u4py.utils.convert.</span></span><span class="sig-name descname"><span class="pre">slice_array</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">data</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">dict</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">slc</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">slice</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">dict</span></span></span><a class="headerlink" href="#u4py.utils.convert.slice_array" title="Permalink to this definition"></a></dt>
+<dd></dd></dl>
+
+</section>
+
+
+           </div>
+          </div>
+          <footer>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p>&#169; Copyright 2023, M. Rudolf.</p>
+  </div>
+
+  Built with <a href="https://www.sphinx-doc.org/">Sphinx</a> using a
+    <a href="https://github.com/readthedocs/sphinx_rtd_theme">theme</a>
+    provided by <a href="https://readthedocs.org">Read the Docs</a>.
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

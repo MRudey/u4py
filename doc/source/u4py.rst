@@ -1,6 +1,11 @@
 u4py package
 ============
 
+.. automodule:: u4py
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
 Subpackages
 -----------
 
@@ -11,11 +16,3 @@ Subpackages
    u4py.analysis
    u4py.plotting
    u4py.utils
-
-Module contents
----------------
-
-.. automodule:: u4py
-   :members:
-   :undoc-members:
-   :show-inheritance:

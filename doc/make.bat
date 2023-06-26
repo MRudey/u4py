@@ -25,8 +25,9 @@ if errorlevel 9009 (
 
 if "%1" == "" goto help
 
-%SPHINXBUILD% -M %1 %SOURCEDIR% %BUILDDIR% %SPHINXOPTS% %O%
 if "%1" == "html" (
+	sphinx-apidoc -f -e -M -o %SOURCEDIR% ../u4py
+	%SPHINXBUILD% -M %1 %SOURCEDIR% %BUILDDIR% %SPHINXOPTS% %O%
 	cp -r build/html/* ../public
 )
 goto end

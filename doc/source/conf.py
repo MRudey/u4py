@@ -7,14 +7,14 @@
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#project-information
 
 project = "U4Py"
-copyright = "2023, T. Treffeisen, M. Rudolf"
-author = "T. Treffeisen, M. Rudolf"
+copyright = "2023, M. Rudolf"
+author = "M. Rudolf"
 release = "0.0.2dev"
 
 # -- General configuration ---------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#general-configuration
 
-extensions = ["sphinx.ext.autodoc"]
+extensions = ["sphinx.ext.autodoc", "sphinx_rtd_theme"]
 
 templates_path = ["_templates"]
 exclude_patterns = []
@@ -24,5 +24,5 @@ language = "en"
 # -- Options for HTML output -------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#options-for-html-output
 
-html_theme = "classic"
+html_theme = "sphinx_rtd_theme"
 html_static_path = ["_static"]
