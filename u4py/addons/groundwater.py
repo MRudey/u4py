@@ -12,13 +12,27 @@ from tqdm import tqdm
 
 
 def get_groundwater_data(file_path: os.PathLike) -> dict:
-    """Loads data from pickled file
+    """Loads data from pickled file.
 
-    Arguments:
-        file_path -- path to the pickle file
+    :param file_path: Path to the pickle file
+    :type file_path: os.PathLike
+    :return: The data as a dictionary with station names as keys.
+    :rtype: dict
 
-    Returns:
-        The data as dictionary
+    The ground water data was supplied as a large textfile that was converted
+    using ``convert_GW_csv()`` to a pickle file. The data is organized in
+    nested dictionaries. The outer dictionary uses the station name as
+    headers: ``station["NAME"]``. This returns another dictionary containing
+    the data:
+
+        | `"shortID"`: Short ID given by HLNUG,
+        | `"gruwahID"`: Grundwasser ID given by HLNUG,
+        | `"name"`: The name of the station,
+        | `"easting"`: Easting in EPSG:31467,
+        | `"northing"`: Northing in EPSG:31467,
+        | `"time"`: The time as a list of datetime objects,
+        | `"height"`: The height of the water table above NN.
+
     """
     with open(file_path, "rb") as pkl_file:
         stations = pkl.load(pkl_file)
@@ -26,14 +40,15 @@ def get_groundwater_data(file_path: os.PathLike) -> dict:
 
 
 def get_stations(stations: dict) -> gp.GeoDataFrame:
-    """Gets coordinates from stations and returns a `GeoDataFrame`
+    """Converts the stations dictionary to a GeoDataFrame for plotting.
 
-    Arguments:
-        stations -- dictionary with stations
-
-    Returns:
-        `GeoDataFrame` with stations as points
+    :param stations: The dictionary of stations.
+    :type stations: dict
+    :return: GeoDataFrame with the stations as points, including the `name,
+    gruwahID,` and `shortID`.
+    :rtype: gp.GeoDataFrame
     """
+
     station_points = {
         "name": [],
         "geometry": [],
@@ -54,14 +69,24 @@ def get_stations(stations: dict) -> gp.GeoDataFrame:
 
 
 def convert_GW_csv(file_path: os.PathLike) -> dict:
-    """Opens a CSV file with groundwater data by hlnug into a dictionary
+    """Converts a groundwater csv file provided by HLNUG to a dictionary.
 
-    Arguments:
-        file_path -- path of the csv file
+    :param file_path: Path to the csv file.
+    :type file_path: os.PathLike
+    :return: Dictionary of data data organized in nested dictionaries. The
+    outer dictionary uses the station name as headers: ``station["NAME"]``.
+    This returns another dictionary containing the data:
 
-    Returns:
-        dictionary with the data
+        | `"shortID"`: Short ID given by HLNUG,
+        | `"gruwahID"`: Grundwasser ID given by HLNUG,
+        | `"name"`: The name of the station,
+        | `"easting"`: Easting in EPSG:31467,
+        | `"northing"`: Northing in EPSG:31467,
+        | `"time"`: The time as a list of datetime objects,
+        | `"height"`: The height of the water table above NN.
+    :rtype: dict
     """
+
     with open(file_path, "rt") as csv_file:
         csv_reader = csv.reader(csv_file, delimiter=";")
         next(csv_reader, None)  # skip header
@@ -70,25 +95,24 @@ def convert_GW_csv(file_path: os.PathLike) -> dict:
         first_run = True
         for row in tqdm(csv_reader, desc="Reading entries from csv..."):
             if first_run:
-                station = new_station(row)
+                station = _new_station(row)
             elif station["gruwahID"] == int(row[1]):
                 station["time"].append(datetime.strptime(row[5], "%d.%m.%Y"))
-                station["height"].append(dec2float(row[6]))
+                station["height"].append(_dec2float(row[6]))
             else:
                 stations[station["name"]] = station
-                station = new_station(row)
+                station = _new_station(row)
             first_run = False
     return stations
 
 
-def new_station(row: list) -> dict:
+def _new_station(row: list) -> dict:
     """Creates a new station from the entries in the row
 
-    Arguments:
-        row -- row read from the csv file
-
-    Returns:
-        dictionary with single entry
+    :param row: row read from the csv file
+    :type row: list
+    :return: dictionary with single entry
+    :rtype: dict
     """
     try:
         shortID = int(row[0])
@@ -98,21 +122,20 @@ def new_station(row: list) -> dict:
         "shortID": shortID,
         "gruwahID": int(row[1]),
         "name": row[2],
-        "easting": dec2float(row[3]),
-        "northing": dec2float(row[4]),
+        "easting": _dec2float(row[3]),
+        "northing": _dec2float(row[4]),
         "time": [datetime.strptime(row[5], "%d.%m.%Y")],
-        "height": [dec2float(row[6])],
+        "height": [_dec2float(row[6])],
     }
     return station
 
 
-def dec2float(string: str) -> float:
-    """Returns a float from a string containing a comma as decimal separator
+def _dec2float(string: str) -> float:
+    """Returns a float from a string containing a comma as decimal separator.
 
-    Arguments:
-        string -- string to be converted
-
-    Returns:
-        float of the string
+    :param string: the string to be converted
+    :type string: str
+    :return: float of the string
+    :rtype: float
     """
     return float(string.replace(",", "."))
