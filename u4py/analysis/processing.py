@@ -74,8 +74,7 @@ def simple_file_process(
     :type file_path: os.PathLike
     :param overwrite: Overwrite existing results, defaults to False
     :type overwrite: bool, optional
-    :return: A Tuple containing the x, y coordinates and a Tuple of results
-    (1 linear and 3 sinusoidal components)
+    :return: A Tuple containing the x, y coordinates and a Tuple of results (1 linear and 3 sinusoidal components)
     :rtype: Tuple[float, float, Tuple]
     """
     base_path, fname = os.path.split(file_path)
@@ -169,8 +168,7 @@ def get_decomposed_signals(data: dict) -> dict:
     """Decomposes signal similar to :func:`simple_decomposition` but also
     returns the fit data.
 
-    :param data: A dictionary containing the time series data of several
-    stations (from chunked data).
+    :param data: A dictionary containing the time series data of several stations (from chunked data).
     :type data: dict
     :return: A dictionary containing the results.
     :rtype: dict
