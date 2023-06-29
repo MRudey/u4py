@@ -47,6 +47,7 @@
 <li><a class="reference internal" href="#u4py.analysis.inversion.create_synthetic_data"><code class="docutils literal notranslate"><span class="pre">create_synthetic_data()</span></code></a></li>
 <li><a class="reference internal" href="#u4py.analysis.inversion.downsample_timeseries"><code class="docutils literal notranslate"><span class="pre">downsample_timeseries()</span></code></a></li>
 <li><a class="reference internal" href="#u4py.analysis.inversion.forward_model"><code class="docutils literal notranslate"><span class="pre">forward_model()</span></code></a></li>
+<li><a class="reference internal" href="#u4py.analysis.inversion.invert_test_data"><code class="docutils literal notranslate"><span class="pre">invert_test_data()</span></code></a></li>
 <li><a class="reference internal" href="#u4py.analysis.inversion.invert_time_series"><code class="docutils literal notranslate"><span class="pre">invert_time_series()</span></code></a></li>
 <li><a class="reference internal" href="#u4py.analysis.inversion.medianize_station"><code class="docutils literal notranslate"><span class="pre">medianize_station()</span></code></a></li>
 <li><a class="reference internal" href="#u4py.analysis.inversion.print_inversion_results"><code class="docutils literal notranslate"><span class="pre">print_inversion_results()</span></code></a></li>
@@ -100,7 +101,12 @@ has to be in dictionary format and may include errors for each component:</p>
 </div>
 <div class="line">}</div>
 </div>
-<p>This code has been transcribed from the Matlab source code of Bedford, J., &amp;
+<p><strong>Examples:</strong>
+An implementation using test data is found in <a class="reference internal" href="#u4py.analysis.inversion.invert_test_data" title="u4py.analysis.inversion.invert_test_data"><code class="xref py py-func docutils literal notranslate"><span class="pre">invert_test_data()</span></code></a>. A best
+practice to work with real data is implemented in
+<a class="reference internal" href="u4py.analysis.processing.html#u4py.analysis.processing.invert_file" title="u4py.analysis.processing.invert_file"><code class="xref py py-func docutils literal notranslate"><span class="pre">u4py.analysis.processing.invert_file()</span></code></a>.</p>
+<p><strong>Source</strong>:
+This code has been transcribed from the Matlab source code of Bedford, J., &amp;
 Bevis, M. (2018). Greedy automatic signal decomposition and its application to
 daily GPS time series. Journal of Geophysical Research: Solid Earth, 123,
 6992-7003. <a class="reference external" href="https://doi.org/10.1029/2017JB014765">https://doi.org/10.1029/2017JB014765</a>.</p>
@@ -181,9 +187,22 @@ residuals are also added to the returned data dictionary.</p>
 </dd></dl>
 
 <dl class="py function">
+<dt class="sig sig-object py" id="u4py.analysis.inversion.invert_test_data">
+<span class="sig-prename descclassname"><span class="pre">u4py.analysis.inversion.</span></span><span class="sig-name descname"><span class="pre">invert_test_data</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#u4py.analysis.inversion.invert_test_data" title="Permalink to this definition"></a></dt>
+<dd><p>Tests the inversion with synthetic data.</p>
+<blockquote>
+<div><ol class="arabic simple">
+<li><p>First <a class="reference internal" href="#u4py.analysis.inversion.create_synthetic_data" title="u4py.analysis.inversion.create_synthetic_data"><code class="xref py py-func docutils literal notranslate"><span class="pre">create_synthetic_data()</span></code></a></p></li>
+<li><p>Then <a class="reference internal" href="#u4py.analysis.inversion.invert_time_series" title="u4py.analysis.inversion.invert_time_series"><code class="xref py py-func docutils literal notranslate"><span class="pre">invert_time_series()</span></code></a></p></li>
+<li><p>Finally <a class="reference internal" href="u4py.plotting.plots.html#u4py.plotting.plots.plot_inversion_results" title="u4py.plotting.plots.plot_inversion_results"><code class="xref py py-func docutils literal notranslate"><span class="pre">u4py.plotting.plots.plot_inversion_results()</span></code></a>.</p></li>
+</ol>
+</div></blockquote>
+</dd></dl>
+
+<dl class="py function">
 <dt class="sig sig-object py" id="u4py.analysis.inversion.invert_time_series">
 <span class="sig-prename descclassname"><span class="pre">u4py.analysis.inversion.</span></span><span class="sig-name descname"><span class="pre">invert_time_series</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">data</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">dict</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">t_AT</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">list</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">[]</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">t_EQ</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">list</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">[]</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ind</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">slice</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">num_coeffs</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">t_relative</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">use_tensorflow</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">use_sparse</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">Tuple</span></span></span><a class="headerlink" href="#u4py.analysis.inversion.invert_time_series" title="Permalink to this definition"></a></dt>
-<dd><p>_Inverts a timeseries.</p>
+<dd><p>Inverts a timeseries.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">

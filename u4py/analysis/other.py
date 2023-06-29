@@ -1,13 +1,20 @@
 """ General functions for data analysis """
+from typing import Tuple
+
 import numpy as np
 import pycwt
 import scipy.signal as spsignal
-import scipy.stats as spstats
 
 
-def cwt(y, dt):
-    """
-    Does a continuous wavelet transformation of the input data with a Morlet
+def cwt(y: np.ndarray, dt: float) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+    """Does a continuous wavelet transformation of the input data with a Morlet.
+
+    :param y: The input data set as a 1D numpy array.
+    :type y: np.ndarray
+    :param dt: The time difference between each sample in seconds.
+    :type dt: float
+    :return: A tuple containing the frequencies, cone of influence and power.
+    :rtype: Tuple[np.ndarray, np.ndarray, np.ndarray]
     """
     # Detrend and normalize data for better cwt analysis
     y_detrend = spsignal.detrend(y)
@@ -37,50 +44,35 @@ def cwt(y, dt):
     return freqs, coi, power
 
 
-def run_stat_mean(timeseries, fnc=spstats.norm):
-    """
-    Computes the running mean/median with the given statistical distribution
-    """
-    _, c = timeseries.shape
-    ts_out = np.zeros(c)
-    for ii in range(c):
-        ts_out[ii] = get_stat_val(timeseries[:, ii], fnc=spstats.t)
-    return ts_out
-
-
-def get_stat_val(values, fnc=spstats.norm):
-    """
-    Fits the data and returns the mean of the given statistical distribution
-    """
-    return fnc(*fnc.fit(values)).mean()
-
-
-def sinefunc(
+def cosinefunc(
     x: np.ndarray, amplitude: float, width: float, shift: float
 ) -> np.ndarray:
     """Returns the cosine function of the given data
 
-    Arguments:
-        x -- The x axis
-        amplitude -- The amplitude of the cosine
-        width -- The width/wavelength of the cosine
-        shift -- The phase shift
-
-    Returns:
-        `amplitude * cos(width * (x + shift))`
+    :param x: The x axis
+    :type x: np.ndarray
+    :param amplitude: The amplitude of the cosine
+    :type amplitude: float
+    :param width: The width/wavelength of the cosine
+    :type width: float
+    :param shift: The phase shift
+    :type shift: float
+    :return: `amplitude * cos(width * (x + shift))`
+    :rtype: np.ndarray
     """
     return amplitude * np.cos(width * (x + shift))
 
 
 def poly1(x: np.ndarray, slope: float, offset: float) -> np.ndarray:
-    """Returns a linear function of the given data
+    """Returns a linear function of the given data.
 
-    Arguments:
-        x -- The x axis
-        slope -- The slope of the function
-        offset -- The y-axis offset
-
-    Returns:
-        `slope * x * offset`
+    :param x: The x axis
+    :type x: np.ndarray
+    :param slope: The slope of the function
+    :type slope: float
+    :param offset: The y-axis offset
+    :type offset: float
+    :return: `slope * x * offset`
+    :rtype: np.ndarray
     """
     return slope * x + offset

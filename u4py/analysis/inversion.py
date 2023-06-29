@@ -16,6 +16,12 @@ has to be in dictionary format and may include errors for each component:
 |        `"station"`: String of station name,
 |    }
 
+**Examples:**
+An implementation using test data is found in :func:`invert_test_data`. A best
+practice to work with real data is implemented in
+:func:`u4py.analysis.processing.invert_file`.
+
+**Source**:
 This code has been transcribed from the Matlab source code of Bedford, J., &
 Bevis, M. (2018). Greedy automatic signal decomposition and its application to
 daily GPS time series. Journal of Geophysical Research: Solid Earth, 123,
@@ -104,7 +110,7 @@ def invert_time_series(
     use_tensorflow: bool = False,
     use_sparse: bool = True,
 ) -> Tuple:
-    """_Inverts a timeseries.
+    """Inverts a timeseries.
 
     :param data: The data formatted as a dictionary.
     :type data: dict
@@ -641,8 +647,14 @@ def print_inversion_results(matrix: np.ndarray):
         print(ann, f"{val:.2}")
 
 
-def _main():
-    """Test function with synthetic data."""
+def invert_test_data():
+    """
+    Tests the inversion with synthetic data.
+
+        1. First :func:`create_synthetic_data`
+        2. Then :func:`invert_time_series`
+        3. Finally :func:`u4py.plotting.plots.plot_inversion_results`.
+    """
     data, t_EQ = create_synthetic_data()
     matrix, data, time_vector = invert_time_series(
         data, t_EQ=t_EQ, use_sparse=True
@@ -652,4 +664,4 @@ def _main():
 
 
 if __name__ == "__main__":
-    _main()
+    invert_test_data()

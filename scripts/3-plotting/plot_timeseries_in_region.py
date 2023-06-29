@@ -138,12 +138,12 @@ def add_timeseries(
         y_detrend = y_med - linear_component
 
         popt, pcov = spopt.curve_fit(
-            u4other.sinefunc,
+            u4other.cosinefunc,
             time_days,
             y_detrend,
             p0=[2, 6 / 365.25, 0],
         )
-        sinus_component = u4other.sinefunc(time_days, *popt)
+        sinus_component = u4other.cosinefunc(time_days, *popt)
         # y_residual = y_detrend - sinus_component
 
         ax.plot(time, linear_component + sinus_component, label="Fit")

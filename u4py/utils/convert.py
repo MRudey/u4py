@@ -15,7 +15,6 @@ from numba_progress import ProgressBar
 from tqdm import tqdm
 
 import u4py.utils.config as u4config
-import u4py.utils.files as u4files
 
 
 def gnss_dat_to_dict(file_in: os.PathLike):
@@ -417,42 +416,6 @@ def create_datasets(h5group, k, v, compression, compression_opts):
         )
 
 
-def merge_data(inputs):
-    """Converts average LOS movement into EW and UD component
-
-    Args:
-        base_path (os.PathLike): Path to folder with ASCE and DESC folder
-        file_name (os.PathLike): Common file for calculation
-    """
-    base_path = inputs[0]
-    file_name = inputs[1]
-    logging.info(f"Merging {file_name}")
-    path_a = os.path.join(base_path, "BBD_EW", file_name)
-    path_d = os.path.join(base_path, "BBD_Vert", file_name)
-    output_path = os.path.join(base_path, "merged")
-    data_ew = u4files.load_hdf5(path_a)
-    data_ud = u4files.load_hdf5(path_d)
-
-    common_ps_id = np.nonzero(data_ew["ps_id"] == data_ud["ps_id"])
-    output_data = dict()
-    for ii in common_ps_id[0]:
-        station = data_ew["ps_id"][ii]
-        output_data[f"{station}"] = {
-            "t": data_ew["time"],
-            "dataE": data_ew["timeseries"][ii],
-            "dataN": data_ew["timeseries"][ii],
-            "dataU": data_ud["timeseries"][ii],
-            # "sigmE": sigmE,
-            # "sigmN": sigmE,
-            # "sigmU": sigmE,
-            "station": f"{station}",
-            "xmid": data_ew["xmid"],
-            "ymid": data_ew["ymid"],
-            "chunk_size": data_ew["chunk_size"],
-        }
-    dict_to_hdf5(os.path.join(output_path, file_name), output_data)
-
-
 def get_floatyear(timestr):
     """Converts to a float based year"""
     if isinstance(timestr, str):
@@ -464,3 +427,10 @@ def get_floatyear(timestr):
             "Converting from this time format is not supported."
         )
     return t.year + ((t - datetime(t.year, 1, 1)).days / 365.25)
+
+
+def floatyear_to_datetime(time: float) -> datetime:
+    year = int(time)
+    days = (time - year) * 365.25
+    t = datetime(year, 1, 1) + timedelta(days=days)
+    return t

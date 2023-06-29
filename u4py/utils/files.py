@@ -408,3 +408,40 @@ def ndarray_to_geotiff(
         nodata=-9999,
     ) as dst:
         dst.write(Z, 1)
+
+def load_pickled_results(pickle_path: os.PathLike) -> dict:
+    """Loads the given pickle file for plotting"""
+    with open(pickle_path, "rb") as pkl_file:
+        results, chunk_size = pkl.load(pkl_file)
+    return results, chunk_size
+
+
+def load_tiff(tiff_file_path: os.PathLike):
+    tiff_tile = rio.open(tiff_file_path)
+    return tiff_tile
+
+
+def get_tiff_regions(
+    project: configparser.ConfigParser, overwrite: bool = False
+) -> gp.GeoDataFrame:
+    all_tiff_path = os.path.join(
+        project["paths"]["diff_plan_path"], "all_tiff_overviews.shp"
+    )
+    if os.path.exists(all_tiff_path) and not overwrite:
+        all_tiff_gdf = gp.GeoDataFrame.from_file(all_tiff_path)
+    else:
+        tiff_file_list = get_file_list(
+            folder_path=project["paths"]["diff_plan_path"],
+            filetype=".tif",
+            recursive=True,
+        )
+        all_tiff_list = []
+        for tiff_file in tqdm(tiff_file_list, desc="Generating overviews"):
+            tile = load_tiff(tiff_file)
+            all_tiff_list.append(u4spatial.bounds_to_polygon(tile.bounds))
+        all_tiff_gdf = gp.GeoDataFrame(
+            {"src_path": tiff_file_list, "geometry": all_tiff_list},
+            crs=tile.crs,
+        )
+        all_tiff_gdf.to_file(all_tiff_path)
+    return all_tiff_gdf
