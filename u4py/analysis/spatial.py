@@ -14,20 +14,6 @@ import scipy.spatial as spspatial
 import shapely
 
 
-def get_features(in_dict: dict, features: list):
-    """Gets specied features from input dictionary"""
-    ind = []
-    for feat in features:
-        ind.extend(np.argwhere(in_dict["fclass"] == feat))
-    coords = np.squeeze(in_dict["geometry"][ind])
-    names = [
-        str((n.encode("latin_1")).decode("utf8"))
-        for n in np.squeeze(in_dict["name"][ind])
-    ]
-
-    return (names, coords)
-
-
 def reproject_raster(in_path, out_path, output_crs):
     """reproject raster to project crs"""
     crs_out = {"init": output_crs}
@@ -65,12 +51,12 @@ def get_cKDTree(file_path):
     Loads all x and y coordinates from the given file or folder and returns a
     cKDTree for easy spatial lookup.
     """
-    coords = get_coords(file_path)
+    coords = _get_coords(file_path)
 
     return spspatial.cKDTree(coords)
 
 
-def get_coords(input_data: PathLike | list) -> list:
+def _get_coords(input_data: PathLike | list) -> list:
     """
     Loads all x and y coordinates from the given file or folder.
 
@@ -80,15 +66,17 @@ def get_coords(input_data: PathLike | list) -> list:
 
     if isinstance(input_data, list):
         if isinstance(input_data[0], str):
-            coords = file_list_to_coords(input_data)
+            coords = _file_list_to_coords(input_data)
         elif isinstance(input_data[0], tuple):
-            coords = tuple_list_to_coords(input_data)
+            coords = _tuple_list_to_coords(input_data)
 
     elif isinstance(input_data, str):
         if input_data.endswith(".h5"):
-            coords = h5_to_coords(input_data)
+            coords = _h5_to_coords(input_data)
         elif input_data.endswith(".pkl"):
-            coords = pkl_to_coords(input_data)
+            coords = _pkl_to_coords(input_data)
+        elif os.path.isdir(input_data):
+            coords = _file_list_to_coords(input_data)
 
     if coords is None:
         raise NotImplementedError(
@@ -97,7 +85,7 @@ def get_coords(input_data: PathLike | list) -> list:
     return coords
 
 
-def file_list_to_coords(input_data: list) -> list:
+def _file_list_to_coords(input_data: list) -> list:
     """
     Converts a file list of h5 files with x and y coordinates in their names
     to a list of coordinates.
@@ -113,7 +101,7 @@ def file_list_to_coords(input_data: list) -> list:
     return coords
 
 
-def h5_to_coords(h5file_path: os.PathLike) -> list:
+def _h5_to_coords(h5file_path: os.PathLike) -> list:
     """Converts a h5 file containing x and y to list of coordinates"""
     with h5py.File(h5file_path, "r") as h5file:
         coords = np.array(
@@ -122,21 +110,21 @@ def h5_to_coords(h5file_path: os.PathLike) -> list:
     return coords
 
 
-def tuple_list_to_coords(tuple_list: list) -> list:
+def _tuple_list_to_coords(tuple_list: list) -> list:
     """
     Converts a list of tuples from a loaded pkl file to list of coordinates."""
     coords = np.array([(d[0], d[1]) for d in tuple_list])
     return coords
 
 
-def pkl_to_coords(pkl_path: os.PathLike) -> list:
+def _pkl_to_coords(pkl_path: os.PathLike) -> list:
     """
     Converts contents of a pickled inversion results file to list of
     coordinates.
     """
     with open(pkl_path, "rb") as pklfile:
         data = pkl.load(pklfile)[0]
-    coords = tuple_list_to_coords(data)
+    coords = _tuple_list_to_coords(data)
     return coords
 
 
@@ -173,7 +161,7 @@ def select_points_osm(query, psi_file_path):
         query["address"], tags=query["tags"]
     ).to_crs("EPSG:32632")
 
-    coords = get_coords(psi_file_path)
+    coords = _get_coords(psi_file_path)
     points = gp.GeoDataFrame(
         {
             "geometry": coords,
@@ -191,7 +179,7 @@ def select_points_region(region, psi_file_path):
     """
     if region.crs != "EPSG:32632":
         region = region.to_crs("EPSG:32632")
-    coords = get_coords(psi_file_path)
+    coords = _get_coords(psi_file_path)
     points = gp.GeoDataFrame(
         {
             "geometry": coords,
@@ -206,7 +194,7 @@ def select_points_point(point, radius, psi_file_path):
     region = gp.GeoDataFrame(
         {"geometry": [shapely.Point(point).buffer(radius)]}, crs="EPSG:32632"
     )
-    coords = get_coords(psi_file_path)
+    coords = _get_coords(psi_file_path)
     points = gp.GeoDataFrame(
         {
             "geometry": coords,
