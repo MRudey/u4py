@@ -500,7 +500,9 @@ def _prepare_g_functions(
     )
 
 
-def _set_g_matrices(*args) -> np.ndarray:
+def _set_g_matrices(
+    g_TREND, g_ANNUAL, g_HEAVIS_AT, g_HEAVIS_EQ, g_POSTSM
+) -> np.ndarray:
     """Set up a G-matrices for each component and then the full, global G-matrix.
 
     :return: Block diagonal matrix of stacked Green's function for each component.
