@@ -261,9 +261,21 @@ def points_to_filelist(gdf: gp.GeoDataFrame, data_folder: os.PathLike) -> list:
     return file_list
 
 
-def get_data(h5group, timefmt="datetime", ind=np.array([])):
+def get_data(
+    h5group: h5py.Group,
+    timefmt: str = "datetime",
+    ind: np.ndarray = np.array([]),
+) -> dict:
     """
-    Recursively gets data from a group. Going deeper if a group is found.
+
+    :param h5group: Recursively gets data from a group. Going deeper if a group is found.
+    :type h5group: h5py.Group
+    :param timefmt: The format for time to use, defaults to "datetime"
+    :type timefmt: str, optional
+    :param ind: Only loads the data at the indices `ind`, defaults to np.array([])
+    :type ind: np.ndarray, optional
+    :return: The loaded data.
+    :rtype: dict
     """
     convert_time = {
         "datetime": datetime.fromisoformat,
@@ -296,8 +308,14 @@ def get_data(h5group, timefmt="datetime", ind=np.array([])):
     return data
 
 
-def get_data_for_inversion(file_path):
-    """Loads file and prepares dataset for inversion"""
+def get_data_for_inversion(file_path: os.PathLike) -> dict:
+    """Loads file and prepares dataset for inversion.
+
+    :param file_path: The path to the data file.
+    :type file_path: os.PathLike
+    :return: A dictionary formatted for inversion
+    :rtype: dict
+    """
     dataset = load_hdf5(file_path, timefmt="floatyear")
     data = u4invert.stack_data(dataset)
     data["sigmE"] = np.ones_like(data["dataE"])
@@ -310,8 +328,16 @@ def get_data_for_inversion(file_path):
     return data
 
 
-def multi_split(file_path: os.PathLike, nsplits: int):
-    """Splits the filepath multiple times"""
+def multi_split(file_path: os.PathLike, nsplits: int) -> os.PathLike:
+    """Splits the filepath multiple times. Useful for traversing several levels upwards.
+
+    :param file_path: The path to split.
+    :type file_path: os.PathLike
+    :param nsplits: The number of splits to do.
+    :type nsplits: int
+    :return: The path `nsplits` levels higher.
+    :rtype: os.PathLike
+    """
     for n in range(nsplits):
         file_path = os.path.split(file_path)[0]
     return file_path
@@ -344,22 +370,21 @@ def get_region_points(
     overwrite: bool = False,
     crs: str = "EPSG:32632",
 ) -> Tuple[gp.GeoDataFrame, os.PathLike]:
-    """
-    Gets the PSI points in a region and saves them into a shape file for
+    """Gets the PSI points in a region and saves them into a shape file for
     faster access.
 
-    Arguments:
-        region -- A `GeoDataFrame` of the region, e.g. from a shape file
-        region_name -- The name of the region.
-        psi_file_path -- Path to folder or file where the PSI data is found.
-
-    Keyword Arguments:
-        overwrite -- Whether to overwrite the output shape file. (default: {False})
-        crs -- The CRS of the input shapes. (default: {"EPSG:32632"})
-
-    Returns:
-        Returns the points as GeoDataFrame with time series attached and the
-        path where the folder is found.
+    :param region: A `GeoDataFrame` of the region, e.g. from a shape file
+    :type region: gp.GeoDataFrame
+    :param region_name: The name of the region.
+    :type region_name: str
+    :param psi_file_path: Path to folder or file where the PSI data is found.
+    :type psi_file_path: os.PathLike
+    :param overwrite:  Whether to overwrite the output shape file, defaults to False
+    :type overwrite: bool, optional
+    :param crs: The CRS of the input shapes, defaults to "EPSG:32632"
+    :type crs: str, optional
+    :return: Returns the points as GeoDataFrame with time series attached and the path where the folder is found.
+    :rtype: Tuple[gp.GeoDataFrame, os.PathLike]
     """
     base_folder, source_name = os.path.split(psi_file_path)
     point_files_folder = os.path.join(
@@ -396,17 +421,18 @@ def get_point_points(
     `point`. Creates a shape file with the extracted points, for quicker
     repeated data access.
 
-    Arguments:
-        point -- The point where to start.
-        radius -- The search radius around point (in meters)
-        region_name -- A sensible name for the extraction point.
-        source_file_path -- The file where to extract the data.
-
-    Keyword Arguments:
-        overwrite -- Whether to overwrite the shape file (default: {False})
-
-    Returns:
-        A GeoDataFrame with the points including all relevant data.
+    :param point: The point where to start.
+    :type point: Tuple[float, float]
+    :param radius: The search radius around point (in meters).
+    :type radius: float
+    :param region_name: A sensible name for the extraction point.
+    :type region_name: str
+    :param source_file_path: The file where to extract the data.
+    :type source_file_path: os.PathLike
+    :param overwrite: Whether to overwrite the shape file, defaults to False
+    :type overwrite: bool, optional
+    :return: A GeoDataFrame with the points including all relevant data.
+    :rtype: gp.GeoDataFrame
     """
     base_folder, source_name = os.path.split(source_file_path)
     output_folder = os.path.join(
