@@ -173,7 +173,11 @@ def plot_timeseries(
 
 @_add_or_create
 def plot_timeseries_fit(
-    data: dict, ax: Axes, color: str = "C0"
+    data: dict,
+    ax: Axes,
+    color: str = "C1",
+    results: dict = None,
+    results_func: Callable = u4proc.get_decomposed_signals,
 ) -> Tuple[Figure, Axes] | None:
     """Plots the fit data for a simple timeseries analysis.
 
@@ -186,12 +190,14 @@ def plot_timeseries_fit(
     :return: The figure and axis if there was no axis specified.
     :rtype: Tuple[Figure, Axes] | None
     """
-    results = u4proc.get_decomposed_signals(data)
+    if not results:
+        results = results_func(data)
 
     ax.plot(
         results["time"],
         results["signals"]["lin"] + results["signals"]["sin"],
         label="Fit",
+        color=color,
     )
     # shift = time[0] - timedelta(days=sin_popt[2])
 
