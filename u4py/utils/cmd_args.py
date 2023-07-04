@@ -1,4 +1,6 @@
-""" Implements the command line arguments """
+"""
+Implements the command line arguments. Mainly used for scripts that run on the server or cluster with long-running tasks. Examples are the conversion of a .gpgk file to many hdf5 files or the batch inversion of many hdf5 files on the cluster.
+"""
 
 import argparse
 import logging
@@ -7,9 +9,10 @@ import u4py.utils.config as u4config
 
 
 def load(module_descript: str = "No description given."):
-    """
-    Loads the commandline parser and sets everything in the config for later
-    use.
+    """Loads the commandline parser and sets everything in the config for later use.
+
+    :param module_descript: The description of the module, defaults to "No description given."
+    :type module_descript: str, optional
     """
     # Get commandline arguments
     parser = setup_parser(module_descript)
@@ -35,8 +38,14 @@ def load(module_descript: str = "No description given."):
     )
 
 
-def setup_parser(module_descript: str):
-    """Sets all command line arguments"""
+def setup_parser(module_descript: str) -> argparse.ArgumentParser:
+    """Sets all command line arguments
+
+    :param module_descript: The description of the module.
+    :type module_descript: str
+    :return: The argument parser for the module.
+    :rtype: argparse.ArgumentParser
+    """
     parser = argparse.ArgumentParser(description=module_descript)
     parser.add_argument(
         "-i",
@@ -63,7 +72,13 @@ def setup_parser(module_descript: str):
 
 
 def log_level_str(num: int) -> str:
-    """Converts loglevel number into string"""
+    """Converts loglevel number into string
+
+    :param num: The number of the loglevel.
+    :type num: int
+    :return: The string of the loglevel.
+    :rtype: str
+    """
     if num == 50:
         return "CRITICAL"
     elif num == 40:

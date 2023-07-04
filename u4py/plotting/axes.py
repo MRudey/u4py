@@ -1,15 +1,16 @@
 """
-Contains functions to create plots from a data dictionary. All functions
-should follow the following template:
+Contains functions to create simple axes objects to add to other plots. The plots generated here can be used as stand-alone small plots or to compile larger more complicated plots. Because of this, we use only a simple, minimalistic input structure. Each function only should plot a single thing and do only minimal processing. Usually, for a new plot, one would go into :func:`u4py.plotting.plots` and create a new plot function there. Each axis added to the larger plot should be implemented to :func:`u4py.plotting.axes`. This allows also to reuse individual subplots for other figures and also for having a stand-alone version of the axis as a small simple plot.
 
-    plot_FUNCNAME(data:dict, ax: Axes=None, KEYWORDS) -> None, Tuple[Figure, Axes]
+Internally we use a decorator (`@_add_or_create`) to check if an axis object was given and to generate figure and axis if necessary. Therefore, we have to follow the function template in order for the decorator to work correctly.
 
-- Functions may also be used to add the plot to an existing plot. If given an
-  `Axes` the function will plot into the given axis (useful for subplots). If
-  no `Axes` is given the function will create a Figure and return both, an
-  `Axes` and `Figure` object.
-- The input `data` is required.
-- For flexibility keywords can be added.
+All functions should follow the following template::
+
+    plot_FUNCNAME(data: dict, ax: Axes=None, **kwargs) -> None, Tuple[Figure, Axes]
+
+- Functions may also be used to add the plot to an existing plot. If given an `Axes` the function will plot into the given axis (useful for subplots). If no `Axes` is given the function will create a Figure and return both, an `Axes` and `Figure` object.
+- The input `data` is required but can also be split into seperate variables.
+- For flexibility keywords can be added, e.g. to change plot color.
+
 """
 from __future__ import annotations
 
@@ -23,6 +24,8 @@ import numpy as np
 import rasterio
 import rasterio.plot as rioplot
 import scipy.stats as spstats
+import skimage.transform as sktransf
+from decorator import decorator
 from matplotlib.axes import Axes
 from matplotlib.figure import Figure
 from pyproj import CRS
@@ -30,62 +33,71 @@ from pyproj import CRS
 import u4py.analysis.other as u4other
 import u4py.analysis.processing as u4proc
 import u4py.plotting.preparation as u4plotprep
+import u4py.utils.files as u4files
 
 
-def add_or_create(internal_plot):
+@decorator
+def _add_or_create(internal_plot: Callable) -> Tuple[Figure, Axes] | None:
     """Decorator for all functions in this module
 
     Functions decorated can either add their plot to the axis (if `ax` is set).
     Otherwise the decorator creates a new plot with `plt.subplots`
 
+    :param internal_plot: The function creating the plot.
+    :type internal_plot: Callable
+    :return: The outputs of the plotting function.
+    :rtype: Tuple[Figure, Axes] | None
     """
 
     def wrapper_internal_plot(*args, ax=None, **kwargs):
         # Plotting
         if not ax:
             fig, ax = plt.subplots()
-            internal_plot(*args, ax=ax, **kwargs)
-            return fig, ax
+            plot_return = internal_plot(*args, ax=ax, **kwargs)
+            if plot_return:
+                return fig, ax, plot_return
+            else:
+                return fig, ax
         else:
-            internal_plot(*args, ax=ax, **kwargs)
+            plot_return = internal_plot(*args, ax=ax, **kwargs)
+            if plot_return:
+                return plot_return
+            else:
+                return
 
     return wrapper_internal_plot
 
 
-@add_or_create
+@_add_or_create
 def plot_stat_func(
     data: dict, ax: Axes, stat_fnc: Callable = np.nanmean
 ) -> Tuple[Figure, Axes] | None:
     """Creates a plot with the given statistic.
 
-    Arguments:
-        data -- Data dictionary according to u4py standard (e.g. read from h5).
-
-    Keyword Arguments:
-        ax -- The axis to add the plot to.
-        stat_fnc -- The statistical function to use on the timeseries data. (default: {np.nanmean})
-
-    Returns:
-        The figure and axis if there was no axis specified.
+    :param data: Data dictionary according to u4py standard (e.g. read from h5).
+    :type data: dict
+    :param ax: The axis to add the plot to (optional).
+    :type ax: Axes
+    :param stat_fnc: The statistical function to use on the timeseries data., defaults to np.nanmean
+    :type stat_fnc: Callable, optional
+    :return: The figure and axis if there was no axis specified.
+    :rtype: Tuple[Figure, Axes] | None
     """
-
     time = data["time"]
     y = stat_fnc(data["timeseries"], axis=0)
     ax.plot(time, y)
 
 
-@add_or_create
+@_add_or_create
 def plot_cwt(data: dict, ax: Axes) -> Tuple[Figure, Axes] | None:
     """Does a continous wavelet transform of the data to find dominant frequencies and plots it.
 
-    Arguments:
-        data -- Data dictionary according to u4py standard (e.g. read from h5).
-
-    Keyword Arguments:
-        ax -- The axis to add the plot to.
-
-    Returns:
-        The figure and axis if there was no axis specified.
+    :param data: Data dictionary according to u4py standard (e.g. read from h5).
+    :type data: dict
+    :param ax: The axis to add the plot to (optional).
+    :type ax: Axes
+    :return: The figure and axis if there was no axis specified.
+    :rtype: Tuple[Figure, Axes] | None
     """
 
     time = data["time"]
@@ -96,25 +108,23 @@ def plot_cwt(data: dict, ax: Axes) -> Tuple[Figure, Axes] | None:
     ax.fill_between(time, coi, np.min(freqs), color="w", alpha=0.25)
 
 
-@add_or_create
+@_add_or_create
 def plot_pdf(
     y: np.ndarray, ax: Axes, fnc: spstats.rv_continuous = spstats.norm
-) -> (
-    spstats.distributions.rv_frozen
-    | Tuple[spstats.distributions.rv_frozen, Figure, Axes]
-):
-    """Adds a plot of the probability density function.
+) -> spstats.distributions.rv_frozen | Tuple[
+    spstats.distributions.rv_frozen, Figure, Axes
+]:
+    """Adds a plot of the probability density function (WIP).
 
-    Arguments:
-        y -- The data to be used to fit the distribution
-
-
-    Keyword Arguments:
-        ax -- The axis to add the plot to (default: {None})
-        fnc -- Distribution class used to fit the data (default: {spstats.norm})
-
-    Returns:
-        Returns the frozen distribution object or a tuple with object, figure and axis.
+    :param y: The data to be used to fit the distribution.
+    :type y: np.ndarray
+    :param ax: The axis to add the plot to (optional)
+    :type ax: Axes
+    :param fnc: Distribution class used to fit the data, defaults to spstats.norm
+    :type fnc: spstats.rv_continuous, optional
+    :raises NotImplementedError: Currently only returns an error!
+    :return: Returns the frozen distribution object or a tuple with object, figure and axis.
+    :rtype: spstats.distributions.rv_frozen | Tuple[spstats.distributions.rv_frozen, Figure, Axes]
     """
     raise NotImplementedError("Implement the return of stat vals...")
     # xlims = ax.get_xlim()
@@ -124,21 +134,22 @@ def plot_pdf(
     # ax.plot(t_x, fnc.pdf(t_x, *stat_vals))
 
 
-@add_or_create
+@_add_or_create
 def plot_timeseries(
     x: np.ndarray, y: np.ndarray, ax: Axes, color: str = "C0"
 ) -> Tuple[Figure, Axes] | None:
     """Creates a nice plot of a timeseries including the range of values.
 
-    Arguments:
-        x -- 1D Array containing the data for the x-axis.
-        y -- 1D or 2D Array containing the data for the y-axis.
-
-    Keyword Arguments:
-        ax -- The axis to add the plot to.
-
-    Returns:
-        The figure and axis if there was no axis specified.
+    :param x: 1D Array containing the data for the x-axis.
+    :type x: np.ndarray
+    :param y: 1D or 2D Array containing the data for the y-axis.
+    :type y: np.ndarray
+    :param ax: The axis to add the plot to (optional).
+    :type ax: Axes
+    :param color: The color for the plot, defaults to "C0"
+    :type color: str, optional
+    :return: The figure and axis if there was no axis specified.
+    :rtype: Tuple[Figure, Axes] | None
     """
 
     y_med = np.nanmedian(y, axis=0)
@@ -159,20 +170,21 @@ def plot_timeseries(
     ax.fill_between(x, y_68, y_32, color=color, alpha=0.5, edgecolor=None)
 
 
-@add_or_create
-def plot_timeseries_fit(data: dict, ax: Axes) -> Tuple[Figure, Axes] | None:
+@_add_or_create
+def plot_timeseries_fit(
+    data: dict, ax: Axes, color: str = "C0"
+) -> Tuple[Figure, Axes] | None:
     """Plots the fit data for a simple timeseries analysis.
 
-    Arguments:
-        data -- Data dictionary according to u4py standard (e.g. read from h5).
-
-    Keyword Arguments:
-        ax -- The axis to add the plot to.
-
-    Returns:
-        The figure and axis if there was no axis specified.
+    :param data: Data dictionary according to u4py standard (e.g. read from h5).
+    :type data: dict
+    :param ax: The axis to add the plot to (optional).
+    :type ax: Axes
+    :param color: The color for the plot, defaults to "C0"
+    :type color: str, optional
+    :return: The figure and axis if there was no axis specified.
+    :rtype: Tuple[Figure, Axes] | None
     """
-
     results = u4proc.get_decomposed_signals(data)
 
     ax.plot(
@@ -201,8 +213,19 @@ def plot_timeseries_fit(data: dict, ax: Axes) -> Tuple[Figure, Axes] | None:
     )
 
 
-@add_or_create
-def plot_region_trend(data_region: dict, ax: Axes):
+@_add_or_create
+def plot_region_trend(
+    data_region: dict, ax: Axes
+) -> Tuple[Figure, Axes] | None:
+    """Calculates and plots the regional trend in a region of data.
+
+    :param data_region: Dictionary with multiple data dictionaries according to u4py standard (e.g. read from h5).
+    :type data_region: dict
+    :param ax: The axis to add the plot to (optional).
+    :type ax: Axes
+    :return: The figure and axis if there was no axis specified.
+    :rtype: Tuple[Figure, Axes] | None
+    """
     region_trend = u4plotprep.get_linfit_each_timeseries(data_region)
 
     rng = np.percentile(np.abs(region_trend), 95)
@@ -225,21 +248,22 @@ def plot_region_trend(data_region: dict, ax: Axes):
     )
 
 
-@add_or_create
+@_add_or_create
 def add_shapefile(
     shp_path: os.PathLike, ax: Axes, **kwargs
 ) -> Tuple[Figure, Axes] | None:
     """Creates a plot from the shapefile in the given coordinate system.
 
-    Arguments:
-        shp_path -- The path to the shapefile containing the geometry.
-
-    Keyword Arguments:
-        ax -- The axis to add the plot to.
-        crs --  The target coordinate system as accepted by GeoPandas (default: {"EPSG:23032"}).
-        kwargs -- Additional arguments passed to shape.plot(). See GeoPandas documentation.
-    Returns:
-        The figure and axis if there was no axis specified.
+    :param shp_path: The path to the shapefile containing the geometry.
+    :type shp_path: os.PathLike
+    :param ax: The axis to add the plot to (optional).
+    :type ax: Axes
+    :param crx: The target coordinate system as accepted by GeoPandas (default: {"EPSG:23032"}).
+    :type crx: str
+    :param kwargs: Additional arguments passed to shape.plot(). See GeoPandas documentation.
+    :type kwargs: dict
+    :return: The figure and axis if there was no axis specified.
+    :rtype: Tuple[Figure, Axes] | None
     """
     kwgs = {"crs": "EPSG:23032", "keys": None, "labels": None}
     kwgs.update(kwargs)
@@ -267,19 +291,20 @@ def add_shapefile(
     shape.plot(ax=ax, **kwgs)
 
 
-@add_or_create
+@_add_or_create
 def add_basemap(
     base_map_path: os.PathLike = None, ax: Axes = None, **kwargs
 ) -> Tuple[Figure, Axes] | None:
-    """Creates a plot with the basemap as the lowest layer
+    """Creates a plot with the basemap as the lowest layer. If no basemap is given it is automatically loaded from osm.
 
-    Arguments:
-        base_map_path -- Path to the geotiff with the basemap
-        ax --  The axis to add the plot to.
-        kwargs -- Additional arguments passed to rasterio.plot.show(). See rasterio documentation.
-
-    Returns:
-        The figure and axis if there was no axis specified.
+    :param base_map_path:  Path to the geotiff with the basemap, defaults to None
+    :type base_map_path: os.PathLike, optional
+    :param ax: The axis to add the plot to (optional)., defaults to None
+    :type ax: Axes, optional
+    :param kwargs:  Additional arguments passed to rasterio.plot.show(). See rasterio documentation.
+    :type kwargs: dict
+    :return: The figure and axis if there was no axis specified.
+    :rtype: Tuple[Figure, Axes] | None
     """
     if base_map_path:
         with rasterio.open(base_map_path) as base_map:
@@ -292,7 +317,7 @@ def add_basemap(
         )
 
 
-@add_or_create
+@_add_or_create
 def plot_inversion_fit(
     x: np.ndarray,
     inv_results: tuple,
@@ -302,41 +327,43 @@ def plot_inversion_fit(
 ) -> Tuple[Figure, Axes] | None:
     """Creates a plot from inversion results.
 
-    Arguments:
-        x -- The x axis (datetime).
-        inv_results -- A tuple of the inversion results.
-        ax -- The axis to add the plot to.
-
-    Keyword Arguments:
-        direction -- The direction of the inversion results. Options are: "EW",
-        "NS", "UD" (default {"UD"})
-        kwargs -- Additional arguments passed to plt.plot().
-
-    Returns:
-        The figure and axis if there was no axis specified.
+    :param x: The x axis (datetime).
+    :type x: np.ndarray
+    :param inv_results: A tuple of the inversion results.
+    :type inv_results: tuple
+    :param ax: The axis to add the plot to (optional).
+    :type ax: Axes
+    :param direction: The direction of the inversion results. Options are: "EW",
+        "NS", "UD", defaults to "UD"
+    :type direction: str, optional
+    :param kwargs: Additional arguments passed to plt.plot().
+    :type kwargs: dict
+    :return: The figure and axis if there was no axis specified.
+    :rtype: Tuple[Figure, Axes] | None
     """
     y = u4plotprep.get_forward_model(x, inv_results, direction)
     ax.plot(x, y, label="Forward Model", **kwargs)
 
 
-@add_or_create
+@_add_or_create
 def plot_fit_residuals(
     data: dict, fit_data: tuple, ax: Axes, direction: str = "UD", **kwargs
 ) -> Tuple[Figure, Axes] | None:
-    """Creates a plot with the residuals of the data and selected fit
+    """Creates a plot with the residuals of the data and selected fit.
 
-    Arguments:
-        data -- The data dictionary.
-        fit_data -- A tuple of fit data, the length defines the type
-        ax -- The axis to add the plot to.
-
-    Keyword Arguments:
-        direction -- The direction of the inversion results. Options are: "EW",
-        "NS", "UD" (default {"UD"})
-        kwargs -- Additional arguments passed to plt.plot().
-
-    Returns:
-        The figure and axis if there was no axis specified.
+    :param x: The x axis (datetime).
+    :type x: np.ndarray
+    :param inv_results: A tuple of the inversion results.
+    :type inv_results: tuple
+    :param ax: The axis to add the plot to (optional).
+    :type ax: Axes
+    :param direction: The direction of the inversion results. Options are: "EW",
+        "NS", "UD", defaults to "UD"
+    :type direction: str, optional
+    :param kwargs: Additional arguments passed to plt.plot().
+    :type kwargs: dict
+    :return: The figure and axis if there was no axis specified.
+    :rtype: Tuple[Figure, Axes] | None
     """
 
     time = data["time"]
@@ -350,4 +377,50 @@ def plot_fit_residuals(
     ax.plot(time, y_res, ".", label="Residuals", **kwargs)
 
 
-# @add_or_create
+@_add_or_create
+def add_tile(
+    tiff_tile_path: os.PathLike,
+    ax: Axes,
+    vm: float = 0,
+    imsize: int = 100,
+    show: bool = True,
+) -> Tuple[tuple, str]:
+    """Adds a tiff file to the given axis.
+
+    :param tiff_tile_path: The path to the tiff file.
+    :type tiff_tile_path: os.PathLike
+    :param ax: The axis to add the plot (optional).
+    :type ax: Axes
+    :param vm: Colormap minimum and maximum, defaults to 0
+    :type vm: float, optional
+    :param imsize: Resizes the image to this size, defaults to 100
+    :type imsize: int, optional
+    :param show: Adds the tile to the plot, defaults to True
+    :type show: bool, optional
+    :return: The boundaries and crs of the tile (bounds, crs).
+    :rtype: Tuple[tuple, str]
+    """
+    tiff_tile = u4files.load_tiff(tiff_tile_path)
+    if show:
+        diff_tile = tiff_tile.read(1)
+        if imsize:
+            tile_resized = sktransf.resize(
+                diff_tile, (imsize, imsize), anti_aliasing=True
+            )
+        else:
+            tile_resized = diff_tile
+        if not vm:
+            vm = np.percentile(np.abs(tile_resized), 95)
+        ax.imshow(
+            tile_resized,
+            cmap="RdYlBu",
+            vmin=-vm,
+            vmax=vm,
+            extent=(
+                tiff_tile.bounds.left,
+                tiff_tile.bounds.right,
+                tiff_tile.bounds.bottom,
+                tiff_tile.bounds.top,
+            ),
+        )
+    return tiff_tile.bounds, tiff_tile.crs

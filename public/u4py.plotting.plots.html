@@ -77,52 +77,74 @@
              
   <section id="module-u4py.plotting.plots">
 <span id="u4py-plotting-plots-module"></span><h1>u4py.plotting.plots module<a class="headerlink" href="#module-u4py.plotting.plots" title="Permalink to this heading"></a></h1>
-<p>Contains functions with ready made plots. Each function should contain a
-save_path if possible.</p>
+<p>Contains functions with ready made plots. This module uses axis functions defined in <a class="reference internal" href="u4py.plotting.axes.html#module-u4py.plotting.axes" title="u4py.plotting.axes"><code class="xref py py-func docutils literal notranslate"><span class="pre">u4py.plotting.axes()</span></code></a> to create more complicated plots. The functions also do some processing and other data modification. Each function should contain a <cite>save_path</cite> if possible where the output figure is saved. If none is given the figure is shown interactively, otherwise it is saved and then destroyed.</p>
 <dl class="py function">
 <dt class="sig sig-object py" id="u4py.plotting.plots.plot_gridded">
 <span class="sig-prename descclassname"><span class="pre">u4py.plotting.plots.</span></span><span class="sig-name descname"><span class="pre">plot_gridded</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">lin_2d</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">ndarray</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">sin_2d</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">ndarray</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">extent</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">tuple</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">suptitle</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">''</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">base_map_path</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">PathLike</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">tektonik_path</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">PathLike</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">roi</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">GeoDataFrame</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">save_path</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">PathLike</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">perc</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">95</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dpi</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">300</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#u4py.plotting.plots.plot_gridded" title="Permalink to this definition"></a></dt>
 <dd><p>Creates a plot for gridded data</p>
-<dl class="simple">
-<dt>Arguments:</dt><dd><p>lin_2d – A 2D Array containing the linear trend data.
-sin_2d – A 2D Array containing the seasonal variation data.
-extent – The extend of the 2D grid as (minx, maxx, miny, maxy) tuple.</p>
-</dd>
-<dt>Keyword Arguments:</dt><dd><p>suptitle – The title for the plot. (default: {‘’})
-places_path – Path to the file containing the additional shape files
-to be plotted. (default: {None})
-tektonik_hessen – GeoDataFrame with tectonic information of hessen.
-(default: {None})
-roi – GeoDataFrame containing the regions of interest for detailed
-plots. (default: {None})
-save_path – Path where to save the plot. (default: {None})
-perc – Percentile for the visualization. (default: {95})
-dpi – Resolution of the plot for saving to png. (default: {300})</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>lin_2d</strong> (<em>np.ndarray</em>) – A 2D Array containing the linear trend data.</p></li>
+<li><p><strong>sin_2d</strong> (<em>np.ndarray</em>) – A 2D Array containing the seasonal variation data.</p></li>
+<li><p><strong>extent</strong> (<em>tuple</em>) – The extend of the 2D grid as (minx, maxx, miny, maxy) tuple.</p></li>
+<li><p><strong>suptitle</strong> (<em>str</em><em>, </em><em>optional</em>) – The title for the plot, defaults to “”</p></li>
+<li><p><strong>base_map_path</strong> (<em>os.PathLike</em><em>, </em><em>optional</em>) – Path to the basemap, defaults to None</p></li>
+<li><p><strong>tektonik_path</strong> (<em>os.PathLike</em><em>, </em><em>optional</em>) – Path to the shape file with tectonic information, defaults to None</p></li>
+<li><p><strong>roi</strong> (<em>gp.GeoDataFrame</em><em>, </em><em>optional</em>) – GeoDataFrame containing the regions of interest for detailed plots, defaults to None</p></li>
+<li><p><strong>save_path</strong> (<em>os.PathLike</em><em>, </em><em>optional</em>) – Path where to save the plot, defaults to None</p></li>
+<li><p><strong>perc</strong> (<em>int</em><em>, </em><em>optional</em>) – Percentile for the visualization, defaults to 95</p></li>
+<li><p><strong>dpi</strong> (<em>int</em><em>, </em><em>optional</em>) – Resolution of the plot for saving to png, defaults to 300</p></li>
+</ul>
 </dd>
 </dl>
 </dd></dl>
 
 <dl class="py function">
 <dt class="sig sig-object py" id="u4py.plotting.plots.plot_inversion_results">
-<span class="sig-prename descclassname"><span class="pre">u4py.plotting.plots.</span></span><span class="sig-name descname"><span class="pre">plot_inversion_results</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">time</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">time2</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">data</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">inversion_results</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">save_path</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#u4py.plotting.plots.plot_inversion_results" title="Permalink to this definition"></a></dt>
-<dd></dd></dl>
+<span class="sig-prename descclassname"><span class="pre">u4py.plotting.plots.</span></span><span class="sig-name descname"><span class="pre">plot_inversion_results</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">time</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">ndarray</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">time2</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">ndarray</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">data</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">dict</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">inversion_results</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">dict</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">save_path</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">PathLike</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#u4py.plotting.plots.plot_inversion_results" title="Permalink to this definition"></a></dt>
+<dd><p>Plots the results of a full inversion.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>time</strong> (<em>np.ndarray</em>) – The time axis of the first fit.</p></li>
+<li><p><strong>time2</strong> (<em>np.ndarray</em>) – The time axis of the second fit (without outliers).</p></li>
+<li><p><strong>data</strong> (<em>dict</em>) – Data dictionary according to u4py standard (e.g. read from h5).</p></li>
+<li><p><strong>inversion_results</strong> (<em>dict</em>) – The results formatted as a dictionary.</p></li>
+<li><p><strong>save_path</strong> (<em>os.PathLike</em><em>, </em><em>optional</em>) – The path where to save the figure, defaults to None</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
 
 <dl class="py function">
 <dt class="sig sig-object py" id="u4py.plotting.plots.plot_iterative_fit">
 <span class="sig-prename descclassname"><span class="pre">u4py.plotting.plots.</span></span><span class="sig-name descname"><span class="pre">plot_iterative_fit</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">data</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">dict</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">save_path</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">PathLike</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#u4py.plotting.plots.plot_iterative_fit" title="Permalink to this definition"></a></dt>
 <dd><p>Creates a plot with step by step fitting each in a separate subplot.</p>
-<dl class="simple">
-<dt>Arguments:</dt><dd><p>data – Data dictionary according to u4py standard (e.g. read from h5).</p>
-</dd>
-<dt>Keyword Arguments:</dt><dd><p>save_path – The Path where to store the data (default: {None})</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>data</strong> (<em>dict</em>) – Data dictionary according to u4py standard (e.g. read from h5).</p></li>
+<li><p><strong>save_path</strong> (<em>os.PathLike</em><em>, </em><em>optional</em>) – The path where to save the figure, defaults to None</p></li>
+</ul>
 </dd>
 </dl>
 </dd></dl>
 
 <dl class="py function">
 <dt class="sig sig-object py" id="u4py.plotting.plots.plot_statistics">
-<span class="sig-prename descclassname"><span class="pre">u4py.plotting.plots.</span></span><span class="sig-name descname"><span class="pre">plot_statistics</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">data</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">timeslot</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#u4py.plotting.plots.plot_statistics" title="Permalink to this definition"></a></dt>
-<dd></dd></dl>
+<span class="sig-prename descclassname"><span class="pre">u4py.plotting.plots.</span></span><span class="sig-name descname"><span class="pre">plot_statistics</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">data</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">dict</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">timeslot</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">slice</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">save_path</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">PathLike</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#u4py.plotting.plots.plot_statistics" title="Permalink to this definition"></a></dt>
+<dd><p>Plots some statistical characteristics of the data, e.g., PSI density.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>data</strong> (<em>dict</em>) – Data dictionary according to u4py standard (e.g. read from h5).</p></li>
+<li><p><strong>timeslot</strong> (<em>slice</em>) – Slice with a time window.</p></li>
+<li><p><strong>save_path</strong> (<em>os.PathLike</em><em>, </em><em>optional</em>) – The path where to save the figure, defaults to None</p></li>
+</ul>
+</dd>
+</dl>
+</dd></dl>
 
 </section>
 

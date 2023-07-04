@@ -51,6 +51,7 @@
 <li><a class="reference internal" href="#u4py.utils.files.get_pickled_inversion_results"><code class="docutils literal notranslate"><span class="pre">get_pickled_inversion_results()</span></code></a></li>
 <li><a class="reference internal" href="#u4py.utils.files.get_point_points"><code class="docutils literal notranslate"><span class="pre">get_point_points()</span></code></a></li>
 <li><a class="reference internal" href="#u4py.utils.files.get_region_points"><code class="docutils literal notranslate"><span class="pre">get_region_points()</span></code></a></li>
+<li><a class="reference internal" href="#u4py.utils.files.get_rois"><code class="docutils literal notranslate"><span class="pre">get_rois()</span></code></a></li>
 <li><a class="reference internal" href="#u4py.utils.files.get_save_path"><code class="docutils literal notranslate"><span class="pre">get_save_path()</span></code></a></li>
 <li><a class="reference internal" href="#u4py.utils.files.get_select_points_osm"><code class="docutils literal notranslate"><span class="pre">get_select_points_osm()</span></code></a></li>
 <li><a class="reference internal" href="#u4py.utils.files.get_tiff_regions"><code class="docutils literal notranslate"><span class="pre">get_tiff_regions()</span></code></a></li>
@@ -94,7 +95,8 @@
              
   <section id="module-u4py.utils.files">
 <span id="u4py-utils-files-module"></span><h1>u4py.utils.files module<a class="headerlink" href="#module-u4py.utils.files" title="Permalink to this heading"></a></h1>
-<p>Contains simple file and folder utilities for u4py</p>
+<p>Contains simple file and folder utilities for u4py. These are mainly wrappers for tkinter’s file dialogs. This is necessary, as sometimes tkinter and Windows do not interact very well and dialogs are not properly closed, leading to a crash in windows explorer. This might have been fixed now (?), but for safety is still included here.</p>
+<p>Most functions also can detect if the script is running in a non-interactive shell without access to a user interface, i.e., on a server. Then the user has to input the path manually into the command line.</p>
 <dl class="py function">
 <dt class="sig sig-object py" id="u4py.utils.files.get_data">
 <span class="sig-prename descclassname"><span class="pre">u4py.utils.files.</span></span><span class="sig-name descname"><span class="pre">get_data</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">h5group</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">timefmt</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'datetime'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ind</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">array([],</span> <span class="pre">dtype=float64)</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#u4py.utils.files.get_data" title="Permalink to this definition"></a></dt>
@@ -109,28 +111,57 @@
 
 <dl class="py function">
 <dt class="sig sig-object py" id="u4py.utils.files.get_file_list">
-<span class="sig-prename descclassname"><span class="pre">u4py.utils.files.</span></span><span class="sig-name descname"><span class="pre">get_file_list</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">filetype</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">'.h5'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">folder_path</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">PathLike</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">recursive</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#u4py.utils.files.get_file_list" title="Permalink to this definition"></a></dt>
+<span class="sig-prename descclassname"><span class="pre">u4py.utils.files.</span></span><span class="sig-name descname"><span class="pre">get_file_list</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">filetype</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">'.h5'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">folder_path</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">PathLike</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">recursive</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">list</span></span></span><a class="headerlink" href="#u4py.utils.files.get_file_list" title="Permalink to this definition"></a></dt>
 <dd><p>Asks for folder and returns all files of given filetype</p>
-<dl class="simple">
-<dt>Keyword Arguments:</dt><dd><p>filetype – The filetype to create the list from (default: {“.h5”})
-folder_path – The base path to look for files, if emtpy the user is asked to select a folder (default: {None})
-recursive – When True, recurses through all subfolders (default: {False})</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>filetype</strong> (<em>str</em><em>, </em><em>optional</em>) – The filetype to create the list from, defaults to “.h5”</p></li>
+<li><p><strong>folder_path</strong> (<em>os.PathLike</em><em>, </em><em>optional</em>) – The base path to look for files, if emtpy the user is asked to select a folder, defaults to None</p></li>
+<li><p><strong>recursive</strong> (<em>bool</em><em>, </em><em>optional</em>) – When True, recurses through all subfolders, defaults to False</p></li>
+</ul>
 </dd>
-<dt>Returns:</dt><dd><p>A list of filepaths to files of the given filetype within the folderpath.</p>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>A list of filepaths to files of the given filetype within the folderpath.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>list</p>
 </dd>
 </dl>
 </dd></dl>
 
 <dl class="py function">
 <dt class="sig sig-object py" id="u4py.utils.files.get_file_paths">
-<span class="sig-prename descclassname"><span class="pre">u4py.utils.files.</span></span><span class="sig-name descname"><span class="pre">get_file_paths</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#u4py.utils.files.get_file_paths" title="Permalink to this definition"></a></dt>
-<dd><p>Safe wrapper for filedialog by tkinter</p>
+<span class="sig-prename descclassname"><span class="pre">u4py.utils.files.</span></span><span class="sig-name descname"><span class="pre">get_file_paths</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">list</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">PathLike</span></span></span><a class="headerlink" href="#u4py.utils.files.get_file_paths" title="Permalink to this definition"></a></dt>
+<dd><p>Safe wrapper for getting the path of an existing file with a filedialog by tkinter.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>kwargs</strong> – Keyword arguments supported by <code class="xref py py-func docutils literal notranslate"><span class="pre">tkinter.filedialog.askopenfilenames()</span></code> (optional).</p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>A list of files or a single path if only one file was selected..</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>list| os.PathLike</p>
+</dd>
+</dl>
 </dd></dl>
 
 <dl class="py function">
 <dt class="sig sig-object py" id="u4py.utils.files.get_folder_paths">
-<span class="sig-prename descclassname"><span class="pre">u4py.utils.files.</span></span><span class="sig-name descname"><span class="pre">get_folder_paths</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#u4py.utils.files.get_folder_paths" title="Permalink to this definition"></a></dt>
-<dd><p>Safe wrapper for filedialog by tkinter</p>
+<span class="sig-prename descclassname"><span class="pre">u4py.utils.files.</span></span><span class="sig-name descname"><span class="pre">get_folder_paths</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">PathLike</span></span></span><a class="headerlink" href="#u4py.utils.files.get_folder_paths" title="Permalink to this definition"></a></dt>
+<dd><p>Safe wrapper for to get a folder path using filedialog by tkinter.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>kwargs</strong> – Keyword arguments supported by <code class="xref py py-func docutils literal notranslate"><span class="pre">tkinter.filedialog.askdirectory()</span></code> (optional).</p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>The filepath to the folder.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>os.PathLike</p>
+</dd>
+</dl>
 </dd></dl>
 
 <dl class="py function">
@@ -138,19 +169,26 @@ recursive – When True, recurses through all subfolders (default: {False})</p>
 <span class="sig-prename descclassname"><span class="pre">u4py.utils.files.</span></span><span class="sig-name descname"><span class="pre">get_pickled_inversion_results</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">file_path</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">PathLike</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ind</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">slice</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">points</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">GeoDataFrame</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">Tuple</span><span class="p"><span class="pre">[</span></span><span class="pre">list</span><span class="p"><span class="pre">[</span></span><span class="pre">tuple</span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">float</span><span class="p"><span class="pre">]</span></span></span></span><a class="headerlink" href="#u4py.utils.files.get_pickled_inversion_results" title="Permalink to this definition"></a></dt>
 <dd><p>Loads data from selected pickle file and also returns avg. distance to
 nearest inversion results.</p>
-<dl>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>file_path</strong> (<em>os.PathLike</em>) – The file path of the pickle file</p></li>
+<li><p><strong>ind</strong> (<em>slice</em><em>, </em><em>optional</em>) – Indices where to look for data. If None takes all data, defaults to None</p></li>
+<li><p><strong>points</strong> (<em>gp.GeoDataFrame</em><em>, </em><em>optional</em>) – List of points where to look for data. If None takes all data, defaults to None</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>data (selection) and mean distance to data (only for point selection)</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>Tuple[list[tuple], float]</p>
+</dd>
+</dl>
+<dl class="simple">
 <dt>Use only one of the selection criteria:</dt><dd><ul class="simple">
 <li><p>ind: Uses the indices in the list to slice the data.</p></li>
-<li><p>points: Does a spatial search in the data to extract the data at the</p></li>
+<li><p>points: Does a spatial search in the data to extract the data at the coordinates of points.</p></li>
 </ul>
-<p>coordinates of points.</p>
-</dd>
-<dt>Arguments:</dt><dd><p>file_path – The file path of the pickle file</p>
-</dd>
-<dt>Keyword Arguments:</dt><dd><p>ind – Indices where to look for data. If None takes all data. (default: {None})
-points – List of points where to look for data. If None takes all data. (default: {None})</p>
-</dd>
-<dt>Returns:</dt><dd><p>data (selection) and mean distance to data (only for point selection)</p>
 </dd>
 </dl>
 </dd></dl>
@@ -194,9 +232,25 @@ path where the folder is found.</p>
 </dd></dl>
 
 <dl class="py function">
+<dt class="sig sig-object py" id="u4py.utils.files.get_rois">
+<span class="sig-prename descclassname"><span class="pre">u4py.utils.files.</span></span><span class="sig-name descname"><span class="pre">get_rois</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">file_path</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">PathLike</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">list</span><span class="p"><span class="pre">[</span></span><span class="pre">Tuple</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">geopandas.geodataframe.GeoDataFrame</span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span></span></span><a class="headerlink" href="#u4py.utils.files.get_rois" title="Permalink to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py function">
 <dt class="sig sig-object py" id="u4py.utils.files.get_save_path">
-<span class="sig-prename descclassname"><span class="pre">u4py.utils.files.</span></span><span class="sig-name descname"><span class="pre">get_save_path</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#u4py.utils.files.get_save_path" title="Permalink to this definition"></a></dt>
-<dd><p>Save wrapper for filedialog by tkinter</p>
+<span class="sig-prename descclassname"><span class="pre">u4py.utils.files.</span></span><span class="sig-name descname"><span class="pre">get_save_path</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">PathLike</span></span></span><a class="headerlink" href="#u4py.utils.files.get_save_path" title="Permalink to this definition"></a></dt>
+<dd><p>Safe wrapper for saving a file using filedialog by tkinter.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>kwargs</strong> – Keyword arguments supported by <code class="xref py py-func docutils literal notranslate"><span class="pre">tkinter.filedialog.asksaveasfilename()</span></code> (optional).</p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>The filepath where to save the data.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>os.PathLike</p>
+</dd>
+</dl>
 </dd></dl>
 
 <dl class="py function">
@@ -224,23 +278,21 @@ points – The points where to query the data.</p>
 
 <dl class="py function">
 <dt class="sig sig-object py" id="u4py.utils.files.load_hdf5">
-<span class="sig-prename descclassname"><span class="pre">u4py.utils.files.</span></span><span class="sig-name descname"><span class="pre">load_hdf5</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">file_path</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">timefmt</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">'datetime'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ind</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">array([],</span> <span class="pre">dtype=float64)</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">dict</span></span></span><a class="headerlink" href="#u4py.utils.files.load_hdf5" title="Permalink to this definition"></a></dt>
+<span class="sig-prename descclassname"><span class="pre">u4py.utils.files.</span></span><span class="sig-name descname"><span class="pre">load_hdf5</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">file_path</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">PathLike</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">timefmt</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">'datetime'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ind</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">ndarray</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">array([],</span> <span class="pre">dtype=float64)</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">dict</span></span></span><a class="headerlink" href="#u4py.utils.files.load_hdf5" title="Permalink to this definition"></a></dt>
 <dd><p>Loads data from a hdf5 file. Converts timestamps to datetime.</p>
-<dl class="simple">
-<dt>Arguments:</dt><dd><p>file_path – The path to the hdf5 file.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>file_path</strong> (<em>os.PathLike</em>) – The path to the hdf5 file.</p></li>
+<li><p><strong>timefmt</strong> (<em>str</em><em>, </em><em>optional</em>) – Converts timestamps to datetime. Different timestamp formats are supported: <cite>“datetime”</cite> - Python built-in datetime, <cite>“floatyear”</cite> - Years in float point numbers, defaults to “datetime”</p></li>
+<li><p><strong>ind</strong> (<em>np.ndarray</em><em>, </em><em>optional</em>) – The indices of the timeseries to load. Creates a subset of the data from the file, defaults to np.array([])</p></li>
+</ul>
 </dd>
-<dt>Keyword Arguments:</dt><dd><dl class="simple">
-<dt>timefmt – Converts timestamps to datetime. (default: {“datetime”})</dt><dd><dl class="simple">
-<dt>Different timestamp formats are supported:</dt><dd><p>datetime: Python built-in datetime
-floatyear: Years in float point numbers</p>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>The data as a dictionary.</p>
 </dd>
-</dl>
-</dd>
-<dt>ind – The indices of the timeseries to load. Creates a subset of the</dt><dd><p>data from the file (default: {np.array([])})</p>
-</dd>
-</dl>
-</dd>
-<dt>Returns:</dt><dd><p>The data as a dictionary.</p>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>dict</p>
 </dd>
 </dl>
 </dd></dl>
@@ -249,12 +301,18 @@ floatyear: Years in float point numbers</p>
 <dt class="sig sig-object py" id="u4py.utils.files.load_hdf5_list">
 <span class="sig-prename descclassname"><span class="pre">u4py.utils.files.</span></span><span class="sig-name descname"><span class="pre">load_hdf5_list</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">file_list</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">list</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">timefmt</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">'datetime'</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">dict</span></span></span><a class="headerlink" href="#u4py.utils.files.load_hdf5_list" title="Permalink to this definition"></a></dt>
 <dd><p>Loads and merges all data from all files in the file list.</p>
-<dl class="simple">
-<dt>Arguments:</dt><dd><p>file_list – A list of hdf5 files created from a gpkg file</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>file_list</strong> (<em>list</em>) – A list of hdf5 files created from a gpkg file</p></li>
+<li><p><strong>timefmt</strong> (<em>str</em><em>, </em><em>optional</em>) – Timestamp format for ‘load_hdf5’, defaults to “datetime”</p></li>
+</ul>
 </dd>
-<dt>Keyword Arguments:</dt><dd><p>timefmt – Timestamp format for ‘load_hdf5’ (default: {“datetime”})</p>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>The data as a dictionary.</p>
 </dd>
-<dt>Returns:</dt><dd><p>The data as a dictionary.</p>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>dict</p>
 </dd>
 </dl>
 </dd></dl>
@@ -274,22 +332,32 @@ floatyear: Years in float point numbers</p>
 <dt class="sig sig-object py" id="u4py.utils.files.merge_data">
 <span class="sig-prename descclassname"><span class="pre">u4py.utils.files.</span></span><span class="sig-name descname"><span class="pre">merge_data</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">data</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">dict</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">data_new</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">dict</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">dict</span></span></span><a class="headerlink" href="#u4py.utils.files.merge_data" title="Permalink to this definition"></a></dt>
 <dd><p>Updates the contents of data depending on the content</p>
-<dl class="simple">
-<dt>Args:</dt><dd><p>data (dict): The current data dictionary
-data_new (dict): The data to be added</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>data</strong> (<em>dict</em>) – The current data dictionary</p></li>
+<li><p><strong>data_new</strong> (<em>dict</em>) – The data to be added</p></li>
+</ul>
 </dd>
-<dt>Returns:</dt><dd><p>dict: Merged data dictionary</p>
+<dt class="field-even">Raises<span class="colon">:</span></dt>
+<dd class="field-even"><p><strong>NotImplementedError</strong> – Raised when files with different chunk sizes are merged.</p>
+</dd>
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p>Merged data dictionary</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p>dict</p>
 </dd>
 </dl>
 </dd></dl>
 
 <dl class="py function">
 <dt class="sig sig-object py" id="u4py.utils.files.merge_directions">
-<span class="sig-prename descclassname"><span class="pre">u4py.utils.files.</span></span><span class="sig-name descname"><span class="pre">merge_directions</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">inputs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#u4py.utils.files.merge_directions" title="Permalink to this definition"></a></dt>
+<span class="sig-prename descclassname"><span class="pre">u4py.utils.files.</span></span><span class="sig-name descname"><span class="pre">merge_directions</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">inputs</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Tuple</span><span class="p"><span class="pre">[</span></span><span class="pre">PathLike</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">PathLike</span><span class="p"><span class="pre">]</span></span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#u4py.utils.files.merge_directions" title="Permalink to this definition"></a></dt>
 <dd><p>Converts average LOS movement into EW and UD component</p>
-<dl class="simple">
-<dt>Args:</dt><dd><p>base_path (os.PathLike): Path to folder with ASCE and DESC folder
-file_name (os.PathLike): Common file for calculation</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>inputs</strong> (<em>Tuple</em><em>[</em><em>os.PathLike</em><em>, </em><em>os.PathLike</em><em>]</em>) – A tuple containing the pat to folder with ASCE and DESC folder and the common filename for calculation.</p>
 </dd>
 </dl>
 </dd></dl>
@@ -317,12 +385,18 @@ crs – The coordinate system to use.</p>
 <dt class="sig sig-object py" id="u4py.utils.files.points_to_filelist">
 <span class="sig-prename descclassname"><span class="pre">u4py.utils.files.</span></span><span class="sig-name descname"><span class="pre">points_to_filelist</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">gdf</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">GeoDataFrame</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">data_folder</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">PathLike</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">list</span></span></span><a class="headerlink" href="#u4py.utils.files.points_to_filelist" title="Permalink to this definition"></a></dt>
 <dd><p>Gets a list of files to load the data from</p>
-<dl class="simple">
-<dt>Args:</dt><dd><p>gdf (gp.GeoDataFrame): A dataframe containing the points.
-data_folder (os.PathLike): Folder path where a hdf5 file for each
-point in the dataframe is found.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>gdf</strong> (<em>gp.GeoDataFrame</em>) – A dataframe containing the points.</p></li>
+<li><p><strong>data_folder</strong> (<em>os.PathLike</em>) – Folder path where a hdf5 file for each point in the dataframe is found.</p></li>
+</ul>
 </dd>
-<dt>Returns:</dt><dd><p>list: List of all files to be loaded for data aggregation.</p>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>List of all files to be loaded for data aggregation.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>list</p>
 </dd>
 </dl>
 </dd></dl>

@@ -1,4 +1,10 @@
-""" Contains simple file and folder utilities for u4py """
+"""
+Contains simple file and folder utilities for u4py. These are mainly wrappers for tkinter's file dialogs. This is necessary, as sometimes tkinter and Windows do not interact very well and dialogs are not properly closed, leading to a crash in windows explorer. This might have been fixed now (?), but for safety is still included here.
+
+Most functions also can detect if the script is running in a non-interactive shell without access to a user interface, i.e., on a server. Then the user has to input the path manually into the command line.
+"""
+import configparser
+import logging
 import os
 import pickle as pkl
 from datetime import datetime
@@ -8,16 +14,23 @@ from typing import Tuple
 import geopandas as gp
 import h5py
 import numpy as np
+import pandas as pd
 import rasterio as rio
 from rasterio.transform import Affine
+from tqdm import tqdm
 
 import u4py.analysis.inversion as u4invert
 import u4py.analysis.spatial as u4spatial
 import u4py.utils.convert as u4convert
 
 
-def get_file_paths(**kwargs):
-    """Safe wrapper for filedialog by tkinter"""
+def get_file_paths(**kwargs) -> list | os.PathLike:
+    """Safe wrapper for getting the path of an existing file with a filedialog by tkinter.
+
+    :param kwargs: Keyword arguments supported by :func:`tkinter.filedialog.askopenfilenames` (optional).
+    :return: A list of files or a single path if only one file was selected..
+    :rtype: list| os.PathLike
+    """
     file_list = []
     try:
         root = Tk()
@@ -38,8 +51,12 @@ def get_file_paths(**kwargs):
     return file_list
 
 
-def get_save_path(**kwargs):
-    """Save wrapper for filedialog by tkinter"""
+def get_save_path(**kwargs) -> os.PathLike:
+    """Safe wrapper for saving a file using filedialog by tkinter.
+
+    :param kwargs: Keyword arguments supported by :func:`tkinter.filedialog.asksaveasfilename` (optional).
+    :return: The filepath where to save the data.
+    :rtype: os.PathLike"""
     try:
         root = Tk()
     except TclError:
@@ -54,8 +71,12 @@ def get_save_path(**kwargs):
     return file_path
 
 
-def get_folder_paths(**kwargs):
-    """Safe wrapper for filedialog by tkinter"""
+def get_folder_paths(**kwargs) -> os.PathLike:
+    """Safe wrapper for to get a folder path using filedialog by tkinter.
+
+    :param kwargs: Keyword arguments supported by :func:`tkinter.filedialog.askdirectory` (optional).
+    :return: The filepath to the folder.
+    :rtype: os.PathLike"""
     folder_path = ""
     try:
         root = Tk()
@@ -72,34 +93,65 @@ def get_folder_paths(**kwargs):
     return folder_path
 
 
-def get_file_list(filetype=".h5", folder_path=None, **kwargs):
-    """Asks for folder and returns all files of given filetype"""
+def get_file_list(
+    filetype: str = ".h5",
+    folder_path: os.PathLike = None,
+    recursive: bool = False,
+    **kwargs,
+) -> list:
+    """Asks for folder and returns all files of given filetype
+
+    :param filetype: The filetype to create the list from, defaults to ".h5"
+    :type filetype: str, optional
+    :param folder_path: The base path to look for files, if emtpy the user is asked to select a folder, defaults to None
+    :type folder_path: os.PathLike, optional
+    :param recursive: When True, recurses through all subfolders, defaults to False
+    :type recursive: bool, optional
+    :return: A list of filepaths to files of the given filetype within the folderpath.
+    :rtype: list
+    """
     if not folder_path:
         folder_path = get_folder_paths(**kwargs)
-    file_list = [
-        os.path.join(folder_path, f)
-        for f in os.listdir(folder_path)
-        if f.endswith(filetype)
-    ]
+    if not recursive:
+        file_list = [
+            os.path.join(folder_path, f)
+            for f in os.listdir(folder_path)
+            if f.endswith(filetype)
+        ]
+    else:
+        file_list = []
+        for root, dirs, files in os.walk(folder_path):
+            for filename in files:
+                if filename.endswith(filetype):
+                    file_list.append(os.path.join(root, filename))
+            for dirname in dirs:
+                file_list.extend(
+                    get_file_list(
+                        filetype,
+                        os.path.join(root, dirname),
+                        recursive=True,
+                        **kwargs,
+                    )
+                )
+
     return file_list
 
 
-def load_hdf5(file_path, timefmt="datetime", ind=np.array([])) -> dict:
+def load_hdf5(
+    file_path: os.PathLike,
+    timefmt: str = "datetime",
+    ind: np.ndarray = np.array([]),
+) -> dict:
     """Loads data from a hdf5 file. Converts timestamps to datetime.
 
-    Arguments:
-        file_path -- The path to the hdf5 file.
-
-    Keyword Arguments:
-        timefmt -- Converts timestamps to datetime. (default: {"datetime"})
-            Different timestamp formats are supported:
-                datetime: Python built-in datetime
-                floatyear: Years in float point numbers
-        ind -- The indices of the timeseries to load. Creates a subset of the
-            data from the file (default: {np.array([])})
-
-    Returns:
-        The data as a dictionary.
+    :param file_path:  The path to the hdf5 file.
+    :type file_path: os.PathLike
+    :param timefmt: Converts timestamps to datetime. Different timestamp formats are supported: `"datetime"` - Python built-in datetime, `"floatyear"` - Years in float point numbers, defaults to "datetime"
+    :type timefmt: str, optional
+    :param ind: The indices of the timeseries to load. Creates a subset of the data from the file, defaults to np.array([])
+    :type ind: np.ndarray, optional
+    :return: The data as a dictionary.
+    :rtype: dict
     """
     with h5py.File(file_path, "r") as h5file:
         data = get_data(h5file, timefmt, ind)
@@ -109,14 +161,12 @@ def load_hdf5(file_path, timefmt="datetime", ind=np.array([])) -> dict:
 def load_hdf5_list(file_list: list, timefmt: str = "datetime") -> dict:
     """Loads and merges all data from all files in the file list.
 
-    Arguments:
-        file_list -- A list of hdf5 files created from a gpkg file
-
-    Keyword Arguments:
-        timefmt -- Timestamp format for 'load_hdf5' (default: {"datetime"})
-
-    Returns:
-        The data as a dictionary.
+    :param file_list: A list of hdf5 files created from a gpkg file
+    :type file_list: list
+    :param timefmt: Timestamp format for 'load_hdf5', defaults to "datetime"
+    :type timefmt: str, optional
+    :return: The data as a dictionary.
+    :rtype: dict
     """
     data = dict()
     for h5path in file_list:
@@ -132,12 +182,13 @@ def load_hdf5_list(file_list: list, timefmt: str = "datetime") -> dict:
 def merge_data(data: dict, data_new: dict) -> dict:
     """Updates the contents of data depending on the content
 
-    Args:
-        data (dict): The current data dictionary
-        data_new (dict): The data to be added
-
-    Returns:
-        dict: Merged data dictionary
+    :param data: The current data dictionary
+    :type data: dict
+    :param data_new: The data to be added
+    :type data_new: dict
+    :raises NotImplementedError: Raised when files with different chunk sizes are merged.
+    :return: Merged data dictionary
+    :rtype: dict
     """
 
     if data_new["chunk_size"] != data["chunk_size"]:
@@ -157,16 +208,50 @@ def merge_data(data: dict, data_new: dict) -> dict:
     return data
 
 
+def merge_directions(inputs: Tuple[os.PathLike, os.PathLike]):
+    """Converts average LOS movement into EW and UD component
+
+    :param inputs: A tuple containing the pat to folder with ASCE and DESC folder and the common filename for calculation.
+    :type inputs: Tuple[os.PathLike, os.PathLike]
+    """
+    base_path = inputs[0]
+    file_name = inputs[1]
+    logging.info(f"Merging {file_name}")
+    path_a = os.path.join(base_path, "BBD_EW", file_name)
+    path_d = os.path.join(base_path, "BBD_Vert", file_name)
+    output_path = os.path.join(base_path, "merged")
+    data_ew = load_hdf5(path_a)
+    data_ud = load_hdf5(path_d)
+
+    common_ps_id = np.nonzero(data_ew["ps_id"] == data_ud["ps_id"])
+    output_data = dict()
+    for ii in common_ps_id[0]:
+        station = data_ew["ps_id"][ii]
+        output_data[f"{station}"] = {
+            "t": data_ew["time"],
+            "dataE": data_ew["timeseries"][ii],
+            "dataN": data_ew["timeseries"][ii],
+            "dataU": data_ud["timeseries"][ii],
+            # "sigmE": sigmE,
+            # "sigmN": sigmE,
+            # "sigmU": sigmE,
+            "station": f"{station}",
+            "xmid": data_ew["xmid"],
+            "ymid": data_ew["ymid"],
+            "chunk_size": data_ew["chunk_size"],
+        }
+    u4convert.dict_to_hdf5(os.path.join(output_path, file_name), output_data)
+
+
 def points_to_filelist(gdf: gp.GeoDataFrame, data_folder: os.PathLike) -> list:
     """Gets a list of files to load the data from
 
-    Args:
-        gdf (gp.GeoDataFrame): A dataframe containing the points.
-        data_folder (os.PathLike): Folder path where a hdf5 file for each
-        point in the dataframe is found.
-
-    Returns:
-        list: List of all files to be loaded for data aggregation.
+    :param gdf: A dataframe containing the points.
+    :type gdf: gp.GeoDataFrame
+    :param data_folder: Folder path where a hdf5 file for each point in the dataframe is found.
+    :type data_folder: os.PathLike
+    :return: List of all files to be loaded for data aggregation.
+    :rtype: list
     """
 
     file_list = [
@@ -246,13 +331,36 @@ def get_select_points_osm(query, psi_file_path, overwrite=False):
     if os.path.exists(point_file_path) and not overwrite:
         points = gp.GeoDataFrame.from_file(point_file_path)
     else:
-        points = u4spatial.select_points_osm(query, psi_file_path)
+        points = u4spatial._select_points_osm(query, psi_file_path)
         points.to_file(point_file_path)
         points = gp.GeoDataFrame.from_file(point_file_path)
     return points
 
 
-def get_region_points(region, region_name, psi_file_path, overwrite=False):
+def get_region_points(
+    region: gp.GeoDataFrame,
+    region_name: str,
+    psi_file_path: os.PathLike,
+    overwrite: bool = False,
+    crs: str = "EPSG:32632",
+) -> Tuple[gp.GeoDataFrame, os.PathLike]:
+    """
+    Gets the PSI points in a region and saves them into a shape file for
+    faster access.
+
+    Arguments:
+        region -- A `GeoDataFrame` of the region, e.g. from a shape file
+        region_name -- The name of the region.
+        psi_file_path -- Path to folder or file where the PSI data is found.
+
+    Keyword Arguments:
+        overwrite -- Whether to overwrite the output shape file. (default: {False})
+        crs -- The CRS of the input shapes. (default: {"EPSG:32632"})
+
+    Returns:
+        Returns the points as GeoDataFrame with time series attached and the
+        path where the folder is found.
+    """
     base_folder, source_name = os.path.split(psi_file_path)
     point_files_folder = os.path.join(
         os.path.split(base_folder)[0], "selected_psi_points"
@@ -266,7 +374,12 @@ def get_region_points(region, region_name, psi_file_path, overwrite=False):
     if os.path.exists(point_file_path) and not overwrite:
         points = gp.GeoDataFrame.from_file(point_file_path)
     else:
-        points = u4spatial.select_points_region(region, psi_file_path)
+        if isinstance(region, gp.GeoDataFrame):
+            points = u4spatial._select_points_region(region, psi_file_path)
+        elif isinstance(region, pd.Series):
+            points = u4spatial._select_points_region(
+                region, psi_file_path, crs=crs
+            )
         points.to_file(point_file_path)
         points = gp.GeoDataFrame.from_file(point_file_path)
     return points, point_files_folder
@@ -308,7 +421,9 @@ def get_point_points(
     if os.path.exists(output_file_path) and not overwrite:
         points = gp.GeoDataFrame.from_file(output_file_path)
     else:
-        points = u4spatial.select_points_point(point, radius, source_file_path)
+        points = u4spatial._select_points_point(
+            point, radius, source_file_path
+        )
         points.to_file(output_file_path)
         points = gp.GeoDataFrame.from_file(output_file_path)
     return points
@@ -320,20 +435,18 @@ def get_pickled_inversion_results(
     """Loads data from selected pickle file and also returns avg. distance to
     nearest inversion results.
 
+    :param file_path: The file path of the pickle file
+    :type file_path: os.PathLike
+    :param ind: Indices where to look for data. If None takes all data, defaults to None
+    :type ind: slice, optional
+    :param points: List of points where to look for data. If None takes all data, defaults to None
+    :type points: gp.GeoDataFrame, optional
+    :return: data (selection) and mean distance to data (only for point selection)
+    :rtype: Tuple[list[tuple], float]
+
     Use only one of the selection criteria:
         - ind: Uses the indices in the list to slice the data.
-        - points: Does a spatial search in the data to extract the data at the
-        coordinates of points.
-
-    Arguments:
-        file_path -- The file path of the pickle file
-
-    Keyword Arguments:
-        ind -- Indices where to look for data. If None takes all data. (default: {None})
-        points -- List of points where to look for data. If None takes all data. (default: {None})
-
-    Returns:
-        data (selection) and mean distance to data (only for point selection)
+        - points: Does a spatial search in the data to extract the data at the coordinates of points.
     """
     with open(file_path, "rb") as pklfile:
         data = pkl.load(pklfile)[0]
@@ -346,7 +459,7 @@ def get_pickled_inversion_results(
         elif isinstance(ind, int):
             return [data[ind]], 0
     elif points is not None:
-        closest = u4spatial.spatial_lookup(data, points)
+        closest = u4spatial._spatial_lookup(data, points)
         data = [data[c[1]] for c in closest]
         distance = np.mean([c[0] for c in closest])
         return data, distance
@@ -409,6 +522,7 @@ def ndarray_to_geotiff(
     ) as dst:
         dst.write(Z, 1)
 
+
 def load_pickled_results(pickle_path: os.PathLike) -> dict:
     """Loads the given pickle file for plotting"""
     with open(pickle_path, "rb") as pkl_file:
@@ -445,3 +559,9 @@ def get_tiff_regions(
         )
         all_tiff_gdf.to_file(all_tiff_path)
     return all_tiff_gdf
+
+
+def get_rois(file_path: os.PathLike) -> list[Tuple[str, gp.GeoDataFrame]]:
+    regions = gp.read_file(file_path)
+    rois = [(name, geom) for name, geom in zip(regions.Name, regions.geometry)]
+    return rois

@@ -76,24 +76,50 @@
              
   <section id="module-u4py.utils.cmd_args">
 <span id="u4py-utils-cmd-args-module"></span><h1>u4py.utils.cmd_args module<a class="headerlink" href="#module-u4py.utils.cmd_args" title="Permalink to this heading"></a></h1>
-<p>Implements the command line arguments</p>
+<p>Implements the command line arguments. Mainly used for scripts that run on the server or cluster with long-running tasks. Examples are the conversion of a .gpgk file to many hdf5 files or the batch inversion of many hdf5 files on the cluster.</p>
 <dl class="py function">
 <dt class="sig sig-object py" id="u4py.utils.cmd_args.load">
 <span class="sig-prename descclassname"><span class="pre">u4py.utils.cmd_args.</span></span><span class="sig-name descname"><span class="pre">load</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">module_descript</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">'No</span> <span class="pre">description</span> <span class="pre">given.'</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#u4py.utils.cmd_args.load" title="Permalink to this definition"></a></dt>
-<dd><p>Loads the commandline parser and sets everything in the config for later
-use.</p>
+<dd><p>Loads the commandline parser and sets everything in the config for later use.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>module_descript</strong> (<em>str</em><em>, </em><em>optional</em>) – The description of the module, defaults to “No description given.”</p>
+</dd>
+</dl>
 </dd></dl>
 
 <dl class="py function">
 <dt class="sig sig-object py" id="u4py.utils.cmd_args.log_level_str">
 <span class="sig-prename descclassname"><span class="pre">u4py.utils.cmd_args.</span></span><span class="sig-name descname"><span class="pre">log_level_str</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">num</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">str</span></span></span><a class="headerlink" href="#u4py.utils.cmd_args.log_level_str" title="Permalink to this definition"></a></dt>
 <dd><p>Converts loglevel number into string</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>num</strong> (<em>int</em>) – The number of the loglevel.</p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>The string of the loglevel.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>str</p>
+</dd>
+</dl>
 </dd></dl>
 
 <dl class="py function">
 <dt class="sig sig-object py" id="u4py.utils.cmd_args.setup_parser">
-<span class="sig-prename descclassname"><span class="pre">u4py.utils.cmd_args.</span></span><span class="sig-name descname"><span class="pre">setup_parser</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">module_descript</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#u4py.utils.cmd_args.setup_parser" title="Permalink to this definition"></a></dt>
+<span class="sig-prename descclassname"><span class="pre">u4py.utils.cmd_args.</span></span><span class="sig-name descname"><span class="pre">setup_parser</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">module_descript</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">ArgumentParser</span></span></span><a class="headerlink" href="#u4py.utils.cmd_args.setup_parser" title="Permalink to this definition"></a></dt>
 <dd><p>Sets all command line arguments</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>module_descript</strong> (<em>str</em>) – The description of the module.</p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>The argument parser for the module.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>argparse.ArgumentParser</p>
+</dd>
+</dl>
 </dd></dl>
 
 </section>

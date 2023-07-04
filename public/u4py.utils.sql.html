@@ -79,46 +79,119 @@
              
   <section id="module-u4py.utils.sql">
 <span id="u4py-utils-sql-module"></span><h1>u4py.utils.sql module<a class="headerlink" href="#module-u4py.utils.sql" title="Permalink to this heading"></a></h1>
-<p>Contains all sqlite functions for working with gpkg files</p>
+<p>Contains some sqlite functions for working with gpkg files</p>
 <dl class="py function">
 <dt class="sig sig-object py" id="u4py.utils.sql.get_table_names">
 <span class="sig-prename descclassname"><span class="pre">u4py.utils.sql.</span></span><span class="sig-name descname"><span class="pre">get_table_names</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">file_path</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">PathLike</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">list</span></span></span><a class="headerlink" href="#u4py.utils.sql.get_table_names" title="Permalink to this definition"></a></dt>
-<dd><dl class="simple">
-<dt>Gets all tables which start with:</dt><dd><p>‘<a href="#id1"><span class="problematic" id="id2">Zeitreihe_</span></a>’,
-‘Ost_West’, or
-‘vertikal’</p>
+<dd><p>Gets all tables which start with:
+|    ‘<a href="#id1"><span class="problematic" id="id2">Zeitreihe_</span></a>’,
+|    ‘Ost_West’, or
+|    ‘vertikal’</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>file_path</strong> (<em>os.PathLike</em>) – The path to the database.</p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>A list of tables to get from the database.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>list</p>
 </dd>
 </dl>
 </dd></dl>
 
 <dl class="py function">
 <dt class="sig sig-object py" id="u4py.utils.sql.map_queries">
-<span class="sig-prename descclassname"><span class="pre">u4py.utils.sql.</span></span><span class="sig-name descname"><span class="pre">map_queries</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">queries</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#u4py.utils.sql.map_queries" title="Permalink to this definition"></a></dt>
-<dd><p>Maps Queries to a parallel processing pool</p>
+<span class="sig-prename descclassname"><span class="pre">u4py.utils.sql.</span></span><span class="sig-name descname"><span class="pre">map_queries</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">queries</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">list</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">list</span></span></span><a class="headerlink" href="#u4py.utils.sql.map_queries" title="Permalink to this definition"></a></dt>
+<dd><p>Maps a list of sql queries to a parallel processing pool.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>queries</strong> (<em>list</em>) – The list of queries as strings.</p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>The results of the queries as a list.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>list</p>
+</dd>
+</dl>
 </dd></dl>
 
 <dl class="py function">
 <dt class="sig sig-object py" id="u4py.utils.sql.multi_proc_query">
-<span class="sig-prename descclassname"><span class="pre">u4py.utils.sql.</span></span><span class="sig-name descname"><span class="pre">multi_proc_query</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">args</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#u4py.utils.sql.multi_proc_query" title="Permalink to this definition"></a></dt>
+<span class="sig-prename descclassname"><span class="pre">u4py.utils.sql.</span></span><span class="sig-name descname"><span class="pre">multi_proc_query</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">args</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Tuple</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">Any</span></span></span><a class="headerlink" href="#u4py.utils.sql.multi_proc_query" title="Permalink to this definition"></a></dt>
 <dd><p>Multiprocessing wrapper for sql queries</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>args</strong> (<em>Tuple</em>) – Input arguments</p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>The result of the query.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>Any</p>
+</dd>
+</dl>
 </dd></dl>
 
 <dl class="py function">
 <dt class="sig sig-object py" id="u4py.utils.sql.single_query">
-<span class="sig-prename descclassname"><span class="pre">u4py.utils.sql.</span></span><span class="sig-name descname"><span class="pre">single_query</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">file_path</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">PathLike</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">query</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">jj</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">-1</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#u4py.utils.sql.single_query" title="Permalink to this definition"></a></dt>
-<dd><p>Executes a single sql query for the given db-file</p>
+<span class="sig-prename descclassname"><span class="pre">u4py.utils.sql.</span></span><span class="sig-name descname"><span class="pre">single_query</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">file_path</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">PathLike</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">query</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">jj</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">-1</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">Any</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">Tuple</span><span class="p"><span class="pre">[</span></span><span class="pre">Any</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">int</span><span class="p"><span class="pre">]</span></span></span></span><a class="headerlink" href="#u4py.utils.sql.single_query" title="Permalink to this definition"></a></dt>
+<dd><p>Executes a single sql query for the given db-file.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>file_path</strong> (<em>os.PathLike</em>) – The path to the database.</p></li>
+<li><p><strong>query</strong> (<em>str</em>) – The sql query to execute.</p></li>
+<li><p><strong>jj</strong> (<em>int</em><em>, </em><em>optional</em>) – The number of the query (useful for Iterables), defaults to -1</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>The result of the query.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>Any</p>
+</dd>
+</dl>
 </dd></dl>
 
 <dl class="py function">
 <dt class="sig sig-object py" id="u4py.utils.sql.sql_key_to_time">
-<span class="sig-prename descclassname"><span class="pre">u4py.utils.sql.</span></span><span class="sig-name descname"><span class="pre">sql_key_to_time</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">key</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#u4py.utils.sql.sql_key_to_time" title="Permalink to this definition"></a></dt>
-<dd><p>Returns a datetime object for the given date</p>
+<span class="sig-prename descclassname"><span class="pre">u4py.utils.sql.</span></span><span class="sig-name descname"><span class="pre">sql_key_to_time</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">key</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">datetime</span></span></span><a class="headerlink" href="#u4py.utils.sql.sql_key_to_time" title="Permalink to this definition"></a></dt>
+<dd><p>Returns a datetime object for the given date in sql format.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>key</strong> (<em>str</em>) – The date as given in the database.</p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>A datetime object of the string.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>datetime</p>
+</dd>
+</dl>
 </dd></dl>
 
 <dl class="py function">
 <dt class="sig sig-object py" id="u4py.utils.sql.table_to_dict">
 <span class="sig-prename descclassname"><span class="pre">u4py.utils.sql.</span></span><span class="sig-name descname"><span class="pre">table_to_dict</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">file_path</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">PathLike</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">table</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">dict</span></span></span><a class="headerlink" href="#u4py.utils.sql.table_to_dict" title="Permalink to this definition"></a></dt>
-<dd><p>Opens the given sql database and gets all content of the given table</p>
+<dd><p>Opens the given sql database and gets all content of the given table.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>file_path</strong> (<em>os.PathLike</em>) – The path to the database.</p></li>
+<li><p><strong>table</strong> (<em>str</em>) – The Table to get from.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>The content of the table.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>dict</p>
+</dd>
+</dl>
+<p>This function has differently shaped and named dictionaries depending on
+the type of table or file.</p>
 </dd></dl>
 
 </section>

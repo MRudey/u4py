@@ -45,7 +45,6 @@
 <li><a class="reference internal" href="#">u4py.plotting.preparation module</a><ul>
 <li><a class="reference internal" href="#u4py.plotting.preparation.clean_points"><code class="docutils literal notranslate"><span class="pre">clean_points()</span></code></a></li>
 <li><a class="reference internal" href="#u4py.plotting.preparation.convert_results_for_grid"><code class="docutils literal notranslate"><span class="pre">convert_results_for_grid()</span></code></a></li>
-<li><a class="reference internal" href="#u4py.plotting.preparation.full_inv_single_comp"><code class="docutils literal notranslate"><span class="pre">full_inv_single_comp()</span></code></a></li>
 <li><a class="reference internal" href="#u4py.plotting.preparation.get_forward_model"><code class="docutils literal notranslate"><span class="pre">get_forward_model()</span></code></a></li>
 <li><a class="reference internal" href="#u4py.plotting.preparation.get_linfit_each_timeseries"><code class="docutils literal notranslate"><span class="pre">get_linfit_each_timeseries()</span></code></a></li>
 <li><a class="reference internal" href="#u4py.plotting.preparation.make_gridded_data"><code class="docutils literal notranslate"><span class="pre">make_gridded_data()</span></code></a></li>
@@ -79,7 +78,7 @@
              
   <section id="module-u4py.plotting.preparation">
 <span id="u4py-plotting-preparation-module"></span><h1>u4py.plotting.preparation module<a class="headerlink" href="#module-u4py.plotting.preparation" title="Permalink to this heading"></a></h1>
-<p>Contains functions to modify or reformat data for plotting</p>
+<p>Contains functions to modify or reformat data for plotting. This module helps to declutter the <a class="reference internal" href="u4py.plotting.plots.html#module-u4py.plotting.plots" title="u4py.plotting.plots"><code class="xref py py-func docutils literal notranslate"><span class="pre">u4py.plotting.plots()</span></code></a> or <a class="reference internal" href="u4py.plotting.axes.html#module-u4py.plotting.axes" title="u4py.plotting.axes"><code class="xref py py-func docutils literal notranslate"><span class="pre">u4py.plotting.axes()</span></code></a> modules.</p>
 <dl class="py function">
 <dt class="sig sig-object py" id="u4py.plotting.preparation.clean_points">
 <span class="sig-prename descclassname"><span class="pre">u4py.plotting.preparation.</span></span><span class="sig-name descname"><span class="pre">clean_points</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">points:</span> <span class="pre">~numpy.ndarray</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">sigma:</span> <span class="pre">int</span> <span class="pre">=</span> <span class="pre">2</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">fnc:</span> <span class="pre">~typing.Callable</span> <span class="pre">=</span> <span class="pre">&lt;scipy.stats._continuous_distns.norm_gen</span> <span class="pre">object&gt;</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">ndarray</span></span></span><a class="headerlink" href="#u4py.plotting.preparation.clean_points" title="Permalink to this definition"></a></dt>
@@ -87,13 +86,19 @@
 given points array. The outliers are defined by the standard deviation of
 the given statistical function which can be any scipy statistics function
 that supports standard deviations.</p>
-<dl class="simple">
-<dt>Arguments:</dt><dd><p>points – The array of points to clean</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>points</strong> (<em>np.ndarray</em>) – The array of points to clean</p></li>
+<li><p><strong>sigma</strong> (<em>int</em><em>, </em><em>optional</em>) – The amounts of standard deviations to use, defaults to 2</p></li>
+<li><p><strong>fnc</strong> (<em>Callable</em><em>, </em><em>optional</em>) – The statistical function to use, defaults to spstats.norm</p></li>
+</ul>
 </dd>
-<dt>Keyword Arguments:</dt><dd><p>sigma – The amounts of standard deviations to use (default: {2})
-fnc – The statistical function to use (default: {spstats.norm})</p>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>A numpy array that can be used to slice other arrays</p>
 </dd>
-<dt>Returns:</dt><dd><p>A numpy array that can be used to slice other arrays</p>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>np.ndarray</p>
 </dd>
 </dl>
 </dd></dl>
@@ -101,22 +106,19 @@ fnc – The statistical function to use (default: {spstats.norm})</p>
 <dl class="py function">
 <dt class="sig sig-object py" id="u4py.plotting.preparation.convert_results_for_grid">
 <span class="sig-prename descclassname"><span class="pre">u4py.plotting.preparation.</span></span><span class="sig-name descname"><span class="pre">convert_results_for_grid</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">results</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">list</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">chunk_size</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">250</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">Tuple</span><span class="p"><span class="pre">[</span></span><span class="pre">list</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">list</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">list</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">list</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">int</span><span class="p"><span class="pre">]</span></span></span></span><a class="headerlink" href="#u4py.plotting.preparation.convert_results_for_grid" title="Permalink to this definition"></a></dt>
-<dd><p>Returns the loaded data prepared for gridding</p>
-</dd></dl>
-
-<dl class="py function">
-<dt class="sig sig-object py" id="u4py.plotting.preparation.full_inv_single_comp">
-<span class="sig-prename descclassname"><span class="pre">u4py.plotting.preparation.</span></span><span class="sig-name descname"><span class="pre">full_inv_single_comp</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">x</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">ndarray</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">ndarray</span></span></span><a class="headerlink" href="#u4py.plotting.preparation.full_inv_single_comp" title="Permalink to this definition"></a></dt>
-<dd><p>Returns a full fit including (semi-)annual sines and cosines:</p>
-<dl class="simple">
-<dt>Structure of <a href="#id1"><span class="problematic" id="id2">*</span></a>args:</dt><dd><p>[0]: yaxis-offset
-[1]: linear trend
-[2]: semi-annual sine
-[3]: semi-annual cosine
-[4]: annual sine
-[5]: annual cosine</p>
+<dd><p>Returns the loaded data prepared for gridding with <a class="reference internal" href="#u4py.plotting.preparation.make_gridded_data" title="u4py.plotting.preparation.make_gridded_data"><code class="xref py py-func docutils literal notranslate"><span class="pre">make_gridded_data()</span></code></a>.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>results</strong> (<em>list</em>) – Inversion results as a list with <cite>[xmid, ymid, components]</cite>.</p></li>
+<li><p><strong>chunk_size</strong> (<em>int</em><em>, </em><em>optional</em>) – The chunksize used during data preparation for inversion, defaults to 250</p></li>
+</ul>
 </dd>
-<dt>Arguments:</dt><dd><p>x – The x axis</p>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>A tuple of lists containing <cite>[xmids, ymids, lintrend, sinusoid, chunk_size]</cite></p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>Tuple[list, list, list, list, int]</p>
 </dd>
 </dl>
 </dd></dl>
@@ -125,14 +127,20 @@ fnc – The statistical function to use (default: {spstats.norm})</p>
 <dt class="sig sig-object py" id="u4py.plotting.preparation.get_forward_model">
 <span class="sig-prename descclassname"><span class="pre">u4py.plotting.preparation.</span></span><span class="sig-name descname"><span class="pre">get_forward_model</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">x</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">ndarray</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">inv_results</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">tuple</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dir</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">'UD'</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">ndarray</span></span></span><a class="headerlink" href="#u4py.plotting.preparation.get_forward_model" title="Permalink to this definition"></a></dt>
 <dd><p>Gets the forward model of the inversion results.</p>
-<dl class="simple">
-<dt>Arguments:</dt><dd><p>x – The x axis (datetime).
-inv_results – A tuple of the inversion results.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>x</strong> (<em>np.ndarray</em>) – The x axis (datetime).</p></li>
+<li><p><strong>inv_results</strong> (<em>tuple</em>) – A tuple of the inversion results.</p></li>
+<li><p><strong>dir</strong> (<em>str</em><em>, </em><em>optional</em>) – The direction of the inversion results. Options are: “EW”,
+“NS”, “UD”, defaults to “UD”</p></li>
+</ul>
 </dd>
-<dt>Keyword Arguments:</dt><dd><p>dir – The direction of the inversion results. Options are: “EW”,
-“NS”, “UD” (default {“UD”})</p>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>The forward model for the specified direction</p>
 </dd>
-<dt>Returns:</dt><dd><p>The forward model for the specified direction</p>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>np.ndarray</p>
 </dd>
 </dl>
 </dd></dl>
@@ -142,10 +150,15 @@ inv_results – A tuple of the inversion results.</p>
 <span class="sig-prename descclassname"><span class="pre">u4py.plotting.preparation.</span></span><span class="sig-name descname"><span class="pre">get_linfit_each_timeseries</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">data</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">dict</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">ndarray</span></span></span><a class="headerlink" href="#u4py.plotting.preparation.get_linfit_each_timeseries" title="Permalink to this definition"></a></dt>
 <dd><p>Fits each timeseries in the data dictionary. Suitable only for small
 datasets. Good for creating scatter plots.</p>
-<dl class="simple">
-<dt>Arguments:</dt><dd><p>data – data – Data dictionary according to u4py standard (e.g. read from h5)</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>data</strong> (<em>dict</em>) – Data dictionary according to u4py standard (e.g. read from h5).</p>
 </dd>
-<dt>Returns:</dt><dd><p>An array containing all linear fits in the dictionary.</p>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>An array containing all linear fits in the dictionary.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>np.ndarray</p>
 </dd>
 </dl>
 </dd></dl>
@@ -153,15 +166,22 @@ datasets. Good for creating scatter plots.</p>
 <dl class="py function">
 <dt class="sig sig-object py" id="u4py.plotting.preparation.make_gridded_data">
 <span class="sig-prename descclassname"><span class="pre">u4py.plotting.preparation.</span></span><span class="sig-name descname"><span class="pre">make_gridded_data</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">xmids</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">ndarray</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ymids</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">ndarray</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">lintrend</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">ndarray</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">sinusoid</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">ndarray</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">chunk_size</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">Tuple</span><span class="p"><span class="pre">[</span></span><span class="pre">ndarray</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">ndarray</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">tuple</span><span class="p"><span class="pre">]</span></span></span></span><a class="headerlink" href="#u4py.plotting.preparation.make_gridded_data" title="Permalink to this definition"></a></dt>
-<dd><p>Converts the data into a nice gridded format for plotting with mpl.</p>
-<dl class="simple">
-<dt>Arguments:</dt><dd><p>xmids – The x coordinates of the midpoints.
-ymids – The y coordinates of the midpoints.
-lintrend – The linear trend for the region
-sinusoid – The sinusoidal variation for the region
-chunk_size – Chunk size to generate X and Y Grid</p>
+<dd><p>Converts the data given by <a class="reference internal" href="#u4py.plotting.preparation.convert_results_for_grid" title="u4py.plotting.preparation.convert_results_for_grid"><code class="xref py py-func docutils literal notranslate"><span class="pre">convert_results_for_grid()</span></code></a> into a nice gridded format for plotting with matplotlib’s <code class="xref py py-func docutils literal notranslate"><span class="pre">imshow()</span></code></p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>xmids</strong> (<em>np.ndarray</em>) – The x coordinates of the midpoints.</p></li>
+<li><p><strong>ymids</strong> (<em>np.ndarray</em>) – The y coordinates of the midpoints.</p></li>
+<li><p><strong>lintrend</strong> (<em>np.ndarray</em>) – The linear trend for the region</p></li>
+<li><p><strong>sinusoid</strong> (<em>np.ndarray</em>) – The sinusoidal variation for the region</p></li>
+<li><p><strong>chunk_size</strong> (<em>int</em>) – Chunk size to generate X and Y Grid</p></li>
+</ul>
 </dd>
-<dt>Returns:</dt><dd><p>Linear and sinusoidal components each as array and the extend for plotting.</p>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>Linear and sinusoidal components each as array and the extend for plotting.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>Tuple[np.ndarray, np.ndarray, tuple]</p>
 </dd>
 </dl>
 </dd></dl>

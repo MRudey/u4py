@@ -1,3 +1,6 @@
+"""
+Default configuration for some scripts and modules.
+"""
 import logging
 import os
 

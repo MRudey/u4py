@@ -1,6 +1,5 @@
 """
-Contains functions with ready made plots. Each function should contain a
-save_path if possible.
+Contains functions with ready made plots. This module uses axis functions defined in :func:`u4py.plotting.axes` to create more complicated plots. The functions also do some processing and other data modification. Each function should contain a `save_path` if possible where the output figure is saved. If none is given the figure is shown interactively, otherwise it is saved and then destroyed.
 """
 import os
 from datetime import datetime, timedelta
@@ -19,8 +18,25 @@ import u4py.plotting.preparation as u4plotprep
 
 
 def plot_inversion_results(
-    time, time2, data, inversion_results, save_path=None
+    time: np.ndarray,
+    time2: np.ndarray,
+    data: dict,
+    inversion_results: dict,
+    save_path: os.PathLike = None,
 ):
+    """Plots the results of a full inversion.
+
+    :param time: The time axis of the first fit.
+    :type time: np.ndarray
+    :param time2: The time axis of the second fit (without outliers).
+    :type time2: np.ndarray
+    :param data: Data dictionary according to u4py standard (e.g. read from h5).
+    :type data: dict
+    :param inversion_results: The results formatted as a dictionary.
+    :type inversion_results: dict
+    :param save_path: The path where to save the figure, defaults to None
+    :type save_path: os.PathLike, optional
+    """
     ew_mov = inversion_results["matrix_ori"][1]
     ud_mov = inversion_results["matrix_ori"][13]
     ux = np.unique(time[0])
@@ -103,6 +119,7 @@ def plot_inversion_results(
     fig.tight_layout()
     if save_path:
         fig.savefig(save_path)
+        plt.close(fig)
     else:
         plt.show()
 
@@ -110,11 +127,10 @@ def plot_inversion_results(
 def plot_iterative_fit(data: dict, save_path: os.PathLike = None):
     """Creates a plot with step by step fitting each in a separate subplot.
 
-    Arguments:
-        data -- Data dictionary according to u4py standard (e.g. read from h5).
-
-    Keyword Arguments:
-        save_path -- The Path where to store the data (default: {None})
+    :param data: Data dictionary according to u4py standard (e.g. read from h5).
+    :type data: dict
+    :param save_path: The path where to save the figure, defaults to None
+    :type save_path: os.PathLike, optional
     """
     # Data preparation
     time = data["time"]
@@ -188,10 +204,25 @@ def plot_iterative_fit(data: dict, save_path: os.PathLike = None):
     # axes[2].plot(time, y_residual, ".")
     axes[2].plot(time, y_residual, ".-", linewidth=0.5)
 
-    return fig, axes
+    if save_path:
+        fig.savefig(save_path)
+        plt.close(fig)
+    else:
+        plt.show()
 
 
-def plot_statistics(data, timeslot):
+def plot_statistics(
+    data: dict, timeslot: slice, save_path: os.PathLike = None
+):
+    """Plots some statistical characteristics of the data, e.g., PSI density.
+
+    :param data: Data dictionary according to u4py standard (e.g. read from h5).
+    :type data: dict
+    :param timeslot: Slice with a time window.
+    :type timeslot: slice
+    :param save_path: The path where to save the figure, defaults to None
+    :type save_path: os.PathLike, optional
+    """
     yerr_min = np.percentile(data["timeseries"], 5, axis=0)
     yerr_max = np.percentile(data["timeseries"], 95, axis=0)
     rng = np.max(np.abs([np.min(yerr_min), np.max(yerr_max)]))
@@ -235,7 +266,11 @@ def plot_statistics(data, timeslot):
         verticalalignment="top",
     )
 
-    plt.show()
+    if save_path:
+        fig.savefig(save_path)
+        plt.close(fig)
+    else:
+        plt.show()
 
 
 def plot_gridded(
@@ -252,24 +287,27 @@ def plot_gridded(
 ):
     """Creates a plot for gridded data
 
-    Arguments:
-        lin_2d -- A 2D Array containing the linear trend data.
-        sin_2d -- A 2D Array containing the seasonal variation data.
-        extent -- The extend of the 2D grid as (minx, maxx, miny, maxy) tuple.
-
-    Keyword Arguments:
-        suptitle -- The title for the plot. (default: {''})
-        places_path -- Path to the file containing the additional shape files
-        to be plotted. (default: {None})
-        tektonik_hessen -- GeoDataFrame with tectonic information of hessen.
-        (default: {None})
-        roi -- GeoDataFrame containing the regions of interest for detailed
-        plots. (default: {None})
-        save_path -- Path where to save the plot. (default: {None})
-        perc -- Percentile for the visualization. (default: {95})
-        dpi -- Resolution of the plot for saving to png. (default: {300})
+    :param lin_2d: A 2D Array containing the linear trend data.
+    :type lin_2d: np.ndarray
+    :param sin_2d: A 2D Array containing the seasonal variation data.
+    :type sin_2d: np.ndarray
+    :param extent: The extend of the 2D grid as (minx, maxx, miny, maxy) tuple.
+    :type extent: tuple
+    :param suptitle: The title for the plot, defaults to ""
+    :type suptitle: str, optional
+    :param base_map_path: Path to the basemap, defaults to None
+    :type base_map_path: os.PathLike, optional
+    :param tektonik_path: Path to the shape file with tectonic information, defaults to None
+    :type tektonik_path: os.PathLike, optional
+    :param roi: GeoDataFrame containing the regions of interest for detailed plots, defaults to None
+    :type roi: gp.GeoDataFrame, optional
+    :param save_path: Path where to save the plot, defaults to None
+    :type save_path: os.PathLike, optional
+    :param perc:  Percentile for the visualization, defaults to 95
+    :type perc: int, optional
+    :param dpi: Resolution of the plot for saving to png, defaults to 300
+    :type dpi: int, optional
     """
-
     # Size of Figure (adapted to region of interest)
     figwidth = 11.7
     figheight = 8.27

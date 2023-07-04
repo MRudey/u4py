@@ -1,9 +1,12 @@
-""" Contains all sqlite functions for working with gpkg files """
+"""
+Contains some sqlite functions for working with gpkg files
+"""
 import logging
 import os
 import sqlite3 as sql
 from datetime import datetime
 from multiprocessing import Pool
+from typing import Any, Tuple
 
 import numpy as np
 from tqdm import tqdm
@@ -12,11 +15,15 @@ import u4py.utils.config as u4config
 
 
 def get_table_names(file_path: os.PathLike) -> list:
-    """
-    Gets all tables which start with:
-        'Zeitreihe_',
-        'Ost_West', or
-        'vertikal'
+    """Gets all tables which start with:
+    |    'Zeitreihe_',
+    |    'Ost_West', or
+    |    'vertikal'
+
+    :param file_path: The path to the database.
+    :type file_path: os.PathLike
+    :return: A list of tables to get from the database.
+    :rtype: list
     """
     logging.debug("Getting table names.")
     con = sql.connect(file_path)
@@ -56,8 +63,15 @@ def get_table_names(file_path: os.PathLike) -> list:
     return tables
 
 
-def map_queries(queries):
-    """Maps Queries to a parallel processing pool"""
+def map_queries(queries: list) -> list:
+    """Maps a list of sql queries to a parallel processing pool.
+
+    :param queries: The list of queries as strings.
+    :type queries: list
+    :return: The results of the queries as a list.
+    :rtype: list
+    """
+    """"""
     logging.info("Starting parallel sql extraction.")
     with Pool(u4config.cpu_count) as p:
         results = list(
@@ -71,13 +85,31 @@ def map_queries(queries):
     return results
 
 
-def multi_proc_query(args):
-    """Multiprocessing wrapper for sql queries"""
+def multi_proc_query(args: Tuple) -> Any:
+    """Multiprocessing wrapper for sql queries
+
+    :param args: Input arguments
+    :type args: Tuple
+    :return: The result of the query.
+    :rtype: Any
+    """
     return single_query(*args)
 
 
-def single_query(file_path: os.PathLike, query: str, jj: int = -1):
-    """Executes a single sql query for the given db-file"""
+def single_query(
+    file_path: os.PathLike, query: str, jj: int = -1
+) -> Any | Tuple[Any, int]:
+    """Executes a single sql query for the given db-file.
+
+    :param file_path: The path to the database.
+    :type file_path: os.PathLike
+    :param query: The sql query to execute.
+    :type query: str
+    :param jj: The number of the query (useful for Iterables), defaults to -1
+    :type jj: int, optional
+    :return: The result of the query.
+    :rtype: Any
+    """
     logging.debug(f"{query}")
     con = sql.connect(file_path)
     cur = con.cursor()
@@ -89,14 +121,29 @@ def single_query(file_path: os.PathLike, query: str, jj: int = -1):
         return result
 
 
-def sql_key_to_time(key):
-    """Returns a datetime object for the given date"""
+def sql_key_to_time(key: str) -> datetime:
+    """Returns a datetime object for the given date in sql format.
+
+    :param key: The date as given in the database.
+    :type key: str
+    :return: A datetime object of the string.
+    :rtype: datetime
+    """
     return datetime.strptime(key, "date_%Y%m%d")
 
 
 def table_to_dict(file_path: os.PathLike, table: str) -> dict:
-    """
-    Opens the given sql database and gets all content of the given table
+    """Opens the given sql database and gets all content of the given table.
+
+    :param file_path: The path to the database.
+    :type file_path: os.PathLike
+    :param table: The Table to get from.
+    :type table: str
+    :return: The content of the table.
+    :rtype: dict
+
+    This function has differently shaped and named dictionaries depending on
+    the type of table or file.
     """
     logging.info(f"Opening {file_path} and getting content of {table}")
     # Get number of rows and names of columns

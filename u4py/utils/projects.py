@@ -1,4 +1,10 @@
-""" Submodule for managing paths as config files (projects)
+"""
+Submodule for managing paths as config files (projects).
+
+All paths are always encoded in a project file. When a script requires a
+certain path, it can be given as a list of required strings to
+:func:`get_project`. This opens an interactive path loader where missing or
+wrong paths are highlighted. For each script or project, a file can be saved.
 
 """
 
@@ -24,13 +30,24 @@ def get_project(
     """Interactive project path loader.
 
     A project file stores all relevant paths for specific plots. Typically used
-    paths are interpolated using `configparser.BasicInterpolation`.
+    paths are interpolated using :func:`configparser.BasicInterpolation`.
+
+    :param proj_path: Path to the project file, defaults to ""
+    :type proj_path: os.PathLike, optional
+    :param required: A list of required path keys in the project, defaults to [ "base_path", ]
+    :type required: list[str], optional
+    :param interactive: Whether to use the interactive project loader, defaults to True
+    :type interactive: bool, optional
+    :return: The paths as a `ConfigParser` object.
+    :rtype: configparser.ConfigParser
 
     When a script that uses one of the paths below is run:
+
     1. It tries to load an existing project file from `proj_path`:
         - either hard coded input, or
         - interactive opening of project file
         - if `None` is given a new project file is created.
+
     2. After loading the paths are shown in a dialog
         - A keyword argument indicates if path existance should be enforced
         - Required paths are given as a list of path names
@@ -38,8 +55,11 @@ def get_project(
             - :green: folder/file exists
             - :orange: folder/file does not exist but is not required
             - :red: folder/file does not exist but is required for script
+
         - When `interactive=False` no dialog is shown
+
     3. Paths are handed to the script as a `ConfigParser` object.
+
     """
     global PROJECT
     PROJECT, proj_path = _load_project(proj_path=proj_path, required=required)
@@ -58,12 +78,12 @@ def _load_project(
 ) -> configparser.ConfigParser:
     """Loads the project from a file or generates a new one based on defaults.
 
-    Keyword Arguments:
-        proj_path -- Path to the project file (default: {""})
-        required -- List of required keys for project (default: {[]})
-
-    Returns:
-        `ConfigParser` of the config file
+    :param proj_path: Path to the project file, defaults to ""
+    :type proj_path: os.PathLike, optional
+    :param required: List of required keys for project, defaults to []
+    :type required: list[str], optional
+    :return: `ConfigParser` of the config file
+    :rtype: configparser.ConfigParser
     """
     project = configparser.ConfigParser()
 
@@ -103,8 +123,10 @@ def _load_project(
 
 
 def _generate_default() -> configparser.ConfigParser:
-    """
-    Generates the default config
+    """Generates the default config.
+
+    :return: The default config.
+    :rtype: configparser.ConfigParser
     """
     base_path = u4files.get_folder_paths(title="Select base folder.")
     project = configparser.ConfigParser()
@@ -117,12 +139,14 @@ def _generate_default() -> configparser.ConfigParser:
         "output_path": "%(base_path)s/INSAR_plots",
         "psi_path": "%(base_path)s/Data_2023",
         "processing_path": "%(base_path)s/INSAR_results",
+        "diff_plan_path": "%(base_path)s/Diffplans",
         "u4projects_path": "%(base_path)s/U4_Projects",
         # Places paths
         "tektonik_path": "%(places_path)s/tektonik_cropped.shp",
         "bld_path": "%(places_path)s/vg2500_bld.shp",
         "piloten_path": "%(places_path)s/Pilotregionen.shp",
         "base_map_path": "%(places_path)s/hessen_map.tif",
+        "subsubregions_path": "%(places_path)s/Diffplan_Subsubregions.shp",
         # PSI paths
         "psivert_path": "%(psi_path)s/BBD_Vert",
         "psiew_path": "%(psi_path)s/BBD_EW",
@@ -137,10 +161,14 @@ def _path_dialog(
     proj_path: os.PathLike,
     project_name: str = "Project Name",
 ):
-    """Shows a path dialog for interactive adjustments
+    """Shows a path dialog for interactive adjustments.
 
-    Arguments:
-        project -- A loaded project file
+    :param required: A list of required paths keys.
+    :type required: list
+    :param proj_path: The path of the project file
+    :type proj_path: os.PathLike
+    :param project_name: A name for the project, defaults to "Project Name"
+    :type project_name: str, optional
     """
     global PROJECT
     # Set up main frame
@@ -208,31 +236,32 @@ def _path_dialog(
 
 
 def _check_paths(entries: dict, required: list, *args):
-    """Checks the paths in the entry if they are required and colors the text boxes accordingly
+    """Checks the paths in the entry if they are required and colors the text boxes accordingly.
 
-    Arguments:
-        entries -- The dictionary containing the UI elements
-        required -- A list of required paths
+    :param entries: The dictionary containing the UI elements
+    :type entries: dict
+    :param required: A list of required paths
+    :type required: list
     """
     entries["start_button"].state(["!disabled"])
     for k in entries.keys():
         if isinstance(entries[k], dict):
             path = entries[k]["var"].get()
-            if os.path.exists(path):
-                entries[k]["entry"].configure(foreground="green")
+            if k not in required:
+                entries[k]["entry"].configure(foreground="gray")
             else:
-                if k in required:
+                if os.path.exists(path):
+                    entries[k]["entry"].configure(foreground="green")
+                else:
                     entries[k]["entry"].configure(foreground="red")
                     entries["start_button"].state(["disabled"])
-                else:
-                    entries[k]["entry"].configure(foreground="orange")
 
 
-def _set_path(entry):
-    """Callback for the open buttons
+def _set_path(entry: dict):
+    """Callback for the open buttons.
 
-    Arguments:
-        entry -- The entry to change
+    :param entry: The entry to change
+    :type entry: dict
     """
     old_path = entry["var"].get()
     _, ext = os.path.splitext(old_path)
@@ -257,13 +286,16 @@ def _save_n_go(
     file_path: os.PathLike = None,
 ):
     """Closes the dialog, saves all current entries to the config file and
-    then returns to main script
+    then returns to main script.
 
-    Arguments:
-        root -- The main window with the list of paths.
-        entries -- A dictionary containing all entries
-        project -- The loaded project config
-        file_path -- The path to the config
+    :param root: The main window with the list of paths.
+    :type root: tk.Tk
+    :param entries: A dictionary containing all entries.
+    :type entries: dict
+    :param project: The loaded project config.
+    :type project: configparser.ConfigParser
+    :param file_path: The path to the config, defaults to None
+    :type file_path: os.PathLike, optional
     """
     changed = False
     for k in entries.keys():

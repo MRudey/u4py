@@ -1,4 +1,6 @@
-""" Contains functions for file conversion """
+"""
+Contains functions for various file or data conversion operations.
+"""
 import logging
 import os
 import time
@@ -17,8 +19,14 @@ from tqdm import tqdm
 import u4py.utils.config as u4config
 
 
-def gnss_dat_to_dict(file_in: os.PathLike):
-    """Converts a gnss dat file to dictionary"""
+def gnss_dat_to_dict(file_in: os.PathLike) -> dict:
+    """Converts a gnss dat file to dictionary
+
+    :param file_in: The file to convert.
+    :type file_in: os.PathLike
+    :return: The data as a dictionary.
+    :rtype: dict
+    """
     logging.info(f"Converting {file_in} to dictionary")
     raw = np.loadtxt(file_in, unpack=True)
 
@@ -40,15 +48,27 @@ def gnss_dat_to_dict(file_in: os.PathLike):
     return data
 
 
-def gps_week_to_time(gps_week):
-    """Converts a gpsweek timestamp to datetime"""
+def gps_week_to_time(gps_week:float)-> datetime:
+    """Converts a gpsweek timestamp to datetime.
+
+    :param gps_week: The gps timestamp referenced to the 01.06.1980
+    :type gps_week: float
+    :return: The timestamp as a datetime object.
+    :rtype: datetime
+    """
     days = gps_week * 7
     dt = datetime(1980, 1, 6, 0, 0) + timedelta(days=days)
     return dt
 
 
-def dbf_to_dict(file_in: os.PathLike):
-    """Generic conversion of dbf file to dictionary"""
+def dbf_to_dict(file_in: os.PathLike)->dict:
+    """Generic conversion of dbf file to dictionary keeping the names of the original file.
+
+    :param file_in: The file to convert.
+    :type file_in: os.PathLike
+    :return: The data as a dictionary.
+    :rtype: dict
+    """
     logging.info(f"Converting {file_in} to dictionary.")
     geodf = geopandas.read_file(file_in)
     if not geodf.crs:
@@ -69,10 +89,14 @@ def dbf_to_dict(file_in: os.PathLike):
     return output
 
 
-def psi_dbf_to_dict(file_in: os.PathLike):
-    """
-    Takes a dbf file and returns a dictionary with numpy arrays for x, y, z
+def psi_dbf_to_dict(file_in: os.PathLike)->dict:
+    """Takes a dbf file and returns a dictionary with numpy arrays for x, y, z
     coordinates, PS_ID and timeseries for each entry.
+
+    :param file_in: The file to convert.
+    :type file_in: os.PathLike
+    :return: The data as a dictionary.
+    :rtype: dict
     """
     logging.info(f"Converting {file_in} to dictionary.")
     with DBF(file_in) as dbffile:
@@ -148,34 +172,43 @@ def psi_dbf_to_dict(file_in: os.PathLike):
 
 
 def key_to_time(
-    key,
-    starttime=datetime(year=2015, month=4, day=4),
-    startindex=20150,
-    acqdiff=timedelta(days=6),
-):
+    key:str,
+    starttime:datetime=datetime(year=2015, month=4, day=4),
+    startindex:int=20150,
+    acqdiff:timedelta=timedelta(days=6),
+)->datetime:
     """Converts a key timestamp to a datetime
 
-    Args:
-        key (str):
-            Timestamp key
-        starttime (datetime, optional):
-            Time when first PSI data was taken. Defaults to datetime(2016,4,1).
-        startindex (int, optional):
-            First index when counting is started. Defaults to 20150.
-        acqdiff (timedelta, optional):
-            Timedifference between acquisitions. Defaults to timedelta(days=6).
-
-    Returns:
-        datetime: converted and referenced datetime
+    :param key: Timestamp key
+    :type key: str
+    :param starttime: Time when first PSI data was taken, defaults to datetime(year=2015, month=4, day=4)
+    :type starttime: datetime, optional
+    :param startindex: First index when counting is started, defaults to 20150
+    :type startindex: int, optional
+    :param acqdiff: Timedifference between acquisitions, defaults to timedelta(days=6)
+    :type acqdiff: timedelta, optional
+    :return: converted and referenced datetime
+    :rtype: datetime
     """
     timediff = (int(key[5:]) - startindex) * acqdiff
     return starttime + timediff
 
 
-def chunk_data(data, save_folder, chunksize=1000, min_values=5, compress=True):
-    """
-    Chunks data into many smaller files with spanning a square of `chunksize`
-    meters. Discards chunks with less than `min_values`.
+def chunk_data(data:dict, save_folder:os.PathLike, chunksize:int=1000, min_values:int=5, compress:bool=True)->list:
+    """Chunks data into many smaller files with spanning a square of `chunksize` meters. Discards chunks with less than `min_values`.
+
+    :param data: The data loaded from a large unchunked h5 file.
+    :type data: dict
+    :param save_folder: The folder where to store the smaller files.
+    :type save_folder: os.PathLike
+    :param chunksize: The chunksize to use for chunking, defaults to 1000
+    :type chunksize: int, optional
+    :param min_values: Minimum number of PSI points to be present in the chunk, defaults to 5
+    :type min_values: int, optional
+    :param compress: Whether to compress the data using gzip, defaults to True
+    :type compress: bool, optional
+    :return: A list of chunks that have not been converted for some reason.
+    :rtype: list
     """
     logging.info(f"Chunking data with multiprocessing.")
     xrange = get_bounds(np.min(data["x"]), np.max(data["x"]), chunksize)
@@ -211,9 +244,22 @@ def chunk_data_numba(
     min_values: int = 5,
     compress: bool = True,
 ):
-    """
-    Chunks data into many smaller files with spanning a square of `chunksize`
-    meters. Discards chunks with less than `min_values`.
+    """ Chunks data into many smaller files with spanning a square of `chunksize` meters. Discards chunks with less than `min_values`.
+
+    Does the same as :func:`chunk_data` but uses `numba` for parallel processing instead of :func:`Pool.map`.
+
+    :param data: The data loaded from a large unchunked h5 file.
+    :type data: dict
+    :param save_folder: The folder where to store the smaller files.
+    :type save_folder: os.PathLike
+    :param chunksize: The chunksize to use for chunking, defaults to 1000
+    :type chunksize: int, optional
+    :param min_values: Minimum number of PSI points to be present in the chunk, defaults to 5
+    :type min_values: int, optional
+    :param compress: Whether to compress the data using gzip, defaults to True
+    :type compress: bool, optional
+    :return: A list of chunks that have not been converted for some reason.
+    :rtype: list
     """
     logging.info(f"Chunking data with numba.")
     xrange = get_bounds(np.min(data["x"]), np.max(data["x"]), chunksize)
@@ -246,6 +292,25 @@ def numba_chunking(
     data: dict,
     progress_proxy: ProgressBar,
 ):
+    """Wrapper for the chunking with numba (needed for progress bar)
+
+    :param total: The total number of iterations
+    :type total: int
+    :param chunk_list: A coordinate bounds for chunking.
+    :type chunk_list: list
+    :param chunksize: The chunksize to use for chunking.
+    :type chunksize: int
+    :param min_values: Minimum number of PSI points to be present in the chunk.
+    :type min_values: int
+    :param compress: Whether to compress the data using gzip.
+    :type compress: bool
+    :param save_folder: The folder where to store the smaller files.
+    :type save_folder: os.PathLike
+    :param data: The data loaded from a large unchunked h5 file.
+    :type data: dict
+    :param progress_proxy: `ProgressBar` object for updating.
+    :type progress_proxy: ProgressBar
+    """
     for ii in prange(total):
         args = (
             chunk_list[ii],
@@ -260,7 +325,13 @@ def numba_chunking(
 
 
 def chunking_worker(args) -> str:
-    """Encapsulated worker for getting a chunk out of the data."""
+    """Encapsulated worker for getting a chunk out of the data.
+
+    :param args: The chunking arguments as specified in :func:`numba_chunking`
+    :type args: list
+    :return: Chunks that have not been converted for some reason.
+    :rtype: str
+    """
     chunk = args[0]
     chunksize = args[1]
     min_values = args[2]
@@ -301,19 +372,38 @@ def chunking_worker(args) -> str:
             return chunk_name
 
 
-def slice_array(data: dict, slc: slice) -> dict:
+def slice_array(data: dict, slc_chunk: slice) -> dict:
+    """Creates a new dictionary with all data sliced by `slc_chunk`. Used to create the smaller chunked data.
+
+    :param data: The data loaded from a large unchunked h5 file.
+    :type data: dict
+    :param slc_chunk: A slicing object to extract specific stations from the larger dictionary.
+    :type slc_chunk: slice
+    :return: A dictionary only containing a subset of the data in a specific chunk.
+    :rtype: dict
+    """
     output = dict()
     for k in data.keys():
         if k == "time":
             output[k] = data[k]
         else:
-            output[k] = data[k][slc]
+            output[k] = data[k][slc_chunk]
     return output
 
 
 def get_bounds(minval: float, maxval: float, chunksize: int) -> np.ndarray:
-    """
-    Returns boundaries for given chunksize
+    """Takes the minimum and maximum coordinate of a direction and creates an array with the boundaries that are going to be used for the slicing.
+
+    :param minval: The minimum coordinate.
+    :type minval: float
+    :param maxval: The maximum coordinate.
+    :type maxval: float
+    :param chunksize: The chunk size
+    :type chunksize: int
+    :return: An array containing the boundaries.
+    :rtype: np.ndarray
+    """    """
+
     """
     minbound = int(np.floor(minval / chunksize) * chunksize)
     maxbound = int(np.ceil(maxval / chunksize) * chunksize)
@@ -323,8 +413,14 @@ def get_bounds(minval: float, maxval: float, chunksize: int) -> np.ndarray:
 
 @jit(nopython=True)
 def get_chunks(xrange: np.ndarray, yrange: np.ndarray) -> list:
-    """
-    Returns the corners for chunking
+    """Returns the corners for chunking from a range of x and y values.
+
+    :param xrange: The range of x coordinates.
+    :type xrange: np.ndarray
+    :param yrange: The range of y coordinates.
+    :type yrange: np.ndarray
+    :return: A list of corners for chunking.
+    :rtype: list
     """
     chunk_list = []
     len_x = len(xrange)
@@ -341,9 +437,10 @@ def get_chunks(xrange: np.ndarray, yrange: np.ndarray) -> list:
 
 
 def convert_shapefile(file_path: os.PathLike):
-    """
-    Converts the given dbf file into a h5 file. The h5 file only contains the
-    necessary information and is zipped with gzip.
+    """Converts the given dbf file into a h5 file. The h5 file only contains the necessary information and is zipped with gzip.
+
+    :param file_path: A shapefile containing PSI data.
+    :type file_path: os.PathLike
     """
     logging.info(f"Converting {file_path} to h5 file.")
     base_path, fname_ext = os.path.split(file_path)
@@ -355,9 +452,10 @@ def convert_shapefile(file_path: os.PathLike):
 
 
 def convert_dpkg(file_path: os.PathLike):
-    """
-    Converts the given dpkg file into a h5 file. The h5 file only contains the
-    necessary information and is zipped with gzip.
+    """Converts the given dpkg file into a h5 file. The h5 file only contains the necessary information and is zipped with gzip.
+
+    :param file_path: The gpkg file containing PSI data.
+    :type file_path: os.PathLike
     """
     logging.info(f"Converting {file_path} to h5 file.")
     base_path, fname_ext = os.path.split(file_path)
@@ -369,11 +467,19 @@ def convert_dpkg(file_path: os.PathLike):
 
 
 def dict_to_hdf5(
-    h5path: os.PathLike, data: dict, compression="gzip", compression_opts=9
+    h5path: os.PathLike, data: dict, compression:str="gzip", compression_opts:int=9
 ):
-    """
-    Saves contents of dictionary into given h5 file. Dates are converted to
+    """Saves contents of dictionary into given h5 file. Dates are converted to
     strings following ISO date formatting.
+
+    :param h5path: The path where to save the data.
+    :type h5path: os.PathLike
+    :param data: The data dictionary to save.
+    :type data: dict
+    :param compression: Which compression algorithm to use, defaults to "gzip"
+    :type compression: str, optional
+    :param compression_opts: The compression level, defaults to 9
+    :type compression_opts: int, optional
     """
     _, fname = os.path.split(h5path)
     logging.debug(f"Saving data to {fname}.")
@@ -393,8 +499,20 @@ def dict_to_hdf5(
     logging.debug(f"Saving {fname} took {run_time:.3} seconds.")
 
 
-def create_datasets(h5group, k, v, compression, compression_opts):
-    """Creates a dataset depending on the content of `v`"""
+def create_datasets(h5group:h5py.Group, k:str, v, compression:str, compression_opts:int):
+    """Creates a dataset depending on the content of `v`. Used for the nested conversion of a dictionary into a hdf5 file.
+
+    :param h5group: The current group to convert.
+    :type h5group: h5py.Group
+    :param k: The name of the dataset or group to be created.
+    :type k: str
+    :param v: The content of the dataset or group.
+    :type v: any
+    :param compression: Which compression algorithm to use, defaults to "gzip"
+    :type compression: str, optional
+    :param compression_opts: The compression level, defaults to 9
+    :type compression_opts: int, optional
+    """
     try:
         if v.dtype == "O":
             v = np.array([val.isoformat().encode() for val in v])
@@ -416,8 +534,15 @@ def create_datasets(h5group, k, v, compression, compression_opts):
         )
 
 
-def get_floatyear(timestr):
-    """Converts to a float based year"""
+def get_floatyear(timestr:str | datetime) -> float:
+    """Converts from an ISO date or datetime to a float based year.
+
+    :param timestr: The input timestamp to convert.
+    :type timestr: str | datetime
+    :raises NotImplementedError: Raised when the input time format is not supported.
+    :return: The timestamp as a float based year.
+    :rtype: float
+    """
     if isinstance(timestr, str):
         t = datetime.fromisoformat(timestr)
     elif isinstance(timestr, datetime):
@@ -430,6 +555,13 @@ def get_floatyear(timestr):
 
 
 def floatyear_to_datetime(time: float) -> datetime:
+    """Converts a float based year to datetime.
+
+    :param time: The time as a float
+    :type time: float
+    :return: The datetime of the year.
+    :rtype: datetime
+    """
     year = int(time)
     days = (time - year) * 365.25
     t = datetime(year, 1, 1) + timedelta(days=days)

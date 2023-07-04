@@ -8,19 +8,24 @@ from typing import Tuple
 import matplotlib.patches as mpatches
 import matplotlib.path as mpath
 import matplotlib.patheffects as path_effects
+import matplotlib.pyplot as plt
+import matplotlib.ticker as ticker
 import matplotlib.transforms as mptransf
 import numpy as np
+import pyproj
 from matplotlib.axes import Axes
 from matplotlib.figure import Figure
 
 
 def add_map_label(text: str, coords: tuple, ax: Axes):
-    """Adds a label at the specified coordinates to the axes
+    """Adds a label at the specified coordinates to the axes.
 
-    Arguments:
-        text -- The text.
-        coords -- The coordinates where to label.
-        ax -- The axes to label.
+    :param text: The text.
+    :type text: str
+    :param coords: The coordinates where to label.
+    :type coords: tuple
+    :param ax: The axes to label.
+    :type ax: Axes
     """
     txt = ax.annotate(
         text,
@@ -38,15 +43,17 @@ def add_map_label(text: str, coords: tuple, ax: Axes):
     )
 
 
-def map_style(ax: Axes, divisor: int = 0, grid: bool = True):
+def map_style(ax: Axes, divisor: int = 0, grid: bool = True, crs: str = ""):
     """Changes axis to be in a good format for a map.
 
-    Arguments:
-        ax -- The axis object containing the map.
-
-    Keyword Arguments:
-        divisor -- The tick divisor (default: {0}).
-        grid -- Plot a red grid (default: {True}).
+    :param ax: The axis object containing the map.
+    :type ax: Axes
+    :param divisor: The tick divisor, defaults to 0
+    :type divisor: int, optional
+    :param grid: Plot a red grid, defaults to True
+    :type grid: bool, optional
+    :param crs: If given, adds the name of the coordinate system to the map, defaults to ""
+    :type crs: str, optional
     """
     if grid:
         ax.grid("True", color="r", alpha=0.3)
@@ -56,33 +63,51 @@ def map_style(ax: Axes, divisor: int = 0, grid: bool = True):
         pass
 
     if divisor:
-        ticks = ax.get_yticks()
-        new_ticks = [yt for yt in ticks if np.remainder(yt, divisor) == 0]
-        ax.set_yticks(new_ticks)
+        ax.xaxis.set_major_locator(ticker.MultipleLocator(divisor))
+        ax.yaxis.set_major_locator(ticker.MultipleLocator(divisor))
+    ax.xaxis.set_major_formatter(coordinate_formatter)
+    ax.yaxis.set_major_formatter(coordinate_formatter)
+    plt.yticks(verticalalignment="center", rotation=90)
+    if crs:
+        crs_obj = pyproj.CRS.from_user_input(crs)
+        ax.annotate(
+            crs_obj.name,
+            (1.1, -0.1),
+            xycoords="axes fraction",
+            horizontalalignment="right",
+            fontsize="small",
+            annotation_clip=False,
+        )
 
-        ticks = ax.get_xticks()
-        new_ticks = [yt for yt in ticks if np.remainder(yt, divisor) == 0]
-        ax.set_xticks(new_ticks)
-    else:
-        ax.set_yticks(ax.get_yticks())
 
-    ax.set_yticklabels(
-        ax.get_yticks().astype(int),
-        rotation=90,
-        verticalalignment="center",
-    )
+def coordinate_formatter(x: float, pos: int) -> str:
+    """An axis formatter for UTM style coordinates.
+
+    :param x: The value to be formatted.
+    :type x: float
+    :param pos: The position of the number.
+    :type pos: int
+    :return: The formatted number.
+    :rtype: str
+    """
+    pre = str(int(x // 1000))
+    post = "%03i" % (int(x % 1000))
+    if post == "000":
+        post = "0"
+    out = "$^{" + pre[:-1] + "}" + pre[-1] + post + "$"
+    return out
 
 
 def numerate_axes(fig: Figure, n: int = 0, step: int = 1):
-    """Adds numbering to all axes in a figure.
+    """Adds alphabetic numbering to all axes in a figure.
 
-    Arguments:
-        fig -- The Figure containing the axes.
-
-    Keyword Arguments:
-        n -- starting index (default: {0}).
-        step -- step index (default: {1}).
-    """ """"""
+    :param fig: The Figure containing the axes.
+    :type fig: Figure
+    :param n: starting index, defaults to 0
+    :type n: int, optional
+    :param step: step index, defaults to 1
+    :type step: int, optional
+    """
     axes = fig.get_axes()
 
     for ii in range(0, len(axes), step):
@@ -101,11 +126,11 @@ def numerate_axes(fig: Figure, n: int = 0, step: int = 1):
 def add_copyright(text: str, ax: Axes):
     """Adds a small copyright string to the lower left of the plot.
 
-    Arguments:
-        text -- The text to add
-        ax -- The axis where to add the text.
+    :param text: The text to add
+    :type text: str
+    :param ax: The axis where to add the text.
+    :type ax: Axes
     """
-
     txt = ax.annotate(
         text,
         (0.02, 0.02),
@@ -122,10 +147,10 @@ def add_copyright(text: str, ax: Axes):
 
 
 def drop_shape() -> mpatches.PathPatch:
-    """Generates a drop shape for plotting
+    """Generates a drop shape for plotting.
 
-    Returns:
-        A `PathPatch` that can be used as a marker.
+    :return: A `PathPatch` that can be used as a marker.
+    :rtype: mpatches.PathPatch
     """
     svg_code = (  # SVG code from freesvg.art
         "M640.552,262.073c-0.04,37.362-31.052,73.551-77.44,80.159c-30.523,"
@@ -135,7 +160,7 @@ def drop_shape() -> mpatches.PathPatch:
         + "13.018-0.02c28.645,36.595,52.818,75.81,69.581,119.295C635.404,"
         + "218.089,640.942,235.193,640.552,262.073z"
     )
-    codes, verts = svg_parse(svg_code)
+    codes, verts = _svg_parse(svg_code)
     centroid = np.mean(verts, axis=0)
     verts[:, 0] = verts[:, 0] - centroid[0]
     verts[:, 1] = verts[:, 1] - centroid[1]
@@ -146,16 +171,15 @@ def drop_shape() -> mpatches.PathPatch:
     return path
 
 
-def svg_parse(svg_code: str) -> Tuple[np.ndarray, np.ndarray]:
+def _svg_parse(svg_code: str) -> Tuple[np.ndarray, np.ndarray]:
     """Parses a simple svg string into codes and vertices for matplotlib paths.
 
-    Adapted from the matplotlib documentation.
+    *Adapted from the matplotlib documentation.*
 
-    Arguments:
-        svg_code -- A svg string without spaces
-
-    Returns:
-        Codes and Vertices for a matplotlib path
+    :param svg_code: A svg string without spaces.
+    :type svg_code: str
+    :return: Codes and Vertices for a matplotlib path.
+    :rtype: Tuple[np.ndarray, np.ndarray]
     """
     commands = {
         "M": (mpath.Path.MOVETO,),

@@ -1,7 +1,12 @@
+"""
+Contains several functions to perform spatial operations, such as reprojecting
+or spatial lookup of features.
+"""
+
 from __future__ import annotations
+
 import os
 import pickle as pkl
-from os import PathLike
 from typing import Tuple
 
 import geopandas as gp
@@ -9,13 +14,28 @@ import h5py
 import numpy as np
 import osmnx
 import rasterio as rio
+import rasterio.coords
 import rasterio.warp as riowarp
 import scipy.spatial as spspatial
 import shapely
 
 
-def reproject_raster(in_path, out_path, output_crs):
-    """reproject raster to project crs"""
+def reproject_raster(
+    in_path: os.PathLike,
+    out_path: os.PathLike,
+    output_crs: str,
+) -> os.PathLike:
+    """Reprojects the raster file in `in_path` to the given crs.
+
+    :param in_path: The path to the rasterfile.
+    :type in_path: os.PathLike
+    :param out_path: The new file path of the reprojected raster file.
+    :type out_path: os.PathLike
+    :param output_crs: The output CRS string.
+    :type output_crs: str
+    :return: The path to the output file.
+    :rtype: os.PathLike
+    """
     crs_out = {"init": output_crs}
     with rio.open(in_path) as src:
         transform, width, height = riowarp.calculate_default_transform(
@@ -46,37 +66,46 @@ def reproject_raster(in_path, out_path, output_crs):
     return out_path
 
 
-def get_cKDTree(file_path):
-    """
-    Loads all x and y coordinates from the given file or folder and returns a
-    cKDTree for easy spatial lookup.
+def get_cKDTree(file_path: os.PathLike) -> spspatial.cKDTree:
+    """Loads all x and y coordinates from the given file or folder and returns a cKDTree for easy spatial lookup.
+
+    :param file_path: The path to the folder or file.
+    :type file_path: os.PathLike
+    :return: The spatial lookup Tree object
+    :rtype: spspatial.cKDTree
     """
     coords = _get_coords(file_path)
 
     return spspatial.cKDTree(coords)
 
 
-def _get_coords(input_data: PathLike | list) -> list:
+def _get_coords(in_path: os.PathLike | list) -> list:
     """
     Loads all x and y coordinates from the given file or folder.
 
     Works with single hdf or pkl files as well as folders with many files.
+
+    :param in_path: The path to the folder or file.
+    :type in_path: PathLike | list
+    :raises NotImplementedError: Error raised when method to generate cKDTree from this filetype is not implemented.
+    :return: A list of coordinates to use for generating the cKDTree [(x1, y1), (x2, y2),...].
+    :rtype: list
     """
     coords = None
 
-    if isinstance(input_data, list):
-        if isinstance(input_data[0], str):
-            coords = _file_list_to_coords(input_data)
-        elif isinstance(input_data[0], tuple):
-            coords = _tuple_list_to_coords(input_data)
+    if isinstance(in_path, list):
+        if isinstance(in_path[0], str):
+            coords = _file_list_to_coords(in_path)
+        elif isinstance(in_path[0], tuple):
+            coords = _tuple_list_to_coords(in_path)
 
-    elif isinstance(input_data, str):
-        if input_data.endswith(".h5"):
-            coords = _h5_to_coords(input_data)
-        elif input_data.endswith(".pkl"):
-            coords = _pkl_to_coords(input_data)
-        elif os.path.isdir(input_data):
-            coords = _file_list_to_coords(input_data)
+    elif isinstance(in_path, str):
+        if in_path.endswith(".h5"):
+            coords = _h5_to_coords(in_path)
+        elif in_path.endswith(".pkl"):
+            coords = _pkl_to_coords(in_path)
+        elif os.path.isdir(in_path):
+            coords = _file_list_to_coords(in_path)
 
     if coords is None:
         raise NotImplementedError(
@@ -85,24 +114,34 @@ def _get_coords(input_data: PathLike | list) -> list:
     return coords
 
 
-def _file_list_to_coords(input_data: list) -> list:
-    """
-    Converts a file list of h5 files with x and y coordinates in their names
+def _file_list_to_coords(in_path: os.PathLike) -> list:
+    """Converts a file list of h5 files with x and y coordinates in their names
     to a list of coordinates.
+
+    :param in_path: The folder containing the h5 files.
+    :type in_path: os.PathLike
+    :return: List of coordinates [(x1, y1), (x2, y2),...].
+    :rtype: list
     """
     coords = [
         shapely.Point(
             int(f[f.find("_x") + 2 : f.find("_y")]),
             int(f[f.find("_y") + 2 : f.find(".h5")]),
         )
-        for f in os.listdir(input_data)
+        for f in os.listdir(in_path)
         if f.endswith(".h5")
     ]
     return coords
 
 
 def _h5_to_coords(h5file_path: os.PathLike) -> list:
-    """Converts a h5 file containing x and y to list of coordinates"""
+    """Converts a h5 file containing x and y to list of coordinates.
+
+    :param h5file_path: The path to the h5 file.
+    :type h5file_path: os.PathLike
+    :return: List of coordinates [(x1, y1), (x2, y2),...].
+    :rtype: list
+    """
     with h5py.File(h5file_path, "r") as h5file:
         coords = np.array(
             [(x, y) for x, y in zip(h5file["x"][()], h5file["y"][()])]
@@ -111,16 +150,25 @@ def _h5_to_coords(h5file_path: os.PathLike) -> list:
 
 
 def _tuple_list_to_coords(tuple_list: list) -> list:
+    """Converts a list of tuples from a loaded pkl file to list of coordinates.
+
+    :param tuple_list: List of xy tuples
+    :type tuple_list: list
+    :return: List of coordinates [(x1, y1), (x2, y2),...].
+    :rtype: list
     """
-    Converts a list of tuples from a loaded pkl file to list of coordinates."""
     coords = np.array([(d[0], d[1]) for d in tuple_list])
     return coords
 
 
 def _pkl_to_coords(pkl_path: os.PathLike) -> list:
-    """
-    Converts contents of a pickled inversion results file to list of
+    """Converts contents of a pickled inversion results file to list of
     coordinates.
+
+    :param pkl_path: The path to the pkl file.
+    :type pkl_path: os.PathLike
+    :return: List of coordinates [(x1, y1), (x2, y2),...].
+    :rtype: list
     """
     with open(pkl_path, "rb") as pklfile:
         data = pkl.load(pklfile)[0]
@@ -128,37 +176,43 @@ def _pkl_to_coords(pkl_path: os.PathLike) -> list:
     return coords
 
 
-def spatial_lookup(
-    input_feature, points: gp.GeoDataFrame, n: int = 1
+def _spatial_lookup(
+    input_feature: os.PathLike | list, points: gp.GeoDataFrame, n: int = 1
 ) -> list[Tuple[float, int]]:
     """Does a spatial lookup for the nearest point to all points in `points`.
     The data at `input_feature` has to have a valid format for creating a  lookup Tree.
 
-    Arguments:
-        input_feature -- A variable that contains some sort of x and y table
-          which can be converted to a lookup table with `get_cKDTree()`
-        points -- The points to query.
-
-    Keyword Arguments:
-        n -- The number of nearest neighbors (default: {1}).
-
-    Returns:
-        A list of `n` nearest neighbors for each point in the form of (distance, index)
+    :param input_feature: A variable that contains some sort of x and y table which can be converted to a lookup table with :func:`get_cKDTree`
+    :type input_feature: os.PathLike | list
+    :param points: Point features to query.
+    :type points: gp.GeoDataFrame
+    :param n: The number of nearest neighbors, defaults to 1
+    :type n: int, optional
+    :return: A list of `n` nearest neighbors for each point in the form of (distance, index)
+    :rtype: list[Tuple[float, int]]
     """
+
     lut = get_cKDTree(input_feature)
     points = points.values
     closest = [lut.query((p[1].x, p[1].y), n) for p in points]
     return closest
 
 
-def select_points_osm(query, psi_file_path):
-    """
-    Selects points from the specified file or files in folder
-    and crops them by the rectangles found in the given osm query.
+def _select_points_osm(
+    osm_query: dict, psi_file_path: os.PathLike
+) -> gp.GeoDataFrame:
+    """Selects PSI measurements from the specified file or folder from the specified file or files in `psi_file_path` and crops them by the rectangles found in the given osm query.
+
+    :param osm_query: A properly formatted osm query in dictionary form. (see https://osmnx.readthedocs.io/en/stable/ for more)
+    :type osm_query: dict
+    :param psi_file_path: The files or folder where the psi data is stored (e.g., a folder containing h5 files)
+    :type psi_file_path: os.PathLike
+    :return: A GeoDataFrame containing all points within the openstreetmap geometry.
+    :rtype: gp.GeoDataFrame
     """
 
     osm_data = osmnx.geometries_from_address(
-        query["address"], tags=query["tags"]
+        osm_query["address"], tags=osm_query["tags"]
     ).to_crs("EPSG:32632")
 
     coords = _get_coords(psi_file_path)
@@ -172,13 +226,23 @@ def select_points_osm(query, psi_file_path):
     return points.clip(osm_data)
 
 
-def select_points_region(region, psi_file_path):
+def _select_points_region(
+    region: gp.GeoDataFrame | gp.GeoSeries,
+    psi_file_path: os.PathLike,
+    crs: str = "",
+) -> gp.GeoDataFrame:
+    """Selects PSI measurements from the specified file or folder and crops them by the rectangles found in the given region.
+
+    :param region: The region to crop the data (e.g, a loaded shapefile)
+    :type region: gp.GeoDataFrame | gp.GeoSeries
+    :param psi_file_path: The file or folder to select from
+    :type psi_file_path: os.PathLike
+    :param crs: The CRS of the input region, defaults to ""
+    :type crs: str, optional
+    :return: The points from `psi_file_path` cropped to the `region`.
+    :rtype: gp.GeoDataFrame
     """
-    Selects points from the specified file and crops them by the rectangles
-    found in the given region.
-    """
-    if region.crs != "EPSG:32632":
-        region = region.to_crs("EPSG:32632")
+
     coords = _get_coords(psi_file_path)
     points = gp.GeoDataFrame(
         {
@@ -187,10 +251,29 @@ def select_points_region(region, psi_file_path):
         },
         crs="EPSG:32632",
     )
+    if crs:
+        region = gp.GeoDataFrame(
+            geometry=gp.GeoSeries(region.geometry), crs=crs
+        )
+    elif region.crs != "EPSG:32632":
+        region = region.to_crs("EPSG:32632")
     return points.clip(region)
 
 
-def select_points_point(point, radius, psi_file_path):
+def _select_points_point(
+    point: list, radius: float, psi_file_path: os.PathLike
+) -> gp.GeoDataFrame:
+    """Selects PSI measurements in a `radius` around the specified `point` from the files or folder.
+
+    :param point: The center point of the query.
+    :type point: list
+    :param radius: The radius to calculate the buffer
+    :type radius: float
+    :param psi_file_path: The file or folder to select from
+    :type psi_file_path: os.PathLike
+    :return: The points from `psi_file_path` in a `radius` round `point`.
+    :rtype: gp.GeoDataFrame
+    """
     region = gp.GeoDataFrame(
         {"geometry": [shapely.Point(point).buffer(radius)]}, crs="EPSG:32632"
     )
@@ -205,7 +288,33 @@ def select_points_point(point, radius, psi_file_path):
     return points.clip(region)
 
 
-def get_rois(file_path: os.PathLike) -> list[Tuple[str, gp.GeoDataFrame]]:
-    regions = gp.read_file(file_path)
-    rois = [(name, geom) for name, geom in zip(regions.Name, regions.geometry)]
-    return rois
+def bounds_to_polygon(bounds: rasterio.coords.BoundingBox) -> shapely.Polygon:
+    """Creates a `shapely.Polygon` from the `BoundingBox` of loaded raster.
+
+    :param bounds: The `BoundingBox` of a raster.
+    :type bounds: rasterio.coords.BoundingBox
+    :return: The polygon.
+    :rtype: shapely.Polygon
+    """
+    poly = shapely.Polygon(
+        shell=(
+            (bounds.left, bounds.bottom),
+            (bounds.left, bounds.top),
+            (bounds.right, bounds.top),
+            (bounds.right, bounds.bottom),
+            (bounds.left, bounds.bottom),
+        )
+    )
+    return poly
+
+
+def xy_to_point(xy: tuple) -> shapely.Point:
+    """Quick converter for xy tuples to shapely points.
+
+    :param xy: The tuple with (x,y)
+    :type xy: tuple
+    :return: The point.
+    :rtype: shapely.Point
+    """
+    pnt = shapely.Point(xy)
+    return pnt

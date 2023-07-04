@@ -44,7 +44,6 @@
               <div class="local-toc"><ul>
 <li><a class="reference internal" href="#">u4py.plotting.axes module</a><ul>
 <li><a class="reference internal" href="#u4py.plotting.axes.add_basemap"><code class="docutils literal notranslate"><span class="pre">add_basemap()</span></code></a></li>
-<li><a class="reference internal" href="#u4py.plotting.axes.add_or_create"><code class="docutils literal notranslate"><span class="pre">add_or_create()</span></code></a></li>
 <li><a class="reference internal" href="#u4py.plotting.axes.add_shapefile"><code class="docutils literal notranslate"><span class="pre">add_shapefile()</span></code></a></li>
 <li><a class="reference internal" href="#u4py.plotting.axes.add_tile"><code class="docutils literal notranslate"><span class="pre">add_tile()</span></code></a></li>
 <li><a class="reference internal" href="#u4py.plotting.axes.plot_cwt"><code class="docutils literal notranslate"><span class="pre">plot_cwt()</span></code></a></li>
@@ -85,81 +84,258 @@
              
   <section id="module-u4py.plotting.axes">
 <span id="u4py-plotting-axes-module"></span><h1>u4py.plotting.axes module<a class="headerlink" href="#module-u4py.plotting.axes" title="Permalink to this heading"></a></h1>
-<p>Contains functions to create plots from a data dictionary. All functions
-should follow the following template:</p>
-<blockquote>
-<div><p>plot_FUNCNAME(<a class="reference external" href="data:dict">data:dict</a>, ax: Axes=None, KEYWORDS) -&gt; None, Tuple[Figure, Axes]</p>
-</div></blockquote>
+<p>Contains functions to create simple axes objects to add to other plots. The plots generated here can be used as stand-alone small plots or to compile larger more complicated plots. Because of this, we use only a simple, minimalistic input structure. Each function only should plot a single thing and do only minimal processing. Usually, for a new plot, one would go into <a class="reference internal" href="u4py.plotting.plots.html#module-u4py.plotting.plots" title="u4py.plotting.plots"><code class="xref py py-func docutils literal notranslate"><span class="pre">u4py.plotting.plots()</span></code></a> and create a new plot function there. Each axis added to the larger plot should be implemented to <a class="reference internal" href="#module-u4py.plotting.axes" title="u4py.plotting.axes"><code class="xref py py-func docutils literal notranslate"><span class="pre">u4py.plotting.axes()</span></code></a>. This allows also to reuse individual subplots for other figures and also for having a stand-alone version of the axis as a small simple plot.</p>
+<p>Internally we use a decorator (<cite>&#64;_add_or_create</cite>) to check if an axis object was given and to generate figure and axis if necessary. Therefore, we have to follow the function template in order for the decorator to work correctly.</p>
+<p>All functions should follow the following template:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="n">plot_FUNCNAME</span><span class="p">(</span><span class="n">data</span><span class="p">:</span> <span class="nb">dict</span><span class="p">,</span> <span class="n">ax</span><span class="p">:</span> <span class="n">Axes</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span> <span class="o">**</span><span class="n">kwargs</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">,</span> <span class="n">Tuple</span><span class="p">[</span><span class="n">Figure</span><span class="p">,</span> <span class="n">Axes</span><span class="p">]</span>
+</pre></div>
+</div>
 <ul class="simple">
-<li><p>Functions may also be used to add the plot to an existing plot. If given an
-<cite>Axes</cite> the function will plot into the given axis (useful for subplots). If
-no <cite>Axes</cite> is given the function will create a Figure and return both, an
-<cite>Axes</cite> and <cite>Figure</cite> object.</p></li>
-<li><p>The input <cite>data</cite> is required.</p></li>
-<li><p>For flexibility keywords can be added.</p></li>
+<li><p>Functions may also be used to add the plot to an existing plot. If given an <cite>Axes</cite> the function will plot into the given axis (useful for subplots). If no <cite>Axes</cite> is given the function will create a Figure and return both, an <cite>Axes</cite> and <cite>Figure</cite> object.</p></li>
+<li><p>The input <cite>data</cite> is required but can also be split into seperate variables.</p></li>
+<li><p>For flexibility keywords can be added, e.g. to change plot color.</p></li>
 </ul>
 <dl class="py function">
 <dt class="sig sig-object py" id="u4py.plotting.axes.add_basemap">
-<span class="sig-prename descclassname"><span class="pre">u4py.plotting.axes.</span></span><span class="sig-name descname"><span class="pre">add_basemap</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ax</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#u4py.plotting.axes.add_basemap" title="Permalink to this definition"></a></dt>
-<dd></dd></dl>
-
-<dl class="py function">
-<dt class="sig sig-object py" id="u4py.plotting.axes.add_or_create">
-<span class="sig-prename descclassname"><span class="pre">u4py.plotting.axes.</span></span><span class="sig-name descname"><span class="pre">add_or_create</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">internal_plot</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#u4py.plotting.axes.add_or_create" title="Permalink to this definition"></a></dt>
-<dd><p>Decorator for all functions in this module</p>
-<p>Functions decorated can either add their plot to the axis (if <cite>ax</cite> is set).
-Otherwise the decorator creates a new plot with <cite>plt.subplots</cite></p>
+<span class="sig-prename descclassname"><span class="pre">u4py.plotting.axes.</span></span><span class="sig-name descname"><span class="pre">add_basemap</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">base_map_path</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">PathLike</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ax</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Axes</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">Tuple</span><span class="p"><span class="pre">[</span></span><span class="pre">Figure</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">Axes</span><span class="p"><span class="pre">]</span></span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span></span><a class="headerlink" href="#u4py.plotting.axes.add_basemap" title="Permalink to this definition"></a></dt>
+<dd><p>Creates a plot with the basemap as the lowest layer. If no basemap is given it is automatically loaded from osm.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>base_map_path</strong> (<em>os.PathLike</em><em>, </em><em>optional</em>) – Path to the geotiff with the basemap, defaults to None</p></li>
+<li><p><strong>ax</strong> (<em>Axes</em><em>, </em><em>optional</em>) – The axis to add the plot to (optional)., defaults to None</p></li>
+<li><p><strong>kwargs</strong> (<em>dict</em>) – Additional arguments passed to rasterio.plot.show(). See rasterio documentation.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>The figure and axis if there was no axis specified.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>Tuple[Figure, Axes] | None</p>
+</dd>
+</dl>
 </dd></dl>
 
 <dl class="py function">
 <dt class="sig sig-object py" id="u4py.plotting.axes.add_shapefile">
-<span class="sig-prename descclassname"><span class="pre">u4py.plotting.axes.</span></span><span class="sig-name descname"><span class="pre">add_shapefile</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ax</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#u4py.plotting.axes.add_shapefile" title="Permalink to this definition"></a></dt>
-<dd></dd></dl>
+<span class="sig-prename descclassname"><span class="pre">u4py.plotting.axes.</span></span><span class="sig-name descname"><span class="pre">add_shapefile</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">shp_path</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">PathLike</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ax</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Axes</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">Tuple</span><span class="p"><span class="pre">[</span></span><span class="pre">Figure</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">Axes</span><span class="p"><span class="pre">]</span></span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span></span><a class="headerlink" href="#u4py.plotting.axes.add_shapefile" title="Permalink to this definition"></a></dt>
+<dd><p>Creates a plot from the shapefile in the given coordinate system.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>shp_path</strong> (<em>os.PathLike</em>) – The path to the shapefile containing the geometry.</p></li>
+<li><p><strong>ax</strong> (<em>Axes</em>) – The axis to add the plot to (optional).</p></li>
+<li><p><strong>crx</strong> (<em>str</em>) – The target coordinate system as accepted by GeoPandas (default: {“EPSG:23032”}).</p></li>
+<li><p><strong>kwargs</strong> (<em>dict</em>) – Additional arguments passed to shape.plot(). See GeoPandas documentation.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>The figure and axis if there was no axis specified.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>Tuple[Figure, Axes] | None</p>
+</dd>
+</dl>
+</dd></dl>
 
 <dl class="py function">
 <dt class="sig sig-object py" id="u4py.plotting.axes.add_tile">
-<span class="sig-prename descclassname"><span class="pre">u4py.plotting.axes.</span></span><span class="sig-name descname"><span class="pre">add_tile</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ax</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#u4py.plotting.axes.add_tile" title="Permalink to this definition"></a></dt>
-<dd></dd></dl>
+<span class="sig-prename descclassname"><span class="pre">u4py.plotting.axes.</span></span><span class="sig-name descname"><span class="pre">add_tile</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">tiff_tile_path</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">PathLike</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ax</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Axes</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">vm</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">imsize</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">100</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">show</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">True</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">Tuple</span><span class="p"><span class="pre">[</span></span><span class="pre">tuple</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">str</span><span class="p"><span class="pre">]</span></span></span></span><a class="headerlink" href="#u4py.plotting.axes.add_tile" title="Permalink to this definition"></a></dt>
+<dd><p>Adds a tiff file to the given axis.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>tiff_tile_path</strong> (<em>os.PathLike</em>) – The path to the tiff file.</p></li>
+<li><p><strong>ax</strong> (<em>Axes</em>) – The axis to add the plot (optional).</p></li>
+<li><p><strong>vm</strong> (<em>float</em><em>, </em><em>optional</em>) – Colormap minimum and maximum, defaults to 0</p></li>
+<li><p><strong>imsize</strong> (<em>int</em><em>, </em><em>optional</em>) – Resizes the image to this size, defaults to 100</p></li>
+<li><p><strong>show</strong> (<em>bool</em><em>, </em><em>optional</em>) – Adds the tile to the plot, defaults to True</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>The boundaries and crs of the tile (bounds, crs).</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>Tuple[tuple, str]</p>
+</dd>
+</dl>
+</dd></dl>
 
 <dl class="py function">
 <dt class="sig sig-object py" id="u4py.plotting.axes.plot_cwt">
-<span class="sig-prename descclassname"><span class="pre">u4py.plotting.axes.</span></span><span class="sig-name descname"><span class="pre">plot_cwt</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ax</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#u4py.plotting.axes.plot_cwt" title="Permalink to this definition"></a></dt>
-<dd></dd></dl>
+<span class="sig-prename descclassname"><span class="pre">u4py.plotting.axes.</span></span><span class="sig-name descname"><span class="pre">plot_cwt</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">data</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">dict</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ax</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Axes</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">Tuple</span><span class="p"><span class="pre">[</span></span><span class="pre">Figure</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">Axes</span><span class="p"><span class="pre">]</span></span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span></span><a class="headerlink" href="#u4py.plotting.axes.plot_cwt" title="Permalink to this definition"></a></dt>
+<dd><p>Does a continous wavelet transform of the data to find dominant frequencies and plots it.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>data</strong> (<em>dict</em>) – Data dictionary according to u4py standard (e.g. read from h5).</p></li>
+<li><p><strong>ax</strong> (<em>Axes</em>) – The axis to add the plot to (optional).</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>The figure and axis if there was no axis specified.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>Tuple[Figure, Axes] | None</p>
+</dd>
+</dl>
+</dd></dl>
 
 <dl class="py function">
 <dt class="sig sig-object py" id="u4py.plotting.axes.plot_fit_residuals">
-<span class="sig-prename descclassname"><span class="pre">u4py.plotting.axes.</span></span><span class="sig-name descname"><span class="pre">plot_fit_residuals</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ax</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#u4py.plotting.axes.plot_fit_residuals" title="Permalink to this definition"></a></dt>
-<dd></dd></dl>
+<span class="sig-prename descclassname"><span class="pre">u4py.plotting.axes.</span></span><span class="sig-name descname"><span class="pre">plot_fit_residuals</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">data</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">dict</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">fit_data</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">tuple</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ax</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Axes</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">direction</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">'UD'</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">Tuple</span><span class="p"><span class="pre">[</span></span><span class="pre">Figure</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">Axes</span><span class="p"><span class="pre">]</span></span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span></span><a class="headerlink" href="#u4py.plotting.axes.plot_fit_residuals" title="Permalink to this definition"></a></dt>
+<dd><p>Creates a plot with the residuals of the data and selected fit.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>x</strong> (<em>np.ndarray</em>) – The x axis (datetime).</p></li>
+<li><p><strong>inv_results</strong> (<em>tuple</em>) – A tuple of the inversion results.</p></li>
+<li><p><strong>ax</strong> (<em>Axes</em>) – The axis to add the plot to (optional).</p></li>
+<li><p><strong>direction</strong> (<em>str</em><em>, </em><em>optional</em>) – The direction of the inversion results. Options are: “EW”,
+“NS”, “UD”, defaults to “UD”</p></li>
+<li><p><strong>kwargs</strong> (<em>dict</em>) – Additional arguments passed to plt.plot().</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>The figure and axis if there was no axis specified.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>Tuple[Figure, Axes] | None</p>
+</dd>
+</dl>
+</dd></dl>
 
 <dl class="py function">
 <dt class="sig sig-object py" id="u4py.plotting.axes.plot_inversion_fit">
-<span class="sig-prename descclassname"><span class="pre">u4py.plotting.axes.</span></span><span class="sig-name descname"><span class="pre">plot_inversion_fit</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ax</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#u4py.plotting.axes.plot_inversion_fit" title="Permalink to this definition"></a></dt>
-<dd></dd></dl>
+<span class="sig-prename descclassname"><span class="pre">u4py.plotting.axes.</span></span><span class="sig-name descname"><span class="pre">plot_inversion_fit</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">x</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">ndarray</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">inv_results</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">tuple</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ax</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Axes</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">direction</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">'UD'</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">Tuple</span><span class="p"><span class="pre">[</span></span><span class="pre">Figure</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">Axes</span><span class="p"><span class="pre">]</span></span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span></span><a class="headerlink" href="#u4py.plotting.axes.plot_inversion_fit" title="Permalink to this definition"></a></dt>
+<dd><p>Creates a plot from inversion results.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>x</strong> (<em>np.ndarray</em>) – The x axis (datetime).</p></li>
+<li><p><strong>inv_results</strong> (<em>tuple</em>) – A tuple of the inversion results.</p></li>
+<li><p><strong>ax</strong> (<em>Axes</em>) – The axis to add the plot to (optional).</p></li>
+<li><p><strong>direction</strong> (<em>str</em><em>, </em><em>optional</em>) – The direction of the inversion results. Options are: “EW”,
+“NS”, “UD”, defaults to “UD”</p></li>
+<li><p><strong>kwargs</strong> (<em>dict</em>) – Additional arguments passed to plt.plot().</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>The figure and axis if there was no axis specified.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>Tuple[Figure, Axes] | None</p>
+</dd>
+</dl>
+</dd></dl>
 
 <dl class="py function">
 <dt class="sig sig-object py" id="u4py.plotting.axes.plot_pdf">
-<span class="sig-prename descclassname"><span class="pre">u4py.plotting.axes.</span></span><span class="sig-name descname"><span class="pre">plot_pdf</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ax</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#u4py.plotting.axes.plot_pdf" title="Permalink to this definition"></a></dt>
-<dd></dd></dl>
+<span class="sig-prename descclassname"><span class="pre">u4py.plotting.axes.</span></span><span class="sig-name descname"><span class="pre">plot_pdf</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">y:</span> <span class="pre">~numpy.ndarray</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ax:</span> <span class="pre">~matplotlib.axes._axes.Axes</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">fnc:</span> <span class="pre">~scipy.stats._distn_infrastructure.rv_continuous</span> <span class="pre">=</span> <span class="pre">&lt;scipy.stats._continuous_distns.norm_gen</span> <span class="pre">object&gt;</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">rv_frozen</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">Tuple</span><span class="p"><span class="pre">[</span></span><span class="pre">rv_frozen</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">Figure</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">Axes</span><span class="p"><span class="pre">]</span></span></span></span><a class="headerlink" href="#u4py.plotting.axes.plot_pdf" title="Permalink to this definition"></a></dt>
+<dd><p>Adds a plot of the probability density function (WIP).</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>y</strong> (<em>np.ndarray</em>) – The data to be used to fit the distribution.</p></li>
+<li><p><strong>ax</strong> (<em>Axes</em>) – The axis to add the plot to (optional)</p></li>
+<li><p><strong>fnc</strong> (<em>spstats.rv_continuous</em><em>, </em><em>optional</em>) – Distribution class used to fit the data, defaults to spstats.norm</p></li>
+</ul>
+</dd>
+<dt class="field-even">Raises<span class="colon">:</span></dt>
+<dd class="field-even"><p><strong>NotImplementedError</strong> – Currently only returns an error!</p>
+</dd>
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p>Returns the frozen distribution object or a tuple with object, figure and axis.</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p>spstats.distributions.rv_frozen | Tuple[spstats.distributions.rv_frozen, Figure, Axes]</p>
+</dd>
+</dl>
+</dd></dl>
 
 <dl class="py function">
 <dt class="sig sig-object py" id="u4py.plotting.axes.plot_region_trend">
-<span class="sig-prename descclassname"><span class="pre">u4py.plotting.axes.</span></span><span class="sig-name descname"><span class="pre">plot_region_trend</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ax</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#u4py.plotting.axes.plot_region_trend" title="Permalink to this definition"></a></dt>
-<dd></dd></dl>
+<span class="sig-prename descclassname"><span class="pre">u4py.plotting.axes.</span></span><span class="sig-name descname"><span class="pre">plot_region_trend</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">data_region</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">dict</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ax</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Axes</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">Tuple</span><span class="p"><span class="pre">[</span></span><span class="pre">Figure</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">Axes</span><span class="p"><span class="pre">]</span></span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span></span><a class="headerlink" href="#u4py.plotting.axes.plot_region_trend" title="Permalink to this definition"></a></dt>
+<dd><p>Calculates and plots the regional trend in a region of data.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>data_region</strong> (<em>dict</em>) – Dictionary with multiple data dictionaries according to u4py standard (e.g. read from h5).</p></li>
+<li><p><strong>ax</strong> (<em>Axes</em>) – The axis to add the plot to (optional).</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>The figure and axis if there was no axis specified.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>Tuple[Figure, Axes] | None</p>
+</dd>
+</dl>
+</dd></dl>
 
 <dl class="py function">
 <dt class="sig sig-object py" id="u4py.plotting.axes.plot_stat_func">
-<span class="sig-prename descclassname"><span class="pre">u4py.plotting.axes.</span></span><span class="sig-name descname"><span class="pre">plot_stat_func</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ax</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#u4py.plotting.axes.plot_stat_func" title="Permalink to this definition"></a></dt>
-<dd></dd></dl>
+<span class="sig-prename descclassname"><span class="pre">u4py.plotting.axes.</span></span><span class="sig-name descname"><span class="pre">plot_stat_func</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">data:</span> <span class="pre">dict</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ax:</span> <span class="pre">~matplotlib.axes._axes.Axes</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">stat_fnc:</span> <span class="pre">~typing.Callable</span> <span class="pre">=</span> <span class="pre">&lt;function</span> <span class="pre">nanmean&gt;</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">Tuple</span><span class="p"><span class="pre">[</span></span><span class="pre">Figure</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">Axes</span><span class="p"><span class="pre">]</span></span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span></span><a class="headerlink" href="#u4py.plotting.axes.plot_stat_func" title="Permalink to this definition"></a></dt>
+<dd><p>Creates a plot with the given statistic.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>data</strong> (<em>dict</em>) – Data dictionary according to u4py standard (e.g. read from h5).</p></li>
+<li><p><strong>ax</strong> (<em>Axes</em>) – The axis to add the plot to (optional).</p></li>
+<li><p><strong>stat_fnc</strong> (<em>Callable</em><em>, </em><em>optional</em>) – The statistical function to use on the timeseries data., defaults to np.nanmean</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>The figure and axis if there was no axis specified.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>Tuple[Figure, Axes] | None</p>
+</dd>
+</dl>
+</dd></dl>
 
 <dl class="py function">
 <dt class="sig sig-object py" id="u4py.plotting.axes.plot_timeseries">
-<span class="sig-prename descclassname"><span class="pre">u4py.plotting.axes.</span></span><span class="sig-name descname"><span class="pre">plot_timeseries</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ax</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#u4py.plotting.axes.plot_timeseries" title="Permalink to this definition"></a></dt>
-<dd></dd></dl>
+<span class="sig-prename descclassname"><span class="pre">u4py.plotting.axes.</span></span><span class="sig-name descname"><span class="pre">plot_timeseries</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">x</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">ndarray</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">y</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">ndarray</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ax</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Axes</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">color</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">'C0'</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">Tuple</span><span class="p"><span class="pre">[</span></span><span class="pre">Figure</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">Axes</span><span class="p"><span class="pre">]</span></span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span></span><a class="headerlink" href="#u4py.plotting.axes.plot_timeseries" title="Permalink to this definition"></a></dt>
+<dd><p>Creates a nice plot of a timeseries including the range of values.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>x</strong> (<em>np.ndarray</em>) – 1D Array containing the data for the x-axis.</p></li>
+<li><p><strong>y</strong> (<em>np.ndarray</em>) – 1D or 2D Array containing the data for the y-axis.</p></li>
+<li><p><strong>ax</strong> (<em>Axes</em>) – The axis to add the plot to (optional).</p></li>
+<li><p><strong>color</strong> (<em>str</em><em>, </em><em>optional</em>) – The color for the plot, defaults to “C0”</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>The figure and axis if there was no axis specified.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>Tuple[Figure, Axes] | None</p>
+</dd>
+</dl>
+</dd></dl>
 
 <dl class="py function">
 <dt class="sig sig-object py" id="u4py.plotting.axes.plot_timeseries_fit">
-<span class="sig-prename descclassname"><span class="pre">u4py.plotting.axes.</span></span><span class="sig-name descname"><span class="pre">plot_timeseries_fit</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ax</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#u4py.plotting.axes.plot_timeseries_fit" title="Permalink to this definition"></a></dt>
-<dd></dd></dl>
+<span class="sig-prename descclassname"><span class="pre">u4py.plotting.axes.</span></span><span class="sig-name descname"><span class="pre">plot_timeseries_fit</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">data</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">dict</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ax</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Axes</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">color</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">'C0'</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">Tuple</span><span class="p"><span class="pre">[</span></span><span class="pre">Figure</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">Axes</span><span class="p"><span class="pre">]</span></span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span></span><a class="headerlink" href="#u4py.plotting.axes.plot_timeseries_fit" title="Permalink to this definition"></a></dt>
+<dd><p>Plots the fit data for a simple timeseries analysis.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>data</strong> (<em>dict</em>) – Data dictionary according to u4py standard (e.g. read from h5).</p></li>
+<li><p><strong>ax</strong> (<em>Axes</em>) – The axis to add the plot to (optional).</p></li>
+<li><p><strong>color</strong> (<em>str</em><em>, </em><em>optional</em>) – The color for the plot, defaults to “C0”</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>The figure and axis if there was no axis specified.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>Tuple[Figure, Axes] | None</p>
+</dd>
+</dl>
+</dd></dl>
 
 </section>
 

@@ -57,10 +57,8 @@ def create_synthetic_data() -> Tuple[dict, list]:
         | A linear component,
         | + two annual (sine/cosine, :math:`\\frac{\\pi}{2}`),
         | + two semiannual components (sine/cosine, :math:`\\frac{\\pi}{4}`)
-        | + a heavyside step function with several mm of displacement and post
-          seismic decay,
+        | + a heavyside step function with several mm of displacement and post seismic decay,
         | + Gaussian noise.
-
     """
     t = np.arange(2007, 2015, 0.003)  # sample time
     t_EQdummy = [

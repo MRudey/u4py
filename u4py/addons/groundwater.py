@@ -1,5 +1,5 @@
 """
-Contains functions to work with groundwater data
+Contains functions to work with groundwater data.
 """
 import csv
 import os
@@ -32,7 +32,6 @@ def get_groundwater_data(file_path: os.PathLike) -> dict:
         | `"northing"`: Northing in EPSG:31467,
         | `"time"`: The time as a list of datetime objects,
         | `"height"`: The height of the water table above NN.
-
     """
     with open(file_path, "rb") as pkl_file:
         stations = pkl.load(pkl_file)
@@ -44,8 +43,7 @@ def get_stations(stations: dict) -> gp.GeoDataFrame:
 
     :param stations: The dictionary of stations.
     :type stations: dict
-    :return: GeoDataFrame with the stations as points, including the `name,
-    gruwahID,` and `shortID`.
+    :return: GeoDataFrame with the stations as points, including the `name,gruwahID,` and `shortID`.
     :rtype: gp.GeoDataFrame
     """
 
@@ -73,8 +71,10 @@ def convert_GW_csv(file_path: os.PathLike) -> dict:
 
     :param file_path: Path to the csv file.
     :type file_path: os.PathLike
-    :return: Dictionary of data data organized in nested dictionaries. The
-    outer dictionary uses the station name as headers: ``station["NAME"]``.
+    :return: Dictionary of data data organized in nested dictionaries.
+    :rtype: dict
+
+    The outer dictionary uses the station name as headers: ``station["NAME"]``.
     This returns another dictionary containing the data:
 
         | `"shortID"`: Short ID given by HLNUG,
@@ -84,7 +84,6 @@ def convert_GW_csv(file_path: os.PathLike) -> dict:
         | `"northing"`: Northing in EPSG:31467,
         | `"time"`: The time as a list of datetime objects,
         | `"height"`: The height of the water table above NN.
-    :rtype: dict
     """
 
     with open(file_path, "rt") as csv_file:
