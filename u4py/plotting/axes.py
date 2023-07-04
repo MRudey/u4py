@@ -15,6 +15,7 @@ All functions should follow the following template::
 from __future__ import annotations
 
 import os
+from functools import wraps
 from typing import Callable, Tuple
 
 import contextily
@@ -25,7 +26,6 @@ import rasterio
 import rasterio.plot as rioplot
 import scipy.stats as spstats
 import skimage.transform as sktransf
-from decorator import decorator
 from matplotlib.axes import Axes
 from matplotlib.figure import Figure
 from pyproj import CRS
@@ -36,7 +36,6 @@ import u4py.plotting.preparation as u4plotprep
 import u4py.utils.files as u4files
 
 
-@decorator
 def _add_or_create(internal_plot: Callable) -> Tuple[Figure, Axes] | None:
     """Decorator for all functions in this module
 
@@ -49,6 +48,7 @@ def _add_or_create(internal_plot: Callable) -> Tuple[Figure, Axes] | None:
     :rtype: Tuple[Figure, Axes] | None
     """
 
+    @wraps(internal_plot)
     def wrapper_internal_plot(*args, ax=None, **kwargs):
         # Plotting
         if not ax:
@@ -111,9 +111,10 @@ def plot_cwt(data: dict, ax: Axes) -> Tuple[Figure, Axes] | None:
 @_add_or_create
 def plot_pdf(
     y: np.ndarray, ax: Axes, fnc: spstats.rv_continuous = spstats.norm
-) -> spstats.distributions.rv_frozen | Tuple[
-    spstats.distributions.rv_frozen, Figure, Axes
-]:
+) -> (
+    spstats.distributions.rv_frozen
+    | Tuple[spstats.distributions.rv_frozen, Figure, Axes]
+):
     """Adds a plot of the probability density function (WIP).
 
     :param y: The data to be used to fit the distribution.
