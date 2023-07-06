@@ -317,14 +317,7 @@ def get_data_for_inversion(file_path: os.PathLike) -> dict:
     :rtype: dict
     """
     dataset = load_hdf5(file_path, timefmt="floatyear")
-    data = u4invert.stack_data(dataset)
-    data["sigmE"] = np.ones_like(data["dataE"])
-    data["sigmN"] = np.ones_like(data["dataE"])
-    data["sigmU"] = np.ones_like(data["dataE"])
-
-    if "inversion_results" in dataset.keys():
-        data["inversion_results"] = dataset["inversion_results"]
-
+    data = u4invert.reformat_dict(dataset)
     return data
 
 

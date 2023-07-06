@@ -31,8 +31,8 @@ from matplotlib.figure import Figure
 from pyproj import CRS
 
 import u4py.analysis.other as u4other
-import u4py.analysis.processing as u4proc
 import u4py.plotting.preparation as u4plotprep
+import u4py.utils.convert as u4convert
 import u4py.utils.files as u4files
 
 
@@ -153,31 +153,52 @@ def plot_timeseries(
     :rtype: Tuple[Figure, Axes] | None
     """
 
-    y_med = np.nanmedian(y, axis=0)
-    y_95 = np.nanpercentile(y, q=95, axis=0)
-    y_68 = np.nanpercentile(y, q=68, axis=0)
-    y_32 = np.nanpercentile(y, q=32, axis=0)
-    y_5 = np.nanpercentile(y, q=5, axis=0)
-    ax.plot(x, y_med, ".", label="Median")
+    quantiles = u4plotprep.get_timeseries_range(y)
+    plot_quantile_timeseries(x, quantiles, ax=ax, color=color)
+
+
+@_add_or_create
+def plot_quantile_timeseries(
+    x: np.ndarray, quantiles: dict, ax: Axes, color: str = "C0"
+) -> Tuple[Figure, Axes] | None:
+    """Creates a nice plot of a timeseries including the range of values.
+
+    :param x: 1D Array containing the data for the x-axis.
+    :type x: np.ndarray
+    :param quantiles: Dictionary containing the quantiles for plotting
+    :type quantiles: dict
+    :param ax: The axis to add the plot to (optional).
+    :type ax: Axes
+    :param color:  The color for the plot, defaults to "C0"
+    :type color: str, optional
+    :return: The figure and axis if there was no axis specified.
+    :rtype: Tuple[Figure, Axes] | None
+    """
+    ax.plot(x, quantiles["y_med"], ".", label="Median", color=color)
     ax.fill_between(
         x,
-        y_95,
-        y_5,
+        quantiles["y_95"],
+        quantiles["y_5"],
         color=color,
         alpha=0.5,
         edgecolor=None,
         label="Data Range",
     )
-    ax.fill_between(x, y_68, y_32, color=color, alpha=0.5, edgecolor=None)
+    ax.fill_between(
+        x,
+        quantiles["y_68"],
+        quantiles["y_32"],
+        color=color,
+        alpha=0.5,
+        edgecolor=None,
+    )
 
 
 @_add_or_create
 def plot_timeseries_fit(
-    data: dict,
     ax: Axes,
+    results: dict = dict(),
     color: str = "C1",
-    results: dict = None,
-    results_func: Callable = u4proc.get_decomposed_signals,
 ) -> Tuple[Figure, Axes] | None:
     """Plots the fit data for a simple timeseries analysis.
 
@@ -187,37 +208,64 @@ def plot_timeseries_fit(
     :type ax: Axes
     :param color: The color for the plot, defaults to "C0"
     :type color: str, optional
+    :param results: A dictionary of loaded fit results, defaults to dict()
+    :type results: dict, optional
     :return: The figure and axis if there was no axis specified.
     :rtype: Tuple[Figure, Axes] | None
     """
-    if not results:
-        results = results_func(data)
+    if "signals" in results.keys():
+        ax.plot(
+            results["time"],
+            results["signals"]["lin"] + results["signals"]["sin"],
+            label="Simple Fit",
+            color=color,
+        )
+        # shift = time[0] - timedelta(days=sin_popt[2])
 
-    ax.plot(
-        results["time"],
-        results["signals"]["lin"] + results["signals"]["sin"],
-        label="Fit",
-        color=color,
-    )
-    # shift = time[0] - timedelta(days=sin_popt[2])
+        # if shift.day > 10:
+        #     prefix = "Mid"
+        # elif shift.day > 20:
+        #     prefix = "End"
+        # else:
+        #     prefix = "Start"
+        ax.annotate(
+            "Longterm Trend: %.1f mm/a" % (results["fits"]["lin"][0] * 365)
+            + "\nYearly Variation: $\\pm$%.1f mm"
+            % (np.abs(results["fits"]["sin"][0])),
+            # + "\nPeriod: %i days" % ((1 / sin_popt[1]) * 6)
+            # + "\nMaximum: %s %s" % (prefix, shift.strftime("%B")(0.99, 0.01)),
+            (0.99, 0.01),
+            xycoords="axes fraction",
+            horizontalalignment="right",
+            verticalalignment="bottom",
+        )
+    else:
+        quantiles = u4plotprep.get_timeseries_range(results["U"], results["t"])
+        plot_quantile_timeseries(
+            quantiles["t_u"], quantiles, ax=ax, color="C0"
+        )
+        t_fly = u4convert.get_floatyear(quantiles["t_u"])
+        t_q = np.linspace(np.min(t_fly), np.max(t_fly), 200)
 
-    # if shift.day > 10:
-    #     prefix = "Mid"
-    # elif shift.day > 20:
-    #     prefix = "End"
-    # else:
-    #     prefix = "Start"
-    ax.annotate(
-        "Longterm Trend: %.1f mm/a" % (results["fits"]["lin"][0] * 365)
-        + "\nYearly Variation: $\\pm$%.1f mm"
-        % (np.abs(results["fits"]["sin"][0])),
-        # + "\nPeriod: %i days" % ((1 / sin_popt[1]) * 6)
-        # + "\nMaximum: %s %s" % (prefix, shift.strftime("%B")(0.99, 0.01)),
-        (0.99, 0.01),
-        xycoords="axes fraction",
-        horizontalalignment="right",
-        verticalalignment="bottom",
-    )
+        y_fit = u4plotprep._full_inv_single_comp(
+            t_q,
+            *results["U"]["inversion_results"],
+        )
+        ax.plot(
+            u4convert.get_datetime(t_q), y_fit, color=color, label="Inversion"
+        )
+        ax.annotate(
+            "Longterm Trend: %.1f mm/a"
+            % (results["U"]["inversion_results"][1])
+            + "\nYearly Variation: $\\pm$%.1f mm"
+            % (np.abs(results["U"]["inversion_results"][2])),
+            # + "\nPeriod: %i days" % ((1 / sin_popt[1]) * 6)
+            # + "\nMaximum: %s %s" % (prefix, shift.strftime("%B")(0.99, 0.01)),
+            (0.99, 0.01),
+            xycoords="axes fraction",
+            horizontalalignment="right",
+            verticalalignment="bottom",
+        )
 
 
 @_add_or_create

@@ -4,13 +4,18 @@ for it.
 """
 
 
+import logging
 import os
+import sys
 from datetime import datetime
+from typing import Tuple
 
 import contextily
 import geopandas as gp
 import matplotlib.gridspec as gs
 import matplotlib.pyplot as plt
+from matplotlib.axes import Axes
+from matplotlib.figure import Figure
 from shapely.geometry import Polygon
 
 import u4py.addons.climate as u4climate
@@ -18,6 +23,7 @@ import u4py.addons.gas_storage as u4gas
 
 # import u4py.addons.rivers as u4rivers
 import u4py.addons.groundwater as u4gw
+import u4py.analysis.processing as u4proc
 import u4py.plotting.axes as u4ax
 import u4py.plotting.formatting as u4plotfmt
 import u4py.utils.files as u4files
@@ -34,15 +40,10 @@ def main():
             "ext_path",
             "places_path",
             "output_path",
-        ]
+            "processing_path",
+        ],
+        interactive=False,
     )
-    # base_path = u4files.get_folder_paths(title="Select base folder")
-    # psivert_path = u4files.get_folder_paths(title="Select PSI data folder")
-    # ext_path = os.path.join(base_path, "ExternalData")
-    # places_path = os.path.join(base_path, "Places")
-    # output_path = os.path.join(base_path, "INSAR_plots")
-    # os.makedirs(output_path, exist_ok=True)
-
     fig_path = os.path.join(
         project["paths"]["output_path"], "Crumstadt_" + psi_source
     )
@@ -75,12 +76,21 @@ def main():
 
     # The map
     plot_map(
-        axes, data_region, crs=crs, places_path=project["paths"]["places_path"]
+        axes[0],
+        data_region,
+        crs=crs,
+        places_path=project["paths"]["places_path"],
     )
 
     # Time series for Crumstadt
     add_timeseries(
-        data, axes[1], "Ground Motion in Crumstadt", shareax=axes[2]
+        data,
+        axes[1],
+        "Ground Motion in Crumstadt",
+        shareax=axes[2],
+        inversion_path=os.path.join(
+            project["paths"]["processing_path"], "Crumstadt.pkl"
+        ),
     )
 
     # Time series for the gas storage
@@ -90,6 +100,9 @@ def main():
         "Ground Motion at Gas Storage",
         legend=False,
         shareax=axes[1],
+        inversion_path=os.path.join(
+            project["paths"]["processing_path"], "GasStorage.pkl"
+        ),
     )
 
     # Rainfall
@@ -157,8 +170,6 @@ def main():
     for ii in range(2, len(axes)):
         axes[ii].sharex(axes[1])
 
-    axes[0].legend(loc="upper right")
-
     # plt.show()
     contextily.add_basemap(
         axes[0],
@@ -171,7 +182,14 @@ def main():
     fig.savefig(fig_path + ".pdf")
 
 
-def get_data_within_osm_query(h5path):
+def get_data_within_osm_query(h5path: os.PathLike) -> Tuple[dict, str]:
+    """Defines the OSM query for Crumstadt and loads the data from the region.
+
+    :param h5path: The path to the h5file.
+    :type h5path: os.PathLike
+    :return: A tuple containing (data, crs).
+    :rtype: Tuple[dict, str]
+    """
     # Define osm query
     query = {
         "address": "Crumstadt",
@@ -182,11 +200,20 @@ def get_data_within_osm_query(h5path):
     }
     # Get points from file, if not available creates new file
     points = u4files.get_select_points_osm(query, h5path)
-    data = load_data_from_points(h5path, points)
+    data = u4files.load_data_from_points(h5path, points)
     return data, points.crs
 
 
-def get_data_within_region(h5path, crs):
+def get_data_within_region(h5path: os.PathLike, crs: str) -> Tuple[dict, str]:
+    """Gets the data in the region of the map's extend for plotting as points on the map.
+
+    :param h5path: The path to the data.
+    :type h5path: os.PathLike
+    :param crs: The target crs.
+    :type crs: str
+    :return:  A tuple containing (data, crs).
+    :rtype: Tuple[dict, str]
+    """
     region = gp.GeoDataFrame(
         {
             "geometry": [
@@ -203,32 +230,31 @@ def get_data_within_region(h5path, crs):
         crs=crs,
     )
     points, _ = u4files.get_region_points(region, "Crumstadt", h5path)
-    data = load_data_from_points(h5path, points)
+    data = u4files.load_data_from_points(h5path, points)
     return data, points.crs
 
 
-def get_data_at_well(h5path):
+def get_data_at_well(h5path: os.PathLike) -> Tuple[dict, str]:
+    """Gets the data in a radius of 300 m around the well.
+
+    :param h5path: The path to the data.
+    :type h5path: os.PathLike
+    :return: A tuple containing (data, crs)
+    :rtype: Tuple[dict, str]
+    """
     points = u4files.get_point_points(
         (464350, 5516100), 300, "OilWell", h5path
     )
-    data = load_data_from_points(h5path, points)
+    data = u4files.load_data_from_points(h5path, points)
     return data, points.crs
 
 
-def load_data_from_points(h5path, points):
-    # Loading for a single file:
-    if h5path.endswith(".h5"):
-        ind = points.source_ind.to_numpy()
-        data = u4files.load_hdf5(h5path, ind=ind)
+def prepare_figure() -> Tuple[Figure, Axes]:
+    """Generates a gridded plot with suplots that span several rows.
 
-    # Loading for a folder of split files (better parallelization)
-    else:
-        data_filelist = u4files.points_to_filelist(points, h5path)
-        data = u4files.load_hdf5_list(data_filelist)
-    return data
-
-
-def prepare_figure():
+    :return: The figure and axis in a tuple.
+    :rtype: Tuple[Figure, Axes]
+    """
     fig = plt.figure(figsize=(12, 12), dpi=300)
     grid = gs.GridSpec(ncols=2, nrows=4)
     axes = [
@@ -244,14 +270,26 @@ def prepare_figure():
     return fig, axes
 
 
-def plot_map(axes, data_region, crs, places_path):
-    # Map
-    u4ax.plot_region_trend(data_region, ax=axes[0])
-    u4plotfmt.add_map_label("Crumstadt", (465500, 5518000), ax=axes[0])
-    u4plotfmt.add_map_label("Hahn", (468700, 5516000), ax=axes[0])
-    u4plotfmt.add_map_label("Gas Storage", (464500, 5516100), ax=axes[0])
+def plot_map(ax: Axes, data_region: dict, crs: str, places_path: os.PathLike):
+    """Adds a map with some annotations to the given axis.
 
-    axes[0].plot(
+    :param ax: The axis to add the plot to.
+    :type ax: Axes
+    :param data_region: The PSI-data for the region.
+    :type data_region: dict
+    :param crs: The coordinate system of the map.
+    :type crs: str
+    :param places_path: The path to additional shapefiles that are to be added.
+    :type places_path: os.PathLike
+    """
+
+    # Map
+    u4ax.plot_region_trend(data_region, ax=ax)
+    u4plotfmt.add_map_label("Crumstadt", (465500, 5518000), ax=ax)
+    u4plotfmt.add_map_label("Hahn", (468700, 5516000), ax=ax)
+    u4plotfmt.add_map_label("Gas Storage", (464500, 5516100), ax=ax)
+
+    ax.plot(
         464350,
         5516100,
         color="k",
@@ -263,7 +301,7 @@ def plot_map(axes, data_region, crs, places_path):
     u4ax.add_shapefile(
         os.path.join(places_path, "Gebaudeschaeden.shp"),
         crs=crs,
-        ax=axes[0],
+        ax=ax,
         color="k",
         # markersize=,
         label="Known Building Damage",
@@ -273,14 +311,14 @@ def plot_map(axes, data_region, crs, places_path):
 
     u4ax.add_shapefile(
         os.path.join(places_path, "Tiefenlinie_Top_Sand_7.shp"),
-        ax=axes[0],
+        ax=ax,
         column="Z",
         facecolor="none",
         zorder=1,
     )
     u4ax.add_shapefile(
         os.path.join(places_path, "Gas_Störungen.shp"),
-        ax=axes[0],
+        ax=ax,
         color="k",
         label="Faults",
         zorder=1,
@@ -288,7 +326,7 @@ def plot_map(axes, data_region, crs, places_path):
 
     u4ax.add_shapefile(
         os.path.join(places_path, "GW_Stations.shp"),
-        ax=axes[0],
+        ax=ax,
         marker=u4plotfmt.drop_shape(),
         color="b",
         markersize=50,
@@ -298,16 +336,40 @@ def plot_map(axes, data_region, crs, places_path):
         labels=["Crumstadt", "Hahn\n(shallow)", "Allmendfeld\n(old)"],
     )
 
-    axes[0].set_xlim(463200, 469500)
-    axes[0].set_ylim(5514800, 5520400)
-    axes[0].set_xlabel("Longitude (m)")
-    axes[0].set_ylabel("Latitude (m)")
-    u4plotfmt.map_style(axes[0], divisor=2000)
+    ax.set_xlim(463200, 469500)
+    ax.set_ylim(5514000, 5520400)
+    ax.set_xlabel("Longitude (m)")
+    ax.set_ylabel("Latitude (m)")
+    u4plotfmt.map_style(ax, divisor=1000, crs=crs)
+    ax.legend(loc="upper right")
 
 
-def add_timeseries(data, ax, title, legend=True, shareax=False):
-    u4ax.plot_timeseries(data["time"], data["timeseries"], ax=ax, color="C0")
-    u4ax.plot_timeseries_fit(data, ax=ax)
+def add_timeseries(
+    data: dict,
+    ax: Axes,
+    title: str = "",
+    legend: bool = True,
+    shareax: Axes = None,
+    inversion_path: os.PathLike = "",
+):
+    """Adds a timeseries with fit to the given axis.
+
+    :param data: The data to add.
+    :type data: dict
+    :param ax: The axis to add the data to.
+    :type ax: Axes
+    :param title: The title of the plot, defaults to ""
+    :type title: str
+    :param legend: Adds a legend to the plot, defaults to True
+    :type legend: bool, optional
+    :param shareax: The axis to share the axis limits with, defaults to None
+    :type shareax: Axes, optional
+    :param inversion_path: The path to the inversion data file for this region, defaults to ""
+    :type inversion_path: os.PathLike, optional
+    """
+    results = u4proc.invert_psi_dict(data, save_path=inversion_path)
+
+    u4ax.plot_timeseries_fit(ax=ax, results=results)
     ax.set_title(title)
     ax.set_xlabel("Year")
     ax.set_ylabel("Vertical Displacement (mm)")

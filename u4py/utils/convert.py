@@ -6,6 +6,7 @@ import os
 import time
 from datetime import datetime, timedelta
 from multiprocessing import Manager, Pool
+from typing import Iterable
 
 import geopandas
 import h5py
@@ -48,7 +49,7 @@ def gnss_dat_to_dict(file_in: os.PathLike) -> dict:
     return data
 
 
-def gps_week_to_time(gps_week:float)-> datetime:
+def gps_week_to_time(gps_week: float) -> datetime:
     """Converts a gpsweek timestamp to datetime.
 
     :param gps_week: The gps timestamp referenced to the 01.06.1980
@@ -61,7 +62,7 @@ def gps_week_to_time(gps_week:float)-> datetime:
     return dt
 
 
-def dbf_to_dict(file_in: os.PathLike)->dict:
+def dbf_to_dict(file_in: os.PathLike) -> dict:
     """Generic conversion of dbf file to dictionary keeping the names of the original file.
 
     :param file_in: The file to convert.
@@ -89,7 +90,7 @@ def dbf_to_dict(file_in: os.PathLike)->dict:
     return output
 
 
-def psi_dbf_to_dict(file_in: os.PathLike)->dict:
+def psi_dbf_to_dict(file_in: os.PathLike) -> dict:
     """Takes a dbf file and returns a dictionary with numpy arrays for x, y, z
     coordinates, PS_ID and timeseries for each entry.
 
@@ -172,11 +173,11 @@ def psi_dbf_to_dict(file_in: os.PathLike)->dict:
 
 
 def key_to_time(
-    key:str,
-    starttime:datetime=datetime(year=2015, month=4, day=4),
-    startindex:int=20150,
-    acqdiff:timedelta=timedelta(days=6),
-)->datetime:
+    key: str,
+    starttime: datetime = datetime(year=2015, month=4, day=4),
+    startindex: int = 20150,
+    acqdiff: timedelta = timedelta(days=6),
+) -> datetime:
     """Converts a key timestamp to a datetime
 
     :param key: Timestamp key
@@ -194,7 +195,13 @@ def key_to_time(
     return starttime + timediff
 
 
-def chunk_data(data:dict, save_folder:os.PathLike, chunksize:int=1000, min_values:int=5, compress:bool=True)->list:
+def chunk_data(
+    data: dict,
+    save_folder: os.PathLike,
+    chunksize: int = 1000,
+    min_values: int = 5,
+    compress: bool = True,
+) -> list:
     """Chunks data into many smaller files with spanning a square of `chunksize` meters. Discards chunks with less than `min_values`.
 
     :param data: The data loaded from a large unchunked h5 file.
@@ -244,7 +251,7 @@ def chunk_data_numba(
     min_values: int = 5,
     compress: bool = True,
 ):
-    """ Chunks data into many smaller files with spanning a square of `chunksize` meters. Discards chunks with less than `min_values`.
+    """Chunks data into many smaller files with spanning a square of `chunksize` meters. Discards chunks with less than `min_values`.
 
     Does the same as :func:`chunk_data` but uses `numba` for parallel processing instead of :func:`Pool.map`.
 
@@ -402,7 +409,7 @@ def get_bounds(minval: float, maxval: float, chunksize: int) -> np.ndarray:
     :type chunksize: int
     :return: An array containing the boundaries.
     :rtype: np.ndarray
-    """    """
+    """ """
 
     """
     minbound = int(np.floor(minval / chunksize) * chunksize)
@@ -467,7 +474,10 @@ def convert_dpkg(file_path: os.PathLike):
 
 
 def dict_to_hdf5(
-    h5path: os.PathLike, data: dict, compression:str="gzip", compression_opts:int=9
+    h5path: os.PathLike,
+    data: dict,
+    compression: str = "gzip",
+    compression_opts: int = 9,
 ):
     """Saves contents of dictionary into given h5 file. Dates are converted to
     strings following ISO date formatting.
@@ -499,7 +509,9 @@ def dict_to_hdf5(
     logging.debug(f"Saving {fname} took {run_time:.3} seconds.")
 
 
-def create_datasets(h5group:h5py.Group, k:str, v, compression:str, compression_opts:int):
+def create_datasets(
+    h5group: h5py.Group, k: str, v, compression: str, compression_opts: int
+):
     """Creates a dataset depending on the content of `v`. Used for the nested conversion of a dictionary into a hdf5 file.
 
     :param h5group: The current group to convert.
@@ -534,23 +546,60 @@ def create_datasets(h5group:h5py.Group, k:str, v, compression:str, compression_o
         )
 
 
-def get_floatyear(timestr:str | datetime) -> float:
+def get_floatyear(time: str | datetime | Iterable) -> float | Iterable:
     """Converts from an ISO date or datetime to a float based year.
 
-    :param timestr: The input timestamp to convert.
-    :type timestr: str | datetime
+    :param time: The input timestamp to convert.
+    :type time: str | datetime | Iterable
     :raises NotImplementedError: Raised when the input time format is not supported.
     :return: The timestamp as a float based year.
-    :rtype: float
+    :rtype: float | Iterable
     """
-    if isinstance(timestr, str):
-        t = datetime.fromisoformat(timestr)
-    elif isinstance(timestr, datetime):
-        t = timestr
+    if isinstance(time, str):
+        t = datetime_to_floatyear(datetime.fromisoformat(time))
+    elif isinstance(time, datetime):
+        t = datetime_to_floatyear(time)
+    elif isinstance(time, list):
+        t = [get_floatyear(n) for n in time]
+    elif isinstance(time, np.ndarray):
+        t = np.array(get_floatyear(list(time)))
     else:
         raise NotImplementedError(
             "Converting from this time format is not supported."
         )
+    return t
+
+
+def get_datetime(time: float | Iterable) -> float | Iterable:
+    """Converts from a float based year to datetime.
+
+    :param time: The input timestamp to convert.
+    :type time: float | Iterable
+    :raises NotImplementedError: Raised when the input time format is not supported.
+    :return: The timestamp as a datetime.
+    :rtype: float | Iterable
+    """
+    if isinstance(time, float):
+        t = floatyear_to_datetime(time)
+    elif isinstance(time, list):
+        t = [get_datetime(n) for n in time]
+    elif isinstance(time, np.ndarray):
+        t = np.array(get_datetime(list(time)))
+    else:
+        raise NotImplementedError(
+            "Converting from this time format is not supported."
+        )
+    return t
+
+
+def datetime_to_floatyear(t: datetime) -> float:
+    """Converts a datettime into a floatyear.
+
+    :param time: The timestamp as datetime.
+    :type time: datetime
+    :return: The floatyear.
+    :rtype: float
+    """
     return t.year + ((t - datetime(t.year, 1, 1)).days / 365.25)
 
 
@@ -566,3 +615,44 @@ def floatyear_to_datetime(time: float) -> datetime:
     days = (time - year) * 365.25
     t = datetime(year, 1, 1) + timedelta(days=days)
     return t
+
+
+def reformat_inversion_results(
+    results: dict,
+    directions: list = [
+        "U",
+    ],
+) -> dict:
+    """Takes the output of :func:`u4py.analyis.processing.invert_psi_dict` and converts it to a more intuitive format.
+
+    :param results: The input dictionary
+    :type results: dict
+    :param directions: Which directions to use, defaults to ["U",] which is the only reasonable component for most fits in this project
+    :type directions: dict
+    :return: The reformatted dictionary.
+    :rtype: dict
+
+    The output dictionary contains three arrays with the times for the original data `"t"`, the first fit `"t_fit_1"` and the second fit without outliers `"t_fit_2"`. Additionally, the result for each component is saved with its respective key ["U", "E", "W"]. These nested dictionaries contain the original data `"y"`, the first fit `"y_fit_1"` and the second fit without outliers `"y_fit_2"`, each with their corresponding error denoted by the suffix `"_err"`.
+    """
+    # Dictionary of key names
+    comp_names = ["data", "sigm", "dhat", "dres"]
+    inv_res = np.reshape(
+        results["inversion_results"],
+        (3, int(len(results["inversion_results"]) / 3)),
+    )
+    output = dict()
+    for ii, drc in enumerate(directions):
+        cpn = [cn + drc for cn in comp_names]
+        output["t"] = get_datetime(results["t"])
+        output["t_fit_1"] = get_datetime(results["ori_dhat_data"]["t"][0])
+        output["t_fit_2"] = get_datetime(results["dhat_data"]["t"][0])
+        output[drc] = {
+            "y": results[cpn[0]],
+            "y_err": results[cpn[1]],
+            "y_fit_1": results["ori_dhat_data"][cpn[2]],
+            "y_fit_1_err": results["ori_dhat_data"][cpn[3]],
+            "y_fit_2": results["dhat_data"][cpn[2]],
+            "y_fit_2_err": results["dhat_data"][cpn[3]],
+            "inversion_results": inv_res[ii],
+        }
+    return output

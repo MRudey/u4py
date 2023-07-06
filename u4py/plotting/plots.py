@@ -19,9 +19,9 @@ import u4py.plotting.preparation as u4plotprep
 
 def plot_inversion_results(
     time: np.ndarray,
-    time2: np.ndarray,
-    data: dict,
-    inversion_results: dict,
+    time2: np.ndarray = np.array([]),
+    data: dict = dict(),
+    inversion_results: dict = dict(),
     save_path: os.PathLike = None,
 ):
     """Plots the results of a full inversion.
@@ -76,12 +76,13 @@ def plot_inversion_results(
     axes[0].plot(
         time[0], data["ori_dhat_data"]["dhatE"], color="C1", label="Fit"
     )
-    axes[0].plot(
-        time2[0],
-        data["dhat_data"]["dhatE"],
-        color="C2",
-        label="Fit (w/o outliers)",
-    )
+    if time2.size > 0:
+        axes[0].plot(
+            time2[0],
+            data["dhat_data"]["dhatE"],
+            color="C2",
+            label="Fit (w/o outliers)",
+        )
     axes[0].annotate(
         f"{ew_mov:.2} mm/yr", (0.05, 0.05), xycoords="axes fraction"
     )
@@ -109,7 +110,8 @@ def plot_inversion_results(
     axes[1].fill_between(ux, yed, yep, color="C0", alpha=0.5, edgecolor=None)
     axes[1].fill_between(ux, yed2, yep2, color="C0", alpha=0.5, edgecolor=None)
     axes[1].plot(time[0], data["ori_dhat_data"]["dhatU"])
-    axes[1].plot(time2[0], data["dhat_data"]["dhatU"])
+    if time2.size > 0:
+        axes[1].plot(time2[0], data["dhat_data"]["dhatU"])
     axes[1].annotate(
         f"Hebung/Senkung = {ud_mov:.2} mm/yr",
         (0.05, 0.05),

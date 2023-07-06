@@ -11,6 +11,7 @@ already present to avoid a reprocessing every function call. This can be
 overwritten by setting the keyword argument `overwrite=True`.
 """
 
+import logging
 import os
 import pickle
 from multiprocessing import Pool
@@ -23,8 +24,8 @@ from tqdm import tqdm
 import u4py.analysis.inversion as u4invert
 import u4py.analysis.other as u4other
 import u4py.utils.config as u4config
+import u4py.utils.convert as u4convert
 import u4py.utils.files as u4files
-from u4py.utils.convert import dict_to_hdf5
 
 
 def get_processing_results(
@@ -100,7 +101,7 @@ def simple_file_process(
         slc = np.nonzero(np.isfinite(y))
         time_components = simple_decomposition(time_days[slc], y[slc])
         data["time_components"] = time_components
-        dict_to_hdf5(file_path, data)
+        u4convert.dict_to_hdf5(file_path, data)
     else:
         time_components = data["time_components"]
 
@@ -164,12 +165,18 @@ def simple_decomposition(time_days: np.ndarray, y: np.ndarray) -> Tuple[float]:
     return (lin_popt[0], sin_popt[0], sin_popt[1], sin_popt[2])
 
 
-def get_decomposed_signals(data: dict) -> dict:
+def get_decomposed_signals(
+    data: dict, save_path: os.PathLike = "", overwrite: bool = False
+) -> dict:
     """Decomposes signal similar to :func:`simple_decomposition` but also
     returns the fit data.
 
     :param data: A dictionary containing the time series data of several stations (from chunked data).
     :type data: dict
+    :param save_path: The path where to save the results in a pickle, defaults to ""
+    :type save_path: os.PathLike
+    :param overwrite: Overwrite existing results if True, defaults to False
+    :type overwrite: bool, optional
     :return: A dictionary containing the results.
     :rtype: dict
 
@@ -314,7 +321,7 @@ def get_inversion_results(
 def invert_file(
     file_path: os.PathLike, overwrite: bool = False
 ) -> Tuple[float, float, np.ndarray]:
-    """Uses GrAtSiD to invert the timeseries into several components.
+    """Uses Inversion to invert the timeseries into several components.
 
     :param file_path: The path to the file to invert.
     :type file_path: os.PathLike
@@ -346,10 +353,56 @@ def invert_file(
             matrix, data, _ = u4invert.invert_time_series(data, ind=ind)
             orig_data = u4files.load_hdf5(file_path)
             orig_data["inversion_results"] = matrix
-            dict_to_hdf5(file_path, orig_data)
+            u4convert.dict_to_hdf5(file_path, orig_data)
         except:
             print(f"Inverting {fname} failed")
     else:
         matrix = data["inversion_results"]
 
     return (data["xmid"], data["ymid"], matrix)
+
+
+def invert_psi_dict(
+    data: dict, save_path: os.PathLike = "", overwrite: bool = False
+) -> list:
+    """Inverts a dictionary loaded or merged from h5-files
+
+    :param data: Data dictionary according to u4py standard (e.g. read from h5).
+    :type data: dict
+    :param save_path: The path where to save the results in a pickle.
+    :type save_path: os.PathLike
+    :param overwrite: Overwrite existing results if True, defaults to False
+    :type overwrite: bool, optional
+    :return: The matrix of components.
+    :rtype: list
+    """
+    if overwrite or not os.path.exists(save_path):
+        prepared_data = u4invert.reformat_dict(data)
+        _, prepared_data, t_1 = u4invert.invert_time_series(prepared_data)
+        ind = u4invert.remove_outliers(
+            prepared_data["ori_dhat_data"], threshold=2
+        )
+        matrix, prepared_data, t_2 = u4invert.invert_time_series(
+            prepared_data, ind=ind
+        )
+        prepared_data["inversion_results"] = matrix
+        prepared_data["ori_dhat_data"]["t"] = t_1
+        prepared_data["dhat_data"]["t"] = t_2
+
+        try:
+            os.remove(save_path)
+        except FileNotFoundError:
+            logging.info("No inversion results found. Creating new file.")
+        with open(save_path, "wb") as pkl_file:
+            pickle.dump(prepared_data, pkl_file)
+
+    elif os.path.exists(save_path):
+        _, fname = os.path.split(save_path)
+        logging.info(f"Loading from save file: {fname}")
+        with open(save_path, "rb") as pkl_file:
+            prepared_data = pickle.load(pkl_file)
+    else:
+        FileNotFoundError("No Inversion data found")
+
+    ref_data = u4convert.reformat_inversion_results(prepared_data)
+    return ref_data

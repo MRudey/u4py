@@ -196,3 +196,46 @@ def get_forward_model(
     time = np.array([u4convert.get_floatyear(t) for t in x])
     y = _full_inv_single_comp(time, *args)
     return y
+
+
+def get_timeseries_range(
+    y: np.ndarray | dict, time: np.ndarray = None
+) -> dict:
+    """Takes a time array and a component and calculates the data ranges for a nice plot.
+
+    :param y: The component array or dictionary
+    :type y: dict
+    :param time: The input time array, defaults to None
+    :type time: np.ndarray
+    :return: The data as [`t_unique`, `y_med`, `y_95`, `y_68`, `y_32`, `y_5`].
+    :rtype: dict
+
+    The input can be:
+
+    - a multidimensional numpy array, e.g., a stack of stations
+    - a dictionary from :func:`u4py.utils.convert.reformat_inversion_results`.
+
+    The resulting dictionary contains only unique time steps and medians with quantiles at each of them.
+    """
+    if isinstance(y, np.ndarray):
+        result = {
+            "y_med": np.nanmedian(y, axis=0),
+            "y_95": np.nanpercentile(y, q=95, axis=0),
+            "y_68": np.nanpercentile(y, q=68, axis=0),
+            "y_32": np.nanpercentile(y, q=32, axis=0),
+            "y_5": np.nanpercentile(y, q=5, axis=0),
+            "t_u": np.ndarray([]),
+        }
+    elif isinstance(y, dict) and time.any():
+        t_u = np.unique(time)
+        pre_mat = [y["y"][time == t] for t in t_u]
+        max_len = np.max([len(p) for p in pre_mat])
+        for ii, p in enumerate(pre_mat):
+            if len(p) < max_len:
+                p_n = np.ones((max_len,)) * np.nan
+                p_n[: len(p)] = p
+                pre_mat[ii] = p_n
+        result = get_timeseries_range(np.rot90(pre_mat))
+        result["t_u"] = t_u
+
+    return result
