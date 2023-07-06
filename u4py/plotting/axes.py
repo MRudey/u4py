@@ -15,6 +15,7 @@ All functions should follow the following template::
 from __future__ import annotations
 
 import os
+from datetime import datetime
 from functools import wraps
 from typing import Callable, Tuple
 
@@ -422,10 +423,14 @@ def plot_fit_residuals(
     """
 
     time = data["time"]
+    if isinstance(time[0], datetime):
+        time_flt = u4convert.get_floatyear(time)
     y = np.nanmedian(data["timeseries"], axis=0)
 
-    if len(fit_data) > 5:
+    if len(fit_data) > 6:
         y_fit = u4plotprep.get_forward_model(time, fit_data, direction)
+    else:
+        y_fit = u4plotprep._full_inv_single_comp(time_flt, *fit_data)
 
     y_res = y - y_fit
 
