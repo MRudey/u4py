@@ -29,7 +29,9 @@ daily GPS time series. Journal of Geophysical Research: Solid Earth, 123,
 
 """
 
+import logging
 import random
+import sys
 from typing import Tuple
 
 import numpy as np
@@ -39,11 +41,39 @@ import scipy.stats as spstats
 
 # import tensorflow as tf
 import u4py.plotting.plots as u4plots
+import u4py.utils.config as u4config
+import u4py.utils.convert as u4convert
 
 
-def create_synthetic_data() -> Tuple[dict, list]:
+def create_synthetic_data(
+    lin: float = 1.1,
+    ann_sin: float = 0.6,
+    ann_cos: float = 0.8,
+    sem_sin: float = -0.1,
+    sem_cos: float = 0.05,
+    eq_disp: list = [
+        32,
+    ],
+    t_EQdummy: list = [
+        2010.1561643,
+    ],
+) -> Tuple[dict, list]:
     """Creates a synthetic dataset for testing the inversion algorithm.
 
+    :param lin: Linear component, defaults to 1.1
+    :type lin: float, optional
+    :param ann_sin: Annual sine, defaults to 0.6
+    :type ann_sin: float, optional
+    :param ann_cos: Annual cosine, defaults to 0.8
+    :type ann_cos: float, optional
+    :param sem_sin: semiannual sine, defaults to -0.1
+    :type sem_sin: float, optional
+    :param sem_cos: semiannual cosine, defaults to 0.05
+    :type sem_cos: float, optional
+    :param eq_disp: A list of earthquake displacements, defaults to [32,]
+    :type eq_disp: list, optional
+    :param t_EQdummy: A list of earthquake times matching `eq_disp`, defaults to [ 2010.1561643, ]
+    :type t_EQdummy: list, optional
     :return: A tuple containing (`data`, `eq_list`)
     :rtype: Tuple[dict, list]
 
@@ -54,32 +84,31 @@ def create_synthetic_data() -> Tuple[dict, list]:
     The dataset covers the time from 01.01.2007 to 01.01.2015 in intervals of
     roughly one day. A simulated earthquake is generated on 27.02.2010 at
     00:56h. The synthetic dataset contains:
-        | A linear component,
-        | + two annual (sine/cosine, :math:`\\frac{\\pi}{2}`),
-        | + two semiannual components (sine/cosine, :math:`\\frac{\\pi}{4}`)
-        | + a heavyside step function with several mm of displacement and post seismic decay,
-        | + Gaussian noise.
+
+    - A linear component,
+    - two annual (sine/cosine, :math:`\\frac{\\pi}{2}`),
+    - two semiannual components (sine/cosine, :math:`\\frac{\\pi}{4}`)
+    - a heavyside step function with several mm of displacement and post seismic decay,
+    - Gaussian noise.
     """
     t = np.arange(2007, 2015, 0.003)  # sample time
-    t_EQdummy = [
-        2010.1561643,
-    ]  # simulated Earthquake
     d_noise = spstats.norm(1.5).rvs(len(t))  # noise
 
     f_Heavi = np.zeros_like(t)  # Heaviside function
-    f_Heavi[t > t_EQdummy[0]] = (
-        f_Heavi[t > t_EQdummy[0]] + 4
-    )  # EQ at t_EQdummy
+    f_eq = np.zeros_like(t)
+    for eqd, teq in zip(eq_disp, t_EQdummy):
+        f_Heavi[t > teq] = f_Heavi[t > teq] + eqd / 8  # EQ at t_EQdummy
+        f_post = np.real(3 * f_Heavi * np.log((1.0 + 0.0j) + (t - teq)))
+        f_eq += -8 * f_Heavi + f_post
 
     # Create synthetic data and uncertainties
     dataE = np.real(
-        t * 1.1
-        + 0.6 * np.sin(2 * np.pi * t)
-        + 0.8 * np.cos(2 * np.pi * t)
-        - 0.1 * np.sin(4 * np.pi * t)
-        + 0.05 * np.cos(4 * np.pi * t)
-        - 8 * f_Heavi
-        + 3 * f_Heavi * np.log((1.0 + 0.0j) + (t - t_EQdummy[0]))
+        t * lin
+        + ann_sin * np.sin(2 * np.pi * t)
+        + ann_cos * np.cos(2 * np.pi * t)
+        + sem_sin * np.sin(4 * np.pi * t)
+        + sem_cos * np.cos(4 * np.pi * t)
+        + f_eq
         + d_noise
     )
 
@@ -104,9 +133,11 @@ def invert_time_series(
     t_EQ: list = [],
     ind: slice = 0,
     num_coeffs: int = 1,
+    directions: list = ["dataE", "dataN", "dataU"],
     t_relative: float = 0,
     use_tensorflow: bool = False,
     use_sparse: bool = True,
+    use_sigma: bool = False,
 ) -> Tuple:
     """Inverts a timeseries.
 
@@ -118,16 +149,18 @@ def invert_time_series(
     :type t_EQ: list, optional
     :param ind: Slice to use only a certain time window, defaults to 0
     :type ind: slice, optional
-    :param num_coeffs: The number of parameters to use for inversion,
-      defaults to 1
+    :param num_coeffs: The number of parameters to use for inversion, defaults to 1
     :type num_coeffs: int, optional
+    :param directions: Which directions to use for inversion, defaults to ["dataE","dataN", "dataU"]
+    :type directions: list, optional
     :param t_relative: A time offset used mainly for plotting, defaults to 0
     :type t_relative: float, optional
-    :param use_tensorflow: Use tensorflow for inversion (WIP),
-      defaults to False
+    :param use_tensorflow: Use tensorflow for inversion (WIP), defaults to False
     :type use_tensorflow: bool, optional
     :param use_sparse: Uses sparse matrices for saving memory, defaults to True
     :type use_sparse: bool, optional
+    :param use_sigma: Uses weighted fitting with measurement errors, defaults to False
+    :type use_sigma: bool, optional
     :return: A tuple with the original data, forward model and time series.
     :rtype: Tuple
 
@@ -207,9 +240,7 @@ def invert_time_series(
     # Set up the DATA vector D, TIME vector T and SIGMA-matrix S
     # Dimension:
     #     (#samples * #components * #stations) x 1
-    data_vector = np.hstack(
-        (data["dataE"][ind], data["dataN"][ind], data["dataU"][ind])
-    )
+    data_vector = np.hstack([data[kk][ind] for kk in directions])
 
     # Define SIGMA-Matrix
     # In the best case this should be a full-matrix with correlated errors. In
@@ -218,30 +249,15 @@ def invert_time_series(
     # Dimension:
     #    (#samples * #components * #stations) x
     #    (#samples * #components * #stations)
-    if "sigmE" in data.keys():
+    if use_sigma:
+        sigm_primer = np.hstack(
+            [data[kk.replace("data", "sigm")][ind] ** 2 for kk in directions]
+        )
         if use_sparse:
-            sigma_matrix = spsparse.csc_matrix(
-                spsparse.diags(
-                    np.hstack(
-                        (
-                            data["sigmE"][ind] ** 2,
-                            data["sigmN"][ind] ** 2,
-                            data["sigmU"][ind] ** 2,
-                        )
-                    )
-                )
-            )
+            sigma_matrix = spsparse.csc_matrix(spsparse.diags(sigm_primer))
 
         else:
-            sigma_matrix = np.diag(
-                np.hstack(
-                    (
-                        data["sigmE"][ind] ** 2,
-                        data["sigmN"][ind] ** 2,
-                        data["sigmU"][ind] ** 2,
-                    )
-                )
-            )
+            sigma_matrix = np.diag(sigm_primer)
     else:
         sigma_matrix = np.array([])
     # Define TIME-vector
@@ -264,6 +280,7 @@ def _clean_inputs(data: dict):
     :param data: The data matrix containing some nonfinite data points
     :type data: dict
     """
+    logging.info("Cleaning inputs.")
     for k in data.keys():
         if isinstance(data[k], np.ndarray):
             ind = np.nonzero(np.isfinite(data[k]))
@@ -286,10 +303,17 @@ def _invert(
     :return: The inverted model parameters (dimension: #parameters x 1)
     :rtype: np.ndarray
     """
+    logging.info("Starting inversion.")
+    logging.info("Transposing G-Matrix.")
     Gp = G.conj().transpose()
-    iS = spsparse.linalg.inv(S)
-    M = iS @ D @ Gp @ spsparse.linalg.inv(spsparse.csc_matrix(G @ iS @ Gp))
-
+    if S.size > 0:
+        logging.info("Inverting S.")
+        iS = spsparse.linalg.inv(S)
+        logging.info("Summing Matrices.")
+        M = iS @ D @ Gp @ spsparse.linalg.inv(spsparse.csc_matrix(G @ iS @ Gp))
+    else:
+        logging.info("No sigma. Using unweighted inversion.")
+        M = D @ Gp @ spsparse.linalg.inv(spsparse.csc_matrix(G @ Gp))
     return M.astype("e")
 
 
@@ -307,16 +331,23 @@ def _invert_np(
     :return: The inverted model parameters (dimension: #parameters x 1)
     :rtype: np.ndarray
     """
+    logging.info("Setting up matrices.")
     G = G.astype(np.double)
     D = D.astype(np.double)
     S = S.astype(np.double)
+    logging.info("Transposing G-Matrix.")
     Gp = G.conj().transpose()
     if S.any():
+        logging.info("Inverting S.")
         iS = np.linalg.inv(S)
+        logging.info("Inverting Matrix Component.")
         iM1 = np.linalg.inv(np.matmul(np.matmul(G, iS), Gp))
+        logging.info("Summing Matrices.")
         M = np.matmul(np.matmul(np.matmul(iS, D), Gp), iM1)
     else:
+        logging.info("Inverting Matrix Component.")
         iM1 = np.linalg.inv(np.matmul(Gp, G))
+        logging.info("Summing Matrices.")
         M = np.matmul(np.matmul(iM1, D), Gp)
 
     return M.astype("e")
@@ -366,6 +397,7 @@ def forward_model(
     The big `dhat`-vector is separated into different components. The
     residuals are also added to the returned data dictionary.
     """
+    logging.info("Calulating Forward Model.")
     if isinstance(G, spsparse.csr_matrix):
         dhat = np.reshape(M @ G, (3, len(data["t"][ind])))
     else:
@@ -405,19 +437,20 @@ def _prepare_g_functions(
     :type t_AT: list, optional
     :param t_EQ: A list with times of known earthquakes, defaults to []
     :type t_EQ: list, optional
-    :param num_coeffs: The number of parameters to use for inversion,
-      defaults to 1
+    :param num_coeffs: The number of parameters to use for g_TREND, defaults to 2 (linear and square)
     :type num_coeffs: int, optional
     :param t_relative: A time offset used mainly for plotting, defaults to 0
     :type t_relative: float, optional
     :return: The Green's functions as a stacked matrix.
     :rtype: Tuple[np.ndarray]
     """
-    # Mini-g-function == TREND ============ 1- parameters ==== A1 to Ax ====
+    logging.info("Setting Mini-g-function == TREND")
+    # Mini-g-function == TREND ============ 1-n parameters ==== A1 to Ax ====
     g_TREND = [
         (data["t"][ind] - t_relative) ** ii for ii in range(num_coeffs + 1)
     ]
 
+    logging.info("Setting Mini-g-function == ANNUAL")
     # Mini-g-function == ANNUAL SIGNAL ==== 4 parameters ===== B1 to B4 ===
     g_ANNUAL = [
         np.sin(2 * np.pi * data["t"][ind]),
@@ -426,6 +459,7 @@ def _prepare_g_functions(
         np.cos(4 * np.pi * data["t"][ind]),
     ]
 
+    logging.info("Setting Mini-g-function == HEAVISIDE")
     # Mini-g-function == HEAVISIDE ======== 1-2 parameters ===== C1, C2 ===
 
     # a) HEAVISIDE AT -- Find offsets in the AT-list
@@ -475,6 +509,7 @@ def _prepare_g_functions(
             )
             g_HEAVIS_EQ.append(g_heq)
 
+    logging.info("Setting Mini-g-function == POSTS")
     # Mini-g-function == POSTS. SIGNAL === 1- parameters ===== D1 - Dx  ===
     # Attention!!!:
     # The postseismic signal is A-PRIORI-LINEARIZED by assuming dT = 1
@@ -483,14 +518,13 @@ def _prepare_g_functions(
     # non-linear approximation for each station, or group of stations later
     # on!!!!
 
-    if not t_EQ or len(data["t"]) < 101 or np.sum(t_EQ == 2010.1562) == 0:
+    if not t_EQ or len(data["t"]) < 101:
         g_POSTSM = []
     else:
-        for ii in np.argwhere(t_EQ == 2010.1562):
-            iA = data["t"][ind] <= t_EQ[ii]
-            iB = data["t"][ind] > t_EQ[ii]
-            g_POSTSM[iA, 1] = np.zeros(sum(iA), 1)
-            g_POSTSM[iB, 1] = np.log(1 + (data["t"][ind[iB]] - t_EQ[ii]))
+        g_POSTSM = np.zeros_like(data["t"])
+        for te in t_EQ:
+            iB = data["t"][ind] > te
+            g_POSTSM[iB] = g_POSTSM[iB] + np.log(1 + (data["t"][iB] - te))
     return (
         np.asarray(g_TREND),
         np.asarray(g_ANNUAL),
@@ -508,6 +542,7 @@ def _set_g_matrices(
     :return: Block diagonal matrix of stacked Green's function for each component.
     :rtype: np.ndarray
     """
+    logging.info("Setting up G-Matrices")
     gE = np.array([])
     saved_locals = locals()
     for k in saved_locals:
@@ -533,6 +568,7 @@ def remove_outliers(data: dict, threshold: float = 2.5) -> np.ndarray:
     :return: The indices to remove the outliers.
     :rtype: np.ndarray
     """
+    logging.info("Removing Outliers.")
     thrE = threshold * np.std(data["dresE"])
     thrN = threshold * np.std(data["dresN"])
     thrU = threshold * np.std(data["dresU"])
@@ -558,6 +594,7 @@ def medianize_station(
     :return: The medianized dataset.
     :rtype: dict
     """
+    logging.info("Medianizing Station.")
     time_series = dict()
     for k in ["dataE", "dataN", "dataU"]:
         time_series[k] = np.nanmedian(
@@ -580,17 +617,33 @@ def stack_data(dataset: dict) -> dict:
     :return: A dataset with the all data stacked together.
     :rtype: dict
     """
+    logging.info("Stacking Data.")
     data_keys = [kk for kk in dataset.keys() if kk != "inversion_results"]
     time_series = dict()
-    time_series["t"] = np.hstack([dataset[kk]["t"] for kk in data_keys])
-    asorted = np.argsort(time_series["t"])
-    time_series["t"] = time_series["t"][asorted]
-    for k in ["dataE", "dataN", "dataU"]:
-        time_series[k] = np.hstack([dataset[kk][k] for kk in data_keys])
-        time_series[k] = time_series[k][asorted]
-    time_series["station"] = [dataset[kk]["station"] for kk in data_keys]
-    time_series["xmid"] = dataset[data_keys[0]]["xmid"]
-    time_series["ymid"] = dataset[data_keys[0]]["ymid"]
+
+    # Used when dataset is a dictionary of individual stations
+    if isinstance(dataset[data_keys[0]], dict):
+        time_series["t"] = np.hstack([dataset[kk]["t"] for kk in data_keys])
+        asorted = np.argsort(time_series["t"])
+        time_series["t"] = time_series["t"][asorted]
+        for k in ["dataE", "dataN", "dataU"]:
+            time_series[k] = np.hstack([dataset[kk][k] for kk in data_keys])
+            time_series[k] = time_series[k][asorted]
+        time_series["station"] = [dataset[kk]["station"] for kk in data_keys]
+        time_series["xmid"] = dataset[data_keys[0]]["xmid"]
+        time_series["ymid"] = dataset[data_keys[0]]["ymid"]
+
+    # Used when dataset is already a merged dataset with numpy arrays
+    else:
+        time_series["t"] = np.tile(
+            u4convert.get_floatyear(dataset["time"]),
+            (dataset["num_points"], 1),
+        )
+        for k in ["dataE", "dataN", "dataU"]:
+            time_series[k] = dataset["timeseries"]
+        time_series["station"] = [str(nn) for nn in dataset["ps_id"]]
+        time_series["xmid"] = dataset["xmid"]
+        time_series["ymid"] = dataset["ymid"]
     return time_series
 
 
@@ -620,31 +673,50 @@ def print_inversion_results(matrix: np.ndarray):
     :param matrix: The inverted model parameters.
     :type matrix: np.ndarray
     """
-    names = [
-        "--- Direction East-West ---\n",
-        " [0]        yaxis-offset:",
-        " [1]        linear trend:",
-        " [2]    semi-annual sine:",
-        " [3]  semi-annual cosine:",
-        " [4]         annual sine:",
-        " [5]       annual cosine:",
-        "\n--- Direction North-South (same as EW) ---\n"
-        " [6]        yaxis-offset:",
-        " [7]        linear trend:",
-        " [8]    semi-annual sine:",
-        " [9]  semi-annual cosine:",
-        " [10]        annual sine:",
-        " [11]      annual cosine:",
-        "\n--- Direction Up-Down ---\n",
-        " [12]       yaxis-offset:",
-        " [13]       linear trend:",
-        " [14]   semi-annual sine:",
-        " [15] semi-annual cosine:",
-        " [16]        annual sine:",
-        " [17]      annual cosine:",
+
+    directions = [
+        "--- East-West ---",
+        "--- North-South ---",
+        "--- Up-Down ---",
     ]
-    for ann, val in zip(names, matrix):
-        print(ann, f"{val:.2}")
+
+    names = [
+        " [0] yaxis-offset (year=0!):",
+        " [1]           linear trend:",
+        " [2]       semi-annual sine:",
+        " [3]     semi-annual cosine:",
+        " [4]            annual sine:",
+        " [5]          annual cosine:",
+        " [6]              eq offset:",
+        " [7]           post-seismic:",
+    ]
+    try:
+        matr_resh = np.reshape(matrix, (3, int(len(matrix) / 3)))
+        for ii, direct in enumerate(matr_resh):
+            print(directions[ii])
+            for jj, val in enumerate(direct):
+                print(f"{names[jj]} {val:2f}")
+    except TypeError:
+        raise TypeError("Something is wrong with the solution matrix.")
+
+
+def reformat_dict(dataset: dict) -> dict:
+    """Reformats a loaded hdf5 dictionary to match with the one for inversion.
+
+    :param dataset: The dictionary to reformat.
+    :type dataset: dict
+    :return: The reformatted dictionary.
+    :rtype: dict
+    """
+    data = stack_data(dataset)
+    data["sigmE"] = np.ones_like(data["dataE"])
+    data["sigmN"] = np.ones_like(data["dataE"])
+    data["sigmU"] = np.ones_like(data["dataE"])
+
+    if "inversion_results" in dataset.keys():
+        data["inversion_results"] = dataset["inversion_results"]
+
+    return data
 
 
 def invert_test_data():
@@ -655,12 +727,34 @@ def invert_test_data():
         2. Then :func:`invert_time_series`
         3. Finally :func:`u4py.plotting.plots.plot_inversion_results`.
     """
-    data, t_EQ = create_synthetic_data()
+
+    logging.basicConfig(
+        format="[%(levelname)s] %(funcName)s: %(message)s",
+        stream=sys.stdout,
+        level=u4config.log_level,
+    )
+    syn_comps = [
+        1.1,
+        0.6,
+        0.8,
+        -0.1,
+        0.05,
+        [
+            32,
+        ],
+        [
+            2010.1561643,
+        ],
+    ]
+    data, t_EQ = create_synthetic_data(*syn_comps)
     matrix, data, time_vector = invert_time_series(
         data, t_EQ=t_EQ, use_sparse=True
     )
     inversion_results = {"matrix_ori": matrix}
-    u4plots.plot_inversion_results(time_vector, data, inversion_results)
+    print_inversion_results(matrix)
+    u4plots.plot_inversion_results(
+        time=time_vector, data=data, inversion_results=inversion_results
+    )
 
 
 if __name__ == "__main__":
