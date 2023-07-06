@@ -282,7 +282,10 @@ def _clean_inputs(data: dict):
         if isinstance(data[k], np.ndarray):
             ind = np.nonzero(np.isfinite(data[k]))
             for k in data.keys():
-                if isinstance(data[k], np.ndarray):
+                if (
+                    isinstance(data[k], np.ndarray)
+                    and k != "inversion_results"
+                ):
                     data[k] = data[k][ind]
 
 

@@ -282,10 +282,8 @@ def get_data(
         "floatyear": u4convert.get_floatyear,
     }
     data = dict()
-    if ind.any():
+    if ind.size > 0:
         ind.sort()
-    else:
-        ind = None
     for k in h5group.keys():
         if k == "time" or k == "t":
             v = np.array(
@@ -293,15 +291,15 @@ def get_data(
             )
         else:
             try:
-                if ind is None:
-                    v = h5group[k][()]
-                else:
+                if ind.size > 0:
                     v = h5group[k][ind]
+                else:
+                    v = h5group[k][()]
             except ValueError:
-                if ind is None:
-                    v = h5group[k][()]
-                else:
+                if ind.size > 0:
                     v = h5group[k][ind]
+                else:
+                    v = h5group[k][()]
             except TypeError:
                 v = get_data(h5group[k], timefmt, ind=ind)
         data[k] = v

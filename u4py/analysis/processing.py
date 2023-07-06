@@ -347,15 +347,12 @@ def invert_file(
     matrix = None
 
     if "inversion_results" not in data.keys() or overwrite:
-        try:
-            _, data, _ = u4invert.invert_time_series(data)
-            ind = u4invert.remove_outliers(data["ori_dhat_data"], threshold=2)
-            matrix, data, _ = u4invert.invert_time_series(data, ind=ind)
-            orig_data = u4files.load_hdf5(file_path)
-            orig_data["inversion_results"] = matrix
-            u4convert.dict_to_hdf5(file_path, orig_data)
-        except:
-            print(f"Inverting {fname} failed")
+        _, data, _ = u4invert.invert_time_series(data)
+        ind = u4invert.remove_outliers(data["ori_dhat_data"], threshold=2)
+        matrix, data, _ = u4invert.invert_time_series(data, ind=ind)
+        orig_data = u4files.load_hdf5(file_path)
+        orig_data["inversion_results"] = matrix
+        u4convert.dict_to_hdf5(file_path, orig_data)
     else:
         matrix = data["inversion_results"]
 
