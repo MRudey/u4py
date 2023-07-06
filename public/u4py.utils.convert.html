@@ -49,6 +49,7 @@
 <li><a class="reference internal" href="#u4py.utils.convert.convert_dpkg"><code class="docutils literal notranslate"><span class="pre">convert_dpkg()</span></code></a></li>
 <li><a class="reference internal" href="#u4py.utils.convert.convert_shapefile"><code class="docutils literal notranslate"><span class="pre">convert_shapefile()</span></code></a></li>
 <li><a class="reference internal" href="#u4py.utils.convert.create_datasets"><code class="docutils literal notranslate"><span class="pre">create_datasets()</span></code></a></li>
+<li><a class="reference internal" href="#u4py.utils.convert.datetime_to_floatyear"><code class="docutils literal notranslate"><span class="pre">datetime_to_floatyear()</span></code></a></li>
 <li><a class="reference internal" href="#u4py.utils.convert.dbf_to_dict"><code class="docutils literal notranslate"><span class="pre">dbf_to_dict()</span></code></a></li>
 <li><a class="reference internal" href="#u4py.utils.convert.dict_to_hdf5"><code class="docutils literal notranslate"><span class="pre">dict_to_hdf5()</span></code></a></li>
 <li><a class="reference internal" href="#u4py.utils.convert.floatyear_to_datetime"><code class="docutils literal notranslate"><span class="pre">floatyear_to_datetime()</span></code></a></li>
@@ -196,6 +197,23 @@
 </dd></dl>
 
 <dl class="py function">
+<dt class="sig sig-object py" id="u4py.utils.convert.datetime_to_floatyear">
+<span class="sig-prename descclassname"><span class="pre">u4py.utils.convert.</span></span><span class="sig-name descname"><span class="pre">datetime_to_floatyear</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">t</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">datetime</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">float</span></span></span><a class="headerlink" href="#u4py.utils.convert.datetime_to_floatyear" title="Permalink to this definition"></a></dt>
+<dd><p>Converts a datettime into a floatyear.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>time</strong> (<em>datetime</em>) – The timestamp as datetime.</p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>The floatyear.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>float</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
 <dt class="sig sig-object py" id="u4py.utils.convert.dbf_to_dict">
 <span class="sig-prename descclassname"><span class="pre">u4py.utils.convert.</span></span><span class="sig-name descname"><span class="pre">dbf_to_dict</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">file_in</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">PathLike</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">dict</span></span></span><a class="headerlink" href="#u4py.utils.convert.dbf_to_dict" title="Permalink to this definition"></a></dt>
 <dd><p>Generic conversion of dbf file to dictionary keeping the names of the original file.</p>
@@ -289,11 +307,11 @@ strings following ISO date formatting.</p>
 
 <dl class="py function">
 <dt class="sig sig-object py" id="u4py.utils.convert.get_floatyear">
-<span class="sig-prename descclassname"><span class="pre">u4py.utils.convert.</span></span><span class="sig-name descname"><span class="pre">get_floatyear</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">timestr</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">datetime</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">float</span></span></span><a class="headerlink" href="#u4py.utils.convert.get_floatyear" title="Permalink to this definition"></a></dt>
+<span class="sig-prename descclassname"><span class="pre">u4py.utils.convert.</span></span><span class="sig-name descname"><span class="pre">get_floatyear</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">time</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">datetime</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">Iterable</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">float</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">Iterable</span></span></span><a class="headerlink" href="#u4py.utils.convert.get_floatyear" title="Permalink to this definition"></a></dt>
 <dd><p>Converts from an ISO date or datetime to a float based year.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
-<dd class="field-odd"><p><strong>timestr</strong> (<em>str</em><em> | </em><em>datetime</em>) – The input timestamp to convert.</p>
+<dd class="field-odd"><p><strong>time</strong> (<em>str</em><em> | </em><em>datetime</em><em> | </em><em>Iterable</em>) – The input timestamp to convert.</p>
 </dd>
 <dt class="field-even">Raises<span class="colon">:</span></dt>
 <dd class="field-even"><p><strong>NotImplementedError</strong> – Raised when the input time format is not supported.</p>
@@ -302,7 +320,7 @@ strings following ISO date formatting.</p>
 <dd class="field-odd"><p>The timestamp as a float based year.</p>
 </dd>
 <dt class="field-even">Return type<span class="colon">:</span></dt>
-<dd class="field-even"><p>float</p>
+<dd class="field-even"><p>float | Iterable</p>
 </dd>
 </dl>
 </dd></dl>

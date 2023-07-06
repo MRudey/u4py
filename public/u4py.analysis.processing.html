@@ -48,6 +48,7 @@
 <li><a class="reference internal" href="#u4py.analysis.processing.get_inversion_results"><code class="docutils literal notranslate"><span class="pre">get_inversion_results()</span></code></a></li>
 <li><a class="reference internal" href="#u4py.analysis.processing.get_processing_results"><code class="docutils literal notranslate"><span class="pre">get_processing_results()</span></code></a></li>
 <li><a class="reference internal" href="#u4py.analysis.processing.invert_file"><code class="docutils literal notranslate"><span class="pre">invert_file()</span></code></a></li>
+<li><a class="reference internal" href="#u4py.analysis.processing.invert_psi_dict"><code class="docutils literal notranslate"><span class="pre">invert_psi_dict()</span></code></a></li>
 <li><a class="reference internal" href="#u4py.analysis.processing.linear_component"><code class="docutils literal notranslate"><span class="pre">linear_component()</span></code></a></li>
 <li><a class="reference internal" href="#u4py.analysis.processing.process_file_list"><code class="docutils literal notranslate"><span class="pre">process_file_list()</span></code></a></li>
 <li><a class="reference internal" href="#u4py.analysis.processing.simple_decomposition"><code class="docutils literal notranslate"><span class="pre">simple_decomposition()</span></code></a></li>
@@ -115,12 +116,16 @@ overwritten by setting the keyword argument <cite>overwrite=True</cite>.</p>
 
 <dl class="py function">
 <dt class="sig sig-object py" id="u4py.analysis.processing.get_decomposed_signals">
-<span class="sig-prename descclassname"><span class="pre">u4py.analysis.processing.</span></span><span class="sig-name descname"><span class="pre">get_decomposed_signals</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">data</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">dict</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">dict</span></span></span><a class="headerlink" href="#u4py.analysis.processing.get_decomposed_signals" title="Permalink to this definition"></a></dt>
+<span class="sig-prename descclassname"><span class="pre">u4py.analysis.processing.</span></span><span class="sig-name descname"><span class="pre">get_decomposed_signals</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">data</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">dict</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">save_path</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">PathLike</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">''</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">overwrite</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">dict</span></span></span><a class="headerlink" href="#u4py.analysis.processing.get_decomposed_signals" title="Permalink to this definition"></a></dt>
 <dd><p>Decomposes signal similar to <a class="reference internal" href="#u4py.analysis.processing.simple_decomposition" title="u4py.analysis.processing.simple_decomposition"><code class="xref py py-func docutils literal notranslate"><span class="pre">simple_decomposition()</span></code></a> but also
 returns the fit data.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
-<dd class="field-odd"><p><strong>data</strong> (<em>dict</em>) – A dictionary containing the time series data of several stations (from chunked data).</p>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>data</strong> (<em>dict</em>) – A dictionary containing the time series data of several stations (from chunked data).</p></li>
+<li><p><strong>save_path</strong> (<em>os.PathLike</em>) – The path where to save the results in a pickle, defaults to “”</p></li>
+<li><p><strong>overwrite</strong> (<em>bool</em><em>, </em><em>optional</em>) – Overwrite existing results if True, defaults to False</p></li>
+</ul>
 </dd>
 <dt class="field-even">Returns<span class="colon">:</span></dt>
 <dd class="field-even"><p>A dictionary containing the results.</p>
@@ -225,6 +230,27 @@ overwrite=True</p>
 </ol>
 </div></blockquote>
 <p>A documentation of the algorithm is given in <a class="reference internal" href="u4py.analysis.inversion.html#u4py.analysis.inversion.invert_time_series" title="u4py.analysis.inversion.invert_time_series"><code class="xref py py-func docutils literal notranslate"><span class="pre">u4py.analysis.inversion.invert_time_series()</span></code></a>.</p>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="u4py.analysis.processing.invert_psi_dict">
+<span class="sig-prename descclassname"><span class="pre">u4py.analysis.processing.</span></span><span class="sig-name descname"><span class="pre">invert_psi_dict</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">data</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">dict</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">save_path</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">PathLike</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">''</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">overwrite</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">list</span></span></span><a class="headerlink" href="#u4py.analysis.processing.invert_psi_dict" title="Permalink to this definition"></a></dt>
+<dd><p>Inverts a dictionary loaded or merged from h5-files</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>data</strong> (<em>dict</em>) – Data dictionary according to u4py standard (e.g. read from h5).</p></li>
+<li><p><strong>save_path</strong> (<em>os.PathLike</em>) – The path where to save the results in a pickle.</p></li>
+<li><p><strong>overwrite</strong> (<em>bool</em><em>, </em><em>optional</em>) – Overwrite existing results if True, defaults to False</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>The matrix of components.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>list</p>
+</dd>
+</dl>
 </dd></dl>
 
 <dl class="py function">
