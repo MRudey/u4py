@@ -22,7 +22,7 @@ To install the module you need to use pip together with git:
 
 ::
 
-   pip install pip@git+https://git-ce.rwth-aachen.de/rudolf/u4py
+   python -m pip install git+https://git-ce.rwth-aachen.de/rudolf/u4py
 
 This automatically installs the module :doc:`u4py <../u4py>` including all prerequisites to your Python environment.
 
