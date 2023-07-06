@@ -55,12 +55,14 @@
 <li><a class="reference internal" href="#u4py.utils.convert.floatyear_to_datetime"><code class="docutils literal notranslate"><span class="pre">floatyear_to_datetime()</span></code></a></li>
 <li><a class="reference internal" href="#u4py.utils.convert.get_bounds"><code class="docutils literal notranslate"><span class="pre">get_bounds()</span></code></a></li>
 <li><a class="reference internal" href="#u4py.utils.convert.get_chunks"><code class="docutils literal notranslate"><span class="pre">get_chunks()</span></code></a></li>
+<li><a class="reference internal" href="#u4py.utils.convert.get_datetime"><code class="docutils literal notranslate"><span class="pre">get_datetime()</span></code></a></li>
 <li><a class="reference internal" href="#u4py.utils.convert.get_floatyear"><code class="docutils literal notranslate"><span class="pre">get_floatyear()</span></code></a></li>
 <li><a class="reference internal" href="#u4py.utils.convert.gnss_dat_to_dict"><code class="docutils literal notranslate"><span class="pre">gnss_dat_to_dict()</span></code></a></li>
 <li><a class="reference internal" href="#u4py.utils.convert.gps_week_to_time"><code class="docutils literal notranslate"><span class="pre">gps_week_to_time()</span></code></a></li>
 <li><a class="reference internal" href="#u4py.utils.convert.key_to_time"><code class="docutils literal notranslate"><span class="pre">key_to_time()</span></code></a></li>
 <li><a class="reference internal" href="#u4py.utils.convert.numba_chunking"><code class="docutils literal notranslate"><span class="pre">numba_chunking()</span></code></a></li>
 <li><a class="reference internal" href="#u4py.utils.convert.psi_dbf_to_dict"><code class="docutils literal notranslate"><span class="pre">psi_dbf_to_dict()</span></code></a></li>
+<li><a class="reference internal" href="#u4py.utils.convert.reformat_inversion_results"><code class="docutils literal notranslate"><span class="pre">reformat_inversion_results()</span></code></a></li>
 <li><a class="reference internal" href="#u4py.utils.convert.slice_array"><code class="docutils literal notranslate"><span class="pre">slice_array()</span></code></a></li>
 </ul>
 </li>
@@ -306,6 +308,26 @@ strings following ISO date formatting.</p>
 </dd></dl>
 
 <dl class="py function">
+<dt class="sig sig-object py" id="u4py.utils.convert.get_datetime">
+<span class="sig-prename descclassname"><span class="pre">u4py.utils.convert.</span></span><span class="sig-name descname"><span class="pre">get_datetime</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">time</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">Iterable</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">float</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">Iterable</span></span></span><a class="headerlink" href="#u4py.utils.convert.get_datetime" title="Permalink to this definition"></a></dt>
+<dd><p>Converts from a float based year to datetime.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>time</strong> (<em>float</em><em> | </em><em>Iterable</em>) – The input timestamp to convert.</p>
+</dd>
+<dt class="field-even">Raises<span class="colon">:</span></dt>
+<dd class="field-even"><p><strong>NotImplementedError</strong> – Raised when the input time format is not supported.</p>
+</dd>
+<dt class="field-odd">Returns<span class="colon">:</span></dt>
+<dd class="field-odd"><p>The timestamp as a datetime.</p>
+</dd>
+<dt class="field-even">Return type<span class="colon">:</span></dt>
+<dd class="field-even"><p>float | Iterable</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
 <dt class="sig sig-object py" id="u4py.utils.convert.get_floatyear">
 <span class="sig-prename descclassname"><span class="pre">u4py.utils.convert.</span></span><span class="sig-name descname"><span class="pre">get_floatyear</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">time</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">datetime</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">Iterable</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">float</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">Iterable</span></span></span><a class="headerlink" href="#u4py.utils.convert.get_floatyear" title="Permalink to this definition"></a></dt>
 <dd><p>Converts from an ISO date or datetime to a float based year.</p>
@@ -417,6 +439,27 @@ coordinates, PS_ID and timeseries for each entry.</p>
 <dd class="field-odd"><p>dict</p>
 </dd>
 </dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="u4py.utils.convert.reformat_inversion_results">
+<span class="sig-prename descclassname"><span class="pre">u4py.utils.convert.</span></span><span class="sig-name descname"><span class="pre">reformat_inversion_results</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">results</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">dict</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">directions</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">list</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">['U']</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">dict</span></span></span><a class="headerlink" href="#u4py.utils.convert.reformat_inversion_results" title="Permalink to this definition"></a></dt>
+<dd><p>Takes the output of <code class="xref py py-func docutils literal notranslate"><span class="pre">u4py.analyis.processing.invert_psi_dict()</span></code> and converts it to a more intuitive format.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>results</strong> (<em>dict</em>) – The input dictionary</p></li>
+<li><p><strong>directions</strong> (<em>dict</em>) – Which directions to use, defaults to [“U”,] which is the only reasonable component for most fits in this project</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>The reformatted dictionary.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>dict</p>
+</dd>
+</dl>
+<p>The output dictionary contains three arrays with the times for the original data <cite>“t”</cite>, the first fit <cite>“t_fit_1”</cite> and the second fit without outliers <cite>“t_fit_2”</cite>. Additionally, the result for each component is saved with its respective key [“U”, “E”, “W”]. These nested dictionaries contain the original data <cite>“y”</cite>, the first fit <cite>“y_fit_1”</cite> and the second fit without outliers <cite>“y_fit_2”</cite>, each with their corresponding error denoted by the suffix <cite>“_err”</cite>.</p>
 </dd></dl>
 
 <dl class="py function">

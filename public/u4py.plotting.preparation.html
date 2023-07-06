@@ -47,6 +47,7 @@
 <li><a class="reference internal" href="#u4py.plotting.preparation.convert_results_for_grid"><code class="docutils literal notranslate"><span class="pre">convert_results_for_grid()</span></code></a></li>
 <li><a class="reference internal" href="#u4py.plotting.preparation.get_forward_model"><code class="docutils literal notranslate"><span class="pre">get_forward_model()</span></code></a></li>
 <li><a class="reference internal" href="#u4py.plotting.preparation.get_linfit_each_timeseries"><code class="docutils literal notranslate"><span class="pre">get_linfit_each_timeseries()</span></code></a></li>
+<li><a class="reference internal" href="#u4py.plotting.preparation.get_timeseries_range"><code class="docutils literal notranslate"><span class="pre">get_timeseries_range()</span></code></a></li>
 <li><a class="reference internal" href="#u4py.plotting.preparation.make_gridded_data"><code class="docutils literal notranslate"><span class="pre">make_gridded_data()</span></code></a></li>
 </ul>
 </li>
@@ -161,6 +162,32 @@ datasets. Good for creating scatter plots.</p>
 <dd class="field-odd"><p>np.ndarray</p>
 </dd>
 </dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="u4py.plotting.preparation.get_timeseries_range">
+<span class="sig-prename descclassname"><span class="pre">u4py.plotting.preparation.</span></span><span class="sig-name descname"><span class="pre">get_timeseries_range</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">y</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">ndarray</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">dict</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">time</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">ndarray</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">dict</span></span></span><a class="headerlink" href="#u4py.plotting.preparation.get_timeseries_range" title="Permalink to this definition"></a></dt>
+<dd><p>Takes a time array and a component and calculates the data ranges for a nice plot.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>y</strong> (<em>dict</em>) – The component array or dictionary</p></li>
+<li><p><strong>time</strong> (<em>np.ndarray</em>) – The input time array, defaults to None</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>The data as [<cite>t_unique</cite>, <cite>y_med</cite>, <cite>y_95</cite>, <cite>y_68</cite>, <cite>y_32</cite>, <cite>y_5</cite>].</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>dict</p>
+</dd>
+</dl>
+<p>The input can be:</p>
+<ul class="simple">
+<li><p>a multidimensional numpy array, e.g., a stack of stations</p></li>
+<li><p>a dictionary from <a class="reference internal" href="u4py.utils.convert.html#u4py.utils.convert.reformat_inversion_results" title="u4py.utils.convert.reformat_inversion_results"><code class="xref py py-func docutils literal notranslate"><span class="pre">u4py.utils.convert.reformat_inversion_results()</span></code></a>.</p></li>
+</ul>
+<p>The resulting dictionary contains only unique time steps and medians with quantiles at each of them.</p>
 </dd></dl>
 
 <dl class="py function">
