@@ -241,7 +241,7 @@ def get_data_at_well(h5path: os.PathLike) -> Tuple[dict, str]:
     :rtype: Tuple[dict, str]
     """
     points = u4files.get_point_points(
-        (464350, 5516100), 300, "OilWell", h5path
+        (464350, 5516100), 500, "OilWell", h5path
     )
     data = u4files.load_data_from_points(h5path, points)
     return data, points.crs
@@ -349,6 +349,7 @@ def add_timeseries(
     legend: bool = True,
     shareax: Axes = None,
     inversion_path: os.PathLike = "",
+    overwrite: bool = False,
 ):
     """Adds a timeseries with fit to the given axis.
 
@@ -365,7 +366,9 @@ def add_timeseries(
     :param inversion_path: The path to the inversion data file for this region, defaults to ""
     :type inversion_path: os.PathLike, optional
     """
-    results = u4proc.invert_psi_dict(data, save_path=inversion_path)
+    results = u4proc.invert_psi_dict(
+        data, save_path=inversion_path, overwrite=overwrite
+    )
 
     u4ax.plot_timeseries_fit(ax=ax, results=results)
     ax.set_title(title)
