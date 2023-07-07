@@ -40,30 +40,36 @@ def main():
         logging.info("Processing list:")
         for ii, file_name in enumerate(file_list):
             logging.info(f" {ii:03g}: {file_name}")
-        chunk_file_list(file_list)
+        chunk_file_list(file_list, chunksize=100)
     else:
         logging.info("File List is empty. Evaluation stopped.")
         return
 
 
-def chunk_file_list(file_list):
+def chunk_file_list(file_list, chunksize):
     for file_path in file_list:  # tqdm(file_list, desc="Converting files"):
         # Get paths
         base_path, fname_ext = os.path.split(file_path)
         base_path, _ = os.path.split(base_path)
         fname, _ = os.path.splitext(fname_ext)
-        export_path = os.path.join(base_path, "Converted_gpkg")
+        export_path = os.path.join(
+            base_path, f"Converted_gpkg_chunks-{chunksize}m"
+        )
         os.makedirs(export_path, exist_ok=True)
 
         tables = u4sql.get_table_names(file_path)
         for (
             table
         ) in tables:  # tqdm(tables, desc="Reading from tables", leave=False):
-            process_table(table, file_path, export_path, fname)
+            process_table(table, file_path, export_path, fname, chunksize)
 
 
 def process_table(
-    table: str, file_path: os.PathLike, export_path: os.PathLike, fname: str
+    table: str,
+    file_path: os.PathLike,
+    export_path: os.PathLike,
+    fname: str,
+    chunksize: int,
 ):
     logging.info(f"Processing {table}.")
     data = u4sql.table_to_dict(file_path, table)
@@ -86,7 +92,11 @@ def process_table(
             chunked_path = os.path.join(export_path, "BBD_Vert")
 
         u4convert.chunk_data_numba(
-            data, chunked_path, chunksize=250, min_values=3, compress=True
+            data,
+            chunked_path,
+            chunksize=chunksize,
+            min_values=3,
+            compress=True,
         )
 
 
