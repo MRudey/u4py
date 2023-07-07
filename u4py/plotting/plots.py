@@ -338,7 +338,7 @@ def plot_gridded(
         vmax=rng,
         origin="lower",
         extent=extent,
-        cmap="RdYlBu",
+        cmap="turbo",
         zorder=1,
         alpha=0.8,
     )
@@ -392,7 +392,6 @@ def plot_gridded(
         axes[0].set_ylim(bounds[1], bounds[3])
     u4plotfmt.map_style(ax=axes[0])
     u4plotfmt.map_style(ax=axes[1])
-
     # Save or show plot
     if save_path:
         fig.savefig(save_path)

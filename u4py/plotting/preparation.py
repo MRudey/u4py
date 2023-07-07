@@ -25,71 +25,66 @@ def convert_results_for_grid(
     :return: A tuple of lists containing `[xmids, ymids, lintrend, sinusoid, chunk_size]`
     :rtype: Tuple[list, list, list, list, int]
     """
-    """"""
-    xmids = []
-    ymids = []
-    lintrend = []
-    sinusoid = []
-    for xmid, ymid, components in results:
-        xmids.append(xmid)
-        ymids.append(ymid)
+
+    ncomps = len(results[0][2])
+    if ncomps < 5:  # Simple fit data
+        converted_data = np.ones((4, len(results))) * np.nan
+    else:  # Full inversion data
+        converted_data = np.ones((7, len(results))) * np.nan
+
+    for ii, (xmid, ymid, components) in enumerate(results):
+        converted_data[0, ii] = xmid
+        converted_data[1, ii] = ymid
         if components is not None:
-            if len(components) < 5:  # Simple fit data
-                lintrend.append(components[0] * 365.25)
-                sinusoid.append(np.abs(components[1]))
+            if ncomps < 5:  # Simple fit data
+                converted_data[2, ii] = components[0] * 365.25
+                converted_data[3, ii] = np.abs(components[1])
             else:  # Full inversion data
-                lintrend.append(components[13])
-                sinusoid.append(np.abs(components[14]))
-        else:
-            sinusoid.append(np.nan)
-    return xmids, ymids, lintrend, sinusoid, chunk_size
+                for jj in range(5):
+                    converted_data[2 + jj, ii] = components[jj + 1]
+
+    calc_chunk_size = (
+        np.round(
+            np.mean(np.diff(np.sort(np.unique(converted_data[0, :])))) / 10
+        )
+        * 10
+    )
+    if np.abs(chunk_size - calc_chunk_size) > 100:
+        raise UserWarning("The actual chunk size is off by more than 100 m!")
+    return converted_data, chunk_size
 
 
 def make_gridded_data(
-    xmids: np.ndarray,
-    ymids: np.ndarray,
-    lintrend: np.ndarray,
-    sinusoid: np.ndarray,
+    converted_data: np.ndarray,
     chunk_size: int,
 ) -> Tuple[np.ndarray, np.ndarray, tuple]:
-    """Converts the data given by :func:`convert_results_for_grid` into a nice gridded format for plotting with matplotlib's :func:`imshow`
+    """Converts the data given by :func:`convert_results_for_grid` into a nice gridded format for plotting with matplotlib's :func:`imshow`.
 
-    :param xmids: The x coordinates of the midpoints.
-    :type xmids: np.ndarray
-    :param ymids: The y coordinates of the midpoints.
-    :type ymids: np.ndarray
-    :param lintrend: The linear trend for the region
-    :type lintrend: np.ndarray
-    :param sinusoid: The sinusoidal variation for the region
-    :type sinusoid: np.ndarray
+    :param converted_data: The data in a single 2D matrix.
+    :type converted_data: np.ndarray
     :param chunk_size: Chunk size to generate X and Y Grid
     :type chunk_size: int
     :return: Linear and sinusoidal components each as array and the extend for plotting.
     :rtype: Tuple[np.ndarray, np.ndarray, tuple]
     """
-
-    minx = np.min(xmids)
-    maxx = np.max(xmids) + chunk_size
-    miny = np.min(ymids)
-    maxy = np.max(ymids) + chunk_size
+    rows, cols = converted_data.shape
+    minx = np.min(converted_data[0, :]) - 0.5 * chunk_size
+    maxx = np.max(converted_data[0, :]) + 0.5 * chunk_size
+    miny = np.min(converted_data[1, :]) - 0.5 * chunk_size
+    maxy = np.max(converted_data[1, :]) + 0.5 * chunk_size
     extent = (minx, maxx, miny, maxy)
     x = np.arange(minx, maxx, chunk_size)
     y = np.arange(miny, maxy, chunk_size)
 
-    XX, YY = np.meshgrid(x, y)
-    lin_2d = np.ones_like(XX) * np.nan
-    sin_2d = np.ones_like(XX) * np.nan
+    grids = np.ones((rows - 2, len(y), len(x))) * np.nan
 
-    for xi, yi, li, si in zip(xmids, ymids, lintrend, sinusoid):
-        xn = int((xi - minx) / chunk_size)
-        yn = int((yi - miny) / chunk_size)
-        lin_2d[yn, xn] = li
-        sin_2d[yn, xn] = si
+    for col in range(cols):
+        xn = int((converted_data[0, col] - minx) / chunk_size)
+        yn = int((converted_data[1, col] - miny) / chunk_size)
+        for ii in range(2, rows):
+            grids[ii - 2, yn, xn] = converted_data[ii, col]
 
-    lin_2d = spimg.median_filter(lin_2d, 3)
-    sin_2d = spimg.median_filter(sin_2d, 3)
-
-    return lin_2d, sin_2d, extent
+    return grids, extent
 
 
 def clean_points(
