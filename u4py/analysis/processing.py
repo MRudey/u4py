@@ -287,12 +287,14 @@ def get_common_files(
 
 
 def get_inversion_results(
-    file_list: list, overwrite: bool = False
+    file_list: list, result_path: os.PathLike = "", overwrite: bool = False
 ) -> Tuple[dict, int]:
     """Gets the inversion results for the files in file list.
 
     :param file_list: A list of files to get the inversion results from.
     :type file_list: list
+    :param file_list: The path of the results file, defaults to ""
+    :type file_list: os.PathLike
     :param overwrite: Overwrite existing results if True, defaults to False
     :type overwrite: bool, optional
     :return: A tuple containing a dictionary with the inversion results and chunk size.
@@ -303,15 +305,21 @@ def get_inversion_results(
     not the case or if `overwrite=True` it processes all files in the list and
     creates this file.
     """
-    folder_path = os.path.split(file_list[0])[0]
-    base_path = os.path.split(os.path.split(folder_path)[0])[0]
-    result_folder = os.path.join(base_path, "INSAR_results")
-    result_path = os.path.join(result_folder, "inversion_results.pkl")
+    if not result_path:
+        folder_path = os.path.split(file_list[0])[0]
+        base_path = os.path.split(os.path.split(folder_path)[0])[0]
+        result_folder = os.path.join(base_path, "INSAR_results")
+        result_path = os.path.join(result_folder, "inversion_results.pkl")
+    else:
+        result_folder = os.path.split(result_path)[0]
     if os.path.exists(result_path) and not overwrite:
         with open(result_path, "rb") as pkl_file:
             results, chunk_size = pickle.load(pkl_file)
     else:
         results, chunk_size = process_file_list(file_list, fnc=invert_file)
+        result_path = os.path.join(
+            result_folder, f"inversion_results_{chunk_size}.pkl"
+        )
         os.makedirs(result_folder, exist_ok=True)
         with open(result_path, "wb") as pkl_file:
             pickle.dump((results, chunk_size), pkl_file)
