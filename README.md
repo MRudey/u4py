@@ -7,7 +7,7 @@ This repository contains an installable Python module, Jupyter notebooks and scr
 To install the module you need to use pip together with git:
 
 ```bash
-pip install pip@git+https://git-ce.rwth-aachen.de/rudolf/u4py
+pip install git+https://git-ce.rwth-aachen.de/rudolf/u4py
 ```
 
 This automatically installs the module u4py including all prerequisites to your Python environment.
