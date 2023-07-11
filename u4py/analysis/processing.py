@@ -383,13 +383,16 @@ def invert_psi_dict(
     """
     if overwrite or not os.path.exists(save_path):
         prepared_data = u4invert.reformat_dict(data)
-        _, prepared_data, t_1 = u4invert.invert_time_series(prepared_data)
+        ori_matrix, prepared_data, t_1 = u4invert.invert_time_series(
+            prepared_data
+        )
         ind = u4invert.remove_outliers(
             prepared_data["ori_dhat_data"], threshold=2
         )
         matrix, prepared_data, t_2 = u4invert.invert_time_series(
             prepared_data, ind=ind
         )
+        prepared_data["ori_inversion_results"] = ori_matrix
         prepared_data["inversion_results"] = matrix
         prepared_data["ori_dhat_data"]["t"] = t_1
         prepared_data["dhat_data"]["t"] = t_2

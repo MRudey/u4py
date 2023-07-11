@@ -16,6 +16,7 @@ import h5py
 import numpy as np
 import pandas as pd
 import rasterio as rio
+import shapely
 from rasterio.transform import Affine
 from tqdm import tqdm
 
@@ -190,21 +191,26 @@ def merge_data(data: dict, data_new: dict) -> dict:
     :return: Merged data dictionary
     :rtype: dict
     """
-
-    if data_new["chunk_size"] != data["chunk_size"]:
-        raise NotImplementedError(
-            "You are attempting to merge two files with different chunk size."
+    try:
+        # Type 1 (xyz notation)
+        if data_new["chunk_size"] != data["chunk_size"]:
+            raise NotImplementedError(
+                "You are attempting to merge two files with different chunk size."
+            )
+        data["num_points"] += data_new["num_points"]
+        data["ps_id"] = np.hstack((data["ps_id"], data_new["ps_id"]))
+        data["x"] = np.hstack((data["x"], data_new["x"]))
+        data["xmid"] = np.mean(data["x"])
+        data["y"] = np.hstack((data["y"], data_new["y"]))
+        data["ymid"] = np.mean(data["y"])
+        data["z"] = np.hstack((data["z"], data_new["z"]))
+        data["timeseries"] = np.vstack(
+            (data["timeseries"], data_new["timeseries"])
         )
-    data["num_points"] += data_new["num_points"]
-    data["ps_id"] = np.hstack((data["ps_id"], data_new["ps_id"]))
-    data["x"] = np.hstack((data["x"], data_new["x"]))
-    data["xmid"] = np.mean(data["x"])
-    data["y"] = np.hstack((data["y"], data_new["y"]))
-    data["ymid"] = np.mean(data["y"])
-    data["z"] = np.hstack((data["z"], data_new["z"]))
-    data["timeseries"] = np.vstack(
-        (data["timeseries"], data_new["timeseries"])
-    )
+    except KeyError:
+        # Type 2 (dataE, dataN, dataU notation)
+        data.update(data_new)
+        data["inversion_results"] = None
     return data
 
 
@@ -393,9 +399,12 @@ def get_region_points(
         if isinstance(region, gp.GeoDataFrame):
             points = u4spatial._select_points_region(region, psi_file_path)
         elif isinstance(region, pd.Series):
-            points = u4spatial._select_points_region(
-                region, psi_file_path, crs=crs
+            points = u4spatial._select_points_region(region, psi_file_path)
+        elif isinstance(region, shapely.Polygon):
+            region_gdf = gp.GeoDataFrame(
+                geometry=gp.GeoSeries(region), crs=crs
             )
+            points = u4spatial._select_points_region(region_gdf, psi_file_path)
         points.to_file(point_file_path)
         points = gp.GeoDataFrame.from_file(point_file_path)
     return points, point_files_folder
@@ -496,6 +505,7 @@ def load_data_from_points(
     :return: The data as a merged, single dictionary.
     :rtype: dict
     """
+    logging.info("Loading data from points.")
     # Loading for a single file:
     if input_path.endswith(".h5"):
         ind = points.source_ind.to_numpy()
@@ -613,5 +623,12 @@ def get_rois(file_path: os.PathLike) -> list[Tuple[str, gp.GeoDataFrame]]:
     :rtype: list[Tuple[str, gp.GeoDataFrame]]
     """
     regions = gp.read_file(file_path)
-    rois = [(name, geom) for name, geom in zip(regions.Name, regions.geometry)]
+    try:
+        rois = [
+            (name, geom) for name, geom in zip(regions.Name, regions.geometry)
+        ]
+    except AttributeError:  # If no `Name` field exists just use numbers
+        rois = []
+        for ii, geom in enumerate(regions.geometry):
+            rois.append((str(ii), geom))
     return rois

@@ -640,6 +640,7 @@ def reformat_inversion_results(
         results["inversion_results"],
         (3, int(len(results["inversion_results"]) / 3)),
     )
+    dir_ii = {"E": 0, "N": 1, "U": 2}
     output = dict()
     for ii, drc in enumerate(directions):
         cpn = [cn + drc for cn in comp_names]
@@ -653,6 +654,6 @@ def reformat_inversion_results(
             "y_fit_1_err": results["ori_dhat_data"][cpn[3]],
             "y_fit_2": results["dhat_data"][cpn[2]],
             "y_fit_2_err": results["dhat_data"][cpn[3]],
-            "inversion_results": inv_res[ii],
+            "inversion_results": inv_res[ii + dir_ii[drc]],
         }
     return output

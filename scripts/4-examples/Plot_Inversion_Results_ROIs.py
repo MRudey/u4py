@@ -39,7 +39,9 @@ def main():
         project["paths"]["output_path"], "regions_of_interest"
     )
     os.makedirs(save_path, exist_ok=True)
-    converted_data, chunk_size = u4plotprep.convert_results_for_grid(data[0])
+    converted_data, chunk_size = u4plotprep.convert_results_for_grid(
+        data[0], chunk_size=100
+    )
     grids, extend = u4plotprep.make_gridded_data(converted_data, chunk_size)
     regions = u4files.get_rois(project["paths"]["piloten_path"])
     for name, roi in tqdm(regions, desc="Generating plots from regions"):
