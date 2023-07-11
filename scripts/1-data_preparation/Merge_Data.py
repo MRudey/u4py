@@ -18,7 +18,7 @@ def main():
     with Pool(u4config.cpu_count) as p:
         list(
             tqdm(
-                p.imap_unordered(u4convert.merge_data, inputs),
+                p.imap_unordered(u4files.merge_directions, inputs),
                 total=len(inputs),
                 desc="Merging files",
                 leave=False,

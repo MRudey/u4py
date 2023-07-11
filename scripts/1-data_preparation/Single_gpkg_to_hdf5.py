@@ -38,9 +38,14 @@ def main():
     # START PROCESSING
     if file_list:
         logging.info("Processing list:")
-        for ii, file_name in enumerate(file_list):
-            logging.info(f" {ii:03g}: {file_name}")
-        chunk_file_list(file_list, chunksize=100)
+        if isinstance(file_list, list):
+            for ii, file_name in enumerate(file_list):
+                logging.info(f" {ii:03g}: {file_name}")
+        else:
+            file_list = [
+                file_list,
+            ]
+        chunk_file_list(file_list, chunksize=2500)
     else:
         logging.info("File List is empty. Evaluation stopped.")
         return
