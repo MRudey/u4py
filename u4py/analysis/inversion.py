@@ -29,6 +29,7 @@ This code has been transcribed from the Matlab source code of S. Metzger, GFZ-Po
 import logging
 import random
 import sys
+from datetime import datetime
 from typing import Tuple
 
 import numpy as np
@@ -709,6 +710,8 @@ def reformat_dict(dataset: dict) -> dict:
     :rtype: dict
     """
     data = stack_data(dataset)
+    if isinstance(data["t"][0], datetime):
+        data["t"] = u4convert.get_floatyear(data["t"])
     data["sigmE"] = np.ones_like(data["dataE"])
     data["sigmN"] = np.ones_like(data["dataE"])
     data["sigmU"] = np.ones_like(data["dataE"])

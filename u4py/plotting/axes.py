@@ -253,7 +253,10 @@ def plot_timeseries_fit(
             *results["U"]["inversion_results"],
         )
         ax.plot(
-            u4convert.get_datetime(t_q), y_fit, color=color, label="Inversion"
+            u4convert.get_datetime(t_q),
+            y_fit,
+            color=color,
+            label="Inversion",
         )
         ax.annotate(
             "Longterm Trend: %.1f mm/a"

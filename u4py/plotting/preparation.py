@@ -41,7 +41,7 @@ def convert_results_for_grid(
                 converted_data[3, ii] = np.abs(components[1])
             else:  # Full inversion data
                 for jj in range(5):
-                    converted_data[2 + jj, ii] = components[jj + 1]
+                    converted_data[2 + jj, ii] = components[jj + 13]
 
     calc_chunk_size = (
         np.round(
@@ -68,10 +68,10 @@ def make_gridded_data(
     :rtype: Tuple[np.ndarray, np.ndarray, tuple]
     """
     rows, cols = converted_data.shape
-    minx = np.min(converted_data[0, :]) - 0.5 * chunk_size
-    maxx = np.max(converted_data[0, :]) + 0.5 * chunk_size
-    miny = np.min(converted_data[1, :]) - 0.5 * chunk_size
-    maxy = np.max(converted_data[1, :]) + 0.5 * chunk_size
+    minx = np.min(converted_data[0, :])
+    maxx = np.max(converted_data[0, :]) + chunk_size
+    miny = np.min(converted_data[1, :])
+    maxy = np.max(converted_data[1, :]) + chunk_size
     extent = (minx, maxx, miny, maxy)
     x = np.arange(minx, maxx, chunk_size)
     y = np.arange(miny, maxy, chunk_size)
