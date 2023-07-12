@@ -5,7 +5,6 @@ Contains functions to modify or reformat data for plotting. This module helps to
 from typing import Callable, Tuple
 
 import numpy as np
-import scipy.ndimage as spimg
 import scipy.optimize as spopt
 import scipy.stats as spstats
 
@@ -72,9 +71,14 @@ def make_gridded_data(
     maxx = np.max(converted_data[0, :]) + chunk_size
     miny = np.min(converted_data[1, :])
     maxy = np.max(converted_data[1, :]) + chunk_size
-    extent = (minx, maxx, miny, maxy)
-    x = np.arange(minx, maxx, chunk_size)
+    x = np.arange(minx, maxx, chunk_size) + chunk_size
     y = np.arange(miny, maxy, chunk_size)
+    extent = (
+        np.min(x) - 0.5 * chunk_size,
+        np.max(x) + 0.5 * chunk_size,
+        np.min(y) - 0.5 * chunk_size,
+        np.max(y) + 0.5 * chunk_size,
+    )
 
     grids = np.ones((rows - 2, len(y), len(x))) * np.nan
 

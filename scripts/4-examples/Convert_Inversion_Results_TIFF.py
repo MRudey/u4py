@@ -19,15 +19,22 @@ def main():
         ],
         interactive=False,
     )
-
-    data = u4files.get_pickled_inversion_results(
-        project["paths"]["results_path"]
-    )
+    is_normal = True
     _, fname = os.path.split(project["paths"]["results_path"])
     fname, _ = os.path.splitext(fname)
-    converted_data, chunk_size = u4plotprep.convert_results_for_grid(
-        data[0], chunk_size=2500
-    )
+
+    if is_normal:
+        data = u4files.get_pickled_inversion_results(
+            project["paths"]["results_path"]
+        )
+        converted_data, chunk_size = u4plotprep.convert_results_for_grid(
+            data[0], chunk_size=2500
+        )
+    else:
+        data = u4files.get_all_pickle_data(project["paths"]["results_path"])
+        converted_data, chunk_size = u4plotprep.convert_results_for_grid(
+            data[1], chunk_size=50
+        )
     grids, extend = u4plotprep.make_gridded_data(converted_data, chunk_size)
     grid_names = [
         "linear_trend",

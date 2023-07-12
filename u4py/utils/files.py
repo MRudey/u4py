@@ -9,7 +9,7 @@ import os
 import pickle as pkl
 from datetime import datetime
 from tkinter import TclError, Tk, filedialog
-from typing import Tuple
+from typing import Iterable, Tuple
 
 import geopandas as gp
 import h5py
@@ -632,3 +632,20 @@ def get_rois(file_path: os.PathLike) -> list[Tuple[str, gp.GeoDataFrame]]:
         for ii, geom in enumerate(regions.geometry):
             rois.append((str(ii), geom))
     return rois
+
+
+def get_all_pickle_data(
+    file_path: os.PathLike,
+) -> list[Tuple[float, float, Iterable]]:
+    """Gets pickled data for all stations.
+
+    :param file_path: The file to the pickled data.
+    :type file_path: os.PathLike
+    :return: The data separated into first and second fit.
+    :rtype: list[Tuple[float, float, Iterable]]
+    """
+    with open(file_path, "rb") as pkl_file:
+        data = pkl.load(pkl_file)
+        fit_1 = [a[0] for a in data if a[0]]
+        fit_2 = [a[1] for a in data if a[1]]
+        return (fit_1, fit_2)
