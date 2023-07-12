@@ -13,7 +13,7 @@ import u4py.utils.files as u4files
 def main():
     u4cmds.load(module_descript=__doc__)
     file_list = u4files.get_file_list(
-        folder_path="/mnt/Raid/Umwelt4/Converted_gpkg/Insar_chunks/L3/merged/"
+        folder_path="/mnt/Raid/Umwelt4/Converted_gpkg_chunks-100m/Insar_chunks/L3/merged"
     )
     # file_list = u4files.get_file_list(folder_path=u4config.in_path)
     u4process.get_inversion_results(file_list, overwrite=True)

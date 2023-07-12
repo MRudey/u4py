@@ -15,7 +15,7 @@ import logging
 import os
 import pickle
 from multiprocessing import Pool
-from typing import Callable, Tuple
+from typing import Callable, Iterable, Tuple
 
 import numpy as np
 from scipy import optimize as spopt
@@ -136,7 +136,7 @@ def process_file_list(
             tqdm(
                 p.imap_unordered(fnc, file_list),
                 total=len(file_list),
-                desc="Processing files",
+                desc="Processing file list",
                 leave=False,
             )
         )
@@ -418,3 +418,98 @@ def invert_psi_dict(
 
     ref_data = u4convert.reformat_inversion_results(prepared_data)
     return ref_data
+
+
+def inversion_map_worker(data: dict) -> Tuple[Tuple, Tuple]:
+    """Worker function to map the inversion of a dictionary with parallel processing.
+
+    :param data: The input data
+    :type data: dict
+    :return: The results of the first and second fit as a tuple including x and y coordinates.
+    :rtype: Tuple[Tuple, Tuple]
+
+    Returns the data as a tuple of (`x`, `y`, `results`) for each direction.
+    In case the inversion somehow goes wrong, (None, None) is returned.
+    """
+
+    try:
+        (matrix_ori, data, _) = u4invert.invert_time_series(data)
+        ind = u4invert.remove_outliers(data["ori_dhat_data"], threshold=2)
+        matrix, data, _ = u4invert.invert_time_series(data, ind=ind)
+        results = (
+            (data["xmid"], data["ymid"], matrix_ori),
+            (data["xmid"], data["ymid"], matrix),
+        )
+        return results
+    except:
+        logging.info("Inversion failed")
+        return (None, None)
+
+
+def batch_mapping(fnc_args: Iterable, fnc: Callable, desc: str) -> list:
+    """Maps the function over a pool of workers.
+
+    :param fnc_args: The list of data to be processed.
+    :type fnc_args: Iterable
+    :param fnc: The function to be mapped.
+    :type fnc: Callable
+    :param desc: The description to show in the progressbar.
+    :type desc: str
+    :return: The results as a list.
+    :rtype: list
+    """
+    with Pool(u4config.cpu_count) as p:
+        results = list(
+            tqdm(
+                p.imap_unordered(inversion_map_worker, fnc_args),
+                total=len(fnc_args),
+                desc=desc,
+            )
+        )
+    return results
+
+
+def get_extracts(data: dict) -> dict:
+    """Gets a list of arguments for :func:`u4py.analysis.processing.inversion_map_worker` used for parallel processing.
+
+    :param data: The data dictionary loaded from `inversion_results_all.pkl`.
+    :type data: dict
+    :return: The arguments needed to invert the data.
+    :rtype: dict
+    """
+    extracts = [
+        extraction_worker(data, ii)
+        for ii in tqdm(
+            range(len(data["vertikal"]["ps_id"])),
+            # range(10000),
+            desc="Extracting Data",
+        )
+    ]
+
+    return extracts
+
+
+def extraction_worker(data: dict, ii: int) -> dict:
+    """Worker for parallel data extraction from the dictionary.
+
+    :param data: The data dictionary.
+    :type data: dict
+    :param ii: The index of the vertikal dataset to be extracted.
+    :type ii: int
+    :param jj: The index of the east-west dataset to be extracted.
+    :type jj: int
+    :return: A dictionary with the reformatted data.
+    :rtype: dict
+    """
+    if data["vertikal"]["ps_id"][ii] != data["Ost_West"]["ps_id"][ii]:
+        raise IndexError("Mismatching indices")
+    extract = u4convert.reformat_gpkg(
+        data["vertikal"]["x"][ii],
+        data["vertikal"]["y"][ii],
+        data["vertikal"]["z"][ii],
+        data["vertikal"]["ps_id"][ii],
+        data["vertikal"]["time"],
+        data["vertikal"]["timeseries"][ii, :],
+        data["Ost_West"]["timeseries"][ii, :],
+    )
+    return extract

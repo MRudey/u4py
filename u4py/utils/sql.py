@@ -247,3 +247,18 @@ def table_to_dict(file_path: os.PathLike, table: str) -> dict:
         }
 
     return output
+
+
+def load_tables(file_path: os.PathLike) -> dict:
+    """Loads content of all tables in the given sql database and returns as a data dictionary.
+
+    :param file_path: The input database.
+    :type file_path: os.PathLike
+    :return: The output dictionary.
+    :rtype: dict
+    """
+    data = dict()
+    tables = get_table_names(file_path)
+    for table in tqdm(tables, desc="Reading from tables"):
+        data[table] = table_to_dict(file_path, table)
+    return data

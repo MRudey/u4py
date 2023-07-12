@@ -45,7 +45,7 @@ def main():
             file_list = [
                 file_list,
             ]
-        chunk_file_list(file_list, chunksize=2500)
+        chunk_file_list(file_list, chunksize=100)
     else:
         logging.info("File List is empty. Evaluation stopped.")
         return
@@ -66,15 +66,17 @@ def chunk_file_list(file_list, chunksize):
         for (
             table
         ) in tables:  # tqdm(tables, desc="Reading from tables", leave=False):
-            process_table(table, file_path, export_path, fname, chunksize)
+            process_table(
+                table, file_path, export_path, chunksize, min_values=1
+            )
 
 
 def process_table(
     table: str,
     file_path: os.PathLike,
     export_path: os.PathLike,
-    fname: str,
     chunksize: int,
+    min_values: int,
 ):
     logging.info(f"Processing {table}.")
     data = u4sql.table_to_dict(file_path, table)
@@ -100,7 +102,7 @@ def process_table(
             data,
             chunked_path,
             chunksize=chunksize,
-            min_values=3,
+            min_values=min_values,
             compress=True,
         )
 

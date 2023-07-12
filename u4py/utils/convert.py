@@ -288,7 +288,7 @@ def chunk_data_numba(
         )
 
 
-@jit(parallel=True)
+@jit(parallel=True, nopython=False)
 def numba_chunking(
     total: int,
     chunk_list: list,
@@ -657,3 +657,47 @@ def reformat_inversion_results(
             "inversion_results": inv_res[ii + dir_ii[drc]],
         }
     return output
+
+
+def reformat_gpkg(
+    x: float,
+    y: float,
+    z: float,
+    ps_id: int,
+    time: np.ndarray,
+    dataU: np.ndarray,
+    dataE: np.ndarray,
+) -> dict:
+    """Reformats the data found in the loaded `inversion_results_all.pkl` to be used with the inversion algorithm. The data in the file is formatted as loaded from the tables in the gpkg file.
+
+    :param x: The x coordinate.
+    :type x: float
+    :param y: The y coordinate.
+    :type y: float
+    :param z: The z coordinate.
+    :type z: float
+    :param ps_id: The persistent scatterer ID (station number).
+    :type ps_id: int
+    :param time: The time axis.
+    :type time: np.ndarray
+    :param dataU: The data for up and down motion.
+    :type dataU: np.ndarray
+    :param dataE: The data for east/west motion.
+    :type dataE: np.ndarray
+    :return: A suitably formatted dictionary.
+    :rtype: dict
+    """
+    data = {
+        "t": get_floatyear(time),
+        "dataE": dataE,
+        "dataN": dataE,
+        "dataU": dataU,
+        "sigmE": np.ones_like(dataE),
+        "sigmN": np.ones_like(dataE),
+        "sigmU": np.ones_like(dataU),
+        "station": ps_id,
+        "xmid": x,
+        "ymid": y,
+        "z": z,
+    }
+    return data
