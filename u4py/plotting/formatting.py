@@ -92,9 +92,9 @@ def coordinate_formatter(x: float, pos: int) -> str:
     """
     pre = str(int(x // 1000))
     post = "%03i" % (int(x % 1000))
-    if post == "000":
-        post = "0"
-    out = "$^{" + pre[:-1] + "}" + pre[-1] + post + "$"
+    # if post == "000":
+    #     post = "0"
+    out = "$" + pre[:-1] + "^{" + pre[-1] + post + "}$"
     return out
 
 

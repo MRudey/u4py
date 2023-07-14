@@ -128,12 +128,11 @@ def plot_pdf(
     :return: Returns the frozen distribution object or a tuple with object, figure and axis.
     :rtype: spstats.distributions.rv_frozen | Tuple[spstats.distributions.rv_frozen, Figure, Axes]
     """
-    raise NotImplementedError("Implement the return of stat vals...")
-    # xlims = ax.get_xlim()
-    # ax.hist(y, "auto", density=True)
-    # t_x = np.linspace(xlims[0], xlims[1], 100)
-    # stat_vals = fnc.fit(y)
-    # ax.plot(t_x, fnc.pdf(t_x, *stat_vals))
+    ax.hist(y, "auto", density=True)
+    xlims = ax.get_xlim()
+    t_x = np.linspace(xlims[0], xlims[1], 100)
+    stat_vals = fnc.fit(y)
+    ax.plot(t_x, fnc.pdf(t_x, *stat_vals))
 
 
 @_add_or_create
@@ -317,8 +316,8 @@ def add_shapefile(
     :type shp_path: os.PathLike
     :param ax: The axis to add the plot to (optional).
     :type ax: Axes
-    :param crx: The target coordinate system as accepted by GeoPandas (default: {"EPSG:23032"}).
-    :type crx: str
+    :param crs: The target coordinate system as accepted by GeoPandas (default: {"EPSG:23032"}).
+    :type crs: str
     :param kwargs: Additional arguments passed to shape.plot(). See GeoPandas documentation.
     :type kwargs: dict
     :return: The figure and axis if there was no axis specified.
@@ -406,7 +405,11 @@ def plot_inversion_fit(
 
 @_add_or_create
 def plot_fit_residuals(
-    data: dict, fit_data: tuple, ax: Axes, direction: str = "UD", **kwargs
+    data: dict,
+    fit_data: tuple | dict,
+    ax: Axes,
+    direction: str = "UD",
+    **kwargs,
 ) -> Tuple[Figure, Axes] | None:
     """Creates a plot with the residuals of the data and selected fit.
 
@@ -424,20 +427,28 @@ def plot_fit_residuals(
     :return: The figure and axis if there was no axis specified.
     :rtype: Tuple[Figure, Axes] | None
     """
+    if isinstance(fit_data, tuple):
+        time = data["time"]
+        if isinstance(time[0], datetime):
+            time_flt = u4convert.get_floatyear(time)
+        y = np.nanmedian(data["timeseries"], axis=0)
 
-    time = data["time"]
-    if isinstance(time[0], datetime):
-        time_flt = u4convert.get_floatyear(time)
-    y = np.nanmedian(data["timeseries"], axis=0)
+        if len(fit_data) > 6:
+            y_fit = u4plotprep.get_forward_model(time, fit_data, direction)
+        else:
+            y_fit = u4plotprep._full_inv_single_comp(time_flt, *fit_data)
 
-    if len(fit_data) > 6:
-        y_fit = u4plotprep.get_forward_model(time, fit_data, direction)
-    else:
-        y_fit = u4plotprep._full_inv_single_comp(time_flt, *fit_data)
+        y_res = y - y_fit
 
-    y_res = y - y_fit
+        ax.plot(time, y_res, ".", label="Residuals", **kwargs)
 
-    ax.plot(time, y_res, ".", label="Residuals", **kwargs)
+    elif isinstance(fit_data, dict):
+        quantiles = u4plotprep.get_timeseries_range(
+            time=fit_data["t_fit_2"], y=fit_data["U"], key="y_fit_2_err"
+        )
+        plot_quantile_timeseries(
+            quantiles["t_u"], quantiles, ax=ax, color="C0"
+        )
 
 
 @_add_or_create

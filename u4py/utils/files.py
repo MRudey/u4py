@@ -397,14 +397,20 @@ def get_region_points(
         points = gp.GeoDataFrame.from_file(point_file_path)
     else:
         if isinstance(region, gp.GeoDataFrame):
-            points = u4spatial._select_points_region(region, psi_file_path)
+            points = u4spatial._select_points_region(
+                region, psi_file_path, crs=crs
+            )
         elif isinstance(region, pd.Series):
-            points = u4spatial._select_points_region(region, psi_file_path)
+            points = u4spatial._select_points_region(
+                region, psi_file_path, crs=crs
+            )
         elif isinstance(region, shapely.Polygon):
             region_gdf = gp.GeoDataFrame(
                 geometry=gp.GeoSeries(region), crs=crs
             )
-            points = u4spatial._select_points_region(region_gdf, psi_file_path)
+            points = u4spatial._select_points_region(
+                region_gdf, psi_file_path, crs=crs
+            )
         points.to_file(point_file_path)
         points = gp.GeoDataFrame.from_file(point_file_path)
     return points, point_files_folder

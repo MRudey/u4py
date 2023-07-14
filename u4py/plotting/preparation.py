@@ -198,7 +198,7 @@ def get_forward_model(
 
 
 def get_timeseries_range(
-    y: np.ndarray | dict, time: np.ndarray = None
+    y: np.ndarray | dict, time: np.ndarray = None, key: str = "y"
 ) -> dict:
     """Takes a time array and a component and calculates the data ranges for a nice plot.
 
@@ -227,7 +227,7 @@ def get_timeseries_range(
         }
     elif isinstance(y, dict) and time.any():
         t_u = np.unique(time)
-        pre_mat = [y["y"][time == t] for t in t_u]
+        pre_mat = [y[key][time == t] for t in t_u]
         max_len = np.max([len(p) for p in pre_mat])
         for ii, p in enumerate(pre_mat):
             if len(p) < max_len:
