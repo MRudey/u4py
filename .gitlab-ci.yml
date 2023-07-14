@@ -2,7 +2,9 @@ pages:
   stage: deploy
   environment: production
   script:
-      - echo "Setting up Pages."
+      - pip install sphinx sphinx_rtd_theme
+      - cd doc
+      - make clean & make html
   artifacts:
     paths:
       - public
