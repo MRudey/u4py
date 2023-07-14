@@ -72,6 +72,7 @@
  | <a href="#B"><strong>B</strong></a>
  | <a href="#C"><strong>C</strong></a>
  | <a href="#D"><strong>D</strong></a>
+ | <a href="#E"><strong>E</strong></a>
  | <a href="#F"><strong>F</strong></a>
  | <a href="#G"><strong>G</strong></a>
  | <a href="#I"><strong>I</strong></a>
@@ -107,6 +108,10 @@
 
 <h2 id="B">B</h2>
 <table style="width: 100%" class="indextable genindextable"><tr>
+  <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="u4py.analysis.processing.html#u4py.analysis.processing.batch_mapping">batch_mapping() (in module u4py.analysis.processing)</a>
+</li>
+  </ul></td>
   <td style="width: 33%; vertical-align: top;"><ul>
       <li><a href="u4py.analysis.spatial.html#u4py.analysis.spatial.bounds_to_polygon">bounds_to_polygon() (in module u4py.analysis.spatial)</a>
 </li>
@@ -165,6 +170,14 @@
   </ul></td>
 </tr></table>
 
+<h2 id="E">E</h2>
+<table style="width: 100%" class="indextable genindextable"><tr>
+  <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="u4py.analysis.processing.html#u4py.analysis.processing.extraction_worker">extraction_worker() (in module u4py.analysis.processing)</a>
+</li>
+  </ul></td>
+</tr></table>
+
 <h2 id="F">F</h2>
 <table style="width: 100%" class="indextable genindextable"><tr>
   <td style="width: 33%; vertical-align: top;"><ul>
@@ -180,6 +193,8 @@
 <h2 id="G">G</h2>
 <table style="width: 100%" class="indextable genindextable"><tr>
   <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="u4py.utils.files.html#u4py.utils.files.get_all_pickle_data">get_all_pickle_data() (in module u4py.utils.files)</a>
+</li>
       <li><a href="u4py.utils.convert.html#u4py.utils.convert.get_bounds">get_bounds() (in module u4py.utils.convert)</a>
 </li>
       <li><a href="u4py.utils.convert.html#u4py.utils.convert.get_chunks">get_chunks() (in module u4py.utils.convert)</a>
@@ -196,6 +211,8 @@
 </li>
       <li><a href="u4py.analysis.processing.html#u4py.analysis.processing.get_decomposed_signals">get_decomposed_signals() (in module u4py.analysis.processing)</a>
 </li>
+      <li><a href="u4py.analysis.processing.html#u4py.analysis.processing.get_extracts">get_extracts() (in module u4py.analysis.processing)</a>
+</li>
       <li><a href="u4py.utils.files.html#u4py.utils.files.get_file_list">get_file_list() (in module u4py.utils.files)</a>
 </li>
       <li><a href="u4py.utils.files.html#u4py.utils.files.get_file_paths">get_file_paths() (in module u4py.utils.files)</a>
@@ -208,10 +225,10 @@
 </li>
       <li><a href="u4py.addons.groundwater.html#u4py.addons.groundwater.get_groundwater_data">get_groundwater_data() (in module u4py.addons.groundwater)</a>
 </li>
-      <li><a href="u4py.analysis.processing.html#u4py.analysis.processing.get_inversion_results">get_inversion_results() (in module u4py.analysis.processing)</a>
-</li>
   </ul></td>
   <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="u4py.analysis.processing.html#u4py.analysis.processing.get_inversion_results">get_inversion_results() (in module u4py.analysis.processing)</a>
+</li>
       <li><a href="u4py.plotting.preparation.html#u4py.plotting.preparation.get_linfit_each_timeseries">get_linfit_each_timeseries() (in module u4py.plotting.preparation)</a>
 </li>
       <li><a href="u4py.utils.files.html#u4py.utils.files.get_pickled_inversion_results">get_pickled_inversion_results() (in module u4py.utils.files)</a>
@@ -250,12 +267,14 @@
 <h2 id="I">I</h2>
 <table style="width: 100%" class="indextable genindextable"><tr>
   <td style="width: 33%; vertical-align: top;"><ul>
-      <li><a href="u4py.analysis.processing.html#u4py.analysis.processing.invert_file">invert_file() (in module u4py.analysis.processing)</a>
+      <li><a href="u4py.analysis.processing.html#u4py.analysis.processing.inversion_map_worker">inversion_map_worker() (in module u4py.analysis.processing)</a>
 </li>
-      <li><a href="u4py.analysis.processing.html#u4py.analysis.processing.invert_psi_dict">invert_psi_dict() (in module u4py.analysis.processing)</a>
+      <li><a href="u4py.analysis.processing.html#u4py.analysis.processing.invert_file">invert_file() (in module u4py.analysis.processing)</a>
 </li>
   </ul></td>
   <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="u4py.analysis.processing.html#u4py.analysis.processing.invert_psi_dict">invert_psi_dict() (in module u4py.analysis.processing)</a>
+</li>
       <li><a href="u4py.analysis.inversion.html#u4py.analysis.inversion.invert_test_data">invert_test_data() (in module u4py.analysis.inversion)</a>
 </li>
       <li><a href="u4py.analysis.inversion.html#u4py.analysis.inversion.invert_time_series">invert_time_series() (in module u4py.analysis.inversion)</a>
@@ -284,15 +303,17 @@
 </li>
       <li><a href="u4py.addons.gas_storage.html#u4py.addons.gas_storage.load_gas_data">load_gas_data() (in module u4py.addons.gas_storage)</a>
 </li>
-  </ul></td>
-  <td style="width: 33%; vertical-align: top;"><ul>
       <li><a href="u4py.utils.files.html#u4py.utils.files.load_hdf5">load_hdf5() (in module u4py.utils.files)</a>
 </li>
+  </ul></td>
+  <td style="width: 33%; vertical-align: top;"><ul>
       <li><a href="u4py.utils.files.html#u4py.utils.files.load_hdf5_list">load_hdf5_list() (in module u4py.utils.files)</a>
 </li>
       <li><a href="u4py.utils.files.html#u4py.utils.files.load_pickled_results">load_pickled_results() (in module u4py.utils.files)</a>
 </li>
       <li><a href="u4py.addons.rivers.html#u4py.addons.rivers.load_rhine_date">load_rhine_date() (in module u4py.addons.rivers)</a>
+</li>
+      <li><a href="u4py.utils.sql.html#u4py.utils.sql.load_tables">load_tables() (in module u4py.utils.sql)</a>
 </li>
       <li><a href="u4py.utils.files.html#u4py.utils.files.load_tiff">load_tiff() (in module u4py.utils.files)</a>
 </li>
@@ -452,10 +473,12 @@
   <td style="width: 33%; vertical-align: top;"><ul>
       <li><a href="u4py.analysis.inversion.html#u4py.analysis.inversion.reformat_dict">reformat_dict() (in module u4py.analysis.inversion)</a>
 </li>
-      <li><a href="u4py.utils.convert.html#u4py.utils.convert.reformat_inversion_results">reformat_inversion_results() (in module u4py.utils.convert)</a>
+      <li><a href="u4py.utils.convert.html#u4py.utils.convert.reformat_gpkg">reformat_gpkg() (in module u4py.utils.convert)</a>
 </li>
   </ul></td>
   <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="u4py.utils.convert.html#u4py.utils.convert.reformat_inversion_results">reformat_inversion_results() (in module u4py.utils.convert)</a>
+</li>
       <li><a href="u4py.analysis.inversion.html#u4py.analysis.inversion.remove_outliers">remove_outliers() (in module u4py.analysis.inversion)</a>
 </li>
       <li><a href="u4py.analysis.spatial.html#u4py.analysis.spatial.reproject_raster">reproject_raster() (in module u4py.analysis.spatial)</a>

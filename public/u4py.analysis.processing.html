@@ -43,10 +43,14 @@
               <!-- Local TOC -->
               <div class="local-toc"><ul>
 <li><a class="reference internal" href="#">u4py.analysis.processing module</a><ul>
+<li><a class="reference internal" href="#u4py.analysis.processing.batch_mapping"><code class="docutils literal notranslate"><span class="pre">batch_mapping()</span></code></a></li>
+<li><a class="reference internal" href="#u4py.analysis.processing.extraction_worker"><code class="docutils literal notranslate"><span class="pre">extraction_worker()</span></code></a></li>
 <li><a class="reference internal" href="#u4py.analysis.processing.get_common_files"><code class="docutils literal notranslate"><span class="pre">get_common_files()</span></code></a></li>
 <li><a class="reference internal" href="#u4py.analysis.processing.get_decomposed_signals"><code class="docutils literal notranslate"><span class="pre">get_decomposed_signals()</span></code></a></li>
+<li><a class="reference internal" href="#u4py.analysis.processing.get_extracts"><code class="docutils literal notranslate"><span class="pre">get_extracts()</span></code></a></li>
 <li><a class="reference internal" href="#u4py.analysis.processing.get_inversion_results"><code class="docutils literal notranslate"><span class="pre">get_inversion_results()</span></code></a></li>
 <li><a class="reference internal" href="#u4py.analysis.processing.get_processing_results"><code class="docutils literal notranslate"><span class="pre">get_processing_results()</span></code></a></li>
+<li><a class="reference internal" href="#u4py.analysis.processing.inversion_map_worker"><code class="docutils literal notranslate"><span class="pre">inversion_map_worker()</span></code></a></li>
 <li><a class="reference internal" href="#u4py.analysis.processing.invert_file"><code class="docutils literal notranslate"><span class="pre">invert_file()</span></code></a></li>
 <li><a class="reference internal" href="#u4py.analysis.processing.invert_psi_dict"><code class="docutils literal notranslate"><span class="pre">invert_psi_dict()</span></code></a></li>
 <li><a class="reference internal" href="#u4py.analysis.processing.linear_component"><code class="docutils literal notranslate"><span class="pre">linear_component()</span></code></a></li>
@@ -93,6 +97,48 @@ implemented. The results are either stored in an external pickle file or
 appended to the original file. Most functions first check if results are
 already present to avoid a reprocessing every function call. This can be
 overwritten by setting the keyword argument <cite>overwrite=True</cite>.</p>
+<dl class="py function">
+<dt class="sig sig-object py" id="u4py.analysis.processing.batch_mapping">
+<span class="sig-prename descclassname"><span class="pre">u4py.analysis.processing.</span></span><span class="sig-name descname"><span class="pre">batch_mapping</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">fnc_args</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Iterable</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">fnc</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Callable</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">desc</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">list</span></span></span><a class="headerlink" href="#u4py.analysis.processing.batch_mapping" title="Permalink to this definition"></a></dt>
+<dd><p>Maps the function over a pool of workers.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>fnc_args</strong> (<em>Iterable</em>) – The list of data to be processed.</p></li>
+<li><p><strong>fnc</strong> (<em>Callable</em>) – The function to be mapped.</p></li>
+<li><p><strong>desc</strong> (<em>str</em>) – The description to show in the progressbar.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>The results as a list.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>list</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="u4py.analysis.processing.extraction_worker">
+<span class="sig-prename descclassname"><span class="pre">u4py.analysis.processing.</span></span><span class="sig-name descname"><span class="pre">extraction_worker</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">data</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">dict</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ii</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">dict</span></span></span><a class="headerlink" href="#u4py.analysis.processing.extraction_worker" title="Permalink to this definition"></a></dt>
+<dd><p>Worker for parallel data extraction from the dictionary.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>data</strong> (<em>dict</em>) – The data dictionary.</p></li>
+<li><p><strong>ii</strong> (<em>int</em>) – The index of the vertikal dataset to be extracted.</p></li>
+<li><p><strong>jj</strong> (<em>int</em>) – The index of the east-west dataset to be extracted.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>A dictionary with the reformatted data.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>dict</p>
+</dd>
+</dl>
+</dd></dl>
+
 <dl class="py function">
 <dt class="sig sig-object py" id="u4py.analysis.processing.get_common_files">
 <span class="sig-prename descclassname"><span class="pre">u4py.analysis.processing.</span></span><span class="sig-name descname"><span class="pre">get_common_files</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">base_path</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">PathLike</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">path1</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">'ASCE'</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">path2</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">'DESC'</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">list</span></span></span><a class="headerlink" href="#u4py.analysis.processing.get_common_files" title="Permalink to this definition"></a></dt>
@@ -155,13 +201,31 @@ returns the fit data.</p>
 </dd></dl>
 
 <dl class="py function">
+<dt class="sig sig-object py" id="u4py.analysis.processing.get_extracts">
+<span class="sig-prename descclassname"><span class="pre">u4py.analysis.processing.</span></span><span class="sig-name descname"><span class="pre">get_extracts</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">data</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">dict</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">dict</span></span></span><a class="headerlink" href="#u4py.analysis.processing.get_extracts" title="Permalink to this definition"></a></dt>
+<dd><p>Gets a list of arguments for <a class="reference internal" href="#u4py.analysis.processing.inversion_map_worker" title="u4py.analysis.processing.inversion_map_worker"><code class="xref py py-func docutils literal notranslate"><span class="pre">u4py.analysis.processing.inversion_map_worker()</span></code></a> used for parallel processing.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>data</strong> (<em>dict</em>) – The data dictionary loaded from <cite>inversion_results_all.pkl</cite>.</p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>The arguments needed to invert the data.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>dict</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
 <dt class="sig sig-object py" id="u4py.analysis.processing.get_inversion_results">
-<span class="sig-prename descclassname"><span class="pre">u4py.analysis.processing.</span></span><span class="sig-name descname"><span class="pre">get_inversion_results</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">file_list</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">list</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">overwrite</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">Tuple</span><span class="p"><span class="pre">[</span></span><span class="pre">dict</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">int</span><span class="p"><span class="pre">]</span></span></span></span><a class="headerlink" href="#u4py.analysis.processing.get_inversion_results" title="Permalink to this definition"></a></dt>
+<span class="sig-prename descclassname"><span class="pre">u4py.analysis.processing.</span></span><span class="sig-name descname"><span class="pre">get_inversion_results</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">file_list</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">list</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">result_path</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">PathLike</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">''</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">overwrite</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">Tuple</span><span class="p"><span class="pre">[</span></span><span class="pre">dict</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">int</span><span class="p"><span class="pre">]</span></span></span></span><a class="headerlink" href="#u4py.analysis.processing.get_inversion_results" title="Permalink to this definition"></a></dt>
 <dd><p>Gets the inversion results for the files in file list.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
-<li><p><strong>file_list</strong> (<em>list</em>) – A list of files to get the inversion results from.</p></li>
+<li><p><strong>file_list</strong> (<em>os.PathLike</em>) – A list of files to get the inversion results from.</p></li>
+<li><p><strong>file_list</strong> – The path of the results file, defaults to “”</p></li>
 <li><p><strong>overwrite</strong> (<em>bool</em><em>, </em><em>optional</em>) – Overwrite existing results if True, defaults to False</p></li>
 </ul>
 </dd>
@@ -197,6 +261,25 @@ overwrite=True</p>
 <dd class="field-odd"><p>Tuple[dict, int]</p>
 </dd>
 </dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="u4py.analysis.processing.inversion_map_worker">
+<span class="sig-prename descclassname"><span class="pre">u4py.analysis.processing.</span></span><span class="sig-name descname"><span class="pre">inversion_map_worker</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">data</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">dict</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">Tuple</span><span class="p"><span class="pre">[</span></span><span class="pre">Tuple</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">Tuple</span><span class="p"><span class="pre">]</span></span></span></span><a class="headerlink" href="#u4py.analysis.processing.inversion_map_worker" title="Permalink to this definition"></a></dt>
+<dd><p>Worker function to map the inversion of a dictionary with parallel processing.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><p><strong>data</strong> (<em>dict</em>) – The input data</p>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>The results of the first and second fit as a tuple including x and y coordinates.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>Tuple[Tuple, Tuple]</p>
+</dd>
+</dl>
+<p>Returns the data as a tuple of (<cite>x</cite>, <cite>y</cite>, <cite>results</cite>) for each direction.
+In case the inversion somehow goes wrong, (None, None) is returned.</p>
 </dd></dl>
 
 <dl class="py function">

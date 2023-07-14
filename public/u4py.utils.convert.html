@@ -62,6 +62,7 @@
 <li><a class="reference internal" href="#u4py.utils.convert.key_to_time"><code class="docutils literal notranslate"><span class="pre">key_to_time()</span></code></a></li>
 <li><a class="reference internal" href="#u4py.utils.convert.numba_chunking"><code class="docutils literal notranslate"><span class="pre">numba_chunking()</span></code></a></li>
 <li><a class="reference internal" href="#u4py.utils.convert.psi_dbf_to_dict"><code class="docutils literal notranslate"><span class="pre">psi_dbf_to_dict()</span></code></a></li>
+<li><a class="reference internal" href="#u4py.utils.convert.reformat_gpkg"><code class="docutils literal notranslate"><span class="pre">reformat_gpkg()</span></code></a></li>
 <li><a class="reference internal" href="#u4py.utils.convert.reformat_inversion_results"><code class="docutils literal notranslate"><span class="pre">reformat_inversion_results()</span></code></a></li>
 <li><a class="reference internal" href="#u4py.utils.convert.slice_array"><code class="docutils literal notranslate"><span class="pre">slice_array()</span></code></a></li>
 </ul>
@@ -434,6 +435,31 @@ coordinates, PS_ID and timeseries for each entry.</p>
 </dd>
 <dt class="field-even">Returns<span class="colon">:</span></dt>
 <dd class="field-even"><p>The data as a dictionary.</p>
+</dd>
+<dt class="field-odd">Return type<span class="colon">:</span></dt>
+<dd class="field-odd"><p>dict</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py function">
+<dt class="sig sig-object py" id="u4py.utils.convert.reformat_gpkg">
+<span class="sig-prename descclassname"><span class="pre">u4py.utils.convert.</span></span><span class="sig-name descname"><span class="pre">reformat_gpkg</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">x</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">y</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">z</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ps_id</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">time</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">ndarray</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dataU</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">ndarray</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">dataE</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">ndarray</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">dict</span></span></span><a class="headerlink" href="#u4py.utils.convert.reformat_gpkg" title="Permalink to this definition"></a></dt>
+<dd><p>Reformats the data found in the loaded <cite>inversion_results_all.pkl</cite> to be used with the inversion algorithm. The data in the file is formatted as loaded from the tables in the gpkg file.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>x</strong> (<em>float</em>) – The x coordinate.</p></li>
+<li><p><strong>y</strong> (<em>float</em>) – The y coordinate.</p></li>
+<li><p><strong>z</strong> (<em>float</em>) – The z coordinate.</p></li>
+<li><p><strong>ps_id</strong> (<em>int</em>) – The persistent scatterer ID (station number).</p></li>
+<li><p><strong>time</strong> (<em>np.ndarray</em>) – The time axis.</p></li>
+<li><p><strong>dataU</strong> (<em>np.ndarray</em>) – The data for up and down motion.</p></li>
+<li><p><strong>dataE</strong> (<em>np.ndarray</em>) – The data for east/west motion.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p>A suitably formatted dictionary.</p>
 </dd>
 <dt class="field-odd">Return type<span class="colon">:</span></dt>
 <dd class="field-odd"><p>dict</p>
