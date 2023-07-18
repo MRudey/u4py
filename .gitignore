@@ -9,6 +9,8 @@ requirements.txt
 cache/
 
 # Include images for GitLab Page
+*.html
+*.js
 !/public/_static/*.png
 
 # External Libraries
