@@ -85,11 +85,14 @@ def ts_inversion(file_path="", mode="stack", resample_data=2, maxn=4000):
             time_series["sigmN"] = np.ones_like(time_series["dataE"])
             time_series["sigmU"] = np.ones_like(time_series["dataE"])
 
-    matrix_ori, data, time_vector_ori = u4invert.invert_time_series(
-        time_series, t_EQ=t_EQ
-    )
+    (
+        matrix_ori,
+        data,
+        time_vector_ori,
+        parameters_list,
+    ) = u4invert.invert_time_series(time_series, t_EQ=t_EQ)
     ind = u4invert.remove_outliers(data["ori_dhat_data"], threshold=2)
-    matrix, data, time_vector = u4invert.invert_time_series(
+    matrix, data, time_vector, parameters_list = u4invert.invert_time_series(
         time_series, ind=ind
     )
 

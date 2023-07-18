@@ -30,8 +30,9 @@ import logging
 import random
 import sys
 from datetime import datetime
-from typing import Tuple
+from typing import Iterable, Tuple
 
+import matplotlib.pyplot as plt
 import numpy as np
 import scipy.linalg as splinalg
 import scipy.sparse as spsparse
@@ -50,10 +51,22 @@ def create_synthetic_data(
     sem_sin: float = -0.1,
     sem_cos: float = 0.05,
     eq_disp: list = [
-        32,
+        -32,
     ],
     t_EQdummy: list = [
-        2010.1561643,
+        2010,
+    ],
+    at_disp: list = [
+        10,
+    ],
+    t_AT: list = [
+        2014,
+    ],
+    ex_disp: list = [
+        5,
+    ],
+    t_EX: list[tuple] = [
+        (2020, 2021),
     ],
 ) -> Tuple[dict, list]:
     """Creates a synthetic dataset for testing the inversion algorithm.
@@ -70,8 +83,12 @@ def create_synthetic_data(
     :type sem_cos: float, optional
     :param eq_disp: A list of earthquake displacements, defaults to [32,]
     :type eq_disp: list, optional
-    :param t_EQdummy: A list of earthquake times matching `eq_disp`, defaults to [ 2010.1561643, ]
+    :param t_EQdummy: A list of earthquake times matching `eq_disp`, defaults to [ 2010, ]
     :type t_EQdummy: list, optional
+    :param t_EQdummy: A list of Antenna offsets, defaults to [ 2014, ]
+    :type t_EQdummy: list, optional
+    :param t_EQdummy: A list of water extractions, defaults to [ (2020, 2021),]
+    :type t_EQdummy: list[tuple], optional
     :return: A tuple containing (`data`, `eq_list`)
     :rtype: Tuple[dict, list]
 
@@ -89,15 +106,28 @@ def create_synthetic_data(
     - a heavyside step function with several mm of displacement and post seismic decay,
     - Gaussian noise.
     """
-    t = np.arange(2007, 2015, 0.003)  # sample time
+    t = np.arange(2000, 2023, 0.003)  # sample time
     d_noise = spstats.norm(1.5).rvs(len(t))  # noise
 
     f_Heavi = np.zeros_like(t)  # Heaviside function
     f_eq = np.zeros_like(t)
     for eqd, teq in zip(eq_disp, t_EQdummy):
-        f_Heavi[t > teq] = f_Heavi[t > teq] + eqd / 8  # EQ at t_EQdummy
+        f_Heavi[t > teq] = f_Heavi[t > teq] - eqd / 8  # EQ at t_EQdummy
         f_post = np.real(3 * f_Heavi * np.log((1.0 + 0.0j) + (t - teq)))
         f_eq += -8 * f_Heavi + f_post
+
+    f_at = np.zeros_like(t)
+    for atd, tat in zip(at_disp, t_AT):
+        f_at[t > tat] = f_at[t > tat] + atd
+
+    f_ex = np.zeros_like(t)
+    for exd, (t_start, t_end) in zip(ex_disp, t_EX):
+        # Factor to fit logistic function into given range
+        duration_factor = 2 * 6.9076907690769
+        duration = t_end - t_start
+        k = duration_factor / duration
+        t_off = t_start + 0.5 * duration
+        f_ex = f_ex + _expit(t, k=k, t_off=t_off) * exd
 
     # Create synthetic data and uncertainties
     dataE = np.real(
@@ -107,6 +137,8 @@ def create_synthetic_data(
         + sem_sin * np.sin(4 * np.pi * t)
         + sem_cos * np.cos(4 * np.pi * t)
         + f_eq
+        + f_at
+        + f_ex
         + d_noise
     )
 
@@ -122,13 +154,14 @@ def create_synthetic_data(
         "sigmU": sigmE,
         "station": "Dummy",
     }
-    return data, t_EQdummy
+    return data, t_EQdummy, t_AT, t_EX
 
 
 def invert_time_series(
     data: dict,
     t_AT: list = [],
     t_EQ: list = [],
+    t_EX: list = [],
     ind: slice = 0,
     num_coeffs: int = 1,
     directions: list = ["dataE", "dataN", "dataU"],
@@ -195,21 +228,26 @@ def invert_time_series(
 
     **Setup of the G-Matrix**
 
-    The full G-Matrix contains a linear trend, offset, oscillation and a
-    postseismic signal:
+    The full G-Matrix contains a y-offset, linear trend, higher polynomial
+    trends, sinusoidal oscillations, antenna offsets, earthquake offsets with
+    postseismic relaxiation and logistic functions to simulate transients due
+    to water extraction:
 
-        | :math:`A_1 + A2\\cdot(t-t_R) + A_3 \\cdot (t-t_R)^2 + \\dots`
-        | :math:`B_1 \\cdot sin(2 \\pi t) + B_2 \\cdot cos(2 \\pi t) + \\dots`
-        | :math:`B_3 \\cdot sin(4 \\pi t) + B_4 \\cdot cos(4 \\pi t) + \\dots`
-        | :math:`C_1 \\cdot tH(t_{AT}) + C_2 \\cdot tH(t_{EQ}) + \\dots`
-        | :math:`D_1 \\cdot log(1+\\frac{t}{dT_1} + D_2 \\cdot log(1+\\frac{t}{dT_2})`
+        | :math:`A_1 + A_2\\cdot(t-t_R) + A_3 \\cdot (t-t_R)^2 + A_n \\cdot (t-t_R)^{n-1} + \\dots`
+        | :math:`B_1 \\cdot sin(2 \\pi t) + B_2 \\cdot cos(2 \\pi t) + B_3 \\cdot sin(4 \\pi t) + B_4 \\cdot cos(4 \\pi t) + \\dots`
+        | :math:`C_n \\cdot tH(t_{AT}) + \\dots`
+        | :math:`D_n \\cdot tH(t_{EQ}) + \\dots`
+        | :math:`E_n \\cdot log(1+\\frac{t}{dT_1}) + \\dots`
+        | :math:`F_n \\cdot \\frac{1}{1+e^{-kF_n(t-t_0)} (\\frac{F_n}{t_0}-1)}`
 
     In this equation, the following model parameters are included:
 
-    - :math:`A_1 \\dots A_3`: General offset and steady rate (can be steady, linear , for interseismic deformation, or quadratic, for GIA adjustment)
+    - :math:`A_1 \\dots A_n`: General offset and steady rate (can be steady, linear , for interseismic deformation, or quadratic, for GIA adjustment)
     - :math:`B_1 \\dots B_4`: Amplitudes of annual and semi-annual oscillations
-    - :math:`C_1 \\dots C_2`: Amplitude of Heaviside function (:math:`d_{EQ}` or :math:`d_{AT}`) starting at :math:`t_{AT}` or :math:`t_{EQ}`.
-    - :math:`D_1 \\dots D_2`: Amplitude of postseismic signal starting at :math:`t_{EQ}`.
+    - :math:`C_1 \\dots C_n`: Amplitude of Heaviside function for antenna offsets (:math:`d_{AT}`) starting at :math:`t_{AT}`.
+    - :math:`D_1 \\dots D_n`: Amplitude of Heaviside function for vertical earthquake displacement (:math:`d_{EQ}`) starting at :math:`t_{EQ}`.
+    - :math:`E_1 \\dots E_n`: Amplitude of postseismic signal starting at :math:`t_{EQ}`.
+    - :math:`F_1 \\dots F_n`: Amplitude of logistic function, with :math:`k=\\frac{2\\times6.90769}{t_{end}-t_{start}}` which sets the increase to fit into the given start and end times, and :math:`t_0=t_{start}+\\frac{1}{2}(t_{end}-t_{start})` which shifts the middle of the logistic function to the middle of the period.
 
     The G-Matrix needs to be individualized for each station, depending if
     it is affected by these signals. You should create a *GLOBAL* G-Matrix
@@ -223,11 +261,17 @@ def invert_time_series(
     else:
         ori = False
 
-    g_functions = _prepare_g_functions(
-        data, ind, t_AT, t_EQ, num_coeffs, t_relative
+    g_functions, parameter_list = _prepare_g_functions(
+        data=data,
+        ind=ind,
+        t_AT=t_AT,
+        t_EQ=t_EQ,
+        t_EX=t_EX,
+        num_coeffs=num_coeffs,
+        t_relative=t_relative,
     )
     if use_sparse:
-        g_matrix = spsparse.csr_matrix(_set_g_matrices(*g_functions))
+        g_matrix = spsparse.csr_matrix(_set_g_matrices(g_functions))
     else:
         g_matrix = _set_g_matrices(*g_functions)
 
@@ -269,7 +313,7 @@ def invert_time_series(
     else:
         matrix = _invert_np(g_matrix, data_vector, sigma_matrix)
     data = forward_model(matrix, g_matrix, data, ind, ori=ori)
-    return matrix, data, time_vector
+    return matrix, data, time_vector, parameter_list
 
 
 def _clean_inputs(data: dict):
@@ -425,9 +469,10 @@ def _prepare_g_functions(
     ind: slice,
     t_AT: list = [],
     t_EQ: list = [],
+    t_EX: list = [],
     num_coeffs: int = 2,
     t_relative: float = 0,
-) -> Tuple[np.ndarray]:
+) -> Tuple[Tuple[np.ndarray], list]:
     """Prepares the Green's functions.
 
     :param data: The data formatted as a dictionary.
@@ -438,59 +483,159 @@ def _prepare_g_functions(
     :type t_AT: list, optional
     :param t_EQ: A list with times of known earthquakes, defaults to []
     :type t_EQ: list, optional
-    :param num_coeffs: The number of parameters to use for g_TREND, defaults to 2 (linear and square)
+    :param t_EX: A list with times of known water extractions, defaults to []
+    :type t_EX: list, optional
+    :param num_coeffs: The number of parameters to use for g_TREND, defaults to 2 (offset and linear)
     :type num_coeffs: int, optional
     :param t_relative: A time offset used mainly for plotting, defaults to 0
     :type t_relative: float, optional
-    :return: The Green's functions as a stacked matrix.
-    :rtype: Tuple[np.ndarray]
+    :return: The Green's functions as a stacked matrix and a list with the names of the components.
+    :rtype: Tuple[Tuple[np.ndarray], list]
+    """
+    parameter_list = []
+    g_TREND, parameter_list = _set_g_trend(
+        num_coeffs, data["t"][ind], t_relative, parameter_list
+    )
+    g_ANNUAL, parameter_list = _set_g_annual(data["t"][ind], parameter_list)
+
+    g_AT, parameter_list = _set_g_antenna(data["t"][ind], t_AT, parameter_list)
+
+    g_EQ, parameter_list = _set_g_earthquakes(
+        data["t"][ind], t_EQ, parameter_list
+    )
+
+    g_POSTSM, parameter_list = _set_g_postseismic(
+        data["t"][ind], t_EQ, parameter_list
+    )
+
+    g_EX, parameter_list = _set_g_extraction(
+        data["t"][ind], t_EX, parameter_list
+    )
+
+    # RETURN all G-functions.
+    return (
+        (
+            np.asarray(g_TREND),
+            np.asarray(g_ANNUAL),
+            np.asarray(g_AT),
+            np.asarray(g_EQ),
+            np.asarray(g_POSTSM),
+            np.asarray(g_EX),
+        ),
+        parameter_list,
+    )
+
+
+def _set_g_trend(
+    num_coeffs: int,
+    time: np.ndarray,
+    t_relative: float,
+    parameter_list: list,
+) -> Tuple[list, list]:
+    """Sets the g-functions for polynomial trends.
+
+    :param num_coeffs: The number of coefficients.
+    :type num_coeffs: int
+    :param time: The time as array in float year
+    :type time: np.ndarray
+    :param t_relative: A time offset used mainly for plotting.
+    :type t_relative: float
+    :param parameter_list: The list of parameters to keep track of the coefficient names
+    :type parameter_list: list
+    :return: Returns a list of g-functions and the updated parameter list.
+    :rtype: Tuple[list, list]
     """
     logging.info("Setting Mini-g-function == TREND")
-    # Mini-g-function == TREND ============ 1-n parameters ==== A1 to Ax ====
-    g_TREND = [
-        (data["t"][ind] - t_relative) ** ii for ii in range(num_coeffs + 1)
+    g_TREND = [(time - t_relative) ** ii for ii in range(num_coeffs + 1)]
+    trend_names = [
+        "y-axis offset (year=0!)",
+        "linear trend",
+        "quadratic trend",
+        "order trend",
     ]
+    for ii in range(num_coeffs + 1):
+        if ii < 3:
+            parameter_list.append(trend_names[ii])
+        else:
+            parameter_list.append(f"{ii}. " + trend_names[-1])
+    return g_TREND, parameter_list
 
-    logging.info("Setting Mini-g-function == ANNUAL")
+
+def _set_g_annual(time: np.ndarray, parameter_list: list) -> Tuple[list, list]:
+    """Sets the four g-functions for the annual trend :math:`B_1` to :math:`B_4`.
+
+    :param time: The time as array in float years
+    :type time: np.ndarray
+    :param parameter_list: The list of parameters to keep track of the coefficient names.
+    :type parameter_list: list
+    :return: Returns a list of g-functions and the updated parameter list.
+    :rtype: Tuple[list, list]
+    """
+    logging.info("Setting Mini-g-function: Annual")
     # Mini-g-function == ANNUAL SIGNAL ==== 4 parameters ===== B1 to B4 ===
     g_ANNUAL = [
-        np.sin(2 * np.pi * data["t"][ind]),
-        np.cos(2 * np.pi * data["t"][ind]),
-        np.sin(4 * np.pi * data["t"][ind]),
-        np.cos(4 * np.pi * data["t"][ind]),
+        np.sin(2 * np.pi * time),
+        np.cos(2 * np.pi * time),
+        np.sin(4 * np.pi * time),
+        np.cos(4 * np.pi * time),
     ]
 
-    logging.info("Setting Mini-g-function == HEAVISIDE")
-    # Mini-g-function == HEAVISIDE ======== 1-2 parameters ===== C1, C2 ===
+    parameter_list.extend(
+        [
+            "semi-annual sine",
+            "semi-annual cosine",
+            "annual sine",
+            "annual cosine",
+        ]
+    )
+    return g_ANNUAL, parameter_list
 
-    # a) HEAVISIDE AT -- Find offsets in the AT-list
-    if not t_AT:  # No Heaviside function, if no offset exists
-        g_HEAVIS_AT = []
-    else:
+
+def _set_g_antenna(
+    time: np.ndarray, t_AT: Iterable, parameter_list: list
+) -> Tuple[list, list]:
+    """Sets a g-function in the form of a heaviside step function for each antenna offset.
+
+    :param time: The time as array in float years.
+    :type time: np.ndarray
+    :param t_AT: An iterable containing the times of antenna offset.
+    :type t_AT: Iterable
+    :param parameter_list: The list of parameters to keep track of the coefficient names.
+    :type parameter_list: list
+    :return: Returns a list of g-functions and the updated parameter list.
+    :rtype: Tuple[list, list]
+    """
+    logging.info("Setting Mini-g-function: Antenna offsets")
+    g_AT = []
+    if t_AT:
         # Create a Heaviside vector (or matrix, if t_AT has more than one entry):
-        for ii in range(len(t_AT)):
-            g_HEAVIS_AT = np.zeros_like(data["t"][ind])
-            g_HEAVIS_AT[data["t"][ind] > t_AT[ii], ii] = (
-                g_HEAVIS_AT[data["t"][ind] > t_AT[ii], ii] + 1
-            )
+        for ii, tat in enumerate(t_AT):
+            g_hat = np.zeros_like(time)
+            g_hat[time > tat] = 1
+            g_AT.append(g_hat)
+            parameter_list.append(f"antenna offset no. {ii+1}")
+    return g_AT, parameter_list
 
-    # b) HEAVISIDE EQ -- get offsets from external function (above)
-    if (
-        not t_EQ
-        or (np.max(data["t"][ind]) < np.min(t_EQ))
-        or (np.min(data["t"][ind]) > np.max(t_EQ))
-    ):  # No Heaviside function, if no offset exists
-        g_HEAVIS_EQ = []
 
-    else:
-        # If you would like to simulate Maule postseismics for data, which
-        # only starts AFTER the Maule EQ:
+def _set_g_earthquakes(
+    time: np.ndarray, t_EQ: Iterable, parameter_list: list
+) -> Tuple[list, list]:
+    """Sets a g-function in the form of a heaviside step function for each earthquake.
 
-        # if t_EQ[0] > t_MA:
-        #     t_EQ = [t_MA, t_EQ]
-
-        if t_EQ[0] < data["t"][0]:
-            t_EQ[0] = data["t"][0]
+    :param time: The time as array in float years.
+    :type time: np.ndarray
+    :param t_EQ: An iterable containing the times of earthquakes
+    :type t_EQ: Iterable
+    :param parameter_list: The list of parameters to keep track of the coefficient names.
+    :type parameter_list: list
+    :return: Returns a list of g-functions and the updated parameter list.
+    :rtype: Tuple[list, list]
+    """
+    logging.info("Setting Mini-g-function: Earthquake offsets")
+    g_EQ = []
+    if t_EQ or (np.max(time) > np.min(t_EQ)) or (np.min(time) < np.max(t_EQ)):
+        if t_EQ[0] < time[0]:
+            t_EQ[0] = time[0]
 
         # Here I check if several earthquakes occurred within the gap of a
         # time-series. If yes, I remove the first earthquakes and keep only
@@ -502,59 +647,113 @@ def _prepare_g_functions(
         # t_EQ[spaceind == 0] = []
 
         # Create a Heaviside vector (or matrix, if t_EQ has more than one entry):
-        g_HEAVIS_EQ = []
         for ii in range(len(t_EQ)):
-            g_heq = np.zeros_like(data["t"][ind])
-            g_heq[data["t"][ind] > t_EQ[ii]] = (
-                g_heq[data["t"][ind] > t_EQ[ii]] + 1
-            )
-            g_HEAVIS_EQ.append(g_heq)
-
-    logging.info("Setting Mini-g-function == POSTS")
-    # Mini-g-function == POSTS. SIGNAL === 1- parameters ===== D1 - Dx  ===
-    # Attention!!!:
-    # The postseismic signal is A-PRIORI-LINEARIZED by assuming dT = 1
-    # (Bevis & Brown, 2014). If you want to really study the geophysical
-    # properties of the post-seismic signal, you have to estimate dT using a
-    # non-linear approximation for each station, or group of stations later
-    # on!!!!
-
-    if not t_EQ or len(data["t"]) < 101:
-        g_POSTSM = []
-    else:
-        g_POSTSM = np.zeros_like(data["t"])
-        for te in t_EQ:
-            iB = data["t"][ind] > te
-            g_POSTSM[iB] = g_POSTSM[iB] + np.log(1 + (data["t"][iB] - te))
-    return (
-        np.asarray(g_TREND),
-        np.asarray(g_ANNUAL),
-        np.asarray(g_HEAVIS_AT),
-        np.asarray(g_HEAVIS_EQ),
-        np.asarray(g_POSTSM),
-    )
+            g_heq = np.zeros_like(time)
+            g_heq[time > t_EQ[ii]] = g_heq[time > t_EQ[ii]] + 1
+            g_EQ.append(g_heq)
+            parameter_list.append(f"earthquake no. {ii+1}")
+    return g_EQ, parameter_list
 
 
-def _set_g_matrices(
-    g_TREND, g_ANNUAL, g_HEAVIS_AT, g_HEAVIS_EQ, g_POSTSM
+def _set_g_postseismic(
+    time: np.ndarray, t_EQ: Iterable, parameter_list: list
+) -> Tuple[list, list]:
+    """Sets a g.function in the form of logarithmic increase for each earthquake in `t_EQ`.
+
+    :param time: The time as array in float years.
+    :type time: np.ndarray
+    :param t_EQ: An iterable containing the times of earthquakes
+    :type t_EQ: Iterable
+    :param parameter_list: The list of parameters to keep track of the coefficient names.
+    :type parameter_list: list
+    :return: Returns a list of g-functions and the updated parameter list.
+    :rtype: Tuple[list, list]
+
+    __Attention!__
+
+    The postseismic signal is A-PRIORI-LINEARIZED by assuming dT = 1 (Bevis &
+    Brown, 2014). If you want to really study the geophysical properties of
+    the post-seismic signal, you have to estimate dT using a non-linear
+    approximation for each station, or group of stations later on.
+    """
+    logging.info("Setting Mini-g-function: Postseismic relaxation")
+
+    g_POSTSM = []
+    if t_EQ or len(time) > 101:
+        g_psm = np.zeros_like(time)
+        for ii, te in enumerate(t_EQ):
+            iB = time > te
+            g_psm[iB] = g_psm[iB] + np.log(1 + (time[iB] - te))
+            g_POSTSM.append(g_psm)
+            parameter_list.append(f"postseismic no. {ii+1}")
+    return g_POSTSM, parameter_list
+
+
+def _set_g_extraction(
+    time: np.ndarray, t_EX: Iterable[Tuple], parameter_list: list
+) -> Tuple[list, list]:
+    logging.info("Setting Mini-g-function: Extraction")
+    g_EX = []
+    if t_EX:
+        gex = np.zeros_like(time)
+        for ii, (t_start, t_end) in enumerate(t_EX):
+            # Factor to fit logistic function into given range
+            duration_factor = 2 * 6.9076907690769
+            duration = t_end - t_start
+            k = duration_factor / duration
+            t_off = t_start + 0.5 * duration
+            gex = gex + _expit(time, k=k, t_off=t_off)
+            g_EX.append(gex)
+            parameter_list.append(f"water extraction no. {ii+1}")
+    return g_EX, parameter_list
+
+
+def _expit(
+    t: np.ndarray,
+    k: float = 1,
+    G: float = 1,
+    t0: float = 0.5,
+    t_off: float = 0,
 ) -> np.ndarray:
+    """Returns a logistic function.
+
+    :param t: The time in floatyears.
+    :type t: np.ndarray
+    :param k: The logistic growth rate, defaults to 1
+    :type k: float, optional
+    :param G: The supremum of the values of the function, defaults to 1
+    :type G: float, optional
+    :param t0: The time of the functions midpoint, defaults to 0.5
+    :type t0: float, optional
+    :param t_off: The time offset of the midpoint, defaults to 0
+    :type t_off: float, optional
+    :return: The logistic curve.
+    :rtype: np.ndarray
+    """
+    result = G * (1 / (1 + np.exp(-1 * k * G * (t - t_off)) * ((G / t0) - 1)))
+    return result
+
+
+def _set_g_matrices(g_funcs) -> np.ndarray:
     """Set up a G-matrices for each component and then the full, global G-matrix.
 
     :return: Block diagonal matrix of stacked Green's function for each component.
     :rtype: np.ndarray
     """
     logging.info("Setting up G-Matrices")
-    gE = np.array([])
-    saved_locals = locals()
-    for k in saved_locals:
-        if not gE.any():
-            gE = saved_locals[k]
-            gN = saved_locals[k]
-            gU = saved_locals[k]
-        elif k.startswith("g_") and saved_locals[k].any():
-            gE = np.vstack((gE, saved_locals[k]))
-            gN = np.vstack((gN, saved_locals[k]))
-            gU = np.vstack((gU, saved_locals[k]))
+    g_matrix = np.array([])
+    for g_func in g_funcs:
+        if g_func.any():
+            r, _ = g_func.shape
+            for n in range(r):
+                if g_matrix.any():
+                    g_matrix = np.vstack((g_matrix, g_func[n, :]))
+                else:
+                    g_matrix = g_func[n, :]
+    gE = g_matrix
+    gN = g_matrix
+    gU = g_matrix
+
     return splinalg.block_diag(gE, gN, gU)
 
 
@@ -668,37 +867,31 @@ def downsample_timeseries(time_series: dict, maxn: int) -> dict:
     return time_series
 
 
-def print_inversion_results(matrix: np.ndarray):
+def print_inversion_results(matrix: np.ndarray, parameters_list: list[str]):
     """Nicely prints the results from the inversion.
 
     :param matrix: The inverted model parameters.
     :type matrix: np.ndarray
+    :param parameters_list: The parameters string list.
+    :type parameters_list: list[str]
     """
-
+    print_string = ""
     directions = [
         "--- East-West ---",
         "--- North-South ---",
         "--- Up-Down ---",
     ]
-
-    names = [
-        " [0] yaxis-offset (year=0!):",
-        " [1]           linear trend:",
-        " [2]       semi-annual sine:",
-        " [3]     semi-annual cosine:",
-        " [4]            annual sine:",
-        " [5]          annual cosine:",
-        " [6]              eq offset:",
-        " [7]           post-seismic:",
-    ]
     try:
         matr_resh = np.reshape(matrix, (3, int(len(matrix) / 3)))
         for ii, direct in enumerate(matr_resh):
-            print(directions[ii])
+            print_string += directions[ii] + "\n"
             for jj, val in enumerate(direct):
-                print(f"{names[jj]} {val:2f}")
+                print_string += f"{parameters_list[jj]} {val:2f}\n"
     except TypeError:
         raise TypeError("Something is wrong with the solution matrix.")
+    except IndexError:
+        raise IndexError("Matrix longer than expected...")
+    return print_string
 
 
 def reformat_dict(dataset: dict) -> dict:
@@ -743,21 +936,98 @@ def invert_test_data():
         -0.1,
         0.05,
         [
-            32,
+            -32,
         ],
         [
-            2010.1561643,
+            2010,
+        ],
+        [
+            10,
+        ],
+        [
+            2014,
+        ],
+        [
+            -5,
+        ],
+        [
+            (2001, 2005),
         ],
     ]
-    data, t_EQ = create_synthetic_data(*syn_comps)
-    matrix, data, time_vector = invert_time_series(
-        data, t_EQ=t_EQ, use_sparse=True
+    data, t_EQ, t_AT, t_EX = create_synthetic_data(*syn_comps)
+    matrix, data, time_vector, parameters_list = invert_time_series(
+        data, t_EQ=t_EQ, t_AT=t_AT, t_EX=t_EX, use_sparse=True
     )
     inversion_results = {"matrix_ori": matrix}
-    print_inversion_results(matrix)
-    u4plots.plot_inversion_results(
-        time=time_vector, data=data, inversion_results=inversion_results
+    print_string = print_inversion_results(matrix, parameters_list)
+    print(print_string)
+    fig, ax = u4plots.plot_inversion_results(
+        time=time_vector,
+        data=data,
+        inversion_results=inversion_results,
+        test_data=True,
     )
+    ax.set_title("Inversion Test Data")
+    y_EQ = data["ori_dhat_data"]["dhatE"][np.argwhere(data["t"] >= t_EQ)[0]]
+    y_AT = data["ori_dhat_data"]["dhatE"][np.argwhere(data["t"] >= t_AT)[0]]
+    y_EX = data["ori_dhat_data"]["dhatE"][
+        np.argwhere(data["t"] >= t_EX[0][0])[0]
+    ]
+    ax.annotate(
+        text=(
+            "Earthquake Displacement\n"
+            + f"{matrix[7]:.2f} mm ({syn_comps[5][0]:.1f})\n"
+            + "(step + exp. decay)"
+        ),
+        xy=(syn_comps[6][0], y_EQ),
+        xytext=(2004, -15),
+        horizontalalignment="center",
+        arrowprops=dict(arrowstyle="->"),
+    )
+    ax.annotate(
+        text=(
+            "Antenna Offset\n"
+            + f"{matrix[6]:.2f} mm ({syn_comps[7][0]:.1f})\n"
+            + "(step)"
+        ),
+        xy=(syn_comps[8][0], y_AT),
+        xytext=(2011, 19),
+        horizontalalignment="center",
+        arrowprops=dict(arrowstyle="->"),
+    )
+    ax.annotate(
+        text=(
+            "Water Extraction\n"
+            + f"{matrix[9]:.2f} mm ({syn_comps[9][0]:.1f}), {syn_comps[10][0][0]}-{syn_comps[10][0][1]}\n"
+            + "(logistic)"
+        ),
+        xy=(syn_comps[10][0][0], y_EX),
+        xytext=(2003, 10),
+        horizontalalignment="center",
+        arrowprops=dict(arrowstyle="->"),
+    )
+
+    inputs = (
+        f"      linear trend: {syn_comps[0]:.1f}$\\rightarrow$ {matrix[1]:.2f}\n"
+        + f"  semi-annual sine: {syn_comps[1]:.1f}$\\rightarrow$ {matrix[2]:.2f}\n"
+        + f"semi-annual cosine: {syn_comps[2]:.1f}$\\rightarrow$ {matrix[3]:.2f}\n"
+        + f"       annual sine: {syn_comps[3]:.1f}$\\rightarrow$ {matrix[4]:.2f}\n"
+        + f"     annual cosine: {syn_comps[4]:.1f}$\\rightarrow$ {matrix[5]:.2f}\n"
+        + f"    antenna offset: {syn_comps[7][0]:.1f}$\\rightarrow$ {matrix[6]:.2f}\n"
+        + f" earthquake offset: {syn_comps[5][0]:.1f}$\\rightarrow$ {matrix[7]:.2f}\n"
+        + f"  water extraction: {syn_comps[9][0]:.1f}$\\rightarrow$ {matrix[9]:.2f}\n"
+    )
+    ax.annotate(
+        inputs,
+        (0.99, 0.01),
+        xycoords="axes fraction",
+        horizontalalignment="right",
+        verticalalignment="bottom",
+    )
+    ax.set_xlabel("Time")
+    ax.set_ylabel("Displacement (mm)")
+    fig.tight_layout()
+    plt.show()
 
 
 if __name__ == "__main__":

@@ -356,11 +356,12 @@ def invert_file(
 
     if "inversion_results" not in data.keys() or overwrite:
         try:
-            _, data, _ = u4invert.invert_time_series(data)
+            _, data, _, parameters_list = u4invert.invert_time_series(data)
             ind = u4invert.remove_outliers(data["ori_dhat_data"], threshold=2)
             matrix, data, _ = u4invert.invert_time_series(data, ind=ind)
             orig_data = u4files.load_hdf5(file_path)
             orig_data["inversion_results"] = matrix
+            orig_data["parameters_list"] = parameters_list
             u4convert.dict_to_hdf5(file_path, orig_data)
         except:
             _, fname = os.path.split(file_path)
@@ -387,15 +388,21 @@ def invert_psi_dict(
     """
     if overwrite or not os.path.exists(save_path):
         prepared_data = u4invert.reformat_dict(data)
-        ori_matrix, prepared_data, t_1 = u4invert.invert_time_series(
-            prepared_data
-        )
+        (
+            ori_matrix,
+            prepared_data,
+            t_1,
+            parameters_list,
+        ) = u4invert.invert_time_series(prepared_data)
         ind = u4invert.remove_outliers(
             prepared_data["ori_dhat_data"], threshold=2
         )
-        matrix, prepared_data, t_2 = u4invert.invert_time_series(
-            prepared_data, ind=ind
-        )
+        (
+            matrix,
+            prepared_data,
+            t_2,
+            parameters_list,
+        ) = u4invert.invert_time_series(prepared_data, ind=ind)
         prepared_data["ori_inversion_results"] = ori_matrix
         prepared_data["inversion_results"] = matrix
         prepared_data["ori_dhat_data"]["t"] = t_1
@@ -433,9 +440,13 @@ def inversion_map_worker(data: dict) -> Tuple[Tuple, Tuple]:
     """
 
     try:
-        (matrix_ori, data, _) = u4invert.invert_time_series(data)
+        matrix_ori, data, _, parameters_list = u4invert.invert_time_series(
+            data
+        )
         ind = u4invert.remove_outliers(data["ori_dhat_data"], threshold=2)
-        matrix, data, _ = u4invert.invert_time_series(data, ind=ind)
+        matrix, data, _, parameters_list = u4invert.invert_time_series(
+            data, ind=ind
+        )
         results = (
             (data["xmid"], data["ymid"], matrix_ori),
             (data["xmid"], data["ymid"], matrix),
