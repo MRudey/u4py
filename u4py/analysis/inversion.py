@@ -107,7 +107,7 @@ def create_synthetic_data(
     - Gaussian noise.
     """
     t = np.arange(2000, 2023, 0.003)  # sample time
-    d_noise = spstats.norm(1.5).rvs(len(t))  # noise
+    d_noise = spstats.norm(loc=0, scale=1.5).rvs(len(t))  # noise
 
     f_Heavi = np.zeros_like(t)  # Heaviside function
     f_eq = np.zeros_like(t)
@@ -142,6 +142,18 @@ def create_synthetic_data(
         + d_noise
     )
 
+    individual_g_funcs = {
+        "lin": t * lin,
+        "ann_sin": ann_sin * np.sin(2 * np.pi * t),
+        "ann_cos": ann_cos * np.cos(2 * np.pi * t),
+        "sem_sin": sem_sin * np.sin(4 * np.pi * t),
+        "sem_cos": sem_cos * np.cos(4 * np.pi * t),
+        "f_eq": f_eq,
+        "f_at": f_at,
+        "f_ex": f_ex,
+        "d_noise": d_noise,
+    }
+
     sigmE = np.ones_like(t)
     dataE = dataE - dataE[0]
     data = {
@@ -154,7 +166,7 @@ def create_synthetic_data(
         "sigmU": sigmE,
         "station": "Dummy",
     }
-    return data, t_EQdummy, t_AT, t_EX
+    return data, t_EQdummy, t_AT, t_EX, individual_g_funcs
 
 
 def invert_time_series(
@@ -658,7 +670,7 @@ def _set_g_earthquakes(
 def _set_g_postseismic(
     time: np.ndarray, t_EQ: Iterable, parameter_list: list
 ) -> Tuple[list, list]:
-    """Sets a g.function in the form of logarithmic increase for each earthquake in `t_EQ`.
+    """Sets a g-function in the form of logarithmic increase for each earthquake in `t_EQ`.
 
     :param time: The time as array in float years.
     :type time: np.ndarray
@@ -692,6 +704,17 @@ def _set_g_postseismic(
 def _set_g_extraction(
     time: np.ndarray, t_EX: Iterable[Tuple], parameter_list: list
 ) -> Tuple[list, list]:
+    """Sets a g-function in the form of a logistic growth for each extraction timerange in `t_EX`.
+
+    :param time: The time as array in float years.
+    :type time: np.ndarray
+    :param t_EX: An Iterable with Tuples of extraction start and extraction ends.
+    :type t_EX: Iterable[Tuple]
+    :param parameter_list: The list of parameters to keep track of the coefficient names.
+    :type parameter_list: list
+    :return: Returns a list of g-functions and the updated parameter list.
+    :rtype: Tuple[list, list]
+    """
     logging.info("Setting Mini-g-function: Extraction")
     g_EX = []
     if t_EX:
@@ -954,7 +977,7 @@ def invert_test_data():
             (2001, 2005),
         ],
     ]
-    data, t_EQ, t_AT, t_EX = create_synthetic_data(*syn_comps)
+    data, t_EQ, t_AT, t_EX, _ = create_synthetic_data(*syn_comps)
     matrix, data, time_vector, parameters_list = invert_time_series(
         data, t_EQ=t_EQ, t_AT=t_AT, t_EX=t_EX, use_sparse=True
     )
@@ -980,7 +1003,7 @@ def invert_test_data():
             + "(step + exp. decay)"
         ),
         xy=(syn_comps[6][0], y_EQ),
-        xytext=(2004, -15),
+        xytext=(2004, -20),
         horizontalalignment="center",
         arrowprops=dict(arrowstyle="->"),
     )
@@ -1008,14 +1031,14 @@ def invert_test_data():
     )
 
     inputs = (
-        f"      linear trend: {syn_comps[0]:.1f}$\\rightarrow$ {matrix[1]:.2f}\n"
-        + f"  semi-annual sine: {syn_comps[1]:.1f}$\\rightarrow$ {matrix[2]:.2f}\n"
-        + f"semi-annual cosine: {syn_comps[2]:.1f}$\\rightarrow$ {matrix[3]:.2f}\n"
-        + f"       annual sine: {syn_comps[3]:.1f}$\\rightarrow$ {matrix[4]:.2f}\n"
-        + f"     annual cosine: {syn_comps[4]:.1f}$\\rightarrow$ {matrix[5]:.2f}\n"
-        + f"    antenna offset: {syn_comps[7][0]:.1f}$\\rightarrow$ {matrix[6]:.2f}\n"
-        + f" earthquake offset: {syn_comps[5][0]:.1f}$\\rightarrow$ {matrix[7]:.2f}\n"
-        + f"  water extraction: {syn_comps[9][0]:.1f}$\\rightarrow$ {matrix[9]:.2f}\n"
+        f"linear trend: {syn_comps[0]:.1f}$\\rightarrow$ {matrix[1]:.2f}\n"
+        + f"annual sine: {syn_comps[1]:.1f}$\\rightarrow$ {matrix[2]:.2f}\n"
+        + f"annual cosine: {syn_comps[2]:.1f}$\\rightarrow$ {matrix[3]:.2f}\n"
+        + f"semi-annual sine: {syn_comps[3]:.1f}$\\rightarrow$ {matrix[4]:.2f}\n"
+        + f"semi-annual cosine: {syn_comps[4]:.1f}$\\rightarrow$ {matrix[5]:.2f}\n"
+        + f"antenna offset: {syn_comps[7][0]:.1f}$\\rightarrow$ {matrix[6]:.2f}\n"
+        + f"earthquake offset: {syn_comps[5][0]:.1f}$\\rightarrow$ {matrix[7]:.2f}\n"
+        + f"water extraction: {syn_comps[9][0]:.1f}$\\rightarrow$ {matrix[9]:.2f}\n"
     )
     ax.annotate(
         inputs,
@@ -1027,6 +1050,9 @@ def invert_test_data():
     ax.set_xlabel("Time")
     ax.set_ylabel("Displacement (mm)")
     fig.tight_layout()
+    fig.savefig(
+        r"C:\Users\Michael Rudolf\HESSENBOX-DA\Umwelt_4_privat\2023-07 Treffen\beispiel_zeitreihe.pdf"
+    )
     plt.show()
 
 
