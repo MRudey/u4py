@@ -19,11 +19,9 @@ pages:
   environment: production
   script:
       - pip install sphinx sphinx_rtd_theme
-      - cd doc
-      - make clean & make html
-      - rm -rf ../public/
-      - mkdir ../public
-      - mv build/html/* ../public/
+      - pip install -r requirements.txt
+      - sphinx-apidoc -f -e -M -o doc/source u4py
+      - sphinx-build -d doc/build doc/source public
   artifacts:
     paths:
       - public
