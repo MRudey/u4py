@@ -19,7 +19,7 @@ pages:
   environment: production
   script:
       - pip install sphinx sphinx_rtd_theme
-      - pip install -r requirements.txt
+      # - pip install -r requirements.txt
       - sphinx-apidoc -f -e -M -o doc/source u4py
       - sphinx-build -d doc/build doc/source public
   artifacts:
