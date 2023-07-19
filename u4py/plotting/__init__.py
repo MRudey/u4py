@@ -2,4 +2,8 @@
 Module containing functions for easier and more convenient plotting.
 """
 
-__all__ = ["axes", "formatting", "plots", "preparation"]
+from . import axes, formatting, plots, preparation
+from .axes import *
+from .formatting import *
+from .plots import *
+from .preparation import *
