@@ -20,8 +20,9 @@ pages:
   script:
       - pip install sphinx sphinx_rtd_theme
       - cd doc
-      - make clean & make 
+      - make clean & make html
       - rm -rf ../public/
+      - mkdir ../public
       - mv build/html/* ../public/*
   artifacts:
     paths:
