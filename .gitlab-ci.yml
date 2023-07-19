@@ -23,7 +23,7 @@ pages:
       - make clean & make html
       - rm -rf ../public/
       - mkdir ../public
-      - mv build/html/* ../public/*
+      - mv build/html/* ../public/
   artifacts:
     paths:
       - public
