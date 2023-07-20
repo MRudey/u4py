@@ -5,6 +5,7 @@ Contains functions to modify or reformat data for plotting. This module helps to
 from typing import Callable, Tuple
 
 import numpy as np
+import scipy.interpolate as spinterp
 import scipy.optimize as spopt
 import scipy.stats as spstats
 
@@ -141,33 +142,26 @@ def get_linfit_each_timeseries(data: dict) -> np.ndarray:
     return lintrend
 
 
-def _full_inv_single_comp(x: np.ndarray, *args) -> np.ndarray:
-    """Returns a full fit including (semi-)annual sines and cosines
+def _downsampled_forward_model(
+    tq: np.ndarray, t: np.ndarray, y: np.ndarray
+) -> np.ndarray:
+    """Returns the forward model at the queried times.
 
-    :param x: The x axis.
-    :type x: np.ndarray
-    :param args: The fit arguments formatted as below.
-    :type args: list
-    :return: The forward model
+    :param tq: The time points to query the data.
+    :type tq: np.ndarray
+    :param t: The time points for the fit data.
+    :type t: np.ndarray
+    :param results: The forward model data.
+    :type results: np.ndarray
+    :return: The forward model at the query points.
     :rtype: np.ndarray
-
-    Structure of *args:
-    |    [0]: yaxis-offset
-    |    [1]: linear trend
-    |    [2]: semi-annual sine
-    |    [3]: semi-annual cosine
-    |    [4]: annual sine
-    |    [5]: annual cosine
     """
-    result = (
-        args[0]  # yaxis-offset
-        + args[1] * x  # linear trend
-        + args[2] * np.sin(2 * np.pi * x)  # semi-annual sine
-        + args[3] * np.cos(2 * np.pi * x)  # semi-annual cosine
-        + args[4] * np.sin(4 * np.pi * x)  # annual sine
-        + args[5] * np.cos(4 * np.pi * x)  # annual cosine
-    )
-    return result
+    uniq_t = np.unique(t)
+    uniq_y = np.zeros_like(uniq_t)
+    for ii, ut in enumerate(uniq_t):
+        uniq_y[ii] = y[np.argwhere(ut == t)[0]]
+    bspline = spinterp.make_interp_spline(uniq_t, uniq_y)
+    return bspline(tq)
 
 
 def get_forward_model(
@@ -193,7 +187,7 @@ def get_forward_model(
     ii = directions[dir]
     args = inv_results[ii : ii + 6]
     time = np.array([u4convert.get_floatyear(t) for t in x])
-    y = _full_inv_single_comp(time, *args)
+    y = _downsampled_forward_model(time, *args)
     return y
 
 

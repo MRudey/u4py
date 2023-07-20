@@ -373,14 +373,26 @@ def invert_file(
 
 
 def invert_psi_dict(
-    data: dict, save_path: os.PathLike = "", overwrite: bool = False
+    data: dict,
+    t_AT: list = [],
+    t_EQ: list = [],
+    t_EX: list = [],
+    num_coeffs: int = 1,
+    save_path: os.PathLike = "",
+    overwrite: bool = False,
 ) -> list:
     """Inverts a dictionary loaded or merged from h5-files
 
     :param data: Data dictionary according to u4py standard (e.g. read from h5).
     :type data: dict
-    :param save_path: The path where to save the results in a pickle.
-    :type save_path: os.PathLike
+    :param t_AT: A list with times of known antenna offsets, defaults to []
+    :type t_AT: list, optional
+    :param t_EQ: A list with times of known earthquakes, defaults to []
+    :type t_EQ: list, optional
+    :param num_coeffs: The number of parameters to use for inversion, defaults to 1
+    :type num_coeffs: int, optional
+    :param save_path: The path where to save the results in a pickle, defaults to "".
+    :type save_path: os.PathLike, optional
     :param overwrite: Overwrite existing results if True, defaults to False
     :type overwrite: bool, optional
     :return: The matrix of components.
@@ -393,7 +405,13 @@ def invert_psi_dict(
             prepared_data,
             t_1,
             parameters_list,
-        ) = u4invert.invert_time_series(prepared_data)
+        ) = u4invert.invert_time_series(
+            prepared_data,
+            t_AT=t_AT,
+            t_EQ=t_EQ,
+            t_EX=t_EX,
+            num_coeffs=num_coeffs,
+        )
         ind = u4invert.remove_outliers(
             prepared_data["ori_dhat_data"], threshold=2
         )
@@ -402,11 +420,19 @@ def invert_psi_dict(
             prepared_data,
             t_2,
             parameters_list,
-        ) = u4invert.invert_time_series(prepared_data, ind=ind)
+        ) = u4invert.invert_time_series(
+            prepared_data,
+            t_AT=t_AT,
+            t_EQ=t_EQ,
+            t_EX=t_EX,
+            num_coeffs=num_coeffs,
+            ind=ind,
+        )
         prepared_data["ori_inversion_results"] = ori_matrix
         prepared_data["inversion_results"] = matrix
         prepared_data["ori_dhat_data"]["t"] = t_1
         prepared_data["dhat_data"]["t"] = t_2
+        prepared_data["parameters_list"] = parameters_list
 
         try:
             os.remove(save_path)

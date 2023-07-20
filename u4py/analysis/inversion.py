@@ -38,7 +38,6 @@ import scipy.linalg as splinalg
 import scipy.sparse as spsparse
 import scipy.stats as spstats
 
-# import tensorflow as tf
 import u4py.plotting.plots as u4plots
 import u4py.utils.config as u4config
 import u4py.utils.convert as u4convert
@@ -123,7 +122,8 @@ def create_synthetic_data(
     f_ex = np.zeros_like(t)
     for exd, (t_start, t_end) in zip(ex_disp, t_EX):
         # Factor to fit logistic function into given range
-        duration_factor = 2 * 6.9076907690769
+        # duration_factor = 2 * 6.9076907690769
+        duration_factor = 2 * 2.92
         duration = t_end - t_start
         k = duration_factor / duration
         t_off = t_start + 0.5 * duration
@@ -259,7 +259,7 @@ def invert_time_series(
     - :math:`C_1 \\dots C_n`: Amplitude of Heaviside function for antenna offsets (:math:`d_{AT}`) starting at :math:`t_{AT}`.
     - :math:`D_1 \\dots D_n`: Amplitude of Heaviside function for vertical earthquake displacement (:math:`d_{EQ}`) starting at :math:`t_{EQ}`.
     - :math:`E_1 \\dots E_n`: Amplitude of postseismic signal starting at :math:`t_{EQ}`.
-    - :math:`F_1 \\dots F_n`: Amplitude of logistic function, with :math:`k=\\frac{2\\times6.90769}{t_{end}-t_{start}}` which sets the increase to fit into the given start and end times, and :math:`t_0=t_{start}+\\frac{1}{2}(t_{end}-t_{start})` which shifts the middle of the logistic function to the middle of the period.
+    - :math:`F_1 \\dots F_n`: Amplitude of logistic function, with :math:`k=\\frac{2\\times2.92}{t_{end}-t_{start}}` which sets the increase to fit into the given start and end times, and :math:`t_0=t_{start}+\\frac{1}{2}(t_{end}-t_{start})` which shifts the middle of the logistic function to the middle of the period.
 
     The G-Matrix needs to be individualized for each station, depending if
     it is affected by these signals. You should create a *GLOBAL* G-Matrix
@@ -504,38 +504,38 @@ def _prepare_g_functions(
     :return: The Green's functions as a stacked matrix and a list with the names of the components.
     :rtype: Tuple[Tuple[np.ndarray], list]
     """
+    g_funcs = []
     parameter_list = []
     g_TREND, parameter_list = _set_g_trend(
         num_coeffs, data["t"][ind], t_relative, parameter_list
     )
+    g_funcs.append(np.asarray(g_TREND))
     g_ANNUAL, parameter_list = _set_g_annual(data["t"][ind], parameter_list)
+    g_funcs.append(np.asarray(g_ANNUAL))
 
-    g_AT, parameter_list = _set_g_antenna(data["t"][ind], t_AT, parameter_list)
+    if t_AT:
+        g_AT, parameter_list = _set_g_antenna(
+            data["t"][ind], t_AT, parameter_list
+        )
+        g_funcs.append(np.asarray(g_AT))
 
-    g_EQ, parameter_list = _set_g_earthquakes(
-        data["t"][ind], t_EQ, parameter_list
-    )
-
-    g_POSTSM, parameter_list = _set_g_postseismic(
-        data["t"][ind], t_EQ, parameter_list
-    )
-
-    g_EX, parameter_list = _set_g_extraction(
-        data["t"][ind], t_EX, parameter_list
-    )
+    if t_EQ:
+        g_EQ, parameter_list = _set_g_earthquakes(
+            data["t"][ind], t_EQ, parameter_list
+        )
+        g_funcs.append(np.asarray(g_EQ))
+        g_POSTSM, parameter_list = _set_g_postseismic(
+            data["t"][ind], t_EQ, parameter_list
+        )
+        g_funcs.append(np.asarray(g_POSTSM))
+    if t_EX:
+        g_EX, parameter_list = _set_g_extraction(
+            data["t"][ind], t_EX, parameter_list
+        )
+        g_funcs.append(np.asarray(g_EX))
 
     # RETURN all G-functions.
-    return (
-        (
-            np.asarray(g_TREND),
-            np.asarray(g_ANNUAL),
-            np.asarray(g_AT),
-            np.asarray(g_EQ),
-            np.asarray(g_POSTSM),
-            np.asarray(g_EX),
-        ),
-        parameter_list,
-    )
+    return (g_funcs, parameter_list)
 
 
 def _set_g_trend(
@@ -619,13 +619,13 @@ def _set_g_antenna(
     """
     logging.info("Setting Mini-g-function: Antenna offsets")
     g_AT = []
-    if t_AT:
-        # Create a Heaviside vector (or matrix, if t_AT has more than one entry):
-        for ii, tat in enumerate(t_AT):
-            g_hat = np.zeros_like(time)
-            g_hat[time > tat] = 1
-            g_AT.append(g_hat)
-            parameter_list.append(f"antenna offset no. {ii+1}")
+
+    # Create a Heaviside vector (or matrix, if t_AT has more than one entry):
+    for ii, tat in enumerate(t_AT):
+        g_hat = np.zeros_like(time)
+        g_hat[time > tat] = 1
+        g_AT.append(g_hat)
+        parameter_list.append(f"antenna offset no. {ii+1}")
     return g_AT, parameter_list
 
 
@@ -645,7 +645,8 @@ def _set_g_earthquakes(
     """
     logging.info("Setting Mini-g-function: Earthquake offsets")
     g_EQ = []
-    if t_EQ or (np.max(time) > np.min(t_EQ)) or (np.min(time) < np.max(t_EQ)):
+
+    if (np.max(time) > np.min(t_EQ)) or (np.min(time) < np.max(t_EQ)):
         if t_EQ[0] < time[0]:
             t_EQ[0] = time[0]
 
@@ -691,7 +692,7 @@ def _set_g_postseismic(
     logging.info("Setting Mini-g-function: Postseismic relaxation")
 
     g_POSTSM = []
-    if t_EQ or len(time) > 101:
+    if len(time) > 101:
         g_psm = np.zeros_like(time)
         for ii, te in enumerate(t_EQ):
             iB = time > te
@@ -717,17 +718,18 @@ def _set_g_extraction(
     """
     logging.info("Setting Mini-g-function: Extraction")
     g_EX = []
-    if t_EX:
-        gex = np.zeros_like(time)
-        for ii, (t_start, t_end) in enumerate(t_EX):
-            # Factor to fit logistic function into given range
-            duration_factor = 2 * 6.9076907690769
-            duration = t_end - t_start
-            k = duration_factor / duration
-            t_off = t_start + 0.5 * duration
-            gex = gex + _expit(time, k=k, t_off=t_off)
-            g_EX.append(gex)
-            parameter_list.append(f"water extraction no. {ii+1}")
+
+    gex = np.zeros_like(time)
+    for ii, (t_start, t_end) in enumerate(t_EX):
+        # Factor to fit logistic function into given range
+        # duration_factor = 2 * 6.9076907690769
+        duration_factor = 2 * 2.92
+        duration = t_end - t_start
+        k = duration_factor / duration
+        t_off = t_start + 0.5 * duration
+        gex = gex + _expit(time, k=k, t_off=t_off)
+        g_EX.append(gex)
+        parameter_list.append(f"water extraction no. {ii+1}")
     return g_EX, parameter_list
 
 
@@ -904,17 +906,21 @@ def print_inversion_results(matrix: np.ndarray, parameters_list: list[str]):
         "--- North-South ---",
         "--- Up-Down ---",
     ]
-    try:
-        matr_resh = np.reshape(matrix, (3, int(len(matrix) / 3)))
-        for ii, direct in enumerate(matr_resh):
-            print_string += directions[ii] + "\n"
-            for jj, val in enumerate(direct):
-                print_string += f"{parameters_list[jj]} {val:2f}\n"
-    except TypeError:
-        raise TypeError("Something is wrong with the solution matrix.")
-    except IndexError:
-        raise IndexError("Matrix longer than expected...")
-    return print_string
+    if len(matrix) == len(parameters_list):
+        for val, name in zip(matrix, parameters_list):
+            print_string += f"{name} {val:.2f}\n"
+    else:
+        try:
+            matr_resh = np.reshape(matrix, (3, int(len(matrix) / 3)))
+            for ii, direct in enumerate(matr_resh):
+                print_string += directions[ii] + "\n"
+                for jj, val in enumerate(direct):
+                    print_string += f"{parameters_list[jj]}: {val:2f}\n"
+        except TypeError:
+            raise TypeError("Something is wrong with the solution matrix.")
+        except IndexError:
+            raise IndexError("Matrix longer than expected...")
+    return print_string[:-2]
 
 
 def reformat_dict(dataset: dict) -> dict:
@@ -971,7 +977,7 @@ def invert_test_data():
             2014,
         ],
         [
-            -5,
+            -15,
         ],
         [
             (2001, 2005),
@@ -1005,6 +1011,7 @@ def invert_test_data():
         xy=(syn_comps[6][0], y_EQ),
         xytext=(2004, -20),
         horizontalalignment="center",
+        verticalalignment="top",
         arrowprops=dict(arrowstyle="->"),
     )
     ax.annotate(
@@ -1016,6 +1023,7 @@ def invert_test_data():
         xy=(syn_comps[8][0], y_AT),
         xytext=(2011, 19),
         horizontalalignment="center",
+        verticalalignment="top",
         arrowprops=dict(arrowstyle="->"),
     )
     ax.annotate(

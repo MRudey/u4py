@@ -31,6 +31,7 @@ from matplotlib.axes import Axes
 from matplotlib.figure import Figure
 from pyproj import CRS
 
+import u4py.analysis.inversion as u4invert
 import u4py.analysis.other as u4other
 import u4py.plotting.preparation as u4plotprep
 import u4py.utils.convert as u4convert
@@ -198,7 +199,9 @@ def plot_quantile_timeseries(
 def plot_timeseries_fit(
     ax: Axes,
     results: dict = dict(),
+    fit_num: int = 2,
     color: str = "C1",
+    annotate: bool = True,
 ) -> Tuple[Figure, Axes] | None:
     """Plots the fit data for a simple timeseries analysis.
 
@@ -206,10 +209,12 @@ def plot_timeseries_fit(
     :type data: dict
     :param ax: The axis to add the plot to (optional).
     :type ax: Axes
-    :param color: The color for the plot, defaults to "C0"
-    :type color: str, optional
     :param results: A dictionary of loaded fit results, defaults to dict()
     :type results: dict, optional
+    :param fit_num: Number of fit to plot (1=all points, 2=without outliers), defaults to 2 (without outliers)
+    :type fit_num: int
+    :param color: The color for the plot, defaults to "C0"
+    :type color: str, optional
     :return: The figure and axis if there was no axis specified.
     :rtype: Tuple[Figure, Axes] | None
     """
@@ -228,17 +233,19 @@ def plot_timeseries_fit(
         #     prefix = "End"
         # else:
         #     prefix = "Start"
-        ax.annotate(
-            "Longterm Trend: %.1f mm/a" % (results["fits"]["lin"][0] * 365)
-            + "\nYearly Variation: $\\pm$%.1f mm"
-            % (np.abs(results["fits"]["sin"][0])),
-            # + "\nPeriod: %i days" % ((1 / sin_popt[1]) * 6)
-            # + "\nMaximum: %s %s" % (prefix, shift.strftime("%B")(0.99, 0.01)),
-            (0.99, 0.01),
-            xycoords="axes fraction",
-            horizontalalignment="right",
-            verticalalignment="bottom",
-        )
+        if annotate:
+            ax.annotate(
+                "Longterm Trend: %.1f mm/a" % (results["fits"]["lin"][0] * 365)
+                + "\nYearly Variation: $\\pm$%.1f mm"
+                % (np.abs(results["fits"]["sin"][0])),
+                # + "\nPeriod: %i days" % ((1 / sin_popt[1]) * 6)
+                # + "\nMaximum: %s %s" % (prefix, shift.strftime("%B")(0.99, 0.01)),
+                (0.99, 0.01),
+                xycoords="axes fraction",
+                horizontalalignment="right",
+                verticalalignment="bottom",
+                bbox={"boxstyle": "square", "fc": "white", "linewidth": 1},
+            )
     else:
         quantiles = u4plotprep.get_timeseries_range(results["U"], results["t"])
         plot_quantile_timeseries(
@@ -247,9 +254,10 @@ def plot_timeseries_fit(
         t_fly = u4convert.get_floatyear(quantiles["t_u"])
         t_q = np.linspace(np.min(t_fly), np.max(t_fly), 200)
 
-        y_fit = u4plotprep._full_inv_single_comp(
+        y_fit = u4plotprep._downsampled_forward_model(
             t_q,
-            *results["U"]["inversion_results"],
+            u4convert.get_floatyear(results[f"t_fit_{fit_num}"]),
+            results["U"][f"y_fit_{fit_num}"],
         )
         ax.plot(
             u4convert.get_datetime(t_q),
@@ -257,18 +265,19 @@ def plot_timeseries_fit(
             color=color,
             label="Inversion",
         )
-        ax.annotate(
-            "Longterm Trend: %.1f mm/a"
-            % (results["U"]["inversion_results"][1])
-            + "\nYearly Variation: $\\pm$%.1f mm"
-            % (np.abs(results["U"]["inversion_results"][2])),
-            # + "\nPeriod: %i days" % ((1 / sin_popt[1]) * 6)
-            # + "\nMaximum: %s %s" % (prefix, shift.strftime("%B")(0.99, 0.01)),
-            (0.99, 0.01),
-            xycoords="axes fraction",
-            horizontalalignment="right",
-            verticalalignment="bottom",
-        )
+        if annotate:
+            res_name = ["inversion_results", "ori_inversion_results"]
+            ax.annotate(
+                u4invert.print_inversion_results(
+                    results["U"][res_name[fit_num - 1]],
+                    results["U"]["parameters_list"],
+                ),
+                (0.99, 0.01),
+                xycoords="axes fraction",
+                horizontalalignment="right",
+                verticalalignment="bottom",
+                bbox={"boxstyle": "square", "fc": "white", "linewidth": 1},
+            )
 
 
 @_add_or_create
@@ -286,16 +295,28 @@ def plot_region_trend(
     """
     region_trend = u4plotprep.get_linfit_each_timeseries(data_region)
 
+    xx, yy = np.meshgrid(
+        np.unique(data_region["x"]), np.unique(data_region["y"])
+    )
+    zz = np.ones_like(yy) * np.nan
+    for x, y, z in zip(data_region["x"], data_region["y"], region_trend):
+        zz[np.bitwise_and((xx == x), (yy == y))] = z
+
     rng = np.percentile(np.abs(region_trend), 95)
-    sc = ax.scatter(
-        data_region["x"],
-        data_region["y"],
-        c=region_trend,
+    sc = ax.imshow(
+        zz,
+        origin="lower",
+        extent=(
+            np.nanmin(data_region["x"]),
+            np.nanmax(data_region["x"]),
+            np.nanmin(data_region["y"]),
+            np.nanmax(data_region["y"]),
+        ),
         vmin=-rng,
         vmax=rng,
         cmap="RdYlBu",
-        label="PSI locations",
-        s=5,
+        # label="PSI locations",
+        zorder=1,
     )
     plt.colorbar(
         sc,
@@ -409,6 +430,7 @@ def plot_fit_residuals(
     fit_data: tuple | dict,
     ax: Axes,
     direction: str = "UD",
+    fit_num: int = 2,
     **kwargs,
 ) -> Tuple[Figure, Axes] | None:
     """Creates a plot with the residuals of the data and selected fit.
@@ -422,6 +444,8 @@ def plot_fit_residuals(
     :param direction: The direction of the inversion results. Options are: "EW",
         "NS", "UD", defaults to "UD"
     :type direction: str, optional
+    :param fit_num: Number of fit to plot (1=all points, 2=without outliers), defaults to 2 (without outliers)
+    :type fit_num: int
     :param kwargs: Additional arguments passed to plt.plot().
     :type kwargs: dict
     :return: The figure and axis if there was no axis specified.
@@ -436,7 +460,7 @@ def plot_fit_residuals(
         if len(fit_data) > 6:
             y_fit = u4plotprep.get_forward_model(time, fit_data, direction)
         else:
-            y_fit = u4plotprep._full_inv_single_comp(time_flt, *fit_data)
+            y_fit = u4plotprep._downsampled_forward_model(time_flt, fit_data)
 
         y_res = y - y_fit
 
@@ -444,7 +468,9 @@ def plot_fit_residuals(
 
     elif isinstance(fit_data, dict):
         quantiles = u4plotprep.get_timeseries_range(
-            time=fit_data["t_fit_2"], y=fit_data["U"], key="y_fit_2_err"
+            time=fit_data[f"t_fit_{fit_num}"],
+            y=fit_data["U"],
+            key=f"y_fit_{fit_num}_err",
         )
         plot_quantile_timeseries(
             quantiles["t_u"], quantiles, ax=ax, color="C0"

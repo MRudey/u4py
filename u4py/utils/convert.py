@@ -288,7 +288,7 @@ def chunk_data_numba(
         )
 
 
-@jit(parallel=True, nopython=False)
+@jit(parallel=True)
 def numba_chunking(
     total: int,
     chunk_list: list,
@@ -418,7 +418,7 @@ def get_bounds(minval: float, maxval: float, chunksize: int) -> np.ndarray:
     return out
 
 
-@jit(nopython=True)
+@jit(parallel=True)
 def get_chunks(xrange: np.ndarray, yrange: np.ndarray) -> list:
     """Returns the corners for chunking from a range of x and y values.
 
@@ -565,7 +565,7 @@ def get_floatyear(time: str | datetime | Iterable) -> float | Iterable:
         t = np.array(get_floatyear(list(time)))
     else:
         raise NotImplementedError(
-            "Converting from this time format is not supported."
+            f"Converting from {type(time)} is not supported."
         )
     return t
 
@@ -579,7 +579,7 @@ def get_datetime(time: float | Iterable) -> float | Iterable:
     :return: The timestamp as a datetime.
     :rtype: float | Iterable
     """
-    if isinstance(time, float):
+    if isinstance(time, (int, float, complex)) and not isinstance(time, bool):
         t = floatyear_to_datetime(time)
     elif isinstance(time, list):
         t = [get_datetime(n) for n in time]
@@ -587,7 +587,7 @@ def get_datetime(time: float | Iterable) -> float | Iterable:
         t = np.array(get_datetime(list(time)))
     else:
         raise NotImplementedError(
-            "Converting from this time format is not supported."
+            f"Converting from {type(time)} is not supported."
         )
     return t
 
@@ -640,6 +640,10 @@ def reformat_inversion_results(
         results["inversion_results"],
         (3, int(len(results["inversion_results"]) / 3)),
     )
+    ori_inv_res = np.reshape(
+        results["ori_inversion_results"],
+        (3, int(len(results["ori_inversion_results"]) / 3)),
+    )
     dir_ii = {"E": 0, "N": 1, "U": 2}
     output = dict()
     for ii, drc in enumerate(directions):
@@ -655,6 +659,8 @@ def reformat_inversion_results(
             "y_fit_2": results["dhat_data"][cpn[2]],
             "y_fit_2_err": results["dhat_data"][cpn[3]],
             "inversion_results": inv_res[ii + dir_ii[drc]],
+            "ori_inversion_results": ori_inv_res[ii + dir_ii[drc]],
+            "parameters_list": results["parameters_list"],
         }
     return output
 

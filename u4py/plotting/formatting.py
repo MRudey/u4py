@@ -72,7 +72,7 @@ def map_style(ax: Axes, divisor: int = 0, grid: bool = True, crs: str = ""):
         crs_obj = pyproj.CRS.from_user_input(crs)
         ax.annotate(
             crs_obj.name,
-            (1.1, -0.1),
+            (1, -0.1),
             xycoords="axes fraction",
             horizontalalignment="right",
             fontsize="small",
