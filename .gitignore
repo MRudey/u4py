@@ -9,8 +9,6 @@ requirements.txt
 cache/
 
 # Include images for GitLab Page
-*.html
-*.js
 !/public/_static/*.png
 
 # External Libraries
@@ -88,6 +86,13 @@ instance/
 
 # Sphinx documentation
 docs/_build/
+searchindex.js
+doc/build
+doc/cache
+public/*.html
+public/*.inv
+public/_sources
+public/_static
 
 # PyBuilder
 .pybuilder/
