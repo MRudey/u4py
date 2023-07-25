@@ -7,7 +7,7 @@ from __future__ import annotations
 
 import os
 import pickle as pkl
-from typing import Tuple
+from typing import List, Tuple
 
 import geopandas as gp
 import h5py
@@ -18,6 +18,7 @@ import rasterio.coords
 import rasterio.warp as riowarp
 import scipy.spatial as spspatial
 import shapely
+from shapely.geometry import LineString
 
 
 def reproject_raster(
@@ -178,7 +179,7 @@ def _pkl_to_coords(pkl_path: os.PathLike) -> list:
 
 def _spatial_lookup(
     input_feature: os.PathLike | list, points: gp.GeoDataFrame, n: int = 1
-) -> list[Tuple[float, int]]:
+) -> List[Tuple[float, int]]:
     """Does a spatial lookup for the nearest point to all points in `points`.
     The data at `input_feature` has to have a valid format for creating a  lookup Tree.
 
@@ -189,7 +190,7 @@ def _spatial_lookup(
     :param n: The number of nearest neighbors, defaults to 1
     :type n: int, optional
     :return: A list of `n` nearest neighbors for each point in the form of (distance, index)
-    :rtype: list[Tuple[float, int]]
+    :rtype: List[Tuple[float, int]]
     """
 
     lut = get_cKDTree(input_feature)
@@ -211,7 +212,7 @@ def _select_points_osm(
     :rtype: gp.GeoDataFrame
     """
 
-    osm_data = osmnx.geometries_from_address(
+    osm_data = osmnx.features_from_address(
         osm_query["address"], tags=osm_query["tags"]
     ).to_crs("EPSG:32632")
 
@@ -318,3 +319,66 @@ def xy_to_point(xy: tuple) -> shapely.Point:
     """
     pnt = shapely.Point(xy)
     return pnt
+
+
+def river_coordinates_from_osm(
+    station_name: str, waterway_name: str
+) -> gp.GeoSeries:
+    """Gets the river line feature from openstreetmap.
+
+    :param station_name: The name of the station (city).
+    :type station_name: str
+    :param waterway_name: The name of the waterway.
+    :type waterway_name: str
+    :return: A geoseries, usually several line features, of the river cropped to the administrative boundaries of the station.
+    :rtype: gp.GeoSeries
+    """
+    waterway_osm = osmnx.features_from_place(
+        station_name + " Hesse",
+        tags={"waterway": ["stream", "river"]},
+    )
+    if not waterway_osm.empty:
+        waterway_geoseries = get_named_geometries(waterway_osm, waterway_name)
+        if not waterway_geoseries.empty:
+            region_osm = osmnx.features_from_place(
+                station_name + " Hesse", tags={"boundary": "administrative"}
+            )
+            if not region_osm.empty:
+                region_geoseries = get_named_geometries(
+                    region_osm, station_name
+                )
+                buffered_region = (
+                    region_geoseries.to_crs("EPSG:32632")
+                    .buffer(25)
+                    .to_crs(region_geoseries.crs)
+                )
+                return gp.clip(waterway_geoseries, buffered_region)
+            else:
+                print(
+                    f"Geometry not clipped. No osm administrative boundary found for {station_name}"
+                )
+                return waterway_geoseries
+        else:
+            print(f"No geometry found for {waterway_name} in {station_name}")
+    else:
+        print(f"No OSM Data for {waterway_name} in {station_name}")
+
+
+def get_named_geometries(
+    osm_data: gp.GeoDataFrame, feature_name: str
+) -> gp.GeoSeries:
+    """Gets geometries with the given feature name from the osm data.
+
+    :param osm_data: The dataset as loaded from osm
+    :type osm_data: gp.GeoDataFrame
+    :param feature_name: The exact name of the feature to be extracted.
+    :type feature_name: str
+    :return: A geoseries with the geometries.
+    :rtype: gp.GeoSeries
+    """
+    geometries = []
+    for ii, name in enumerate(osm_data.name):
+        if name == feature_name:
+            geometries.append(osm_data.geometry[ii])
+    if geometries:
+        return gp.GeoSeries(geometries, crs=osm_data.crs)
