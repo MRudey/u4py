@@ -84,10 +84,14 @@ def create_synthetic_data(
     :type eq_disp: list, optional
     :param t_EQdummy: A list of earthquake times matching `eq_disp`, defaults to [ 2010, ]
     :type t_EQdummy: list, optional
-    :param t_EQdummy: A list of Antenna offsets, defaults to [ 2014, ]
-    :type t_EQdummy: list, optional
-    :param t_EQdummy: A list of water extractions, defaults to [ (2020, 2021),]
-    :type t_EQdummy: list[tuple], optional
+    :param at_disp: A list of displacements due to antenna offsets, defaults to [10,]
+    :type at_disp: list, optional
+    :param t_AT: A list of Antenna offsets, defaults to [ 2014, ]
+    :type t_AT: list, optional
+    :param ex_disp: A list of displacements due to water extraction, defaults to [5,]
+    :type ex_disp: list, optional
+    :param t_EX: A list of water extractions, defaults to [ (2020, 2021),]
+    :type t_EX: list[tuple], optional
     :return: A tuple containing (`data`, `eq_list`)
     :rtype: Tuple[dict, list]
 
