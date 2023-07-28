@@ -21,6 +21,13 @@ extensions = [
 
 templates_path = ["_templates"]
 exclude_patterns = ["setup.py"]
+autodoc_default_options = {
+    "members": True,
+    "undoc-members": True,
+    "private-members": True,
+    "member-order": "bysource",
+    "special-members": "__init__",
+}
 
 language = "en"
 
