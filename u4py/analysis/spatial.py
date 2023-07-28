@@ -18,7 +18,6 @@ import rasterio.coords
 import rasterio.warp as riowarp
 import scipy.spatial as spspatial
 import shapely
-from shapely.geometry import LineString
 
 
 def reproject_raster(
@@ -262,8 +261,11 @@ def _select_points_region(
 
 
 def _select_points_point(
-    point: list, radius: float, psi_file_path: os.PathLike
-) -> gp.GeoDataFrame:
+    point: list | gp.GeoDataFrame,
+    radius: float,
+    psi_file_path: os.PathLike,
+    split_points: bool = False,
+) -> gp.GeoDataFrame | List[gp.GeoDataFrame]:
     """Selects PSI measurements in a `radius` around the specified `point` from the files or folder.
 
     :param point: The center point of the query.
@@ -272,12 +274,20 @@ def _select_points_point(
     :type radius: float
     :param psi_file_path: The file or folder to select from
     :type psi_file_path: os.PathLike
+    :param split_points: Splits the output into a list of points based on the selection, defaults to False
+    :type split_points: bool, optional
     :return: The points from `psi_file_path` in a `radius` round `point`.
     :rtype: gp.GeoDataFrame
     """
-    region = gp.GeoDataFrame(
-        {"geometry": [shapely.Point(point).buffer(radius)]}, crs="EPSG:32632"
-    )
+    if isinstance(point, list):
+        region = gp.GeoDataFrame(
+            {"geometry": [shapely.Point(point).buffer(radius)]},
+            crs="EPSG:32632",
+        )
+    elif isinstance(point, gp.GeoDataFrame) or isinstance(point, gp.GeoSeries):
+        if point.crs != "EPSG:32632":
+            point = point.to_crs("EPSG:32632")
+        region = point.buffer(radius)
     coords = _get_coords(psi_file_path)
     points = gp.GeoDataFrame(
         {
@@ -286,7 +296,10 @@ def _select_points_point(
         },
         crs="EPSG:32632",
     )
-    return points.clip(region)
+    if split_points:
+        return [points.clip(reg) for reg in region]
+    else:
+        return points.clip(region)
 
 
 def bounds_to_polygon(bounds: rasterio.coords.BoundingBox) -> shapely.Polygon:
@@ -382,3 +395,28 @@ def get_named_geometries(
             geometries.append(osm_data.geometry[ii])
     if geometries:
         return gp.GeoSeries(geometries, crs=osm_data.crs)
+
+
+def catalog_to_gdf(
+    data: dict, mask: gp.GeoDataFrame = None
+) -> gp.GeoDataFrame:
+    """Converts an earthquake catalogue to a geodataframe.
+
+    :param data: The data dictionary
+    :type data: dict
+    :param mask: An optional masking GeoDataFrame, defaults to None
+    :type mask: gp.GeoDataFrame, optional
+    :return: The (masked) GeoDataFrame
+    :rtype: gp.GeoDataFrame
+    """
+    data["geometry"] = [
+        shapely.Point(x, y) for x, y in zip(data["LAENGE"], data["BREITE"])
+    ]
+
+    gdf = gp.GeoDataFrame(data, crs="EPSG:4326").to_crs("EPSG:23032")
+    if isinstance(mask, gp.GeoDataFrame):
+        if mask.crs != "EPSG:23032":
+            mask.to_crs("EPSG:23032")
+        return gp.clip(gdf, mask)
+    else:
+        return gdf

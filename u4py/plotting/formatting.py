@@ -123,7 +123,7 @@ def numerate_axes(fig: Figure, n: int = 0, step: int = 1):
         )
 
 
-def add_copyright(text: str, ax: Axes):
+def add_copyright(text: str, ax: Axes, textpos: tuple = (0.02, 0.02)):
     """Adds a small copyright string to the lower left of the plot.
 
     :param text: The text to add
@@ -133,7 +133,7 @@ def add_copyright(text: str, ax: Axes):
     """
     txt = ax.annotate(
         text,
-        (0.02, 0.02),
+        textpos,
         xycoords="axes fraction",
         fontsize="small",
         fontstyle="italic",

@@ -201,7 +201,7 @@ def plot_timeseries_fit(
     results: dict = dict(),
     fit_num: int = 2,
     color: str = "C1",
-    annotate: bool = True,
+    annotate: bool = False,
 ) -> Tuple[Figure, Axes] | None:
     """Plots the fit data for a simple timeseries analysis.
 
