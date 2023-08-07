@@ -100,3 +100,18 @@ def get_rainfall_data(
             return get_rainfall_data(pkl_path)
         else:
             return _load_rainfall_data(file_path)
+
+
+def thermal_expansion(length: float, alpha: float, delta_T: float):
+    """Theoretical thermal expansion of a material.
+
+    :math:`\\Delta L \\approx \\alpha L_0 \\Delta T`
+
+    :param length: The length of the structure.
+    :type length: float
+    :param alpha: The coefficient of thermal expansion
+    :type alpha: float
+    :param delta_T: The temperature change.
+    :type delta_T: float
+    """
+    return alpha * length * delta_T
