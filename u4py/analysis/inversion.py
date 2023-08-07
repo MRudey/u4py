@@ -1063,7 +1063,7 @@ def invert_test_data():
     ax.set_ylabel("Displacement (mm)")
     fig.tight_layout()
     fig.savefig(
-        r"C:\Users\Michael Rudolf\HESSENBOX-DA\Umwelt_4_privat\2023-07 Treffen\beispiel_zeitreihe.pdf"
+        r"~\HESSENBOX-DA\Umwelt_4_privat\2023-07 Treffen\beispiel_zeitreihe.pdf"
     )
     plt.show()
 
