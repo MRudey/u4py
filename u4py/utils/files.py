@@ -3,6 +3,8 @@ Contains simple file and folder utilities for u4py. These are mainly wrappers fo
 
 Most functions also can detect if the script is running in a non-interactive shell without access to a user interface, i.e., on a server. Then the user has to input the path manually into the command line.
 """
+from __future__ import annotations
+
 import configparser
 import logging
 import os

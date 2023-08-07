@@ -1,6 +1,8 @@
 """
 Contains some sqlite functions for working with gpkg files
 """
+from __future__ import annotations
+
 import logging
 import os
 import sqlite3 as sql

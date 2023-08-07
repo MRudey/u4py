@@ -2,6 +2,8 @@
 Implements the command line arguments. Mainly used for scripts that run on the server or cluster with long-running tasks. Examples are the conversion of a .gpgk file to many hdf5 files or the batch inversion of many hdf5 files on the cluster.
 """
 
+from __future__ import annotations
+
 import argparse
 import logging
 

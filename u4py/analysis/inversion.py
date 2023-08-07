@@ -25,6 +25,7 @@ practice to work with real data is implemented in
 This code has been transcribed from the Matlab source code of S. Metzger, GFZ-Potsdam.
 
 """
+from __future__ import annotations
 
 import logging
 import random

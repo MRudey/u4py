@@ -1,6 +1,8 @@
 """
 Contains functions to work with geological data.
 """
+from __future__ import annotations
+
 import os
 
 import geopandas as gp

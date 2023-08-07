@@ -8,6 +8,8 @@ wrong paths are highlighted. For each script or project, a file can be saved.
 
 """
 
+from __future__ import annotations
+
 import configparser
 import logging
 import os

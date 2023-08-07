@@ -1,6 +1,8 @@
 """
 Contains functions for various file or data conversion operations.
 """
+from __future__ import annotations
+
 import logging
 import os
 import time

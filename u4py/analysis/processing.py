@@ -10,6 +10,7 @@ appended to the original file. Most functions first check if results are
 already present to avoid a reprocessing every function call. This can be
 overwritten by setting the keyword argument `overwrite=True`.
 """
+from __future__ import annotations
 
 import logging
 import os

@@ -1,6 +1,8 @@
 """
 Contains functions with ready made plots. This module uses axis functions defined in :func:`u4py.plotting.axes` to create more complicated plots. The functions also do some processing and other data modification. Each function should contain a `save_path` if possible where the output figure is saved. If none is given the figure is shown interactively, otherwise it is saved and then destroyed.
 """
+from __future__ import annotations
+
 import os
 from datetime import datetime, timedelta
 

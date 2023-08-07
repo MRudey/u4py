@@ -1,6 +1,8 @@
 """
 Default configuration for some scripts and modules.
 """
+from __future__ import annotations
+
 import logging
 import os
 

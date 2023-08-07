@@ -1,6 +1,8 @@
 """
 Contains functions for consistent figure and axis formatting.
 """
+from __future__ import annotations
+
 import re
 import string
 from typing import Tuple

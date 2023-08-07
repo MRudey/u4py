@@ -2,6 +2,8 @@
 Contains functions to modify or reformat data for plotting. This module helps to declutter the :func:`u4py.plotting.plots` or :func:`u4py.plotting.axes` modules.
 """
 
+from __future__ import annotations
+
 from typing import Callable, Tuple
 
 import numpy as np

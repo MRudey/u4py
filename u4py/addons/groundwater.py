@@ -1,6 +1,8 @@
 """
 Contains functions to work with groundwater data.
 """
+from __future__ import annotations
+
 import csv
 import os
 import pickle as pkl

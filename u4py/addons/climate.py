@@ -1,6 +1,7 @@
 """
 Contains functions to work with climate data.
 """
+from __future__ import annotations
 
 import csv
 import os

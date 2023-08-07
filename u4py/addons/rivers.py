@@ -1,6 +1,8 @@
 """
 Functions for working with river level data
 """
+from __future__ import annotations
+
 import csv
 import locale
 import os

@@ -1,6 +1,8 @@
 """
 Functions to read and work with the seismic catalogue of Hessen.
 """
+from __future__ import annotations
+
 import operator as op
 import os
 import pickle as pkl
