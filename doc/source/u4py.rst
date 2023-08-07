@@ -15,4 +15,5 @@ Subpackages
    u4py.addons
    u4py.analysis
    u4py.plotting
+   u4py.scripts
    u4py.utils

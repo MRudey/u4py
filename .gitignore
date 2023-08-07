@@ -89,6 +89,11 @@ docs/_build/
 searchindex.js
 doc/build
 doc/cache
+doc/source/*.addons*
+doc/source/*.analysis*
+doc/source/*.plotting*
+doc/source/*.scripts*
+doc/source/*.utils*
 public/*.html
 public/*.inv
 public/_sources

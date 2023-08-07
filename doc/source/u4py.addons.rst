@@ -17,3 +17,4 @@ Submodules
    u4py.addons.geology
    u4py.addons.groundwater
    u4py.addons.rivers
+   u4py.addons.seismo
