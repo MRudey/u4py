@@ -31,26 +31,26 @@ def main():
     )
 
     rois = gp.read_file(project["paths"]["piloten_path"])
-    roi = rois[rois.Name == "Kassel"]
-    region_name = roi.Name.to_string().replace(" ", "")
     shp_cfg = get_shape_config()
-    tiff_file_list = u4files.get_region_tiff(
-        roi, "Kassel", project["paths"]["diff_plan_path"]
-    )
-    with rio.open(tiff_file_list[0], "r") as tile:
-        tiff_crs = tile.crs.to_string()
-    merged_data, merged_path = u4files.get_buffered_shapefiles(
-        project["paths"]["places_path"], roi, shp_cfg, out_crs=tiff_crs
-    )
+    for roi in tqdm(rois, desc="Clipping and Merging Tiffs"):
+        region_name = roi.Name.to_string().replace(" ", "")
+        tiff_file_list = u4files.get_region_tiff(
+            roi, "Kassel", project["paths"]["diff_plan_path"]
+        )
+        with rio.open(tiff_file_list[0], "r") as tile:
+            tiff_crs = tile.crs.to_string()
+        merged_data, merged_path = u4files.get_buffered_shapefiles(
+            project["paths"]["places_path"], roi, shp_cfg, out_crs=tiff_crs
+        )
 
-    clipped_tiffs_list = u4files.get_clipped_tiff_list(
-        tiff_file_list, merged_path, region_name=region_name, overwrite=True
-    )
+        clipped_tiffs_list = u4files.get_clipped_tiff_list(
+            tiff_file_list, merged_path, region_name=region_name
+        )
 
-    clipped_tiff_folder, _ = os.path.split(clipped_tiffs_list[0])
-    merged_tiff_file_path = u4files.get_merged_tiff_path(
-        clipped_tiff_folder, mask=roi, overwrite=True
-    )
+        clipped_tiff_folder, _ = os.path.split(clipped_tiffs_list[0])
+        merged_tiff_file_path = u4files.get_merged_tiff_path(
+            clipped_tiff_folder, mask=roi
+        )
 
     fig, ax = plt.subplots()
     with rio.open(merged_tiff_file_path, "r") as tile:
