@@ -942,7 +942,11 @@ def get_clipped_tiff_list(
                     leave=False,
                 )
             )
-
+        clipped_tiff_list = [
+            os.path.join(ctiff_fol, tf)
+            for tf in os.listdir(ctiff_fol)
+            if tf.endswith(".tif")
+        ]
     return clipped_tiff_list
 
 
