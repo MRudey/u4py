@@ -197,7 +197,7 @@ def get_data_within_osm_query(h5path: os.PathLike) -> Tuple[dict, str]:
         },
     }
     # Get points from file, if not available creates new file
-    points = u4files.get_select_points_osm(query, h5path)
+    points = u4files.get_osm_points(query, h5path)
     data = u4files.load_data_from_points(h5path, points)
     return data, points.crs
 

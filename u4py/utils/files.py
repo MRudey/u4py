@@ -10,20 +10,25 @@ import logging
 import os
 import pickle as pkl
 from datetime import datetime
+from multiprocessing import Pool
 from tkinter import TclError, Tk, filedialog
 from typing import Iterable, Tuple
 
+import fiona
 import geopandas as gp
 import h5py
 import numpy as np
 import pandas as pd
 import rasterio as rio
 import shapely
+from rasterio.mask import mask as riomask
+from rasterio.merge import merge as riomerge
 from rasterio.transform import Affine
 from tqdm import tqdm
 
 import u4py.analysis.inversion as u4invert
 import u4py.analysis.spatial as u4spatial
+import u4py.utils.config as u4config
 import u4py.utils.convert as u4convert
 
 
@@ -342,8 +347,22 @@ def multi_split(file_path: os.PathLike, nsplits: int) -> os.PathLike:
     return file_path
 
 
-def get_select_points_osm(query, psi_file_path, overwrite=False):
-    base_folder, source_name = os.path.split(psi_file_path)
+def get_osm_points(
+    query: dict, source_file_path: os.PathLike, overwrite: bool = False
+) -> Tuple[gp.GeoDataFrame, os.PathLike]:
+    """Gets the PSI points in a region defined by an OSM query and saves them
+    into a shape file for faster access.
+
+    :param query: The OSM query
+    :type query: dict
+    :param source_file_path: Path to folder or file where the PSI data is found.
+    :type source_file_path: os.PathLike
+    :param overwrite: Whether to overwrite the output shape file, defaults to False
+    :type overwrite: bool, optional
+    :return: Returns the points as GeoDataFrame with time series attached and the path where the folder is found.
+    :rtype: Tuple[gp.GeoDataFrame, os.PathLike]
+    """
+    base_folder, source_name = os.path.split(source_file_path)
     point_files_folder = os.path.join(
         os.path.split(base_folder)[0], "selected_psi_points"
     )
@@ -356,7 +375,7 @@ def get_select_points_osm(query, psi_file_path, overwrite=False):
     if os.path.exists(point_file_path) and not overwrite:
         points = gp.GeoDataFrame.from_file(point_file_path)
     else:
-        points = u4spatial._select_points_osm(query, psi_file_path)
+        points = u4spatial._select_points_osm(query, source_file_path)
         points.to_file(point_file_path)
         points = gp.GeoDataFrame.from_file(point_file_path)
     return points
@@ -365,7 +384,7 @@ def get_select_points_osm(query, psi_file_path, overwrite=False):
 def get_region_points(
     region: gp.GeoDataFrame,
     region_name: str,
-    psi_file_path: os.PathLike,
+    source_file_path: os.PathLike,
     overwrite: bool = False,
     crs: str = "EPSG:32632",
 ) -> Tuple[gp.GeoDataFrame, os.PathLike]:
@@ -376,8 +395,8 @@ def get_region_points(
     :type region: gp.GeoDataFrame
     :param region_name: The name of the region.
     :type region_name: str
-    :param psi_file_path: Path to folder or file where the PSI data is found.
-    :type psi_file_path: os.PathLike
+    :param source_file_path: Path to folder or file where the PSI data is found.
+    :type source_file_path: os.PathLike
     :param overwrite:  Whether to overwrite the output shape file, defaults to False
     :type overwrite: bool, optional
     :param crs: The CRS of the input shapes, defaults to "EPSG:32632"
@@ -385,7 +404,7 @@ def get_region_points(
     :return: Returns the points as GeoDataFrame with time series attached and the path where the folder is found.
     :rtype: Tuple[gp.GeoDataFrame, os.PathLike]
     """
-    base_folder, source_name = os.path.split(psi_file_path)
+    base_folder, source_name = os.path.split(source_file_path)
     point_files_folder = os.path.join(
         os.path.split(base_folder)[0], "selected_psi_points"
     )
@@ -400,18 +419,18 @@ def get_region_points(
     else:
         if isinstance(region, gp.GeoDataFrame):
             points = u4spatial._select_points_region(
-                region, psi_file_path, crs=crs
+                region, source_file_path, crs=crs
             )
         elif isinstance(region, pd.Series):
             points = u4spatial._select_points_region(
-                region, psi_file_path, crs=crs
+                region, source_file_path, crs=crs
             )
         elif isinstance(region, shapely.Polygon):
             region_gdf = gp.GeoDataFrame(
                 geometry=gp.GeoSeries(region), crs=crs
             )
             points = u4spatial._select_points_region(
-                region_gdf, psi_file_path, crs=crs
+                region_gdf, source_file_path, crs=crs
             )
         points.to_file(point_file_path)
         points = gp.GeoDataFrame.from_file(point_file_path)
@@ -587,7 +606,7 @@ def load_tiff(tiff_file_path: os.PathLike) -> rio.DatasetReader:
     return tiff_tile
 
 
-def get_tiff_regions(
+def get_all_tiff_regions(
     project: configparser.ConfigParser, overwrite: bool = False
 ) -> gp.GeoDataFrame:
     """Gets the tiff files as regions (WIP)
@@ -622,13 +641,13 @@ def get_tiff_regions(
     return all_tiff_gdf
 
 
-def get_rois(file_path: os.PathLike) -> list[Tuple[str, gp.GeoDataFrame]]:
+def get_rois(file_path: os.PathLike) -> list[Tuple[str, shapely.Polygon]]:
     """Read all regions of interest from the shapefile
 
     :param file_path: The path to the shapefile containing the regions of interest.
     :type file_path: os.PathLike
     :return: A list of (`region name`, `GeoDataFrame`) tuples.
-    :rtype: list[Tuple[str, gp.GeoDataFrame]]
+    :rtype: list[Tuple[str, shapely.Polygon]]
     """
     regions = gp.read_file(file_path)
     try:
@@ -657,3 +676,318 @@ def get_all_pickle_data(
         fit_1 = [a[0] for a in data if a[0]]
         fit_2 = [a[1] for a in data if a[1]]
         return (fit_1, fit_2)
+
+
+def get_file_list_tiff(folder_path: os.PathLike) -> list:
+    """Gets a file list of tif files in `TB` folders
+
+    :param folder_path: The path to the folder containing `TB` folders
+    :type folder_path: os.PathLike
+    :return: A list of all tif files.
+    :rtype: list
+    """
+
+    tb_folders_list = [
+        os.path.join(folder_path, fol)
+        for fol in os.listdir(folder_path)
+        if os.path.isdir(os.path.join(folder_path, fol)) and "TB" in fol
+    ]
+    file_list = []
+    for fol in tb_folders_list:
+        file_list.extend(
+            [
+                os.path.join(fol, f)
+                for f in os.listdir(fol)
+                if f.endswith(".tif")
+            ]
+        )
+    return file_list
+
+
+def get_osm_tiff(
+    query: dict, source_file_path: os.PathLike, overwrite: bool = False
+) -> list[os.PathLike]:
+    """Gets a list of paths to tiff files within a specified OSM query.
+
+    :param query: The OSM query
+    :type query: dict
+    :param source_file_path: The path to the folder where the tiffs are stored (in `TB` folders)
+    :type source_file_path: os.PathLike
+    :param overwrite: Whether to overwrite the output shapefile, defaults to False
+    :type overwrite: bool, optional
+    :return: A list of paths to the tiff files within the osm region.
+    :rtype: list[os.PathLike]
+    """
+    file_list = get_file_list_tiff(source_file_path)
+    points = u4spatial._select_points_osm(query, file_list)
+    out_file_list = np.array(file_list)[points.source_index]
+    return np.unique(out_file_list).tolist()
+
+
+def get_region_tiff(
+    region: gp.GeoDataFrame,
+    region_name: str,
+    source_file_path: os.PathLike,
+    overwrite: bool = False,
+    crs: str = "EPSG:32632",
+) -> list[os.PathLike]:
+    """Gets a list of paths to tiff files in a region.
+
+    :param region: A `GeoDataFrame` of the region, e.g. from a shape file
+    :type region: gp.GeoDataFrame
+    :param region_name: The name of the region.
+    :type region_name: str
+    :param source_file_path: The path to the folder where the tiffs are stored (in `TB` folders)
+    :type source_file_path: os.PathLike
+    :param overwrite: Whether to overwrite the output shapefile, defaults to False
+    :type overwrite: bool, optional
+    :param crs: The CRS of the input shapes, defaults to "EPSG:32632"
+    :type crs: str, optional
+    :return: A list of paths to the tiff files within the osm region.
+    :rtype: list[os.PathLike]
+    """
+    logging.info("Getting tiffs from region")
+
+    file_list = get_file_list_tiff(source_file_path)
+    if isinstance(region, gp.GeoDataFrame):
+        points = u4spatial._select_points_region(region, file_list, crs=crs)
+    elif isinstance(region, pd.Series):
+        points = u4spatial._select_points_region(region, file_list, crs=crs)
+    elif isinstance(region, shapely.Polygon):
+        region_gdf = gp.GeoDataFrame(geometry=gp.GeoSeries(region), crs=crs)
+        points = u4spatial._select_points_region(
+            region_gdf, file_list, crs=crs
+        )
+    out_file_list = np.array(file_list)[points.source_index]
+    return np.unique(out_file_list).tolist()
+
+
+def get_point_tiff(
+    point: Tuple[float, float],
+    radius: float,
+    region_name: str,
+    source_file_path: os.PathLike,
+    overwrite: bool = False,
+) -> list[os.PathLike]:
+    """Returns paths of tiff files that are within `radius` of `point`.
+
+    :param point: The point where to start.
+    :type point: Tuple[float, float]
+    :param radius: The search radius around point (in meters).
+    :type radius: float
+    :param region_name: A sensible name for the extraction point.
+    :type region_name: str
+    :param source_file_path: The path to the folder where the tiffs are stored (in `TB` folders)
+    :type source_file_path: os.PathLike
+    :param overwrite: Whether to overwrite the output shapefile, defaults to False
+    :type overwrite: bool, optional
+    :return: A list of paths to the tiff files within the osm region.
+    :rtype: list[os.PathLike]
+    """
+    logging.info("Getting tiffs around point")
+
+    file_list = get_file_list_tiff(source_file_path)
+    points = u4spatial._select_points_point(point, radius, file_list)
+    out_file_list = np.array(file_list)[points.source_index]
+    return np.unique(out_file_list).tolist()
+
+
+def get_clipped_shapefile(
+    file_path_in: os.PathLike,
+    mask: gp.GeoDataFrame | gp.GeoSeries,
+    fclass: list[str] = [],
+    overwrite: bool = False,
+) -> Tuple[gp.GeoDataFrame, os.PathLike]:
+    """Reads the contents of a shapefile and returns it clipped by `mask`
+
+    :param file_path_in: The path to the shapefile
+    :type file_path_in: os.PathLike
+    :param mask: The mask used for clipping
+    :type mask: gp.GeoDataFrame | gp.GeoSeries
+    :param fclass: A list of feature classes to use from the original dataset, defaults to [] (all `fclasses`)
+    :type fclass: list, optional
+    :param overwrite: Whether to overwrite the existing shapefiles, defaults to False
+    :type overwrite: bool, optional
+    :return: The clipped dataset and the path to the output file.
+    :rtype: Tuple[gp.GeoDataFrame, os.PathLike]
+    """
+    logging.info("Getting clipped shapefile")
+
+    base_path, file_name = os.path.split(file_path_in)
+    fname, _ = os.path.splitext(file_name)
+    clipped_base = os.path.join(base_path, "clipped_shapes")
+    os.makedirs(clipped_base, exist_ok=True)
+
+    region_name = mask.Name.to_string().replace(" ", "")
+    clipped_path = os.path.join(clipped_base, fname + region_name + ".shp")
+
+    if os.path.exists(clipped_path) and not overwrite:
+        logging.info("Reading from existing shapefile.")
+        clipped_data = gp.read_file(clipped_path)
+    else:
+        logging.info("Creating new clipped shapefile")
+        in_data = gp.read_file(file_path_in)
+        if fclass:
+            selected_data = [in_data[in_data.fclass == fc] for fc in fclass]
+            in_data = gp.pd.concat(selected_data)
+        if in_data.crs != mask.crs:
+            mask = mask.to_crs(in_data.crs)
+        clipped_data = in_data.clip(mask)
+        clipped_data.to_file(clipped_path)
+    return clipped_data, clipped_path
+
+
+def get_buffered_shapefiles(
+    places_path: os.PathLike,
+    mask: gp.GeoDataFrame | gp.GeoSeries,
+    shp_cfg: dict,
+    out_crs: str = "",
+    overwrite: bool = False,
+) -> Tuple[gp.GeoDataFrame, os.PathLike]:
+    """Gets buffered and masked shapes for clipping from shapefile, recreates the shapefile if not found.
+
+    :param places_path: The path to the folder containing the shapefiles.
+    :type places_path: os.PathLike
+    :param mask: The mask for the dataset (e.g. a region of interest)
+    :type mask: gp.GeoDataFrame | gp.GeoSeries
+    :param shp_cfg: The configuration dictionary for the shapefiles in `places_path`
+    :type shp_cfg: dict
+    :param overwrite: Whether to overwrite the final file, defaults to False
+    :type overwrite: bool, optional
+    :return: A geodataframe with the shapes and the path to the output file.
+    :rtype: Tuple[gp.GeoDataFrame, os.PathLike]
+    """
+    logging.info("Getting buffered shapefiles")
+    merged_base = os.path.join(places_path, "buffered_and_merged_shapes")
+    os.makedirs(merged_base, exist_ok=True)
+
+    region_name = mask.Name.to_string().replace(" ", "")
+    merged_path = os.path.join(merged_base, region_name + "_merged.shp")
+
+    if os.path.exists(merged_path) and not overwrite:
+        logging.info("Loading from existing merged and buffered file")
+        merged_gdf = gp.read_file(merged_path)
+    else:
+        logging.info("Creating new merged and clipped shapefiles")
+        shp_data = dict()
+        for osm_type in tqdm(
+            shp_cfg["shp_file"].keys(), desc="Getting Clipped Shapefiles"
+        ):
+            shp_data[osm_type], _ = get_clipped_shapefile(
+                os.path.join(
+                    places_path,
+                    shp_cfg["shp_file"][osm_type],
+                ),
+                mask,
+                fclass=shp_cfg["fclass"][osm_type],
+                overwrite=overwrite,
+            )
+        logging.debug("Merging and buffering")
+        merged_geometry = u4spatial.buffer_and_merge(shp_data, shp_cfg)
+        merged_gdf = gp.GeoDataFrame(
+            geometry=merged_geometry, crs=shp_data[osm_type].crs
+        )
+        if out_crs:
+            logging.debug("Converting to different CRS")
+            merged_gdf = merged_gdf.to_crs(out_crs)
+        merged_gdf.to_file(merged_path)
+    return merged_gdf, merged_path
+
+
+def get_clipped_tiff_list(
+    tiff_file_list: list[os.PathLike],
+    mask_shp: os.PathLike,
+    region_name: str,
+    overwrite: bool = False,
+) -> list[os.PathLike]:
+    """Gets all tiffs from `tiff_file_list` clipped by the shapes in
+    `mask_shp`. The results are saved in a separate folder for quicker loading.
+
+    :param tiff_file_list: The file list of tiffs to clip
+    :type tiff_file_list: list[os.PathLike]
+    :param mask_shp: The shapefile containing the geometries for clipping.
+    :type mask_shp: os.PathLike
+    :param region_name: The name of the region for naming the output folder.
+    :type region_name: str
+    :param overwrite: Whether to overwrite the existing results, defaults to False
+    :type overwrite: bool, optional
+    :return: A list with paths to the clipped tiff files.
+    :rtype: list[os.PathLike]
+    """
+    logging.info("Getting clipped tiffs")
+    base_path = multi_split(tiff_file_list[0], 2)
+    ctiff_fol = os.path.join(base_path, f"clipped_tiffs_{region_name}")
+    os.makedirs(ctiff_fol, exist_ok=True)
+
+    clipped_tiff_list = []
+    if os.path.exists(ctiff_fol) and not overwrite:
+        logging.info("Loading existing data")
+        clipped_tiff_list = [
+            os.path.join(ctiff_fol, tf)
+            for tf in os.listdir(ctiff_fol)
+            if tf.endswith(".tif")
+        ]
+    if not clipped_tiff_list:
+        logging.info("Clipping tiff files.")
+        with fiona.open(mask_shp, "r") as shapefile:
+            shapes = [feature["geometry"] for feature in shapefile]
+        args = [(fp, ctiff_fol, shapes) for fp in tiff_file_list]
+        with Pool(u4config.cpu_count) as p:
+            logging.info("Starting Parallel Pool")
+            list(
+                tqdm(
+                    p.imap_unordered(batch_clip_tiff, args),
+                    total=len(tiff_file_list),
+                    desc="Masking Rasters",
+                    leave=False,
+                )
+            )
+
+    return clipped_tiff_list
+
+
+def batch_clip_tiff(args):
+    clip_tiff(*args)
+
+
+def clip_tiff(in_path: os.PathLike, ctiff_fol: os.PathLike, shapes: list):
+    _, fname = os.path.split(in_path)
+    out_path = os.path.join(ctiff_fol, fname)
+    with rio.open(in_path, "r") as src:
+        out_image, out_transform = riomask(src, shapes, invert=True)
+        out_meta = src.meta
+    out_meta.update(
+        {
+            "driver": "GTiff",
+            "height": out_image.shape[1],
+            "width": out_image.shape[2],
+            "transform": out_transform,
+        }
+    )
+    with rio.open(out_path, "w", **out_meta) as dest:
+        dest.write(out_image)
+
+
+def get_merged_tiff_path(
+    tiff_folder: os.PathLike,
+    mask: gp.GeoDataFrame = "",
+    overwrite: bool = False,
+) -> os.PathLike:
+    base_folder, folder_name = os.path.split(tiff_folder)
+    merged_file_path = os.path.join(base_folder, f"{folder_name}_merged.tif")
+    if not os.path.exists(merged_file_path) or overwrite:
+        tiff_file_list = [
+            rio.open(os.path.join(tiff_folder, tf), "r")
+            for tf in tqdm(
+                os.listdir(tiff_folder), desc="Reading Tiffs for Merge"
+            )
+            if tf.endswith(".tif")
+        ]
+        if len(mask) > 0:
+            bounds = tuple(np.squeeze(mask.bounds.values))
+            riomerge(tiff_file_list, dst_path=merged_file_path, bounds=bounds)
+        else:
+            riomerge(tiff_file_list, dst_path=merged_file_path)
+        for tf in tiff_file_list:
+            tf.close()
+    return merged_file_path

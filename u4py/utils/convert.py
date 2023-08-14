@@ -290,7 +290,7 @@ def chunk_data_numba(
         )
 
 
-@jit(parallel=True)
+@jit(parallel=True, nopython=False)
 def numba_chunking(
     total: int,
     chunk_list: list,
@@ -420,7 +420,7 @@ def get_bounds(minval: float, maxval: float, chunksize: int) -> np.ndarray:
     return out
 
 
-@jit(parallel=True)
+@jit(parallel=True, nopython=False)
 def get_chunks(xrange: np.ndarray, yrange: np.ndarray) -> list:
     """Returns the corners for chunking from a range of x and y values.
 

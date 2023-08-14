@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import os
 import pickle as pkl
+import re
 from typing import List, Tuple
 
 import geopandas as gp
@@ -18,6 +19,7 @@ import rasterio.coords
 import rasterio.warp as riowarp
 import scipy.spatial as spspatial
 import shapely
+from tqdm import tqdm
 
 
 def reproject_raster(
@@ -74,7 +76,7 @@ def get_cKDTree(file_path: os.PathLike) -> spspatial.cKDTree:
     :return: The spatial lookup Tree object
     :rtype: spspatial.cKDTree
     """
-    coords = _get_coords(file_path)
+    coords, source_index = _get_coords(file_path)
 
     return spspatial.cKDTree(coords)
 
@@ -95,41 +97,92 @@ def _get_coords(in_path: os.PathLike | list) -> list:
 
     if isinstance(in_path, list):
         if isinstance(in_path[0], str):
-            coords = _file_list_to_coords(in_path)
+            coords, source_index = _file_list_to_coords(in_path)
         elif isinstance(in_path[0], tuple):
             coords = _tuple_list_to_coords(in_path)
+            source_index = np.arange(len(coords))
 
     elif isinstance(in_path, str):
         if in_path.endswith(".h5"):
             coords = _h5_to_coords(in_path)
+            source_index = np.arange(len(coords))
         elif in_path.endswith(".pkl"):
             coords = _pkl_to_coords(in_path)
+            source_index = np.arange(len(coords))
         elif os.path.isdir(in_path):
-            coords = _file_list_to_coords(in_path)
+            coords, source_index = _file_list_to_coords(in_path)
 
     if coords is None:
         raise NotImplementedError(
             "Conversion of this type to lookup table not implemented!"
         )
-    return coords
+    return coords, source_index
 
 
-def _file_list_to_coords(in_path: os.PathLike) -> list:
-    """Converts a file list of h5 files with x and y coordinates in their names
+def _file_list_to_coords(
+    in_path: os.PathLike | list, ending: str = ".h5"
+) -> list:
+    """Converts a file list of files with x and y coordinates in their names
     to a list of coordinates.
 
-    :param in_path: The folder containing the h5 files.
+    :param in_path: The folder containing the files.
     :type in_path: os.PathLike
     :return: List of coordinates [(x1, y1), (x2, y2),...].
     :rtype: list
     """
+    if isinstance(in_path, str) and os.path.isdir(in_path):
+        coords = [
+            shapely.Point(
+                int(f[f.find("_x") + 2 : f.find("_y")]),
+                int(f[f.find("_y") + 2 : f.find(ending)]),
+            )
+            for f in os.listdir(in_path)
+            if f.endswith(ending)
+        ]
+        source_index = np.arange(len(coords))
+
+    elif isinstance(in_path, list):
+        coords = []
+        source_index = []
+        for ii, fpath in enumerate(in_path):
+            if fpath.endswith(".tif"):
+                coords.extend(_bounds_to_coords(fpath))
+                source_index.extend([ii] * 4)
+            else:
+                fname, _ = os.path.splitext(os.path.split(fpath)[-1])
+                ind = [m.start() for m in re.finditer("_", fname)]
+                coords.append(
+                    shapely.Point(
+                        int(fname[ind[1] + 1 : ind[2]]) * 1000,
+                        int(fname[ind[2] + 1 : ind[3]]) * 1000,
+                    )
+                )
+                source_index.append(ii)
+    else:
+        NotImplementedError(f"Conversion of {in_path} not supported.")
+
+    return coords, source_index
+
+
+def _bounds_to_coords(fpath: os.PathLike, tilesize=1000) -> list:
+    """Converts the bounds of a GeoTiff to four `shapely.Points` representing the corners of the Box.
+
+    :param fpath: The path to a GeoTiff
+    :type fpath: os.PathLike
+    :return: The corners as a list of `shapely.Points`
+    :rtype: list
+    """
+    fname, _ = os.path.splitext(os.path.split(fpath)[-1])
+    ind = [m.start() for m in re.finditer("_", fname)]
+    left = int(fname[ind[1] + 1 : ind[2]]) * 1000
+    bottom = int(fname[ind[2] + 1 : ind[3]]) * 1000
+    right = left + tilesize
+    top = bottom + tilesize
     coords = [
-        shapely.Point(
-            int(f[f.find("_x") + 2 : f.find("_y")]),
-            int(f[f.find("_y") + 2 : f.find(".h5")]),
-        )
-        for f in os.listdir(in_path)
-        if f.endswith(".h5")
+        shapely.Point(left, bottom),
+        shapely.Point(left, top),
+        shapely.Point(right, bottom),
+        shapely.Point(right, top),
     ]
     return coords
 
@@ -215,11 +268,11 @@ def _select_points_osm(
         osm_query["address"], tags=osm_query["tags"]
     ).to_crs("EPSG:32632")
 
-    coords = _get_coords(psi_file_path)
+    coords, source_index = _get_coords(psi_file_path)
     points = gp.GeoDataFrame(
         {
             "geometry": coords,
-            "source_index": np.arange(len(coords)),
+            "source_index": source_index,
         },
         crs="EPSG:32632",
     )
@@ -243,20 +296,20 @@ def _select_points_region(
     :rtype: gp.GeoDataFrame
     """
 
-    coords = _get_coords(psi_file_path)
+    coords, source_index = _get_coords(psi_file_path)
     points = gp.GeoDataFrame(
         {
             "geometry": coords,
-            "source_index": np.arange(len(coords)),
+            "source_index": source_index,
         },
         crs="EPSG:32632",
     )
-    if crs:
+    if region.crs != points.crs:
+        region = region.to_crs(points.crs)
+    elif crs:
         region = gp.GeoDataFrame(
             geometry=gp.GeoSeries(region.geometry), crs=crs
         )
-    elif region.crs != "EPSG:32632":
-        region = region.to_crs("EPSG:32632")
     return points.clip(region)
 
 
@@ -288,11 +341,11 @@ def _select_points_point(
         if point.crs != "EPSG:32632":
             point = point.to_crs("EPSG:32632")
         region = point.buffer(radius)
-    coords = _get_coords(psi_file_path)
+    coords, source_index = _get_coords(psi_file_path)
     points = gp.GeoDataFrame(
         {
             "geometry": coords,
-            "source_index": np.arange(len(coords)),
+            "source_index": source_index,
         },
         crs="EPSG:32632",
     )
@@ -420,3 +473,43 @@ def catalog_to_gdf(
         return gp.clip(gdf, mask)
     else:
         return gdf
+
+
+def calculate_buffer(
+    gdf: gp.GeoDataFrame, buffer_size: float, crs: str = "EPSG:32632"
+) -> gp.GeoDataFrame:
+    """Wrapper for buffer function that automatically switches to a projected CRS
+
+    :param gdf: The input GeoDataFrame
+    :type gdf: gp.GeoDataFrame
+    :param buffer_size: The buffer size in metres
+    :type buffer_size: float
+    :return: The buffered GeoDataFrame
+    :rtype: gp.GeoDataFrame
+    """
+    old_crs = gdf.crs
+    if old_crs != crs:
+        gdf = gdf.to_crs(crs)
+    gdf_buf = gdf.buffer(buffer_size)
+    gdf_buf = gdf_buf.to_crs(old_crs)
+    return gdf_buf
+
+
+def buffer_and_merge(shp_data: dict, shp_cfg: dict) -> gp.GeoDataFrame:
+    """Creates buffers for all input shapes and merges them to a large `GeoDataFrame`
+
+    :param shp_data: The dictionary with shape data
+    :type shp_data: dict
+    :param shp_cfg: The configuration for the shape data (include buffer sizes)
+    :type shp_cfg: dict
+    :return: The merged and buffered dataset.
+    :rtype: gp.GeoDataFrame
+    """
+
+    buff_gdf = gp.pd.concat(
+        [
+            calculate_buffer(shp_data[kk], shp_cfg["buffer_dist"][kk])
+            for kk in shp_data.keys()
+        ]
+    )
+    return buff_gdf

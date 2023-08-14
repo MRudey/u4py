@@ -15,7 +15,7 @@ def main():
         required=["subsubregions_path", "diff_plan_path"]
     )
 
-    all_tiff_gdf = u4files.get_tiff_regions(project, overwrite=True)
+    all_tiff_gdf = u4files.get_all_tiff_regions(project, overwrite=True)
     mask_gdb = gp.read_file(project["paths"]["subsubregions_path"])
 
     for geom in mask_gdb["geometry"]:
