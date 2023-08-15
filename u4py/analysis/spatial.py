@@ -5,6 +5,7 @@ or spatial lookup of features.
 
 from __future__ import annotations
 
+import logging
 import os
 import pickle as pkl
 import re
@@ -12,6 +13,7 @@ from typing import List, Tuple
 
 import geopandas as gp
 import h5py
+import matplotlib.pyplot as plt
 import numpy as np
 import osmnx
 import rasterio as rio
@@ -19,7 +21,7 @@ import rasterio.coords
 import rasterio.warp as riowarp
 import scipy.spatial as spspatial
 import shapely
-from tqdm import tqdm
+import shapely.geometry as shpgeo
 
 
 def reproject_raster(
@@ -513,3 +515,82 @@ def buffer_and_merge(shp_data: dict, shp_cfg: dict) -> gp.GeoDataFrame:
         ]
     )
     return buff_gdf
+
+
+def contour_shapes(
+    xx: np.ndarray,
+    yy: np.ndarray,
+    zz: np.ndarray,
+    levels: list,
+    min_area: float,
+    crs: str,
+    delete_outside: bool = True,
+) -> gp.GeoDataFrame:
+    """Generates a geodataframe of `Polygons` from the `xx, yy, zz` dataset using the contour `levels`.
+
+    :param xx: The array with x coordinates
+    :type xx: np.ndarray
+    :param yy: The array with y coordinates
+    :type yy: np.ndarray
+    :param zz: The array with displacements
+    :type zz: np.ndarray
+    :param levels: The levels to use for the contour plot
+    :type levels: list
+    :param min_area: The minimum area for a contour surface to be taken into account.
+    :type min_area: float
+    :param min_area: The coordinate system of the Polygons.
+    :type min_area: str
+    :param delete_outside: Whether to set values above the highest level to nan (and below the lowest), defaults to True
+    :type delete_outside: bool, optional
+    :return: A list of Polygons together with the levels they have been generated from.
+    :rtype: gp.GeoDataFrame
+    """
+    logging.info("Generating Contour Shapes")
+
+    if delete_outside:
+        logging.debug("Deleting values outside level range")
+        zz[np.abs(zz) > levels[-1]] = np.nan
+        zz[np.abs(zz) < levels[0]] = np.nan
+
+    logging.debug("Making contour set")
+    fig, ax = plt.subplots()
+    cf = ax.contour(xx, yy, zz, levels=levels)
+
+    logging.debug("Separating contour set")
+    polygons = []  # The polygon shapes
+    polygon_levels = []  # The levels of the polygon
+    color_levels = []  # The midpoint of the levels for easy plotting
+    for ii, segs in enumerate(cf.allsegs):
+        if len(segs) > 0:
+            for p in segs:
+                if len(p) > 3:
+                    pgon = shpgeo.Polygon(p)
+                    if pgon.area > min_area:
+                        polygons.append(pgon)
+                        polygon_levels.append(f"{levels[ii]} - {levels[ii+1]}")
+                        color_levels.append(
+                            np.mean([levels[ii], levels[ii + 1]])
+                        )
+    plt.close(fig)
+
+    logging.debug("Generating GeoDataFrame")
+    gdf = gp.GeoDataFrame(
+        data={"contour": polygon_levels, "level": color_levels},
+        geometry=polygons,
+        crs=crs,
+    )
+    return gdf
+
+
+def plus_minus_levels(half_sided: list) -> list:
+    """Generates a mirrored levels for the half-sided level list, e.g. `[2,3,4]` -> `[-4,-3,-2,2,3,4]`
+
+    :param half_sided: A list of levels to be mirrored
+    :type half_sided: list
+    :return: The mirrored levels
+    :rtype: list
+    """
+
+    half_sided.extend([-1 * ll for ll in half_sided])
+    half_sided.sort()
+    return half_sided

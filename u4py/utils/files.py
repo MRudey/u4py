@@ -995,3 +995,73 @@ def get_merged_tiff_path(
         for tf in tiff_file_list:
             tf.close()
     return merged_file_path
+
+
+def extract_xyz_tiff(
+    file_path: os.PathLike,
+) -> Tuple[np.ndarray, np.ndarray, np.ndarray, str]:
+    """Extracts the data and coordinates from a tiff file for easier processing with numpy.
+
+    :param file_path: The path to the tiff file.
+    :type file_path: os.PathLike
+    :return: A Tuple of `np.ndarrays` with X, Y, Z values and the coordinate system.
+    :rtype: Tuple[np.ndarray, np.ndarray, np.ndarray, str]
+    """
+    logging.info("Reading data from tiff file.")
+    with rio.open(file_path, "r") as tile:
+        logging.info("Loading tile data")
+        zz = np.squeeze(tile.read())
+        crs = tile.crs.to_string()
+        shp = zz.shape
+
+        logging.info("Reading coordinates")
+        x = []
+        for ii in range(shp[1]):
+            x.append(tile.xy(0, ii)[0])
+        y = []
+        for ii in range(shp[0]):
+            y.append(tile.xy(ii, 0)[1])
+    xx, yy = np.meshgrid(x, y)
+    return (xx, yy, zz, crs)
+
+
+def get_thresholded_contours(
+    tiff_file_path: os.PathLike,
+    levels: list,
+    threshold: float,
+    overwrite: bool = False,
+) -> gp.GeoDataFrame:
+    """Gets contours around regions of specific ground motions (`levels`) that
+    are larger than the `threshold` area (in m²). Data is stored as a
+    shapefile for faster access
+
+    :param tiff_file_path: The input tiff file to create contours.
+    :type tiff_file_path: os.PathLike
+    :param levels: The levels of the contours
+    :type levels: list
+    :param threshold: The minimum area for detection
+    :type threshold: float
+    :param overwrite: Whether to overwrite the existing results, defaults to False
+    :type overwrite: bool, optional
+    :return: A GeoDataFrame containing polygon shapes including some more info.
+    :rtype: gp.GeoDataFrame
+    """
+    logging.info("Getting thresholded contours")
+
+    logging.info("Setting up paths")
+    base_path, fname = os.path.split(tiff_file_path)
+    out_folder = os.path.join(base_path, "thresholded tiffs")
+    os.makedirs(out_folder, exist_ok=True)
+    fname = os.path.splitext(fname)[0]
+    out_fname = fname.replace("clipped_tiffs", "thresh_contours")
+    out_path = os.path.join(out_folder, out_fname + ".shp")
+
+    if os.path.exists(out_path) and not overwrite:
+        logging.info("Loading from file")
+        gdf = gp.read_file(out_path)
+    else:
+        logging.info("Generating new results")
+        xx, yy, zz, crs = extract_xyz_tiff(tiff_file_path)
+        gdf = u4spatial.contour_shapes(xx, yy, zz, levels, threshold, crs)
+        gdf.to_file(out_path)
+    return gdf
