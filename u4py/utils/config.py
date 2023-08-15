@@ -14,7 +14,7 @@ log_level = logging.INFO
 
 def start_logger():
     logging.basicConfig(
-        format="[%(levelname)s] %(funcName)s: %(message)s",
+        format="%(asctime)s [%(levelname)s] %(funcName)s: %(message)s",
         stream=sys.stdout,
         level=log_level,
     )
