@@ -13,12 +13,6 @@ import u4py.analysis.processing as u4proc
 import u4py.utils.files as u4files
 import u4py.utils.sql as u4sql
 
-# logging.basicConfig(
-#     format="[%(levelname)s] %(funcName)s: %(message)s",
-#     stream=sys.stdout,
-#     level=u4config.log_level,
-# )
-
 
 def main():
     file_path = "/mnt/Raid/Umwelt4/Daten/hessen_l3_clipped.gpkg"
