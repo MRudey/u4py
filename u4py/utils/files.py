@@ -795,6 +795,7 @@ def get_point_tiff(
 def get_clipped_shapefile(
     file_path_in: os.PathLike,
     mask: gp.GeoDataFrame | gp.GeoSeries,
+    region_name: str,
     fclass: list[str] = [],
     overwrite: bool = False,
 ) -> Tuple[gp.GeoDataFrame, os.PathLike]:
@@ -818,7 +819,7 @@ def get_clipped_shapefile(
     clipped_base = os.path.join(base_path, "clipped_shapes")
     os.makedirs(clipped_base, exist_ok=True)
 
-    region_name = mask.Name.to_string().replace(" ", "")
+    region_name = region_name.replace(" ", "")
     clipped_path = os.path.join(clipped_base, fname + region_name + ".shp")
 
     if os.path.exists(clipped_path) and not overwrite:
@@ -840,6 +841,7 @@ def get_clipped_shapefile(
 def get_buffered_shapefiles(
     places_path: os.PathLike,
     mask: gp.GeoDataFrame | gp.GeoSeries,
+    region_name: str,
     shp_cfg: dict,
     out_crs: str = "",
     overwrite: bool = False,
@@ -861,7 +863,6 @@ def get_buffered_shapefiles(
     merged_base = os.path.join(places_path, "buffered_and_merged_shapes")
     os.makedirs(merged_base, exist_ok=True)
 
-    region_name = mask.Name.to_string().replace(" ", "")
     merged_path = os.path.join(merged_base, region_name + "_merged.shp")
 
     if os.path.exists(merged_path) and not overwrite:
@@ -871,7 +872,9 @@ def get_buffered_shapefiles(
         logging.info("Creating new merged and clipped shapefiles")
         shp_data = dict()
         for osm_type in tqdm(
-            shp_cfg["shp_file"].keys(), desc="Getting Clipped Shapefiles"
+            shp_cfg["shp_file"].keys(),
+            desc="Getting Clipped Shapefiles",
+            leave=False,
         ):
             shp_data[osm_type], _ = get_clipped_shapefile(
                 os.path.join(
@@ -879,6 +882,7 @@ def get_buffered_shapefiles(
                     shp_cfg["shp_file"][osm_type],
                 ),
                 mask,
+                region_name,
                 fclass=shp_cfg["fclass"][osm_type],
                 overwrite=overwrite,
             )
@@ -983,7 +987,9 @@ def get_merged_tiff_path(
         tiff_file_list = [
             rio.open(os.path.join(tiff_folder, tf), "r")
             for tf in tqdm(
-                os.listdir(tiff_folder), desc="Reading Tiffs for Merge"
+                os.listdir(tiff_folder),
+                desc="Reading Tiffs for Merge",
+                leave=False,
             )
             if tf.endswith(".tif")
         ]

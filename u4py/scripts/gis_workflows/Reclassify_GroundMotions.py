@@ -32,15 +32,24 @@ def main():
 
     rois = gp.read_file(project["paths"]["piloten_path"])
     shp_cfg = get_shape_config()
-    for roi in tqdm(rois, desc="Clipping and Merging Tiffs"):
-        region_name = roi.Name.to_string().replace(" ", "")
+    for region_name in tqdm(
+        rois.Name,
+        desc="Clipping and Merging Tiffs",
+        total=len(rois.geometry),
+    ):
+        roi = rois[rois.Name == region_name]
+        region_name = region_name.replace(" ", "")
         tiff_file_list = u4files.get_region_tiff(
-            roi, "Kassel", project["paths"]["diff_plan_path"]
+            roi, region_name, project["paths"]["diff_plan_path"]
         )
         with rio.open(tiff_file_list[0], "r") as tile:
             tiff_crs = tile.crs.to_string()
         merged_data, merged_path = u4files.get_buffered_shapefiles(
-            project["paths"]["places_path"], roi, shp_cfg, out_crs=tiff_crs
+            project["paths"]["places_path"],
+            roi,
+            region_name,
+            shp_cfg,
+            out_crs=tiff_crs,
         )
 
         clipped_tiffs_list = u4files.get_clipped_tiff_list(
@@ -52,12 +61,12 @@ def main():
             clipped_tiff_folder, mask=roi
         )
 
-    fig, ax = plt.subplots()
-    with rio.open(merged_tiff_file_path, "r") as tile:
-        rioplot.show(tile, ax=ax, cmap="RdBu", vmin=-2, vmax=2)
-    # _show_selected_tiffs(clipped_tiffs_list, ax=ax)
-    # _show_merged_data(merged_data, ax=ax)
-    plt.show()
+    # fig, ax = plt.subplots()
+    # with rio.open(merged_tiff_file_path, "r") as tile:
+    #     rioplot.show(tile, ax=ax, cmap="RdBu", vmin=-2, vmax=2)
+    # # _show_selected_tiffs(clipped_tiffs_list, ax=ax)
+    # # _show_merged_data(merged_data, ax=ax)
+    # plt.show()
 
 
 def _show_merged_data(merged_data, ax):
