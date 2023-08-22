@@ -22,6 +22,7 @@ import rasterio.warp as riowarp
 import scipy.spatial as spspatial
 import shapely
 import shapely.geometry as shpgeo
+from tqdm import tqdm
 
 
 def reproject_raster(
@@ -489,12 +490,13 @@ def calculate_buffer(
     :return: The buffered GeoDataFrame
     :rtype: gp.GeoDataFrame
     """
+    logging.info("Calculating buffers")
     old_crs = gdf.crs
     if old_crs != crs:
         gdf = gdf.to_crs(crs)
     gdf_buf = gdf.buffer(buffer_size)
     gdf_buf = gdf_buf.to_crs(old_crs)
-    return gdf_buf
+    return gp.GeoDataFrame(geometry=gdf_buf, crs=old_crs)
 
 
 def buffer_and_merge(shp_data: dict, shp_cfg: dict) -> gp.GeoDataFrame:
@@ -511,7 +513,7 @@ def buffer_and_merge(shp_data: dict, shp_cfg: dict) -> gp.GeoDataFrame:
     buff_gdf = gp.pd.concat(
         [
             calculate_buffer(shp_data[kk], shp_cfg["buffer_dist"][kk])
-            for kk in shp_data.keys()
+            for kk in tqdm(shp_data.keys(), desc="Buffering")
         ]
     )
     return buff_gdf

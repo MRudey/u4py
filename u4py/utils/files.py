@@ -18,9 +18,12 @@ import fiona
 import geopandas as gp
 import h5py
 import numpy as np
+import osmnx
 import pandas as pd
 import rasterio as rio
 import shapely
+import shapely.geometry as shpgeo
+import shapely.ops as shpops
 from rasterio.mask import mask as riomask
 from rasterio.merge import merge as riomerge
 from rasterio.transform import Affine
@@ -824,16 +827,15 @@ def get_clipped_shapefile(
 
     if os.path.exists(clipped_path) and not overwrite:
         logging.info("Reading from existing shapefile.")
-        clipped_data = gp.read_file(clipped_path)
+        clipped_data = fiona_load(clipped_path)
     else:
         logging.info("Creating new clipped shapefile")
-        in_data = gp.read_file(file_path_in)
-        if fclass:
-            selected_data = [in_data[in_data.fclass == fc] for fc in fclass]
-            in_data = gp.pd.concat(selected_data)
+        in_data = fiona_load(file_path_in, fclasses=fclass)
+        logging.info("Clipping Data")
         if in_data.crs != mask.crs:
             mask = mask.to_crs(in_data.crs)
         clipped_data = in_data.clip(mask)
+        logging.info("Saving clipped data.")
         clipped_data.to_file(clipped_path)
     return clipped_data, clipped_path
 
@@ -886,8 +888,16 @@ def get_buffered_shapefiles(
                 fclass=shp_cfg["fclass"][osm_type],
                 overwrite=overwrite,
             )
-        logging.debug("Merging and buffering")
+
+        logging.info("Merging and buffering")
+        for ii, kk in enumerate(shp_data.keys()):
+            if ii == 0:
+                first_crs = shp_data[kk].crs
+            if shp_data[kk].crs != first_crs:
+                shp_data[kk] = shp_data[kk].to_crs(first_crs)
+
         merged_geometry = u4spatial.buffer_and_merge(shp_data, shp_cfg)
+        logging.info("Saving Merged Geometry")
         merged_gdf = gp.GeoDataFrame(
             geometry=merged_geometry, crs=shp_data[osm_type].crs
         )
@@ -955,10 +965,24 @@ def get_clipped_tiff_list(
 
 
 def batch_clip_tiff(args):
+    """Wrapper for clipping with parallel Pool
+
+    :param args: The arguments
+    """
     clip_tiff(*args)
 
 
 def clip_tiff(in_path: os.PathLike, ctiff_fol: os.PathLike, shapes: list):
+    """Clips a tiff file with `shapes` and saves it to `ctiff_fol`.
+
+    :param in_path: The path of the tif file to clip.
+    :type in_path: os.PathLike
+    :param ctiff_fol: The folder where to store the clipped tiffs.
+    :type ctiff_fol: os.PathLike
+    :param shapes: The shapes with which to clip
+    :type shapes: list
+    """
+    logging.debug(f"Clipping {in_path}")
     _, fname = os.path.split(in_path)
     out_path = os.path.join(ctiff_fol, fname)
     with rio.open(in_path, "r") as src:
@@ -981,9 +1005,26 @@ def get_merged_tiff_path(
     mask: gp.GeoDataFrame = "",
     overwrite: bool = False,
 ) -> os.PathLike:
+    """Gets the path to the merged tiff, if not existent merges the tiffs in `tiff_folder`
+
+    :param tiff_folder: The path to a folder containing tiffs
+    :type tiff_folder: os.PathLike
+    :param mask: The mask to cut the merged file, defaults to ""
+    :type mask: gp.GeoDataFrame, optional
+    :param overwrite: Whether to overwrite existing results, defaults to False
+    :type overwrite: bool, optional
+    :return: The path to the merged tiff file.
+    :rtype: os.PathLike
+    """
+    logging.info("Getting merged and cut tiff files")
+    logging.info("Setting paths")
     base_folder, folder_name = os.path.split(tiff_folder)
-    merged_file_path = os.path.join(base_folder, f"{folder_name}_merged.tif")
+    merged_folder_path = os.path.join(base_folder, "merged_tiffs")
+    merged_file_path = os.path.join(
+        merged_folder_path, f"{folder_name}_merged.tif"
+    )
     if not os.path.exists(merged_file_path) or overwrite:
+        logging.info("No files found or overwrite=True")
         tiff_file_list = [
             rio.open(os.path.join(tiff_folder, tf), "r")
             for tf in tqdm(
@@ -994,9 +1035,11 @@ def get_merged_tiff_path(
             if tf.endswith(".tif")
         ]
         if len(mask) > 0:
+            logging.info("Merging with mask")
             bounds = tuple(np.squeeze(mask.bounds.values))
             riomerge(tiff_file_list, dst_path=merged_file_path, bounds=bounds)
         else:
+            logging.info("Merging without mask")
             riomerge(tiff_file_list, dst_path=merged_file_path)
         for tf in tiff_file_list:
             tf.close()
@@ -1071,3 +1114,105 @@ def get_thresholded_contours(
         gdf = u4spatial.contour_shapes(xx, yy, zz, levels, threshold, crs)
         gdf.to_file(out_path)
     return gdf
+
+
+def get_osm_as_shp(
+    tags: dict,
+    project: dict,
+    query: str = "Hesse",
+    shape_type: shapely.GeometryType = shapely.Point,
+    overwrite: bool = False,
+) -> gp.GeoDataFrame:
+    """Loads point data from openstreetmap in the `query` region with the `tags`. Saves results in a shape file.
+
+    :param tags: The tags for open street map (same as for the overpass API)
+    :type tags: dict
+    :param project: The loaded project file (for path management)
+    :type project: dict
+    :param query: The region where to get the data, defaults to "Hesse"
+    :type query: str, optional
+    :param shape_type: The type of the shape data, defaults to `shapely.Point`
+    :type shape_type: shapely.GeometryType, optional
+    :param overwrite: Whether to overwrite existing results, defaults to False
+    :type overwrite: bool, optional
+    :return: A GeoDataFrame with the data
+    :rtype: gp.GeoDataFrame
+    """
+    logging.info("Preparing Query")
+    fname = ""
+    for kk in tags.keys():
+        if len(fname) > 0:
+            fname += "_"
+
+        fname += f"{kk[:3]}"
+
+        if isinstance(tags[kk], list):
+            substr = ""
+            for ii, ll in enumerate(tags[kk]):
+                if ii == 0:
+                    substr += "-"
+                else:
+                    substr += "+"
+                substr += ll[:3]
+            fname += substr
+        else:
+            fname += f"-{tags[kk][:3]}"
+    fname += ".shp"
+
+    file_path = os.path.join(project["paths"]["places_path"], fname)
+
+    if os.path.exists(file_path) and not overwrite:
+        logging.info("Loading from shape file")
+        slc_gdf = gp.read_file(file_path)
+    else:
+        logging.info("Downloading data from OSM")
+        gdf = osmnx.features_from_place(
+            query=query,
+            tags=tags,
+        ).to_crs("32632")
+        logging.info("Converting geometry")
+        gdf = gdf[[isinstance(g, shape_type) for g in gdf.geometry]]
+        slices = []
+        for kk in tags.keys():
+            if isinstance(tags[kk], list):
+                sub_slice = [gdf[kk] == ll for ll in tags[kk]]
+                slices.append(np.logical_or(*sub_slice))
+            else:
+                slices.append(gdf[kk] == tags[kk])
+        if len(slices) > 1:
+            slc_gdf = gdf[np.logical_and(*slices)]
+        else:
+            slc_gdf = gdf[slices[0]]
+        if shape_type == shapely.Polygon:
+            rows, cols = gdf.values.shape
+            slc_gdf = gp.GeoDataFrame(
+                geometry=slc_gdf.geometry, crs=slc_gdf.crs
+            )
+
+        logging.info("Saving to shape file.")
+        slc_gdf.to_file(file_path)
+    return slc_gdf
+
+
+def fiona_load(shp_path: os.PathLike, fclasses: list = []) -> gp.GeoDataFrame:
+    logging.info("Reading with fiona.")
+    with fiona.open(shp_path, "r") as shapefile:
+        if "fclass" in shapefile.keys() and fclasses:
+            geometries = [
+                shpgeo.shape(feature.geometry)
+                for feature in tqdm(
+                    shapefile,
+                    desc="Reading selected shapes from file",
+                    leave=False,
+                )
+                if feature.properties["fclass"] in fclasses
+            ]
+        else:
+            geometries = [
+                shpgeo.shape(feature.geometry)
+                for feature in tqdm(
+                    shapefile, desc="Reading all shapes from file", leave=False
+                )
+            ]
+        crs = shapefile.crs
+    return geometries, crs
