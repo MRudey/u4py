@@ -3,14 +3,18 @@ Contains some sqlite functions for working with gpkg files
 """
 from __future__ import annotations
 
+import itertools
 import logging
 import os
-import sqlite3 as sql
+import sqlite3
+import struct
 from datetime import datetime
 from multiprocessing import Pool
 from typing import Any, Tuple
 
 import numpy as np
+import shapely
+import utm
 from tqdm import tqdm
 
 import u4py.utils.config as u4config
@@ -28,7 +32,7 @@ def get_table_names(file_path: os.PathLike) -> list:
     :rtype: list
     """
     logging.debug("Getting table names.")
-    con = sql.connect(file_path)
+    con = sqlite3.connect(file_path)
     cur = con.cursor()
 
     # Get all table names for ascending and descending data
@@ -113,7 +117,7 @@ def single_query(
     :rtype: Any
     """
     logging.debug(f"{query}")
-    con = sql.connect(file_path)
+    con = sqlite3.connect(file_path)
     cur = con.cursor()
     result = [value[0] for value in cur.execute(query)]
     con.close()
@@ -149,7 +153,7 @@ def table_to_dict(file_path: os.PathLike, table: str) -> dict:
     """
     logging.info(f"Opening {file_path} and getting content of {table}")
     # Get number of rows and names of columns
-    con = sql.connect(file_path)
+    con = sqlite3.connect(file_path)
     cur = con.cursor()
     num_points = cur.execute(f"SELECT COUNT(*) FROM {table}").fetchone()[0]
     if num_points == 0:
@@ -264,3 +268,180 @@ def load_tables(file_path: os.PathLike) -> dict:
     for table in tqdm(tables, desc="Reading from tables"):
         data[table] = table_to_dict(file_path, table)
     return data
+
+
+def load_gpkg(gpkg_file: os.PathLike, fclass: list = [], pool=False):
+    table_name = os.path.splitext(os.path.split(gpkg_file)[-1])[0]
+
+    logging.info(f"Loading geometries from {gpkg_file}")
+    con = sqlite3.connect(gpkg_file)
+    cur = con.cursor()
+    crs_query = cur.execute(
+        "SELECT organization, srs_id FROM gpkg_spatial_ref_sys WHERE srs_id>0"
+    ).fetchone()
+    crs = f"{crs_query[0]}:{crs_query[1]}"
+    if crs != "EPSG:4326":
+        raise NotImplementedError("Only supports WGS 84 as input")
+    query = f"SELECT geom FROM '{table_name}'"
+    if fclass:
+        where = ""
+        for fc in fclass:
+            if where:
+                where += " or "
+            where += f"fclass = '{fc}'"
+        query += f" where {where}"
+    geom_blobs = cur.execute(query).fetchall()
+    con.close()
+    limit = 3 * 10**5
+    if len(geom_blobs) < limit and not pool:
+        logging.info(f"Less than {limit} entries, non-parallel is faster.")
+        geometries = [
+            decode_geom(blob[0])
+            for blob in tqdm(geom_blobs, desc="Decoding blobs", leave=False)
+        ]
+    else:
+        geom_blobs = [blob[0] for blob in geom_blobs]
+        if not pool:
+            logging.info("Starting parallel pool")
+            with Pool(u4config.cpu_count) as p:
+                geometries = p.map(decode_geom, geom_blobs)
+        else:
+            logging.info("Using existing pool")
+            geometries = pool.map(decode_geom, geom_blobs)
+
+    return geometries
+
+
+def decode_geom(stream: str) -> shapely.Geometry:
+    """Primitive decoder for geometry blobs in a gpkg file. See http://www.geopackage.org./spec/#gpb_format.
+
+    :param stream: The blob as a bytestring
+    :type stream: str
+    :return: The geometry geocoded in the data
+    :rtype: ogr.Geometry
+
+    The geometry blob contains a header, which may include the envelope of the features, and a well known binary (WKB) encoded geometry. We first decode the first 8 bytes to get some more information on what is stored in the blob:
+        - 2 bytes: should be "GP" in ASCII
+        - 1 byte: 8-bit unsigned Integer for version (0=v.1)
+        - 1 byte: GeoPackageBinary flags byte -> has to be decoded to binary
+        - 4 byte: 32-bit unsigned Integer with SRS ID.
+
+    The GeoPackageBinary flag contains information about the length of the envelope that follows the first part of the header. This is needed to know where the WKB geometry starts. When we know that we can start to read the rest of the bytestring and feed it to `shapely.from_wkb` that creates the geometry.
+    """
+    first_header = struct.unpack("ccBcI", stream[:8])
+    magic = first_header[0].decode() + first_header[1].decode()
+    if magic == "GP":
+        # version = first_header[2]
+        flags = binary_flag(first_header[3])
+        env_len = get_envlen(flags[-4:-1])
+        srs_id = first_header[4]
+        wkb_start = env_len + 8
+        geometry = shapely.from_wkb(stream[wkb_start:])
+        if srs_id == 4326:
+            if geometry.geom_type == "Polygon":
+                long, lat = geometry.exterior.coords.xy
+                east, north, _, _ = utm.from_latlon(
+                    np.array(lat), np.array(long)
+                )
+                points = [(e, n) for e, n in zip(east, north)]
+                geometry = shapely.Polygon(points)
+            elif geometry.geom_type == "Point":
+                east, north, _, _ = utm.from_latlon(geometry.y, geometry.x)
+                geometry = shapely.Point(east, north)
+            elif geometry.geom_type == "LineString":
+                long, lat = geometry.xy
+                east, north, _, _ = utm.from_latlon(
+                    np.array(lat), np.array(long)
+                )
+                points = [(e, n) for e, n in zip(east, north)]
+                geometry = shapely.LineString(points)
+            elif geometry.geom_type == "MultiPolygon":
+                long, lat = geometry.envelope.exterior.coords.xy
+                east, north, _, _ = utm.from_latlon(
+                    np.array(lat), np.array(long)
+                )
+                points = [(e, n) for e, n in zip(east, north)]
+                geometry = shapely.Polygon(points)
+            else:
+                NotImplementedError(
+                    f"Conversion from {geometry.geom_type} not supported."
+                )
+        else:
+            NotImplementedError("Supports only conversion from WGS84")
+        return geometry
+    else:
+        UnicodeDecodeError("Not a valid GPKG enconding")
+
+
+def binary_flag(inp: str) -> str:
+    """Input GeoPackageBinary flag as an encoded bytestring.
+
+    :param inp: The bytestring (single byte)
+    :type inp: str
+    :return: The bytestring in binary representation
+    :rtype: str
+    """
+    bin_flags = f"{int(inp.hex()):0>8b}"
+    return bin_flags
+
+
+def get_envlen(eee: str) -> int:
+    """Gets the length of an envelope as specified in the 5 to 7th bit of the binary flag.
+
+    :param eee: The three relevant bits from the binary flag
+    :type eee: str
+    :return: The length of the envelope
+    :rtype: int
+    """
+    envlen = [0, 32, 48, 48, 64]
+    return envlen[int(eee, base=3)]
+
+
+def read_buf(
+    places_path: os.PathLike, shp_cfg: dict, kk: str, pool=False
+) -> list:
+    """Reads geometries from a gpkg file and returns them in buffered form
+
+    :param places_path: The path to the places folder
+    :type places_path: os.PathLike
+    :param shp_cfg: The configuration for shape files
+    :type shp_cfg: dict
+    :param kk: The key of the fclass
+    :type kk: str
+    :return: The buffered shapes
+    :rtype: list
+    """
+    geometries = load_gpkg(
+        os.path.join(places_path, shp_cfg["shp_file"][kk]),
+        fclass=shp_cfg["fclass"][kk],
+        pool=pool,
+    )
+    limit = 3 * 10**5
+    if len(geometries) < limit and not pool:
+        logging.info(f"Less than {limit} entries, non-parallel is faster.")
+        buffered = [
+            shapely.buffer(geom, shp_cfg["buffer_dist"][kk])
+            for geom in geometries
+        ]
+    else:
+        if not pool:
+            logging.info("Starting parallel pool")
+            with Pool(u4config.cpu_count) as p:
+                buffered = p.starmap(
+                    shapely.buffer,
+                    zip(
+                        geometries,
+                        itertools.repeat(shp_cfg["buffer_dist"][kk]),
+                    ),
+                )
+        else:
+            logging.info("Using existing pool")
+            buffered = pool.starmap(
+                shapely.buffer,
+                zip(
+                    geometries,
+                    itertools.repeat(shp_cfg["buffer_dist"][kk]),
+                ),
+            )
+
+    return buffered
