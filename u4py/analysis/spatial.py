@@ -22,6 +22,7 @@ import rasterio.warp as riowarp
 import scipy.spatial as spspatial
 import shapely
 import shapely.geometry as shpgeo
+from skimage import measure as skmeasure
 from tqdm import tqdm
 
 
@@ -520,8 +521,7 @@ def buffer_and_merge(shp_data: dict, shp_cfg: dict) -> gp.GeoDataFrame:
 
 
 def contour_shapes(
-    xx: np.ndarray,
-    yy: np.ndarray,
+    coords: dict,
     zz: np.ndarray,
     levels: list,
     min_area: float,
@@ -530,10 +530,8 @@ def contour_shapes(
 ) -> gp.GeoDataFrame:
     """Generates a geodataframe of `Polygons` from the `xx, yy, zz` dataset using the contour `levels`.
 
-    :param xx: The array with x coordinates
-    :type xx: np.ndarray
-    :param yy: The array with y coordinates
-    :type yy: np.ndarray
+    :param coords: A dictionary containing lower left corner and dx, dy
+    :type coords: dict
     :param zz: The array with displacements
     :type zz: np.ndarray
     :param levels: The levels to use for the contour plot
@@ -555,25 +553,33 @@ def contour_shapes(
         zz[np.abs(zz) < levels[0]] = np.nan
 
     logging.debug("Making contour set")
-    fig, ax = plt.subplots()
-    cf = ax.contour(xx, yy, zz, levels=levels)
+    contours = [
+        skmeasure.find_contours(np.rot90(zz, 3), level=level)
+        for level in tqdm(levels, desc="Getting Contours")
+    ]
 
     logging.debug("Separating contour set")
     polygons = []  # The polygon shapes
     polygon_levels = []  # The levels of the polygon
     color_levels = []  # The midpoint of the levels for easy plotting
-    for ii, segs in enumerate(cf.allsegs):
+    for ii, segs in enumerate(contours):
         if len(segs) > 0:
             for p in segs:
                 if len(p) > 3:
-                    pgon = shpgeo.Polygon(p)
+                    p_rescaled = [
+                        (
+                            coords["x"] + c[0] * coords["dx"],
+                            coords["y"] - c[1] * coords["dy"],
+                        )
+                        for c in p
+                    ]
+                    pgon = shpgeo.Polygon(p_rescaled)
                     if pgon.area > min_area:
                         polygons.append(pgon)
                         polygon_levels.append(f"{levels[ii]} - {levels[ii+1]}")
                         color_levels.append(
                             np.mean([levels[ii], levels[ii + 1]])
                         )
-    plt.close(fig)
 
     logging.debug("Generating GeoDataFrame")
     gdf = gp.GeoDataFrame(

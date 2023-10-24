@@ -827,14 +827,17 @@ def get_clipped_shapefile(
 
     if os.path.exists(clipped_path) and not overwrite:
         logging.info("Reading from existing shapefile.")
-        clipped_data = fiona_load(clipped_path)
+        in_data, in_crs = fiona_load(clipped_path)
+        clipped_data = gp.GeoDataFrame(geometry=in_data, crs=in_crs)
+
     else:
         logging.info("Creating new clipped shapefile")
-        in_data = fiona_load(file_path_in, fclasses=fclass)
+        in_data, in_crs = fiona_load(file_path_in, fclasses=fclass)
+        in_gdf = gp.GeoDataFrame(geometry=in_data, crs=in_crs)
         logging.info("Clipping Data")
-        if in_data.crs != mask.crs:
-            mask = mask.to_crs(in_data.crs)
-        clipped_data = in_data.clip(mask)
+        if in_crs != mask.crs:
+            mask = mask.to_crs(in_gdf.crs)
+        clipped_data = in_gdf.clip(mask)
         logging.info("Saving clipped data.")
         clipped_data.to_file(clipped_path)
     return clipped_data, clipped_path
@@ -898,9 +901,12 @@ def get_buffered_shapefiles(
 
         merged_geometry = u4spatial.buffer_and_merge(shp_data, shp_cfg)
         logging.info("Saving Merged Geometry")
-        merged_gdf = gp.GeoDataFrame(
-            geometry=merged_geometry, crs=shp_data[osm_type].crs
-        )
+        if isinstance(merged_geometry, list):
+            merged_gdf = gp.GeoDataFrame(
+                geometry=merged_geometry, crs=shp_data[osm_type].crs
+            )
+        else:
+            merged_gdf = merged_geometry
         if out_crs:
             logging.debug("Converting to different CRS")
             merged_gdf = merged_gdf.to_crs(out_crs)
@@ -1070,8 +1076,13 @@ def extract_xyz_tiff(
         y = []
         for ii in range(shp[0]):
             y.append(tile.xy(ii, 0)[1])
-    xx, yy = np.meshgrid(x, y)
-    return (xx, yy, zz, crs)
+    coords = {
+        "x": np.min(x),
+        "y": np.min(y),
+        "dx": np.mean(np.diff(x)),
+        "dy": np.mean(np.diff(y)),
+    }
+    return (coords, zz, crs)
 
 
 def get_thresholded_contours(
@@ -1110,8 +1121,8 @@ def get_thresholded_contours(
         gdf = gp.read_file(out_path)
     else:
         logging.info("Generating new results")
-        xx, yy, zz, crs = extract_xyz_tiff(tiff_file_path)
-        gdf = u4spatial.contour_shapes(xx, yy, zz, levels, threshold, crs)
+        coords, zz, crs = extract_xyz_tiff(tiff_file_path)
+        gdf = u4spatial.contour_shapes(coords, zz, levels, threshold, crs)
         gdf.to_file(out_path)
     return gdf
 
