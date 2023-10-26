@@ -158,59 +158,23 @@ def table_to_dict(file_path: os.PathLike, table: str) -> dict:
     num_points = cur.execute(f"SELECT COUNT(*) FROM {table}").fetchone()[0]
     if num_points == 0:
         return
-    all_keys = [res[1] for res in cur.execute(f"PRAGMA TABLE_INFO({table})")]
-
-    # Define type of file:
-    has_time = True
-    if "stack_ID" in all_keys:
-        has_time = False
-        mean_vel = np.zeros(num_points)
-        var_mean_vel = np.zeros(num_points)
-    elif "PS_ID" in all_keys:  # ASCE and DESC Data
-        non_time_keys = ["X", "Y", "Z", "PS_ID", "Shape", "OBJECTID"]
-        id_key = "PS_ID"
-    if "Input" in all_keys:  # L3 Data
-        non_time_keys = [
-            "OBJECTID",
-            "Shape",
-            "ID",
-            "Input",
-            "X",
-            "Y",
-            "Z",
-            "mean_velo_vert",
-            "var_mean_velo_vert",
-            "mean_velo_east",
-            "var_mean_velo_east",
-        ]
-        id_key = "ID"
-
+    info = read_info(cur, table)
+    info["num_points"] = num_points
     # Get Coordinates
-    xx = np.array(
-        [value[0] for value in cur.execute(f"SELECT X from {table}")]
-    )
-    yy = np.array(
-        [value[0] for value in cur.execute(f"SELECT Y from {table}")]
-    )
-    zz = np.array(
-        [value[0] for value in cur.execute(f"SELECT Z from {table}")]
-    )
+    xx, yy, zz = query_coordinates(cur, table)
+    # Get PS-ID
     ps_id = np.array(
-        [value[0] for value in cur.execute(f"SELECT {id_key} from {table}")]
+        [
+            value[0]
+            for value in cur.execute(f"SELECT {info['id_key']} from {table}")
+        ]
     )
 
-    if has_time:
+    if info["has_time"]:
         con.close()
-        logging.debug(f"Getting timeseries")
-        key_list = [k for k in all_keys if k not in non_time_keys]
-        time = np.array([sql_key_to_time(k) for k in key_list])
-        num_fields = len(key_list)
+        time, queries = gen_timeseries_queries(file_path, table, info)
+        num_fields = len(queries)
         timeseries = np.zeros((num_points, num_fields))
-
-        queries = [
-            (file_path, f"SELECT {k} from {table}", jj)
-            for jj, k in enumerate(key_list)
-        ]
         results = map_queries(queries)
         logging.debug("Aggregating results of queries to timeseries array.")
         for r in results:
@@ -233,7 +197,7 @@ def table_to_dict(file_path: os.PathLike, table: str) -> dict:
         )
         con.close()
 
-    if has_time:
+    if info["has_time"]:
         output = {
             "x": xx,
             "y": yy,
@@ -255,6 +219,115 @@ def table_to_dict(file_path: os.PathLike, table: str) -> dict:
     return output
 
 
+def query_coordinates(cur: sqlite3.Cursor, table: str) -> Tuple:
+    """Loads X, Y, and Z coordinates from current dataase
+
+    :param cur: The cursor in the database
+    :type cur: sqlite3.Cursor
+    :param table: Table from where to select.
+    :type table: str
+    :return: The coordinates in a Tuple
+    :rtype: Tuple
+    """
+    logging.info("Getting station coordinates")
+    xx = np.array(
+        [value[0] for value in cur.execute(f"SELECT X from {table}")]
+    )
+    yy = np.array(
+        [value[0] for value in cur.execute(f"SELECT Y from {table}")]
+    )
+    zz = np.array(
+        [value[0] for value in cur.execute(f"SELECT Z from {table}")]
+    )
+    return xx, yy, zz
+
+
+def read_info(cur: sqlite3.Cursor, table: str) -> dict:
+    """Reads some additional information from the sql tale
+
+    Additional information are:
+
+        - Non-Time Keys
+        - The projected and geographical coordinate reference system
+        - Whether the dataase contains time.
+        - PS ID
+
+    :param cur: The current cursor that accepts queries
+    :type cur: sqlite3.Cursor
+    :param table: The table from where to get most of the information.
+    :type table: str
+    :return: A dictionary with some additional info.
+    :rtype: dict
+    """
+    logging.info("Reading Info from tables")
+    info = dict()
+    info["all_keys"] = [
+        res[1] for res in cur.execute(f"PRAGMA TABLE_INFO({table})")
+    ]
+
+    spatial_ref = [
+        int(res[0])
+        for res in cur.execute("SELECT srs_id FROM gpkg_spatial_ref_sys")
+    ]
+    organiz = [
+        res[0]
+        for res in cur.execute("SELECT organization FROM gpkg_spatial_ref_sys")
+    ]
+    info["geo_crs"] = f"{organiz[2]}:{spatial_ref[2]}"
+    info["proj_crs"] = f"{organiz[3]}:{spatial_ref[3]}"
+
+    # Define type of file:
+    info["has_time"] = True
+    if "stack_ID" in info["all_keys"]:
+        info["has_time"] = False
+    elif "PS_ID" in info["all_keys"]:  # ASCE and DESC Data
+        info["non_time_keys"] = ["X", "Y", "Z", "PS_ID", "Shape", "OBJECTID"]
+        info["id_key"] = "PS_ID"
+    if "Input" in info["all_keys"]:  # L3 Data
+        info["non_time_keys"] = [
+            "OBJECTID",
+            "Shape",
+            "ID",
+            "Input",
+            "X",
+            "Y",
+            "Z",
+            "mean_velo_vert",
+            "var_mean_velo_vert",
+            "mean_velo_east",
+            "var_mean_velo_east",
+        ]
+        info["id_key"] = "ID"
+
+    return info
+
+
+def gen_timeseries_queries(
+    file_path: os.PathLike, table: str, info: dict
+) -> Tuple[np.ndarray, list]:
+    """
+    Generates queries for extracting time series data from the given file_path.
+    These can be used with sqlite3 to read them from the tables directly.
+
+    :param file_path: The path to the gpkg file
+    :type file_path: os.PathLike
+    :param table: The table/direction which to extract.
+    :type table: str
+    :param info: The extracted metadata from the gpkg file.
+    :type info: dict
+    :return: The timestamps and queries to extract.
+    :rtype: Tuple[np.ndarray, list]
+    """
+    logging.debug(f"Getting timeseries")
+    key_list = [k for k in info["all_keys"] if k not in info["non_time_keys"]]
+    time = np.array([sql_key_to_time(k) for k in key_list])
+    queries = [
+        (file_path, f"SELECT {k} from {table}", jj)
+        for jj, k in enumerate(key_list)
+    ]
+    return time, queries
+
+
 def load_tables(file_path: os.PathLike) -> dict:
     """Loads content of all tables in the given sql database and returns as a data dictionary.
 
@@ -270,7 +343,21 @@ def load_tables(file_path: os.PathLike) -> dict:
     return data
 
 
-def load_gpkg(gpkg_file: os.PathLike, fclass: list = [], pool=False):
+def load_osm_gpkg(
+    gpkg_file: os.PathLike, fclass: list = [], pool=False
+) -> list:
+    """
+    Loads geometry data by reading the bytestream directly from the gpkg file.
+
+    :param gpkg_file: The path to the gpkg file
+    :type gpkg_file: os.PathLike
+    :param fclass: Feature classes to extract, defaults to []
+    :type fclass: list, optional
+    :param pool: Use existing parallel Pool, defaults to False
+    :type pool: bool, optional
+    :return: A list containing all geometries
+    :rtype: list
+    """
     table_name = os.path.splitext(os.path.split(gpkg_file)[-1])[0]
 
     logging.info(f"Loading geometries from {gpkg_file}")
@@ -318,7 +405,7 @@ def decode_geom(stream: str) -> shapely.Geometry:
     :param stream: The blob as a bytestring
     :type stream: str
     :return: The geometry geocoded in the data
-    :rtype: ogr.Geometry
+    :rtype: shapely.Geometry
 
     The geometry blob contains a header, which may include the envelope of the features, and a well known binary (WKB) encoded geometry. We first decode the first 8 bytes to get some more information on what is stored in the blob:
         - 2 bytes: should be "GP" in ASCII
@@ -411,7 +498,7 @@ def read_buf(
     :return: The buffered shapes
     :rtype: list
     """
-    geometries = load_gpkg(
+    geometries = load_osm_gpkg(
         os.path.join(places_path, shp_cfg["shp_file"][kk]),
         fclass=shp_cfg["fclass"][kk],
         pool=pool,
@@ -445,3 +532,30 @@ def read_buf(
             )
 
     return buffered
+
+
+def gen_queries_psi_gpkg(
+    file_path: os.PathLike, direction: str = "vertikal"
+) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, list]:
+    """
+    Opens a gpkg and generates queries to extract the data limited to psi files
+
+    :param file_path: The database as a gpkg file.
+    :type file_path: os.PathLike
+    :param direction: The direction to use, defaults to "vertikal"
+    :type direction: str, optional
+    :return: Some data and preformatted queries to extract the data from the database.
+    :rtype: Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, list]
+    """
+    logging.info(f"Generating queries to extract {direction} from {file_path}")
+    # Get number of rows and names of columns
+    con = sqlite3.connect(file_path)
+    cur = con.cursor()
+    info = read_info(cur, direction)
+    # Get Coordinates
+    xx, yy, zz = query_coordinates(cur, direction)
+
+    if info["has_time"]:
+        time, queries = gen_timeseries_queries(file_path, direction, info)
+
+    return xx, yy, zz, time, queries, info

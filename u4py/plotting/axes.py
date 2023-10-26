@@ -484,6 +484,9 @@ def add_tile(
     vm: float = 0,
     imsize: int = 100,
     show: bool = True,
+    cmap: str = "RdYlBu",
+    colorbar: dict = dict(),
+    **kwargs,
 ) -> Tuple[tuple, str]:
     """Adds a tiff file to the given axis.
 
@@ -497,6 +500,12 @@ def add_tile(
     :type imsize: int, optional
     :param show: Adds the tile to the plot, defaults to True
     :type show: bool, optional
+    :param cmap: Colormap for the plot, defaults to "RdYlBu"
+    :type cmap: str, optional
+    :param colorbar: Arguments passed to the colorbar, defaults to empty dict()
+    :type colorbar: dict, optional
+    :param kwargs: Additional arguments passed to plt.plot().
+    :type kwargs: dict
     :return: The boundaries and crs of the tile (bounds, crs).
     :rtype: Tuple[tuple, str]
     """
@@ -511,9 +520,9 @@ def add_tile(
             tile_resized = diff_tile
         if not vm:
             vm = np.percentile(np.abs(tile_resized), 95)
-        ax.imshow(
+        ims = ax.imshow(
             tile_resized,
-            cmap="RdYlBu",
+            cmap=cmap,
             vmin=-vm,
             vmax=vm,
             extent=(
@@ -522,5 +531,8 @@ def add_tile(
                 tiff_tile.bounds.bottom,
                 tiff_tile.bounds.top,
             ),
+            **kwargs,
         )
+        if colorbar:
+            plt.colorbar(ims, ax=ax, **colorbar)
     return tiff_tile.bounds, tiff_tile.crs
