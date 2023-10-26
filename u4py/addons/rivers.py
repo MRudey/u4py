@@ -10,9 +10,11 @@ import pickle as pkl
 from datetime import datetime
 from typing import Tuple
 
+import geopandas as gp
 import numpy as np
 from tqdm import tqdm
 
+import u4py.addons.web_services as u4webs
 import u4py.utils.files as u4files
 
 
@@ -79,7 +81,7 @@ def get_pegel_data(file_path: os.PathLike, overwrite: bool = False) -> dict:
             return pkl.load(pkl_file)
     elif file_path.endswith(".zrx"):
         base_path, _ = os.path.split(file_path)
-        pkl_path = os.path.join(base_path, "water_level_data.pkl")
+        pkl_path = os.path.join(base_path, "Pegel.pkl")
         if os.path.exists(pkl_path) and not overwrite:
             return get_pegel_data(pkl_path)
         else:
@@ -237,3 +239,33 @@ def _load_water_temp_data(file_path: os.PathLike) -> dict:
     else:
         data = False
     return data
+
+
+def get_pegel_locations(
+    file_path: os.PathLike, overwrite: bool = False
+) -> gp.GeoDataFrame:
+    """Gets the locations for the water level data (Pegel). Loads them from a
+    shape file. If that is not available, loads it from HLNUG and saves it.
+
+    :param file_path: The path to the shape file, pkl file (with pegel data).
+    :type file_path: os.PathLike
+    :param overwrite: Overwrite existing data, defaults to False
+    :type overwrite: bool, optional
+    :return: The water level measuring stations as Point features.
+    :rtype: gp.GeoDataFrame
+    """
+
+    if not os.path.exists(file_path) or overwrite:
+        # Check if we need to create a new folder
+        if not os.path.isdir(file_path):
+            out_folder = os.path.split(file_path)[0]
+        else:
+            out_folder = file_path
+        os.makedirs(out_folder, exist_ok=True)
+
+        file_path = u4webs.hlnug_map_service_to_shapefile(
+            map_server_suffix="wasser/wasser/MapServer",
+            layer_name="Pegel",
+            out_folder=out_folder,
+        )
+    return gp.read_file(file_path)
