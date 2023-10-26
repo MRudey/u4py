@@ -43,6 +43,13 @@ def get_project(
     :return: The paths as a `ConfigParser` object.
     :rtype: configparser.ConfigParser
 
+    Possible paths are:
+     - BASE: "base_path"
+     - First: "ext_path", "places_path", "output_path", "psi_path", "processing_path", "diff_plan_path", "u4projects_path"
+     - Places: "tektonik_path", "bld_path", "piloten_path", "base_map_path", "subsubregions_path"
+     - PSI: "psivert_path", "psiew_path"
+     - Results: "results_path"
+
     When a script that uses one of the paths below is run:
 
     1. It tries to load an existing project file from `proj_path`:
