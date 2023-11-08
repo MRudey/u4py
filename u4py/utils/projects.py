@@ -13,6 +13,7 @@ from __future__ import annotations
 import configparser
 import logging
 import os
+import sys
 import tkinter as tk
 from functools import partial
 from tkinter import messagebox, ttk
@@ -128,6 +129,7 @@ def _load_project(
                     logging.info(f"Config file saved to {proj_file}.")
             else:
                 logging.info("Config file not saved.")
+                sys.exit()
     return project, proj_path
 
 
