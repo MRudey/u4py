@@ -1,13 +1,7 @@
 """
-Reclassifies the data in a given test region.
-
-Test-Region Calculations
-
-    - Import
-    - Data preparation
-    - Calculations
-
-Converted from: `220423_template_aoi.ipynb`
+Clips the Tiffs in a given region by the merged shape file and merges the
+results into a single large tiff. This can be thresholded later with
+`Find_Regions_in_Merged_Tif.py`
 """
 
 
