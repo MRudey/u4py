@@ -9,7 +9,9 @@ import os
 import pickle as pkl
 from datetime import datetime
 
+import geopandas as gp
 import numpy as np
+import shapely
 
 
 def load_climate_data(file_path: os.PathLike) -> dict:
@@ -89,6 +91,14 @@ def _load_temperature_data(file_path: os.PathLike) -> tuple:
     :rtype: dict
     """
     time = []
+
+    # Load station coordinates
+    station_path = os.path.join(
+        os.path.split(file_path)[0], "WeatherStationCoordinates_HLNUG.csv"
+    )
+    station_coords = load_station_coords_temperature(station_path)
+
+    # Load data CSV
     with open(file_path, "rt") as csv_file:
         reader = csv.reader(csv_file, delimiter=";")
         next(reader)  # Skip row 0
@@ -111,6 +121,8 @@ def _load_temperature_data(file_path: os.PathLike) -> tuple:
                 else:
                     data[stations[ii]].append(float(val_str.replace(",", ".")))
             data["time"].append(datetime.strptime(row[0], "%d.%m.%Y"))
+
+    data["coordinates"] = station_coords
 
     with open(file_path.replace(".csv", ".pkl"), "wb") as pkl_file:
         pkl.dump(data, pkl_file)
@@ -189,4 +201,44 @@ def load_station_coords_rainfall(file_path: os.PathLike) -> dict():
     with open(file_path, "rt", encoding="utf-8") as json_file:
         data = json.load(json_file)
 
+    return data
+
+
+def load_station_coords_temperature(file_path: os.PathLike) -> dict():
+    """Loads a dictionary with station coordinates from a csv file containing coordinates for weather stations.
+
+    Also saves it as a shapefile.
+
+    :param file_path: Path to the file.
+    :type file_path: os.PathLike
+    """
+
+    with open(file_path, "rt", encoding="utf8") as csv_file:
+        reader = csv.reader(csv_file)
+        header = next(reader)
+        data = {
+            "station": [],
+            "lat": [],
+            "lon": [],
+            "source": [],
+            "remark": [],
+            "crs": "EPSG:4326",
+        }
+        for line in reader:
+            data["station"].append(line[0])
+            data["lat"].append(float(line[1]))
+            data["lon"].append(float(line[2]))
+            data["source"].append(line[3])
+            data["remark"].append(line[4])
+
+    # Create GeoDataFrame
+    gdf = gp.GeoDataFrame(
+        data=data,
+        geometry=[
+            shapely.Point(lon, lat)
+            for lon, lat in zip(data["lon"], data["lat"])
+        ],
+        crs=data["crs"],
+    )
+    gdf.to_file(file_path.replace(".csv", ".shp"))
     return data
