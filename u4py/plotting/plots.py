@@ -25,7 +25,8 @@ def plot_inversion_results(
     data: dict = dict(),
     inversion_results: dict = dict(),
     save_path: os.PathLike = None,
-    test_data: bool = False,
+    single_dim: bool = False,
+    unit: str = "mm",
 ):
     """Plots the results of a full inversion.
 
@@ -39,15 +40,24 @@ def plot_inversion_results(
     :type inversion_results: dict
     :param save_path: The path where to save the figure, defaults to None
     :type save_path: os.PathLike, optional
+    :param single_dim: If the input data is single dimensional reduce to one axis, defaults to False
+    :type single_dim: bool, optional
+    :param unit: The unit of the input signal, defaults to "mm"
+    :type unit: str, optional
     """
-    if test_data:
+    if single_dim:
         fig, axes = plt.subplots(figsize=(10, 5))
-        axes.plot(time[0], data["dataE"], ".")
-        axes.plot(time[0], data["ori_dhat_data"]["dhatE"], color="C1")
+        axes.plot(time[0], data["dataE"], ".", label="Data")
+        axes.plot(
+            time[0],
+            data["ori_dhat_data"]["dhatE"],
+            color="C1",
+            label="Inversion",
+        )
     else:
         fig, axes = plt.subplots(ncols=2, figsize=(10, 5), sharex=True)
 
-    if not test_data:
+    if not single_dim:
         ew_mov = inversion_results["matrix_ori"][1]
         ud_mov = inversion_results["matrix_ori"][13]
         ux = np.unique(time[0])
@@ -138,7 +148,7 @@ def plot_inversion_results(
         if time2.size > 0:
             axes[1].plot(time2[0], data["dhat_data"]["dhatU"])
         axes[1].annotate(
-            f"Hebung/Senkung = {ud_mov:.2} mm/yr",
+            f"Hebung/Senkung = {ud_mov:.2} {unit}/yr",
             (0.05, 0.05),
             xycoords="axes fraction",
         )
