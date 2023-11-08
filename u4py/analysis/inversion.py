@@ -949,6 +949,54 @@ def reformat_dict(dataset: dict) -> dict:
     return data
 
 
+def reformat_simple_timeseries(
+    time: np.ndarray,
+    values: np.ndarray,
+    station: str = "",
+    xmid: float = 0,
+    ymid: float = 0,
+) -> dict:
+    """Creates a dictionary for inversion from a simple time-value timeseries.
+
+    :param time: The numpy array containing timestamps (in datetime)
+    :type time: np.ndarray
+    :param values: The values as numpy array
+    :type values: np.ndarray
+    :param station: The name of the station (optional), defaults to ""
+    :type station: str, optional
+    :param xmid: The x coordinate of the station (optional), defaults to 0
+    :type xmid: float, optional
+    :param ymid: The y coordinate of the station (optional), defaults to 0
+    :return: A dictionary reformatted for inversion with all components = values.
+    :rtype: dict
+    """
+
+    data = {
+        "t": u4convert.get_floatyear(time),
+        "dataE": values,
+        "dataN": values,
+        "dataU": values,
+        "sigmE": np.ones_like(values),
+        "sigmN": np.ones_like(values),
+        "sigmU": np.ones_like(values),
+        "station": station,
+        "xmid": xmid,
+        "ymid": ymid,
+    }
+    return data
+
+
+def smooth_stacked_data(data: dict) -> dict:
+    """Takes a stacked data set with irregular sampling intervals and generates a "smooth" version using running means and interpolation.
+
+    :param data: The stacked dataset
+    :type data: dict
+    :return: The "smoothed" dataset.
+    :rtype: dict
+    """
+    print(data["t"])
+
+
 def invert_test_data():
     """
     Tests the inversion with synthetic data.
@@ -999,7 +1047,7 @@ def invert_test_data():
         time=time_vector,
         data=data,
         inversion_results=inversion_results,
-        test_data=True,
+        single_dim=True,
     )
     ax.set_title("Inversion Test Data")
     y_EQ = data["ori_dhat_data"]["dhatE"][np.argwhere(data["t"] >= t_EQ)[0]]

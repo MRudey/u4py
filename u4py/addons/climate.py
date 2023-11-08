@@ -4,6 +4,7 @@ Contains functions to work with climate data.
 from __future__ import annotations
 
 import csv
+import json
 import os
 import pickle as pkl
 from datetime import datetime
@@ -79,6 +80,44 @@ def _load_rainfall_data(file_path: os.PathLike) -> tuple:
     return data
 
 
+def _load_temperature_data(file_path: os.PathLike) -> tuple:
+    """Loads the data and saves it to a pickle file.
+
+    :param file_path: The path to the csv file containing the data.
+    :type file_path: os.PathLike
+    :return: The data as dictionary of time and temperatures for each station.
+    :rtype: dict
+    """
+    time = []
+    with open(file_path, "rt") as csv_file:
+        reader = csv.reader(csv_file, delimiter=";")
+        next(reader)  # Skip row 0
+        next(reader)  # Skip row 1
+        next(reader)  # Skip row 2
+
+        # Read stations from header
+        header = next(reader)
+        stations = [head.split(" / ")[0] for head in header[2:]]
+
+        data = dict()
+        data["time"] = []
+        for kk in stations:
+            data[kk] = []
+        # Read data from rows
+        for row in reader:
+            for ii, val_str in enumerate(row[2:]):
+                if val_str == "-":
+                    data[stations[ii]].append(np.nan)
+                else:
+                    data[stations[ii]].append(float(val_str.replace(",", ".")))
+            data["time"].append(datetime.strptime(row[0], "%d.%m.%Y"))
+
+    with open(file_path.replace(".csv", ".pkl"), "wb") as pkl_file:
+        pkl.dump(data, pkl_file)
+
+    return data
+
+
 def get_rainfall_data(
     file_path: os.PathLike, overwrite: bool = False
 ) -> tuple:
@@ -103,6 +142,29 @@ def get_rainfall_data(
             return _load_rainfall_data(file_path)
 
 
+def get_temperature_data(
+    file_path: os.PathLike, overwrite: bool = False
+) -> tuple:
+    """Loads temperature data from a dataset delivered by HLNUG. Loads from a pickeled file if it exists.
+
+    :param file_path: The path to the csv or pkl file with the data.
+    :type file_path: os.PathLike
+    :param overwrite: Overwrite the pkl file if csv is given, defaults to False
+    :type overwrite: bool, optional
+    :return: `time` and `rainfall` as arrays.
+    :rtype: tuple
+    """
+    if file_path.endswith(".pkl") and os.path.exists(file_path):
+        with open(file_path, "rb") as pkl_file:
+            return pkl.load(pkl_file)
+    elif file_path.endswith(".csv"):
+        pkl_path = file_path.replace(".csv", ".pkl")
+        if os.path.exists(pkl_path) and not overwrite:
+            return get_temperature_data(pkl_path)
+        else:
+            return _load_temperature_data(file_path)
+
+
 def thermal_expansion(length: float, alpha: float, delta_T: float):
     """Theoretical thermal expansion of a material.
 
@@ -116,3 +178,15 @@ def thermal_expansion(length: float, alpha: float, delta_T: float):
     :type delta_T: float
     """
     return alpha * length * delta_T
+
+
+def load_station_coords_rainfall(file_path: os.PathLike) -> dict():
+    """Loads a dictionary with station coordinates from a json file
+
+    :param file_path: Path to the JSON file.
+    :type file_path: os.PathLike
+    """
+    with open(file_path, "rt", encoding="utf-8") as json_file:
+        data = json.load(json_file)
+
+    return data
