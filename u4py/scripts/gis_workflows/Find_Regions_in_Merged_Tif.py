@@ -1,11 +1,13 @@
 import logging
 import os
+from pathlib import Path
 
-import matplotlib.pyplot as plt
+# import matplotlib.pyplot as plt
 from tqdm import tqdm
 
 import u4py.analysis.spatial as u4spatial
-import u4py.plotting.formatting as u4pltfmt
+
+# import u4py.plotting.formatting as u4pltfmt
 import u4py.utils.config as u4config
 import u4py.utils.files as u4files
 import u4py.utils.projects as u4projects
@@ -14,7 +16,12 @@ u4config.start_logger()
 
 
 def main():
-    project = u4projects.get_project(required=["diff_plan_path"])
+    project = u4projects.get_project(
+        proj_path=Path(
+            "~/Documents/umwelt4/Find_Regions_in_Merged_Tif_Server.u4project"
+        ).expanduser(),
+        required=["diff_plan_path"],
+    )
 
     threshold = 250  # => Tree with approx. 17.8 m diameter
     levels = u4spatial.plus_minus_levels([0.5, 1, 2, 5, 10])

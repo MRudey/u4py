@@ -11,11 +11,14 @@ Converted from: `220423_template_aoi.ipynb`
 """
 
 
+import logging
 import os
+from pathlib import Path
 
 import contextily
 import geopandas as gp
-import matplotlib.pyplot as plt
+
+# import matplotlib.pyplot as plt
 import rasterio as rio
 import rasterio.plot as rioplot
 from tqdm import tqdm
@@ -30,45 +33,57 @@ u4config.start_logger()
 def main():
     # Paths are stored in project file
     project = u4proj.get_project(
-        required=["base_path", "places_path", "piloten_path", "diff_plan_path"]
+        proj_path=Path(
+            "~/Documents/umwelt4/Reclassify_GroundMotions_Server.u4project"
+        ).expanduser(),
+        required=[
+            "base_path",
+            "places_path",
+            "piloten_path",
+            "diff_plan_path",
+        ],
     )
 
     rois = gp.read_file(project["paths"]["piloten_path"])
     shp_cfg = get_shape_config()
     overwrite = True
-    # for region_name in tqdm(
-    #     rois.Name,
-    #     desc="Clipping and Merging Tiffs",
-    #     total=len(rois.geometry),
-    # ):
-    region_name = "Kassel"
-    roi = rois[rois.Name == region_name]
-    region_name = region_name.replace(" ", "")
-    tiff_file_list = u4files.get_region_tiff(
-        roi, region_name, project["paths"]["diff_plan_path"]
-    )
-    with rio.open(tiff_file_list[0], "r") as tile:
-        tiff_crs = tile.crs.to_string()
-    merged_data, merged_path = u4files.get_buffered_shapefiles(
-        project["paths"]["places_path"],
-        roi,
-        region_name,
-        shp_cfg,
-        out_crs=tiff_crs,
-        overwrite=overwrite,
-    )
+    excluded_regions = ["Rhein-Main"]
+    for region_name in tqdm(
+        rois.Name,
+        desc="Clipping and Merging Tiffs",
+        total=len(rois.geometry),
+    ):
+        if not region_name in excluded_regions:
+            logging.info(f"Starting with region: {region_name}")
+            roi = rois[rois.Name == region_name]
+            region_name = region_name.replace(" ", "")
+            tiff_file_list = u4files.get_region_tiff(
+                roi, region_name, project["paths"]["diff_plan_path"]
+            )
+            with rio.open(tiff_file_list[0], "r") as tile:
+                tiff_crs = tile.crs.to_string()
+            merged_data, merged_path = u4files.get_buffered_shapefiles(
+                project["paths"]["places_path"],
+                roi,
+                region_name,
+                shp_cfg,
+                out_crs=tiff_crs,
+                overwrite=overwrite,
+            )
 
-    clipped_tiffs_list = u4files.get_clipped_tiff_list(
-        tiff_file_list,
-        merged_path,
-        region_name=region_name,
-        # overwrite=overwrite,
-    )
+            clipped_tiffs_list = u4files.get_clipped_tiff_list(
+                tiff_file_list,
+                merged_path,
+                region_name=region_name,
+                overwrite=overwrite,
+            )
 
-    clipped_tiff_folder, _ = os.path.split(clipped_tiffs_list[0])
-    merged_tiff_file_path = u4files.get_merged_tiff_path(
-        clipped_tiff_folder, mask=roi, overwrite=overwrite
-    )
+            clipped_tiff_folder, _ = os.path.split(clipped_tiffs_list[0])
+            merged_tiff_file_path = u4files.get_merged_tiff_path(
+                clipped_tiff_folder, mask=roi, overwrite=overwrite
+            )
+        else:
+            logging.info(f"{region_name} on ignore list.")
 
     # fig, ax = plt.subplots()
     # with rio.open(merged_tiff_file_path, "r") as tile:
