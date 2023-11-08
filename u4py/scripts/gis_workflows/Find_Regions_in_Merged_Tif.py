@@ -1,3 +1,7 @@
+"""
+Finds regions according to the classification criteria in merged tiffs.
+"""
+
 import logging
 import os
 from pathlib import Path
