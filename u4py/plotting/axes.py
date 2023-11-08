@@ -200,7 +200,8 @@ def plot_timeseries_fit(
     ax: Axes,
     results: dict = dict(),
     fit_num: int = 2,
-    color: str = "C1",
+    color: str = "C0",
+    color_fit: str = "C1",
     annotate: bool = False,
 ) -> Tuple[Figure, Axes] | None:
     """Plots the fit data for a simple timeseries analysis.
@@ -213,8 +214,10 @@ def plot_timeseries_fit(
     :type results: dict, optional
     :param fit_num: Number of fit to plot (1=all points, 2=without outliers), defaults to 2 (without outliers)
     :type fit_num: int
-    :param color: The color for the plot, defaults to "C0"
+    :param color: The color for the data, defaults to "C0"
     :type color: str, optional
+    :param color_fit: The color for the fit, defaults to "C1"
+    :type color_fit: str, optional
     :return: The figure and axis if there was no axis specified.
     :rtype: Tuple[Figure, Axes] | None
     """
@@ -223,7 +226,7 @@ def plot_timeseries_fit(
             results["time"],
             results["signals"]["lin"] + results["signals"]["sin"],
             label="Simple Fit",
-            color=color,
+            color=color_fit,
         )
         # shift = time[0] - timedelta(days=sin_popt[2])
 
@@ -249,7 +252,7 @@ def plot_timeseries_fit(
     else:
         quantiles = u4plotprep.get_timeseries_range(results["U"], results["t"])
         plot_quantile_timeseries(
-            quantiles["t_u"], quantiles, ax=ax, color="C0"
+            quantiles["t_u"], quantiles, ax=ax, color=color
         )
         t_fly = u4convert.get_floatyear(quantiles["t_u"])
         t_q = np.linspace(np.min(t_fly), np.max(t_fly), 200)
@@ -262,7 +265,7 @@ def plot_timeseries_fit(
         ax.plot(
             u4convert.get_datetime(t_q),
             y_fit,
-            color=color,
+            color=color_fit,
             label="Inversion",
         )
         if annotate:

@@ -264,7 +264,7 @@ def prepare_figure() -> Tuple[Figure, Axes]:
         fig.add_subplot(grid[3, 0]),
         fig.add_subplot(grid[3, 1]),
     ]
-    u4plotfmt.numerate_axes(fig)
+    u4plotfmt.enumerate_axes(fig)
     return fig, axes
 
 

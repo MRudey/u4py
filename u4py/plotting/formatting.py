@@ -100,7 +100,7 @@ def coordinate_formatter(x: float, pos: int) -> str:
     return out
 
 
-def numerate_axes(fig: Figure, n: int = 0, step: int = 1):
+def enumerate_axes(fig: Figure, n: int = 0, step: int = 1, ignore: list = []):
     """Adds alphabetic numbering to all axes in a figure.
 
     :param fig: The Figure containing the axes.
@@ -109,20 +109,24 @@ def numerate_axes(fig: Figure, n: int = 0, step: int = 1):
     :type n: int, optional
     :param step: step index, defaults to 1
     :type step: int, optional
+    :param ignore: axes to ignore, defaults to []
+    :type ignore: list, optional
+
     """
     axes = fig.get_axes()
 
     for ii in range(0, len(axes), step):
-        axes[ii].annotate(
-            "(" + string.ascii_lowercase[int((ii + n) / step)] + ")",
-            (-0.1, 1.05),
-            xycoords="axes fraction",
-            fontweight="bold",
-            fontsize="xx-large",
-            verticalalignment="center",
-            horizontalalignment="center",
-            # bbox=dict(fc="w", boxstyle="Circle"),
-        )
+        if ii not in ignore:
+            axes[ii].annotate(
+                "(" + string.ascii_lowercase[int((ii + n) / step)] + ")",
+                (-0.1, 1.05),
+                xycoords="axes fraction",
+                fontweight="bold",
+                fontsize="xx-large",
+                verticalalignment="center",
+                horizontalalignment="center",
+                # bbox=dict(fc="w", boxstyle="Circle"),
+            )
 
 
 def add_copyright(text: str, ax: Axes, textpos: tuple = (0.02, 0.02)):
