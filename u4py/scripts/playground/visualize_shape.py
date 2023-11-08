@@ -1,4 +1,5 @@
 import os
+from pathlib import Path
 
 import geopandas as gp
 import matplotlib.pyplot as plt
@@ -8,11 +9,11 @@ import u4py.utils.files as u4files
 
 
 def main():
-    map_foto_path = (
-        r"C:\Users\Michael Rudolf\Documents\ArcGIS\Places\MapFoto_Regions.shp"
-    )
+    map_foto_path = Path(
+        "~/Documents/ArcGIS/Places/MapFoto_Regions.shp"
+    ).expanduser()
     osm_folder = r"D:\Projekte\Umwelt4\hesse_shp"
-    output_folder = r"C:\Users\Michael Rudolf\Documents\ArcGIS\INSAR_plots"
+    output_folder = Path("~/Documents/ArcGIS/INSAR_plots").expanduser()
     rois = gp.read_file(map_foto_path)
     roi = rois[rois.Name == "Darmstadt"]
     region_name = roi.Name.to_string().replace(" ", "")
