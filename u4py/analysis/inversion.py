@@ -31,6 +31,7 @@ import logging
 import random
 import sys
 from datetime import datetime
+from pathlib import Path
 from typing import Iterable, Tuple
 
 import matplotlib.pyplot as plt
@@ -1112,7 +1113,9 @@ def invert_test_data():
     ax.set_ylabel("Displacement (mm)")
     fig.tight_layout()
     fig.savefig(
-        r"~\HESSENBOX-DA\Umwelt_4_privat\2023-07 Treffen\beispiel_zeitreihe.pdf"
+        Path(
+            "~/HESSENBOX-DA/Umwelt_4_privat/2023-07 Treffen/beispiel_zeitreihe.pdf"
+        ).expanduser()
     )
     plt.show()
 

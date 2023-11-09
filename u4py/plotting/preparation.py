@@ -4,6 +4,7 @@ Contains functions to modify or reformat data for plotting. This module helps to
 
 from __future__ import annotations
 
+import logging
 from typing import Callable, Tuple
 
 import numpy as np
@@ -69,6 +70,7 @@ def make_gridded_data(
     :return: Linear and sinusoidal components each as array and the extend for plotting.
     :rtype: Tuple[np.ndarray, np.ndarray, tuple]
     """
+    logging.info(f"Creating gridded data.")
     rows, cols = converted_data.shape
     minx = np.min(converted_data[0, :])
     maxx = np.max(converted_data[0, :]) + chunk_size
