@@ -51,7 +51,10 @@ def get_file_paths(**kwargs) -> list | os.PathLike:
         file_list = [
             file_path,
         ]
-        return file_list
+        if len(file_list) == 1:
+            return file_list[0]
+        else:
+            return file_list
     try:
         root.withdraw()
         file_list = filedialog.askopenfilenames(**kwargs)
@@ -1029,6 +1032,7 @@ def get_merged_tiff_path(
     merged_file_path = os.path.join(
         merged_folder_path, f"{folder_name}_merged.tif"
     )
+    os.makedirs(merged_folder_path, exist_ok=True)
     if not os.path.exists(merged_file_path) or overwrite:
         logging.info("No files found or overwrite=True")
         tiff_file_list = [
