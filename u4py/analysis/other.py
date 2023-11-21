@@ -7,7 +7,6 @@ from typing import Tuple
 import numpy as np
 import pycwt
 import scipy.signal as spsignal
-from tqdm import tqdm
 
 
 def cwt(y: np.ndarray, dt: float) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
@@ -154,3 +153,34 @@ def superpose(
     else:
         TypeError("a_1 has wrong type")
     return (a, phi_0)
+
+
+def adj_R_squared(R_squared: float, p: int, n: int) -> float:
+    """Returns the adjusted R² of a given fit
+
+    :param R_squared: The R² value of a fit
+    :type R_squared: float
+    :param p: The number of variables in the model
+    :type p: int
+    :param n: The sample size
+    :type n: int
+    :return: The adjusted R² value
+    :rtype: float
+    """
+    return 1 - (1 - R_squared) * ((n - 1) / (n - p - 1))
+
+
+def R_squared(data: np.ndarray, residuals: np.ndarray) -> float:
+    """Returns the R² of a fit
+
+    :param data: The original data.
+    :type data: np.ndarray
+    :param residuals: The residuals
+    :type residuals: np.ndarray
+    :return: The R²
+    :rtype: float
+    """
+    ym = np.mean(data)
+    ss_res = np.sum(residuals**2)
+    ss_tot = np.sum((data - ym) ** 2)
+    return 1 - (ss_res / ss_tot)

@@ -33,6 +33,7 @@ from pyproj import CRS
 
 import u4py.analysis.inversion as u4invert
 import u4py.analysis.other as u4other
+import u4py.analysis.spatial as u4spatial
 import u4py.plotting.preparation as u4plotprep
 import u4py.utils.convert as u4convert
 import u4py.utils.files as u4files
@@ -285,7 +286,7 @@ def plot_timeseries_fit(
 
 @_add_or_create
 def plot_region_trend(
-    data_region: dict, ax: Axes
+    data_region: dict, ax: Axes, fit: bool = True, use_gdf: bool = True
 ) -> Tuple[Figure, Axes] | None:
     """Calculates and plots the regional trend in a region of data.
 
@@ -293,41 +294,40 @@ def plot_region_trend(
     :type data_region: dict
     :param ax: The axis to add the plot to (optional).
     :type ax: Axes
+    :param fit: Whether to use linear fits or only the final value (optional), defaults to True.
+    :type fit: bool
+    :param use_gdf: Uses a geodataframe for the values instead of showing a grid (optional), defaults to True.
+    :type use_gdf: bool
     :return: The figure and axis if there was no axis specified.
     :rtype: Tuple[Figure, Axes] | None
     """
-    region_trend = u4plotprep.get_linfit_each_timeseries(data_region)
+    if fit:
+        region_trend = u4plotprep.get_linfit_each_timeseries(data_region)
+    else:
+        region_trend = u4plotprep.get_final_each_timeseries(data_region)
 
-    xx, yy = np.meshgrid(
-        np.unique(data_region["x"]), np.unique(data_region["y"])
-    )
-    zz = np.ones_like(yy) * np.nan
-    for x, y, z in zip(data_region["x"], data_region["y"], region_trend):
-        zz[np.bitwise_and((xx == x), (yy == y))] = z
-
-    rng = np.percentile(np.abs(region_trend), 95)
-    sc = ax.imshow(
-        zz,
-        origin="lower",
-        extent=(
-            np.nanmin(data_region["x"]),
-            np.nanmax(data_region["x"]),
-            np.nanmin(data_region["y"]),
-            np.nanmax(data_region["y"]),
-        ),
-        vmin=-rng,
-        vmax=rng,
-        cmap="RdYlBu",
-        # label="PSI locations",
-        zorder=1,
-    )
-    plt.colorbar(
-        sc,
-        ax=ax,
-        orientation="horizontal",
-        extend="both",
-        label="Mean Vertical Velocity (mm/a)",
-    )
+    if not use_gdf:
+        u4plotprep.matshow_region(data_region, region_trend, ax)
+    else:
+        gdf = u4spatial.xy_values_to_gdf(
+            data_region["x"], data_region["y"], region_trend, crs="EPSG:32632"
+        )
+        vmax = np.percentile(np.abs(region_trend), 95)
+        legend_args = {
+            "orientation": "horizontal",
+            "extend": "both",
+            "label": "Mean Vertical Velocity (mm/a)",
+        }
+        gdf.plot(
+            "values",
+            ax=ax,
+            cmap="RdYlBu",
+            legend_kwds=legend_args,
+            legend=True,
+            markersize=3,
+            vmax=vmax,
+            vmin=-vmax,
+        )
 
 
 @_add_or_create

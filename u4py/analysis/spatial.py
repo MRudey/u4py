@@ -13,7 +13,6 @@ from typing import List, Tuple
 
 import geopandas as gp
 import h5py
-import matplotlib.pyplot as plt
 import numpy as np
 import osmnx
 import rasterio as rio
@@ -602,3 +601,29 @@ def plus_minus_levels(half_sided: list) -> list:
     half_sided.extend([-1 * ll for ll in half_sided])
     half_sided.sort()
     return half_sided
+
+
+def xy_values_to_gdf(
+    x: np.ndarray | list,
+    y: np.ndarray | list,
+    values: np.ndarray | list,
+    crs: str,
+) -> gp.GeoDataFrame:
+    """Converts the three input iterables to a GeoDataFrame of Points with the
+    values as data column.
+
+    :param x: The x coordinates.
+    :type x: np.ndarray | list
+    :param y: The y coordinates.
+    :type y: np.ndarray | list
+    :param values: The values.
+    :type values: np.ndarray | list
+    :param crs: The coordinate system.
+    :type crs: str
+    :return: The data as geodataframe.
+    :rtype: gp.GeoDataFrame
+    """
+
+    geometry = [shapely.Point(xx, yy) for xx, yy in zip(x, y)]
+    gdf = gp.GeoDataFrame(data={"values": values}, geometry=geometry, crs=crs)
+    return gdf

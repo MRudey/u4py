@@ -10,10 +10,10 @@ import matplotlib.lines as mlines
 import matplotlib.patches as mpatch
 import matplotlib.pyplot as plt
 
-import u4py.analysis.inversion as u4invert
 import u4py.analysis.processing as u4proc
 import u4py.plotting.axes as u4ax
 import u4py.plotting.formatting as u4plotfmt
+import u4py.plotting.preparation as u4plotprep
 import u4py.utils.convert as u4convert
 import u4py.utils.files as u4files
 import u4py.utils.projects as u4projects
@@ -34,7 +34,7 @@ def main():
             "processing_path",
             "places_path",
         ],
-        interactive=False,
+        # interactive=False,
     )
     shp_fname = os.path.splitext(
         os.path.split(project["paths"]["subsubregions_path"])[-1]
@@ -87,7 +87,7 @@ def main():
         fig.add_subplot(grid[2, 1]),
         fig.add_subplot(grid[3, 1]),
     ]
-
+    print("========================")
     for ii, sel_shape in selection_shapes.iterrows():
         sel_name = (sel_shape.Name).replace(" ", "_")
         if sel_name == "FFM_Hoechst":
@@ -124,14 +124,11 @@ def main():
             ),
             # num_coeffs=3,
             t_EX=t_EX,
-            # overwrite=True,
+            overwrite=True,
         )
-        print(
-            u4invert.print_inversion_results(
-                results["U"]["inversion_results"],
-                results["U"]["parameters_list"],
-            )
-        )
+
+        u4plotprep.print_inversion_results_for_publications(results)
+
         u4ax.plot_timeseries_fit(
             ax=axes[ax_num],
             results=results,

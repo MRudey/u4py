@@ -5,13 +5,17 @@ Contains functions to modify or reformat data for plotting. This module helps to
 from __future__ import annotations
 
 import logging
+from datetime import datetime, timedelta
 from typing import Callable, Tuple
 
+import matplotlib.pyplot as plt
 import numpy as np
 import scipy.interpolate as spinterp
 import scipy.optimize as spopt
 import scipy.stats as spstats
+from matplotlib.axes import Axes
 
+import u4py.analysis.inversion as u4invert
 import u4py.analysis.other as u4other
 import u4py.utils.convert as u4convert
 
@@ -146,6 +150,24 @@ def get_linfit_each_timeseries(data: dict) -> np.ndarray:
     return lintrend
 
 
+def get_final_each_timeseries(data: dict) -> np.ndarray:
+    """Gets the final deformation averaged over the whole time in the full timeseries.
+
+
+    :param data: Data dictionary according to u4py standard (e.g. read from h5).
+    :type data: dict
+    :return: An array containing all last values in the dictionary.
+    :rtype: np.ndarray
+    """
+    dt = data["time"][-1] - data["time"][0]
+    dt_years = dt.days / 365
+    vals = (
+        np.array([y[np.isfinite(y)][-1] for y in data["timeseries"]])
+        / dt_years
+    )
+    return vals
+
+
 def _downsampled_forward_model(
     tq: np.ndarray, t: np.ndarray, y: np.ndarray
 ) -> np.ndarray:
@@ -236,3 +258,109 @@ def get_timeseries_range(
         result["t_u"] = t_u
 
     return result
+
+
+def matshow_region(data_region: dict, region_trend: np.ndarray, ax: Axes):
+    """Plots the PSI data in a given region as a meshgrid.
+
+    *Might cause distortion*
+
+    :param data_region: The original data in the region.
+    :type data_region: dict
+    :param region_trend: The analyzed trend data from the region.
+    :type region_trend: np.ndarray
+    :param ax: The axis where to plot the data.
+    :type ax: Axes
+    """
+    xx, yy = np.meshgrid(
+        np.unique(data_region["x"]), np.unique(data_region["y"])
+    )
+    zz = np.ones_like(yy) * np.nan
+    for x, y, z in zip(data_region["x"], data_region["y"], region_trend):
+        zz[np.bitwise_and((xx == x), (yy == y))] = z
+
+    rng = np.percentile(np.abs(region_trend), 95)
+    sc = ax.imshow(
+        zz,
+        origin="lower",
+        extent=(
+            np.nanmin(data_region["x"]),
+            np.nanmax(data_region["x"]),
+            np.nanmin(data_region["y"]),
+            np.nanmax(data_region["y"]),
+        ),
+        vmin=-rng,
+        vmax=rng,
+        cmap="RdYlBu",
+        # label="PSI locations",
+        zorder=1,
+    )
+
+    plt.colorbar(
+        sc,
+        ax=ax,
+        orientation="horizontal",
+        extend="both",
+        label="Mean Vertical Velocity (mm/a)",
+    )
+
+
+def print_inversion_results_for_publications(results: dict):
+    """Prints the inversion results in a readable and in a table exportable way to the stdout.
+
+    :param results: The reformatted results dictionary.
+    :type results: dict
+    """
+    r2 = u4other.R_squared(results["U"]["y"], results["U"]["y_fit_2_err"])
+    ad_r2 = u4other.adj_R_squared(
+        r2, len(results["U"]["parameters_list"]), len(results["t"])
+    )
+
+    print(
+        u4invert.print_inversion_results(
+            results["U"]["inversion_results"],
+            results["U"]["parameters_list"],
+        )
+    )
+    print(f"Goodness of Fit (R²) = {r2:.3f} (adjusted={ad_r2:.3f})")
+    a, peak = u4other.superpose(
+        results["U"]["inversion_results"][2],
+        -results["U"]["inversion_results"][3],
+    )
+    peak_time = (peak / (2 * np.pi)) * 365
+    peak_date = datetime(2015, 1, 1, 0, 0, 0) + timedelta(days=peak_time)
+    print(f"max. annual sines: +-{a:.2f}")
+    print(f"annual peak time: {peak_date.day:02}.{peak_date.month:02}.")
+    a2, peak2 = u4other.superpose(
+        results["U"]["inversion_results"][4],
+        -results["U"]["inversion_results"][5],
+    )
+    peak_time2 = (peak2 / (4 * np.pi)) * 365
+    peak_date2 = datetime(2015, 1, 1, 0, 0, 0) + timedelta(days=peak_time2)
+    peak_date2_alt = peak_date2 + timedelta(days=365 / 2)
+    print(f"max. annual sines: +-{a2:.2f}")
+    print(f"semi-annual peak time: {peak_date2.day:02}.{peak_date2.month:02}.")
+    print(
+        f"semi-annual peak time2: {peak_date2_alt.day:02}.{peak_date2_alt.month:02}."
+    )
+
+    val_0 = results["U"]["inversion_results"][1]
+    val_1 = results["U"]["inversion_results"][2]
+    val_2 = results["U"]["inversion_results"][3]
+    val_3 = results["U"]["inversion_results"][4]
+    val_4 = results["U"]["inversion_results"][5]
+
+    print("------")
+    print(f"{val_0:.2f}")
+    print(f"{val_1:.2f}")
+    print(f"{val_2:.2f}")
+    print(f"{a:.2f}")
+    print(f"{peak_date.day:02}.{peak_date.month:02}.")
+    print(f"{val_3:.2f}")
+    print(f"{val_4:.2f}")
+    print(f"{a2:.2f}")
+    print(
+        f"{peak_date2.day:02}.{peak_date2.month:02}. and {peak_date2_alt.day:02}.{peak_date2_alt.month:02}."
+    )
+
+    print("------")

@@ -3,27 +3,30 @@ Plots the regional ground motion in Crumstadt, Hessen and some additional data
 for it.
 """
 
-
 import os
-from datetime import datetime
+from datetime import datetime, timedelta
+from pathlib import Path
 from typing import Tuple
 
 import contextily
 import geopandas as gp
 import matplotlib.gridspec as gs
 import matplotlib.pyplot as plt
+import numpy as np
 from matplotlib.axes import Axes
 from matplotlib.figure import Figure
 from shapely.geometry import Polygon
 
 import u4py.addons.climate as u4climate
 import u4py.addons.gas_storage as u4gas
-
-# import u4py.addons.rivers as u4rivers
 import u4py.addons.groundwater as u4gw
+import u4py.analysis.inversion as u4invert
+import u4py.analysis.other as u4other
 import u4py.analysis.processing as u4proc
 import u4py.plotting.axes as u4ax
 import u4py.plotting.formatting as u4plotfmt
+import u4py.plotting.preparation as u4plotprep
+import u4py.utils.convert as u4convert
 import u4py.utils.files as u4files
 import u4py.utils.projects as u4proj
 
@@ -31,7 +34,11 @@ import u4py.utils.projects as u4proj
 def main():
     # Paths
     psi_source = "L3_BBD_Vert_2023"
+    overwrite = False
     project = u4proj.get_project(
+        proj_path=Path(
+            r"~\Documents\ArcGIS\U4_projects\Crumstadt_Seasonal.u4project"
+        ).expanduser(),
         required=[
             "base_path",
             "psivert_path",
@@ -48,8 +55,8 @@ def main():
 
     # Load Data
     data, crs = get_data_within_osm_query(project["paths"]["psivert_path"])
-    data_region, _ = get_data_within_region(
-        project["paths"]["psivert_path"], crs=crs
+    data_region, pcrs = get_data_within_region(
+        project["paths"]["psivert_path"], crs=crs, overwrite=overwrite
     )
     data_well, _ = get_data_at_well(project["paths"]["psivert_path"])
     # date_rhine, level_rhine = u4rivers.load_rhine_date(
@@ -69,6 +76,28 @@ def main():
         os.path.join(project["paths"]["ext_path"], "Wetter_FFM.txt")
     )
 
+    temp_data = u4climate.get_temperature_data(
+        os.path.join(
+            project["paths"]["ext_path"],
+            "Lufttemperatur",
+            "TU_temp_TMW2015_2022.csv",
+        )
+    )
+
+    selected_stations = ["Riedstadt", "Darmstadt", "Mörfelden", "Raunheim"]
+    station_list = [
+        "CRUMSTADT",
+        "HAHN flach",
+        "ALLMENDFELD (alt)",
+        "GODDELAU",
+    ]
+    label_list = [
+        "Crumstadt",
+        "Hahn (shallow)",
+        "Allmendfeld (old)",
+        "Goddelau",
+    ]
+
     # Create the figure
     fig, axes = prepare_figure()
 
@@ -76,11 +105,13 @@ def main():
     plot_map(
         axes[0],
         data_region,
-        crs=crs,
+        crs=pcrs,
         places_path=project["paths"]["places_path"],
+        station_list=station_list,
+        label_list=label_list,
     )
 
-    # Time series for Crumstadt
+    print("Ground Motion in Crumstadt")
     add_timeseries(
         data,
         axes[1],
@@ -89,9 +120,10 @@ def main():
         inversion_path=os.path.join(
             project["paths"]["processing_path"], "Crumstadt.pkl"
         ),
+        overwrite=overwrite,
     )
 
-    # Time series for the gas storage
+    print("Ground Motion at Gas Storage")
     add_timeseries(
         data_well,
         axes[2],
@@ -101,6 +133,7 @@ def main():
         inversion_path=os.path.join(
             project["paths"]["processing_path"], "GasStorage.pkl"
         ),
+        overwrite=overwrite,
     )
 
     # Rainfall
@@ -112,45 +145,12 @@ def main():
     u4plotfmt.add_copyright("Source: DWD", axes[3])
 
     # Temperature data
-    axes[4].plot(climate_data["time"], climate_data["mean"], "s-", color="C3")
-    axes[4].fill_between(
-        climate_data["time"],
-        climate_data["min"],
-        climate_data["max"],
-        color="C3",
-        alpha=0.5,
-        edgecolor=None,
+    add_temp_timeseries(
+        axes[4], temp_data, selected_stations=selected_stations
     )
-    axes[4].set_ylabel("Avg. Temperature (°C)\n(Frankfurt)")
-    u4plotfmt.add_copyright("Source: DWD", axes[4])
 
     # Water Level
-    axes[5].plot(
-        data_gw["CRUMSTADT"]["time"],
-        data_gw["CRUMSTADT"]["height"],
-        ".-",
-        color="C0",
-        label="Crumstadt",
-    )
-    axes[5].plot(
-        data_gw["HAHN flach"]["time"],
-        data_gw["HAHN flach"]["height"],
-        ".-",
-        color="C1",
-        label="Hahn (shallow)",
-    )
-    axes[5].plot(
-        data_gw["ALLMENDFELD (alt)"]["time"],
-        data_gw["ALLMENDFELD (alt)"]["height"],
-        ".-",
-        color="C2",
-        label="Allmendfeld (old)",
-    )
-    axes[5].set_ylabel("Ground Water Level (m)")
-    # axes[5].set_ylim(0, 700)
-    u4plotfmt.add_copyright("Source: HLNUG", axes[5])
-    axes[5].set_ylim(85, 90)
-    axes[5].legend(loc="best")
+    add_waterlevel(axes[5], data_gw, station_list, label_list)
 
     # Gas data
     axes[6].plot(date_gas, level_gas, color="C2")
@@ -202,7 +202,9 @@ def get_data_within_osm_query(h5path: os.PathLike) -> Tuple[dict, str]:
     return data, points.crs
 
 
-def get_data_within_region(h5path: os.PathLike, crs: str) -> Tuple[dict, str]:
+def get_data_within_region(
+    h5path: os.PathLike, crs: str, overwrite: bool = False
+) -> Tuple[dict, str]:
     """Gets the data in the region of the map's extend for plotting as points on the map.
 
     :param h5path: The path to the data.
@@ -217,17 +219,19 @@ def get_data_within_region(h5path: os.PathLike, crs: str) -> Tuple[dict, str]:
             "geometry": [
                 Polygon(
                     [
-                        (463200, 5514800),
-                        (463200, 5520400),
-                        (469500, 5520400),
-                        (469500, 5514800),
+                        (462000, 5514000),
+                        (462000, 5521000),
+                        (470000, 5521000),
+                        (470000, 5514000),
                     ]
                 )
             ]
         },
         crs=crs,
     )
-    points, _ = u4files.get_region_points(region, "Crumstadt", h5path)
+    points, _ = u4files.get_region_points(
+        region, "Crumstadt", h5path, overwrite=overwrite
+    )
     data = u4files.load_data_from_points(h5path, points)
     return data, points.crs
 
@@ -268,7 +272,14 @@ def prepare_figure() -> Tuple[Figure, Axes]:
     return fig, axes
 
 
-def plot_map(ax: Axes, data_region: dict, crs: str, places_path: os.PathLike):
+def plot_map(
+    ax: Axes,
+    data_region: dict,
+    crs: str,
+    places_path: os.PathLike,
+    station_list,
+    label_list,
+):
     """Adds a map with some annotations to the given axis.
 
     :param ax: The axis to add the plot to.
@@ -282,7 +293,7 @@ def plot_map(ax: Axes, data_region: dict, crs: str, places_path: os.PathLike):
     """
 
     # Map
-    u4ax.plot_region_trend(data_region, ax=ax)
+    u4ax.plot_region_trend(data_region, ax=ax, fit=False, use_gdf=True)
     u4plotfmt.add_map_label("Crumstadt", (465500, 5518000), ax=ax)
     u4plotfmt.add_map_label("Hahn", (468700, 5516000), ax=ax)
     u4plotfmt.add_map_label("Gas Storage", (464500, 5516100), ax=ax)
@@ -330,15 +341,13 @@ def plot_map(ax: Axes, data_region: dict, crs: str, places_path: os.PathLike):
         markersize=50,
         zorder=1,
         label="Groundwater Wells",
-        keys=["CRUMSTADT", "HAHN flach", "ALLMENDFELD (alt)"],
-        labels=["Crumstadt", "Hahn\n(shallow)", "Allmendfeld\n(old)"],
+        keys=station_list,
+        labels=label_list,
     )
 
-    ax.set_xlim(463200, 469500)
+    ax.set_xlim(462000, 470000)
     ax.set_ylim(5514000, 5520400)
-    ax.set_xlabel("Longitude (m)")
-    ax.set_ylabel("Latitude (m)")
-    u4plotfmt.map_style(ax, divisor=1000, crs=crs)
+    u4plotfmt.map_style(ax, divisor=2000, crs=crs)
     ax.legend(loc="upper right")
 
 
@@ -369,16 +378,88 @@ def add_timeseries(
     results = u4proc.invert_psi_dict(
         data, save_path=inversion_path, overwrite=overwrite
     )
-
+    u4plotprep.print_inversion_results_for_publications(results)
     u4ax.plot_timeseries_fit(ax=ax, results=results)
     ax.set_title(title)
     ax.set_xlabel("Year")
     ax.set_ylabel("Vertical Displacement (mm)")
     if legend:
-        ax.legend(loc="upper left")
+        ax.legend(loc="upper right")
     if shareax:
         ax.sharex(shareax)
         ax.sharey(shareax)
+
+
+def add_temp_timeseries(ax: Axes, data: dict, selected_stations: list):
+    """Adds the temperature time series to the axis.
+
+    :param ax: The axis to add the plot.
+    :type ax: Axes
+    :param data: The data read from the climate addon.
+    :type data: dict
+    :param selected_stations: A list of stations for plotting.
+    :type selected_stations: list
+    """
+    data_inv = dict()
+    for station in selected_stations:
+        y = np.array(data[station])
+        t = np.array(data["time"])[y > -40]
+        y = y[y > -40]
+
+        data_inv[station] = u4invert.reformat_simple_timeseries(
+            t, y, station=station
+        )
+        ax.plot(t, y, ".", label=station, markersize=3)
+    stacked_data = u4invert.stack_data(data_inv)
+    # stacked_data = u4invert.smooth_stacked_data(stacked_data)
+    (
+        matrix,
+        data_out,
+        time_vector,
+        parameter_list,
+    ) = u4invert.invert_time_series(stacked_data)
+    t_fit = u4convert.get_datetime(data_out["t"])
+    ax.plot(t_fit, data_out["ori_dhat_data"]["dhatU"], "k", label="Inversion")
+    print("Temperature Data")
+    ann_temp, peak_temp = u4other.superpose(matrix[2], -matrix[3])
+    peak_time = (peak_temp / (2 * np.pi)) * 365
+    peak_date = datetime(2015, 1, 1, 0, 0, 0) + timedelta(days=peak_time)
+    print(f"Amplitude: {ann_temp:.1f}")
+    print("Peak date", peak_date)
+    ax.set_ylabel("Avg. Temperature (°C)")
+    ax.legend(loc="upper right", ncols=3)
+    ax.set_ylim(-15, 50)
+    u4plotfmt.add_copyright("Source: DWD/HLNUG", ax)
+
+
+def add_waterlevel(
+    ax: Axes, data_gw: dict, station_list: list, label_list: list
+):
+    """Adds the water level data of the given stations to the axis.
+
+    :param ax: The axis where to add the plots.
+    :type ax: Axes
+    :param data_gw: The groundwater level data as read by the groundwater addon.
+    :type data_gw: dict
+    :param station_list: A list of stations to use.
+    :type station_list: list
+    :param label_list: Labels for the list of the stations.
+    :type label_list: list
+    """
+    for ii, (station, label) in enumerate(zip(station_list, label_list)):
+        ax.plot(
+            data_gw[station]["time"],
+            data_gw[station]["height"],
+            ".",
+            markersize=3,
+            color=f"C{ii}",
+            label=label,
+        )
+    ax.set_ylabel("Ground Water Level (m a.s.l)")
+    # ax.set_ylim(0, 700)
+    u4plotfmt.add_copyright("Source: HLNUG", ax)
+    ax.set_ylim(84, 90)
+    ax.legend(loc="upper right", ncols=2)
 
 
 if __name__ == "__main__":
