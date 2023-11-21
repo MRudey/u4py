@@ -16,7 +16,7 @@ import os
 import sys
 import tkinter as tk
 from functools import partial
-from tkinter import TclError, Tk, messagebox, ttk
+from tkinter import TclError, messagebox, ttk
 
 import u4py.utils.files as u4files
 
@@ -75,10 +75,10 @@ def get_project(
     PROJECT, proj_path = _load_project(proj_path=proj_path, required=required)
     _, proj_name = os.path.split(proj_path)
     try:
-        root = Tk()
-        interactive=True
+        root = tk.Tk().destroy()
+        interactive = True
     except TclError:
-        interactive=False
+        interactive = False
 
     if interactive:
         _path_dialog(
