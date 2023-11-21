@@ -600,10 +600,10 @@ def _set_g_annual(time: np.ndarray, parameter_list: list) -> Tuple[list, list]:
 
     parameter_list.extend(
         [
-            "semi-annual sine",
-            "semi-annual cosine",
             "annual sine",
             "annual cosine",
+            "semi-annual sine",
+            "semi-annual cosine",
         ]
     )
     return g_ANNUAL, parameter_list
