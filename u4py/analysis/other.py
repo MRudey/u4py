@@ -146,7 +146,7 @@ def superpose(
         )
         + np.pi / 2
     )
-    if isinstance(a_1, float):
+    if isinstance(a_1, (float, np.floating)):
         if a_1 < 0:
             phi_0 = phi_0 + np.pi
     elif isinstance(a_1, np.ndarray):
