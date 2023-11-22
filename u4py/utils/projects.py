@@ -74,12 +74,12 @@ def get_project(
     global PROJECT
     PROJECT, proj_path = _load_project(proj_path=proj_path, required=required)
     _, proj_name = os.path.split(proj_path)
+
+    # Test if we are able to create a window. Not possible on terminal systems.
     try:
         root = tk.Tk().destroy()
-        interactive = True
     except TclError:
         interactive = False
-
     if interactive:
         _path_dialog(
             required=required,
