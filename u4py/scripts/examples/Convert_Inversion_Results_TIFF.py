@@ -5,7 +5,6 @@ Converts the pickled inversion results to a geotiff.
 import logging
 import os
 
-import matplotlib.pyplot as plt
 import numpy as np
 
 import u4py.analysis.other as u4other
@@ -71,6 +70,7 @@ def main():
                 f"{name}_{chunk_size}_{fname}.tif",
             ),
             crs="EPSG:32632",
+            compress="lzw",
         )
 
     for grid, name in tqdm(
@@ -86,6 +86,7 @@ def main():
                 f"abs_{name}_{chunk_size}_{fname}.tif",
             ),
             crs="EPSG:32632",
+            compress="lzw",
         )
 
     logging.info(f"Maximum of annual")
@@ -101,6 +102,7 @@ def main():
             f"max_vals_annual_{chunk_size}_{fname}.tif",
         ),
         crs="EPSG:32632",
+        compress="lzw",
     )
     u4files.ndarray_to_geotiff(
         max_time,
@@ -110,6 +112,7 @@ def main():
             f"max_time_annual_{chunk_size}_{fname}.tif",
         ),
         crs="EPSG:32632",
+        compress="lzw",
     )
 
     logging.info(f"Maximum of semiannual")
@@ -125,6 +128,7 @@ def main():
             f"max_vals_semiannual_{chunk_size}_{fname}.tif",
         ),
         crs="EPSG:32632",
+        compress="lzw",
     )
     u4files.ndarray_to_geotiff(
         max_time,
@@ -134,6 +138,7 @@ def main():
             f"max_time_semiannual_{chunk_size}_{fname}.tif",
         ),
         crs="EPSG:32632",
+        compress="lzw",
     )
 
 
