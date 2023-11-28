@@ -4,11 +4,11 @@
 
 ### Link to Function
 
-(Copy a link to the function in GitLab, e.g. [Link](analysis/other.py?ref_type=heads#L12))
+(Copy a link to the function in GitLab, e.g. [Link](u4py/analysis/other.py?ref_type=heads#L12))
 
 ## Description
 
 (Give a short description of what is wrong, for example: - Parameters are missing or - No docstring given)
 
 <!-- Do not modify the line below -->
-/label ~Bug ~Organisation
+/label ~Documentation ~Organisation
