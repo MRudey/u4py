@@ -138,13 +138,17 @@ def sql_key_to_time(key: str) -> datetime:
     return datetime.strptime(key, "date_%Y%m%d")
 
 
-def table_to_dict(file_path: os.PathLike, table: str) -> dict:
+def table_to_dict(
+    file_path: os.PathLike, table: str, get_timeseries: bool = True
+) -> dict:
     """Opens the given sql database and gets all content of the given table.
 
     :param file_path: The path to the database.
     :type file_path: os.PathLike
     :param table: The Table to get from.
     :type table: str
+    :param get_timeseries: Whether to read the time series or not. Only loads the mean velocity and variance when False, defaults to True.
+    :type get_timeseries: str
     :return: The content of the table.
     :rtype: dict
 
@@ -170,34 +174,34 @@ def table_to_dict(file_path: os.PathLike, table: str) -> dict:
         ]
     )
 
-    if info["has_time"]:
+    if info["has_time"] and get_timeseries:
         con.close()
+        logging.info("Generating queries for timeseries extraction.")
         time, queries = gen_timeseries_queries(file_path, table, info)
         num_fields = len(queries)
         timeseries = np.zeros((num_points, num_fields))
         results = map_queries(queries)
-        logging.debug("Aggregating results of queries to timeseries array.")
+        logging.info("Aggregating results of queries to timeseries array.")
         for r in results:
             timeseries[:, r[1]] = np.array(r[0])
     else:
-        logging.debug(f"Getting means.")
+        logging.info(f"Getting means.")
+        mv_key, var_mv_key = get_meanvelo_keys(info["all_keys"])
         mean_vel = np.array(
             [
                 value[0]
-                for value in cur.execute(f"SELECT mean_velocity from {table}")
+                for value in cur.execute(f"SELECT {mv_key} from {table}")
             ]
         )
         var_mean_vel = np.array(
             [
                 value[0]
-                for value in cur.execute(
-                    f"SELECT var_mean_velocity from {table}"
-                )
+                for value in cur.execute(f"SELECT {var_mv_key} from {table}")
             ]
         )
         con.close()
 
-    if info["has_time"]:
+    if info["has_time"] and get_timeseries:
         output = {
             "x": xx,
             "y": yy,
@@ -559,3 +563,21 @@ def gen_queries_psi_gpkg(
         time, queries = gen_timeseries_queries(file_path, direction, info)
 
     return xx, yy, zz, time, queries, info
+
+
+def get_meanvelo_keys(all_keys: list) -> Tuple[str, str]:
+    """Looks for the right mean velocity keys and return them.
+
+    :param all_keys: List of all keys in the table.
+    :type all_keys: list
+    :return: The keys for the mean and variance.
+    :rtype: Tuple[str, str]
+    """
+    if "mean_velocity" in all_keys and "var_mean_velocity" in all_keys:
+        return ("mean_velocity", "var_mean_velocity")
+    elif "mean_velo_vert" in all_keys and "var_mean_velo_vert" in all_keys:
+        return ("mean_velo_vert", "var_mean_velo_vert")
+    elif "mean_velo_east" in all_keys and "var_mean_velo_east" in all_keys:
+        return ("mean_velo_east", "var_mean_velo_east")
+    else:
+        raise KeyError("No keys for mean velocity found.")

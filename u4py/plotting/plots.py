@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import os
 from datetime import datetime, timedelta
+from typing import Iterable
 
 import geopandas as gp
 import matplotlib.pyplot as plt
@@ -14,9 +15,11 @@ import scipy.stats as spstats
 import uncertainties as unc
 
 import u4py.analysis.other as u4other
+import u4py.analysis.spatial as u4spatial
 import u4py.plotting.axes as u4ax
 import u4py.plotting.formatting as u4plotfmt
 import u4py.plotting.preparation as u4plotprep
+import u4py.utils.files as u4files
 
 
 def plot_inversion_results(
@@ -433,3 +436,125 @@ def plot_gridded(
         plt.close(fig)
     else:
         plt.show()
+
+
+def plot_hotspots(
+    tif_file_path: os.PathLike,
+    thresh: float | Iterable,
+    nbins: int = 3,
+    min_count: int = 3,
+    output_filepath: os.PathLike = "",
+    title: str = "",
+) -> list:
+    """Loads the data from a tiff file and detects hotspots.
+
+    :param tif_file_path: The path to the Tiff file.
+    :type tif_file_path: os.PathLike
+    :param thresh: Either a single threshold or an iterable with two thresholds. If it is iterable values below the lower threshold and above the higher threshold are detected as hotspots.
+    :type thresh: float | Iterable
+    :param nbins: The minimum area in n x (dx, dy) that a hotspot has to cover for detection, defaults to 3
+    :type nbins: int
+    :param min_count: The minimum number of psi in a bin to be detected, defaults to 3
+    :type min_count: int
+    :param output_filepath: The output path of the figure, defaults to ""
+    :type output_filepath: os.PathLike, optional
+    :param title: The title to put on the figure, defaults to ""
+    :type title: str, optional
+    :return: A list of shapely polygons for plotting and exporting to files.
+    :rtype: list
+    """
+
+    # Load data
+    coords, vals, crs = u4files.extract_xyz_tiff(tif_file_path)
+
+    fig, ax, h = u4spatial.hotspots_hexbin(
+        vals, coords, thresh, nbins, min_count
+    )
+
+    if output_filepath:
+        fpath_woex = os.path.splitext(output_filepath)[0]
+        r, c = vals.shape
+        ax.set_xlim(coords["x"], coords["x"] + (c * coords["dx"]))
+        ax.set_ylim(coords["y"], coords["y"] + (r * coords["dy"]))
+        u4ax.add_basemap(ax=ax, crs=crs)
+        u4plotfmt.map_style(ax, divisor=25000, crs=crs)
+        res = coords["dx"] * nbins
+        if isinstance(thresh, Iterable):
+            thresh_str = f"<{np.min(thresh)} or >{np.max(thresh)}"
+        else:
+            thresh_str = f"{thresh}"
+        ax.annotate(
+            f"Hexgrid: {res} m\nThreshold: {thresh_str} mm\nMin. #PSI: {min_count}",
+            (0, -0.1),
+            xycoords="axes fraction",
+            fontsize="small",
+            annotation_clip=False,
+        )
+        if title:
+            ax.set_title(title)
+        fig.tight_layout()
+        fig.savefig(f"{fpath_woex}.pdf")
+        fig.savefig(f"{fpath_woex}.png")
+
+    return (h.get_offsets(), h.get_array(), crs)
+
+
+def plot_GroundMotionAnalyzer(
+    psi_fpath: os.PathLike,
+    processing_path: os.PathLike,
+    cellsize: int = 500,
+    min_mean: float = 2,
+    max_var: float = 1,
+    output_filepath: os.PathLike = "",
+    title: str = "",
+    crs: str = "EPSG:32632",
+    overwrite: bool = False,
+):
+    """Creates and plots the results for the GroundMotionAnalyzer
+
+    :param psi_fpath: The path to the gpkg file containing the PSI data.
+    :type psi_fpath: os.PathLike
+    :param processing_path: The folderpath where to save the results as a tiff file.
+    :type processing_path: os.PathLike
+    :param cellsize: The cellsize of the ground motion analyzer in meters, defaults to 500
+    :type cellsize: int, optional
+    :param min_mean: The minimum mean velocity for the detection, defaults to 2
+    :type min_mean: float, optional
+    :param max_var: The maximum variance for the detection, defaults to 1
+    :type max_var: float, optional
+    :param output_filepath: The output file path of the figure, if none is given no plot is produced, defaults to ""
+    :type output_filepath: os.PathLike, optional
+    :param title: The title for the plot, defaults to ""
+    :type title: str, optional
+    :param crs: The coordinate system of the data, defaults to "EPSG:32632"
+    :type crs: str, optional
+    :param overwrite: Whether to overwrite the existing results, defaults to False
+    :type overwrite: bool, optional
+    """
+    gma_tile_path = u4files.get_gma_results(
+        psi_fpath,
+        processing_path,
+        cellsize,
+        min_mean,
+        max_var,
+        crs,
+        overwrite=overwrite,
+    )
+    fig, ax = plt.subplots(figsize=(6, 10), dpi=150)
+    u4ax.add_tile(gma_tile_path, ax=ax, cmap="Reds", vm=(-2, -1), zorder=3)
+    if output_filepath:
+        fpath_woex = os.path.splitext(output_filepath)[0]
+        u4ax.add_basemap(ax=ax, crs=crs)
+        u4plotfmt.map_style(ax, divisor=25000, crs=crs)
+        ax.annotate(
+            f"Cellsize: {cellsize} m\nThreshold: >={min_mean} mm/a\nMax. Variance: {max_var}",
+            (0, -0.1),
+            xycoords="axes fraction",
+            fontsize="small",
+            annotation_clip=False,
+        )
+        if title:
+            ax.set_title(title)
+        fig.tight_layout()
+        fig.savefig(f"{fpath_woex}.pdf")
+        fig.savefig(f"{fpath_woex}.png")

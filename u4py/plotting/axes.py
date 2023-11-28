@@ -17,7 +17,7 @@ from __future__ import annotations
 import os
 from datetime import datetime
 from functools import wraps
-from typing import Callable, Tuple
+from typing import Callable, Iterable, Tuple
 
 import contextily
 import geopandas as gp
@@ -375,7 +375,11 @@ def add_shapefile(
 
 @_add_or_create
 def add_basemap(
-    base_map_path: os.PathLike = None, ax: Axes = None, **kwargs
+    base_map_path: os.PathLike = None,
+    ax: Axes = None,
+    crs: str = "EPSG:23032",
+    zoom: str | int = "auto",
+    **kwargs,
 ) -> Tuple[Figure, Axes] | None:
     """Creates a plot with the basemap as the lowest layer. If no basemap is given it is automatically loaded from osm.
 
@@ -383,6 +387,10 @@ def add_basemap(
     :type base_map_path: os.PathLike, optional
     :param ax: The axis to add the plot to (optional)., defaults to None
     :type ax: Axes, optional
+    :param crs: The coordinate system of the axis, required for correct scaling of the basemap, defaults to "EPSG:23032".
+    :type crs: str, optional
+    :param zoom: The zoom level of the tiles. Ranges from 1 to 15, usually is about 10, defaults to "auto"
+    :type zoom: str | int, optional
     :param kwargs:  Additional arguments passed to rasterio.plot.show(). See rasterio documentation.
     :type kwargs: dict
     :return: The figure and axis if there was no axis specified.
@@ -394,8 +402,10 @@ def add_basemap(
     else:
         contextily.add_basemap(
             ax=ax,
-            crs="EPSG:23032",
+            crs=crs,
             source=contextily.providers.OpenStreetMap.Mapnik,
+            zoom=zoom,
+            zorder=0,
         )
 
 
@@ -484,8 +494,8 @@ def plot_fit_residuals(
 def add_tile(
     tiff_tile_path: os.PathLike,
     ax: Axes,
-    vm: float = 0,
-    imsize: int = 100,
+    vm: float | Iterable = 0,
+    imsize: int = 0,
     show: bool = True,
     cmap: str = "RdYlBu",
     colorbar: dict = dict(),
@@ -497,9 +507,9 @@ def add_tile(
     :type tiff_tile_path: os.PathLike
     :param ax: The axis to add the plot (optional).
     :type ax: Axes
-    :param vm: Colormap minimum and maximum, defaults to 0
-    :type vm: float, optional
-    :param imsize: Resizes the image to this size, defaults to 100
+    :param vm: Colormap minimum and maximum, defaults to 0. If none is given, then the value for vmin and vmax is determined as +- the 95 percentile of the absolute values. If an Iterable is given, then these are used as (vmin, vmax)
+    :type vm: float | Iterable, optional
+    :param imsize: Resizes the image to this size, defaults to 0
     :type imsize: int, optional
     :param show: Adds the tile to the plot, defaults to True
     :type show: bool, optional
@@ -515,19 +525,29 @@ def add_tile(
     tiff_tile = u4files.load_tiff(tiff_tile_path)
     if show:
         diff_tile = tiff_tile.read(1)
+
+        # Resizing image to smaller resolution
         if imsize:
             tile_resized = sktransf.resize(
                 diff_tile, (imsize, imsize), anti_aliasing=True
             )
         else:
             tile_resized = diff_tile
+
+        # Minimum maximum for colorbar
         if not vm:
-            vm = np.percentile(np.abs(tile_resized), 95)
+            vm = np.nanpercentile(np.abs(tile_resized), 95)
+            vmin = -vm
+            vmax = vm
+        elif isinstance(vm, Iterable):
+            vmin = vm[0]
+            vmax = vm[1]
+
         ims = ax.imshow(
             tile_resized,
             cmap=cmap,
-            vmin=-vm,
-            vmax=vm,
+            vmin=vmin,
+            vmax=vmax,
             extent=(
                 tiff_tile.bounds.left,
                 tiff_tile.bounds.right,
@@ -536,6 +556,7 @@ def add_tile(
             ),
             **kwargs,
         )
+        ax.yaxis.set_inverted(False)
         if colorbar:
             plt.colorbar(ims, ax=ax, **colorbar)
     return tiff_tile.bounds, tiff_tile.crs

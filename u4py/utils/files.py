@@ -23,7 +23,6 @@ import pandas as pd
 import rasterio as rio
 import shapely
 import shapely.geometry as shpgeo
-import shapely.ops as shpops
 from rasterio.mask import mask as riomask
 from rasterio.merge import merge as riomerge
 from rasterio.transform import Affine
@@ -33,6 +32,7 @@ import u4py.analysis.inversion as u4invert
 import u4py.analysis.spatial as u4spatial
 import u4py.utils.config as u4config
 import u4py.utils.convert as u4convert
+import u4py.utils.sql as u4sql
 
 
 def get_file_paths(**kwargs) -> list | os.PathLike:
@@ -552,23 +552,30 @@ def load_data_from_points(
 
 
 def ndarray_to_geotiff(
-    Z: np.ndarray, bounds: tuple, file_path: os.PathLike, crs: str
+    Z: np.ndarray,
+    bounds: tuple,
+    file_path: os.PathLike,
+    crs: str,
+    compress: str = "none",
 ):
     """Saves a numpy nd array and its bounds to a georeferenced tiff.
 
     :param Z: The array
     :type Z: np.ndarray
-    :param bounds: The edges of the array in real world coordinates
+    :param bounds: The edges of the array in real world coordinates, (min x, max x, min y, max y)
     :type bounds: tuple
     :param file_path: The path to save the tiff to.
     :type file_path: os.PathLike
     :param crs: The coordinate system to use.
     :type crs: str
+    :param compress: The compression for the tiff file, defaults to "none".
+    :type compress: str
     """
     height, width = Z.shape
-    res = (bounds[1] - bounds[0]) / width
-    transform = Affine.translation(bounds[0] - res, bounds[2]) * Affine.scale(
-        res, res
+    resx = (bounds[1] - bounds[0]) / width
+    resy = (bounds[3] - bounds[2]) / height
+    transform = Affine.translation(bounds[0] - resx, bounds[2]) * Affine.scale(
+        resx, resy
     )
 
     with rio.open(
@@ -582,6 +589,7 @@ def ndarray_to_geotiff(
         crs=crs,
         transform=transform,
         nodata=-9999,
+        compress=compress,
     ) as dst:
         dst.write(Z, 1)
 
@@ -1058,13 +1066,13 @@ def get_merged_tiff_path(
 
 def extract_xyz_tiff(
     file_path: os.PathLike,
-) -> Tuple[np.ndarray, np.ndarray, np.ndarray, str]:
+) -> Tuple[dict, np.ndarray, str]:
     """Extracts the data and coordinates from a tiff file for easier processing with numpy.
 
     :param file_path: The path to the tiff file.
     :type file_path: os.PathLike
-    :return: A Tuple of `np.ndarrays` with X, Y, Z values and the coordinate system.
-    :rtype: Tuple[np.ndarray, np.ndarray, np.ndarray, str]
+    :return: A Tuple with a dictionary containing the coordinates, the values as ndarray and a string with the coordinate system.
+    :rtype: Tuple[dict, np.ndarray, str]
     """
     logging.info("Reading data from tiff file.")
     with rio.open(file_path, "r") as tile:
@@ -1231,3 +1239,57 @@ def fiona_load(shp_path: os.PathLike, fclasses: list = []) -> gp.GeoDataFrame:
             ]
         crs = shapefile.crs
     return geometries, crs
+
+
+def get_gma_results(
+    psi_fpath: os.PathLike,
+    processing_path: os.PathLike,
+    cellsize: int,
+    min_mean: float,
+    max_var: float,
+    crs: str,
+    overwrite: bool = False,
+) -> os.PathLike:
+    """Looks for GMA-results in the path, if not creates them using the parameters given.
+
+    :param psi_fpath: The path to the PSI-files.
+    :type psi_fpath: os.PathLike
+    :param processing_path: The folder where to store the tiffs.
+    :type processing_path: os.PathLike
+    :param cellsize: The cellsize of the GMA
+    :type cellsize: int
+    :param min_mean: The minimum velocity for the GMA
+    :type min_mean: float
+    :param max_var: The maximum variance for the GMA
+    :type max_var: float
+    :param crs: The coordinate system of the input data.
+    :type crs: str
+    :param overwrite: Whether to overwrite the existing tiff, defaults to False
+    :type overwrite: bool, optional
+    :return: The path to the GMA-results as tiff.
+    :rtype: os.PathLike
+    """
+    gma_path = os.path.join(
+        processing_path,
+        f"GMA_results_cell={cellsize}_minmean={min_mean}_maxvar={max_var}.tif",
+    )
+    if (not os.path.exists(gma_path)) or overwrite:
+        logging.info("No GMA-results found, calculating...")
+        data = u4sql.table_to_dict(psi_fpath, "vertikal", get_timeseries=False)
+        gma_grid = u4spatial.hotspots_GroundMotionAnalyzer(
+            data, cellsize=cellsize, min_mean=min_mean, max_var=max_var
+        )
+        extent = (
+            np.min(data["x"]) + cellsize,
+            np.max(data["x"]) + cellsize,
+            np.min(data["y"]) + cellsize,
+            np.max(data["y"]) + cellsize,
+        )
+        gma_grid = np.rot90(gma_grid, 3)
+        gma_grid = np.fliplr(gma_grid)
+
+        logging.info("Saving GMA-results to file")
+        ndarray_to_geotiff(gma_grid, extent, gma_path, crs=crs, compress="lzw")
+    else:
+        logging.info("GMA-results found.")
+    return gma_path
