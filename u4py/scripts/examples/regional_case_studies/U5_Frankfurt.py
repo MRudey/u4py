@@ -1,4 +1,12 @@
-""" Impact of construction activity on PSI motion """
+"""
+Impact of construction activity on PSI movement in the city centre of
+Frankfurt a.M.
+
+Several regions were identified and outlined as shapes in a shapefile of
+`subsubregions`. For each of these a separate plot is generated including a map
+of all PSs, timeseries and residuals. This simplifies the identification of
+transient movements for inversion.
+"""
 import os
 import warnings
 
@@ -7,19 +15,24 @@ import geopandas as gp
 import matplotlib.gridspec as gs
 import matplotlib.patches as mpatch
 import matplotlib.pyplot as plt
+from matplotlib.axes import Axes
 
-import u4py.analysis.inversion as u4invert
 import u4py.analysis.processing as u4proc
 import u4py.plotting.axes as u4ax
 import u4py.plotting.formatting as u4plotfmt
+import u4py.plotting.preparation as u4plotprep
+import u4py.utils.config as u4config
 import u4py.utils.convert as u4convert
 import u4py.utils.files as u4files
 import u4py.utils.projects as u4projects
+
+u4config.start_logger()
 
 
 def main():
     # Load Data
     warnings.filterwarnings("ignore")
+    overwrite = False
     project = u4projects.get_project(
         required=[
             "base_path",
@@ -68,12 +81,15 @@ def main():
 
     for ii, sel_shape in selection_shapes.iterrows():
         sel_name = (sel_shape.Name).replace(" ", "_")
+        if sel_name == "FFM_Hoechst":
+            break
+        print("=============================")
         print("Inverting", sel_shape.Name)
         sel_points, sel_fpath = u4files.get_region_points(
             sel_shape,
             sel_name,
             project["paths"]["psivert_path"],
-            # overwrite=True,
+            overwrite=overwrite,
             crs=selection_shapes.crs,
         )
         sel_data = u4files.load_data_from_points(
@@ -98,18 +114,17 @@ def main():
             markersize=50,
             zorder=3,
             label="Groundwater Wells",
-            # keys=["CRUMSTADT", "HAHN flach", "ALLMENDFELD (alt)"],
-            # labels=["Crumstadt", "Hahn\n(shallow)", "Allmendfeld\n(old)"],
         )
 
-        shape_colors = ["k"] * sel_shape.size
-        shape_colors[ii] = "C0"
         u4ax.add_shapefile(
             project["paths"]["subsubregions_path"],
             ax=axes[0],
             facecolor="none",
-            edgecolor=shape_colors,
+            edgecolor="k",
             crs=selection_shapes.crs,
+        )
+        gp.GeoSeries(sel_shape["geometry"], crs=selection_shapes.crs).plot(
+            ax=axes[0], facecolor="none", edgecolor="C0"
         )
 
         # Timeseries Fit and Residuals
@@ -120,9 +135,7 @@ def main():
                 project["paths"]["processing_path"],
                 f"{shp_fname}_{sel_name}.pkl",
             ),
-            # num_coeffs=3,
             t_EX=t_EX,
-            # overwrite=True,
         )
         u4ax.plot_timeseries_fit(
             ax=axes[1],
@@ -187,34 +200,32 @@ def main():
         contextily.add_basemap(
             axes[0],
             crs=selection_shapes.crs,
-            # zoom=15,
             source=contextily.providers.OpenStreetMap.Mapnik,
         )
         fig.tight_layout()
         print("Saving Plots...")
+        output_path = os.path.join(
+            project["paths"]["output_path"], "U5_Frankfurt"
+        )
+        os.makedirs(output_path, exist_ok=True)
         fig.savefig(
             os.path.join(
-                project["paths"]["output_path"],
+                output_path,
                 f"{shp_fname}_{sel_name}_Timeseries.pdf",
             )
         )
         fig.savefig(
             os.path.join(
-                project["paths"]["output_path"],
+                output_path,
                 f"{shp_fname}_{sel_name}_Timeseries",
             )
         )
-        print(f"Results for {sel_shape.Name}")
-        print(
-            u4invert.print_inversion_results(
-                results["U"]["ori_inversion_results"],
-                results["U"]["parameters_list"],
-            )
-        )
+        print("----------------------------------")
+        u4plotprep.print_inversion_results_for_publications(results)
         plt.close(fig)
 
 
-def plot_map(ax, data_region, crs):
+def plot_map(ax: Axes, data_region: dict, crs: str):
     # Map
     u4ax.plot_region_trend(data_region, ax=ax)
     ax.set_xlabel("Longitude (m)")

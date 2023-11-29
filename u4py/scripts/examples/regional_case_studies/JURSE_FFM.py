@@ -14,17 +14,21 @@ import u4py.analysis.processing as u4proc
 import u4py.plotting.axes as u4ax
 import u4py.plotting.formatting as u4plotfmt
 import u4py.plotting.preparation as u4plotprep
+import u4py.utils.config as u4config
 import u4py.utils.convert as u4convert
 import u4py.utils.files as u4files
 import u4py.utils.projects as u4projects
+
+u4config.start_logger()
 
 
 def main():
     # Load Data
     warnings.filterwarnings("ignore")
+    overwrite = False
     project = u4projects.get_project(
         proj_path=Path(
-            "~/Documents/ArcGIS/U4_projects/U5_Frankfurt.u4project"
+            r"~\Documents\ArcGIS\U4_projects\Examples\U5_Frankfurt_and_JURSE_FFM.u4project"
         ).expanduser(),
         required=[
             "base_path",
@@ -34,7 +38,7 @@ def main():
             "processing_path",
             "places_path",
         ],
-        # interactive=False,
+        interactive=False,
     )
     shp_fname = os.path.splitext(
         os.path.split(project["paths"]["subsubregions_path"])[-1]
@@ -98,7 +102,7 @@ def main():
             sel_shape,
             sel_name,
             project["paths"]["psivert_path"],
-            # overwrite=True,
+            overwrite=overwrite,
             crs=selection_shapes.crs,
         )
         sel_data = u4files.load_data_from_points(
@@ -122,9 +126,8 @@ def main():
                 project["paths"]["processing_path"],
                 f"{shp_fname}_{sel_name}.pkl",
             ),
-            # num_coeffs=3,
             t_EX=t_EX,
-            overwrite=True,
+            overwrite=overwrite,
         )
 
         u4plotprep.print_inversion_results_for_publications(results)
@@ -223,15 +226,17 @@ def main():
     u4plotfmt.enumerate_axes(fig, ignore=[5])
     fig.tight_layout()
     print("Saving Plots...")
+    output_path = os.path.join(project["paths"]["output_path"], "U5_Frankfurt")
+    os.makedirs(output_path, exist_ok=True)
     fig.savefig(
         os.path.join(
-            project["paths"]["output_path"],
+            output_path,
             f"JURSE_FFM_Timeseries.pdf",
         )
     )
     fig.savefig(
         os.path.join(
-            project["paths"]["output_path"],
+            output_path,
             f"JURSE_FFM_Timeseries",
         )
     )
