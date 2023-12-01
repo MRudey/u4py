@@ -32,17 +32,20 @@ u4config.start_logger()
 def main():
     # Load Data
     warnings.filterwarnings("ignore")
-    overwrite = False
+    overwrite = True
     project = u4projects.get_project(
         required=[
             "base_path",
-            "psivert_path",
+            "psi_path",
             "subsubregions_path",
             "output_path",
             "processing_path",
             "places_path",
         ],
         interactive=False,
+    )
+    psi_fpath = os.path.join(
+        project["paths"]["psi_path"], "hessen_l3_clipped.gpkg"
     )
     shp_fname = os.path.splitext(
         os.path.split(project["paths"]["subsubregions_path"])[-1]
@@ -85,15 +88,12 @@ def main():
             break
         print("=============================")
         print("Inverting", sel_shape.Name)
-        sel_points, sel_fpath = u4files.get_region_points(
+        sel_data = u4files.get_region_data(
             sel_shape,
             sel_name,
-            project["paths"]["psivert_path"],
+            psi_fpath,
             overwrite=overwrite,
             crs=selection_shapes.crs,
-        )
-        sel_data = u4files.load_data_from_points(
-            project["paths"]["psivert_path"], sel_points
         )
 
         fig = plt.figure(figsize=(16 * 0.75, 10 * 0.75), dpi=150)

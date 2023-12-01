@@ -44,7 +44,7 @@ def main():
         ),
         title="Linear Hotspots from PSI",
     )
-    lin_gdf = u4spatial.xy_values_to_gdf(
+    lin_gdf = u4spatial.xy_data_to_gdf(
         lin_cen[:, 0], lin_cen[:, 1], lin_val, crs=lin_crs
     )
     lin_gdf.to_file(
@@ -62,7 +62,7 @@ def main():
         ),
         title="Seasonal Hotspots from PSI",
     )
-    seas_gdf = u4spatial.xy_values_to_gdf(
+    seas_gdf = u4spatial.xy_data_to_gdf(
         seas_cen[:, 0], seas_cen[:, 1], seas_val, crs=seas_crs
     )
     seas_gdf.to_file(

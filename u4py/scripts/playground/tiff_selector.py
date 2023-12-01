@@ -77,7 +77,7 @@ def tiff_selection_plot(tiff_file_list):
         nonlocal all_tiff_gdf
         logging.info("Single tile selection")
         sel = plt.ginput(1, show_clicks=True)
-        pnt = u4spatial.xy_to_point(sel)
+        pnt = shapely.Point(sel)
         sel_gdf = gp.GeoDataFrame({"geometry": [pnt]}, crs=crs)
         logging.info(f"Selection: {sel}")
         current_selection = gp.sjoin(sel_gdf, all_tiff_gdf, predicate="within")

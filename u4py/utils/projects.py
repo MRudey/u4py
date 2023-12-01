@@ -86,6 +86,10 @@ def get_project(
             project_name=proj_name,
             proj_path=proj_path,
         )
+    # if "paths" not in PROJECT.keys():
+    #     for k in required:
+    #         PROJECT["paths"][k] = PROJECT["DEFAULT"][k]
+
     return PROJECT
 
 

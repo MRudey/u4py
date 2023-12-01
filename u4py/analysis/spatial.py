@@ -28,6 +28,8 @@ from matplotlib.figure import Figure
 from skimage import measure as skmeasure
 from tqdm import tqdm
 
+import u4py.utils.sql as u4sql
+
 
 def reproject_raster(
     in_path: os.PathLike,
@@ -236,7 +238,7 @@ def _pkl_to_coords(pkl_path: os.PathLike) -> list:
     return coords
 
 
-def _spatial_lookup(
+def spatial_lookup(
     input_feature: os.PathLike | list, points: gp.GeoDataFrame, n: int = 1
 ) -> List[Tuple[float, int]]:
     """Does a spatial lookup for the nearest point to all points in `points`.
@@ -258,10 +260,12 @@ def _spatial_lookup(
     return closest
 
 
-def _select_points_osm(
-    osm_query: dict, psi_file_path: os.PathLike
+def select_points_osm(
+    osm_query: dict, psi_file_path: os.PathLike, crs: str = "EPSG:32632"
 ) -> gp.GeoDataFrame:
     """Selects PSI measurements from the specified file or folder from the specified file or files in `psi_file_path` and crops them by the rectangles found in the given osm query.
+
+    This function is part of a two step method. First points are extracted and then later the data is taken using `u4files.load_data_from_points()`.
 
     :param osm_query: A properly formatted osm query in dictionary form. (see https://osmnx.readthedocs.io/en/stable/ for more)
     :type osm_query: dict
@@ -271,9 +275,7 @@ def _select_points_osm(
     :rtype: gp.GeoDataFrame
     """
 
-    osm_data = osmnx.features_from_address(
-        osm_query["address"], tags=osm_query["tags"]
-    ).to_crs("EPSG:32632")
+    osm_data = get_osm_region(osm_query, crs)
 
     coords, source_index = _get_coords(psi_file_path)
     points = gp.GeoDataFrame(
@@ -281,17 +283,39 @@ def _select_points_osm(
             "geometry": coords,
             "source_index": source_index,
         },
-        crs="EPSG:32632",
+        crs=crs,
     )
     return points.clip(osm_data)
 
 
-def _select_points_region(
+def get_osm_region(
+    osm_query: dict, crs: str = "EPSG:32632"
+) -> gp.GeoDataFrame:
+    """Loads a region from a OSM query.
+
+    :param osm_query: A properly formatted osm query in dictionary form. (see https://osmnx.readthedocs.io/en/stable/ for more)
+    :type osm_query: dict
+    :param crs: The coordinate system of the output points, defaults to "EPSG:32632".
+    :type crs: str, optional
+    :return: The region as a geodataframe
+    :rtype: gp.GeoDataFrame
+    """
+    logging.info("Loading region from OSM")
+    osm_data = osmnx.features_from_address(
+        osm_query["address"], tags=osm_query["tags"]
+    ).to_crs(crs)
+    osm_data = gp.GeoDataFrame(geometry=[osm_data.unary_union], crs=crs)
+    return osm_data
+
+
+def select_points_region(
     region: gp.GeoDataFrame | gp.GeoSeries,
     psi_file_path: os.PathLike,
     crs: str = "",
 ) -> gp.GeoDataFrame:
     """Selects PSI measurements from the specified file or folder and crops them by the rectangles found in the given region.
+
+    This function is part of a two step method. First points are extracted and then later the data is taken using `u4files.load_data_from_points()`.
 
     :param region: The region to crop the data (e.g, a loaded shapefile)
     :type region: gp.GeoDataFrame | gp.GeoSeries
@@ -320,13 +344,16 @@ def _select_points_region(
     return points.clip(region)
 
 
-def _select_points_point(
-    point: list | gp.GeoDataFrame,
+def select_points_point(
+    point: list | Tuple | gp.GeoDataFrame | shapely.Point,
     radius: float,
     psi_file_path: os.PathLike,
     split_points: bool = False,
+    crs: str = "EPSG:32632",
 ) -> gp.GeoDataFrame | List[gp.GeoDataFrame]:
     """Selects PSI measurements in a `radius` around the specified `point` from the files or folder.
+
+    This function is part of a two step method. First points are extracted and then later the data is taken using `u4files.load_data_from_points()`.
 
     :param point: The center point of the query.
     :type point: list
@@ -336,30 +363,224 @@ def _select_points_point(
     :type psi_file_path: os.PathLike
     :param split_points: Splits the output into a list of points based on the selection, defaults to False
     :type split_points: bool, optional
+    :param crs: The coordinate system of the output points, defaults to "EPSG:32632".
+    :type crs: str, optional
     :return: The points from `psi_file_path` in a `radius` round `point`.
     :rtype: gp.GeoDataFrame
     """
-    if isinstance(point, list):
-        region = gp.GeoDataFrame(
-            {"geometry": [shapely.Point(point).buffer(radius)]},
-            crs="EPSG:32632",
-        )
-    elif isinstance(point, gp.GeoDataFrame) or isinstance(point, gp.GeoSeries):
-        if point.crs != "EPSG:32632":
-            point = point.to_crs("EPSG:32632")
-        region = point.buffer(radius)
+
+    # Get region for clipping
+    region = region_around_point(point, radius, crs=crs)
+    # Calculate Points
     coords, source_index = _get_coords(psi_file_path)
     points = gp.GeoDataFrame(
         {
             "geometry": coords,
             "source_index": source_index,
         },
-        crs="EPSG:32632",
+        crs=crs,
     )
+
     if split_points:
         return [points.clip(reg) for reg in region]
     else:
         return points.clip(region)
+
+
+def load_gpkg_data_point(
+    point: list | Tuple | gp.GeoDataFrame | shapely.Point,
+    radius: float,
+    gpkg_file_path: os.PathLike,
+    split_points: bool = False,
+    crs: str = "EPSG:32632",
+) -> gp.GeoDataFrame | List[gp.GeoDataFrame]:
+    """Selects PSI measurements in a `radius` around the specified `point` from the given **GPKG** File.
+
+    This function loads the data directly using sql, no second step is required.
+
+    :param point: The center point of the query.
+    :type point: list
+    :param radius: The radius to calculate the buffer
+    :type radius: float
+    :param gpkg_file_path: The file or folder to select from
+    :type gpkg_file_path: os.PathLike
+    :param split_points: Splits the output into a list of points based on the selection, defaults to False
+    :type split_points: bool, optional
+    :param crs: The coordinate system of the output points, defaults to "EPSG:32632".
+    :type crs: str, optional
+    :return: The points from `psi_file_path` in a `radius` round `point`.
+    :rtype: gp.GeoDataFrame
+    """
+
+    region = region_around_point(point, radius, crs=crs)
+
+    data = u4sql.table_to_dict(gpkg_file_path, "vertikal", region.bounds)
+    clipped_data = clip_data_points(
+        data, region, split_points=split_points, crs=crs
+    )
+    return clipped_data
+
+
+def load_gpkg_data_osm(
+    osm_query: dict,
+    gpkg_file_path: os.PathLike,
+    split_points: bool = False,
+    crs: str = "EPSG:32632",
+) -> gp.GeoDataFrame | List[gp.GeoDataFrame]:
+    """Selects PSI measurements in a region defined by an OSM query from the given **GPKG** File.
+
+    This function loads the data directly using sql, no second step is required.
+
+    :param osm_query: A properly formatted osm query in dictionary form. (see https://osmnx.readthedocs.io/en/stable/ for more)
+    :type osm_query: dict
+    :param gpkg_file_path: The file or folder to select from
+    :type gpkg_file_path: os.PathLike
+    :param split_points: Splits the output into a list of points based on the selection, defaults to False
+    :type split_points: bool, optional
+    :param crs: The coordinate system of the output points, defaults to "EPSG:32632".
+    :type crs: str, optional
+    :return: The points from `psi_file_path` in a `radius` round `point`.
+    :rtype: gp.GeoDataFrame
+    """
+
+    region = get_osm_region(osm_query, crs=crs)
+
+    data = u4sql.table_to_dict(
+        gpkg_file_path, "vertikal", bounds=region.bounds
+    )
+    clipped_data = clip_data_points(
+        data, region, split_points=split_points, crs=crs
+    )
+    return clipped_data
+
+
+def load_gpkg_data_region(
+    region: gp.GeoDataFrame | gp.GeoSeries,
+    gpkg_file_path: os.PathLike,
+    split_points: bool = False,
+    crs: str = "EPSG:32632",
+) -> gp.GeoDataFrame | List[gp.GeoDataFrame]:
+    """Selects PSI measurements in a `radius` around the specified `point` from the given **GPKG** File.
+
+    This function loads the data directly using sql, no second step is required.
+
+    :param osm_query: A properly formatted osm query in dictionary form. (see https://osmnx.readthedocs.io/en/stable/ for more)
+    :type osm_query: dict
+    :param gpkg_file_path: The file or folder to select from
+    :type gpkg_file_path: os.PathLike
+    :param split_points: Splits the output into a list of points based on the selection, defaults to False
+    :type split_points: bool, optional
+    :param crs: The coordinate system of the output points, defaults to "EPSG:32632".
+    :type crs: str, optional
+    :return: The points from `psi_file_path` in a `radius` round `point`.
+    :rtype: gp.GeoDataFrame
+    """
+    if isinstance(region, gp.GeoDataFrame):
+        if region.crs != crs:
+            region = region.to_crs(crs)
+    elif isinstance(region, (gp.pd.Series, gp.GeoSeries)):
+        UserWarning(
+            "Region for selection is a GeoSeries, check input CRS manually!"
+        )
+        region = gp.GeoDataFrame(geometry=[region.geometry], crs=crs)
+
+    data = u4sql.table_to_dict(
+        gpkg_file_path, "vertikal", bounds=region.bounds
+    )
+    clipped_data = clip_data_points(
+        data, region, split_points=split_points, crs=crs
+    )
+    return clipped_data
+
+
+def clip_data_points(
+    data: dict,
+    region: gp.GeoDataFrame,
+    split_points: bool = False,
+    crs: str = "EPSG:32632",
+) -> dict:
+    """Clips the input data dictionary by the region and returns a GeoDataBase
+
+    :param data: The data dictionary loaded by `u4sql.table_to_dict`.
+    :type data: dict
+    :param region: The region to use for clipping
+    :type region: gp.GeoDataFrame
+    :param split_points: Splits the output into a list of points based on the selection, defaults to False
+    :param crs: The coordinate system of the output points, defaults to "EPSG:32632".
+    :type crs: str, optional
+    :type split_points: bool, optional
+    :return: The data generated from the input data and clipped by region.
+    :rtype: dict
+    """
+    points = xy_data_to_gdf(
+        data["x"], data["y"], data["timeseries"], z=data["z"], crs=crs
+    )
+    points = points.assign(ps_id=data["ps_id"])
+
+    if split_points:
+        return [
+            clipped_data_to_dict(points.clip(reg), data["time"])
+            for reg in region
+        ]
+    else:
+        return clipped_data_to_dict(points.clip(region), data["time"])
+
+
+def clipped_data_to_dict(
+    clipped_data: gp.GeoDataFrame, time: np.ndarray
+) -> dict:
+    """Converts the clipped GeoDataFrame into a dictionary for inversion
+
+    :param clipped_data: The clipped dataframe
+    :type clipped_data: gp.GeoDataFrame
+    :param time: A time array
+    :type time: np.ndarray
+    :return: Dictionary ready for use with inversion.
+    :rtype: dict
+    """
+    loaded_data = {
+        "num_points": len(clipped_data),
+        "ps_id": clipped_data.ps_id.to_numpy(),
+        "x": clipped_data.geometry.x.to_numpy(),
+        "xmid": np.mean(clipped_data.geometry.x.to_numpy()),
+        "y": clipped_data.geometry.y.to_numpy(),
+        "ymid": np.mean(clipped_data.geometry.y.to_numpy()),
+        "z": clipped_data.geometry.z.to_numpy(),
+        "zmid": np.mean(clipped_data.geometry.z.to_numpy()),
+        "timeseries": np.vstack(clipped_data.data.to_numpy()),
+        "time": time,
+    }
+    return loaded_data
+
+
+def region_around_point(
+    point: list | Tuple | gp.GeoDataFrame | shapely.Point,
+    radius: float,
+    crs: str = "EPSG:32632",
+) -> gp.GeoDataFrame:
+    """Calculates the region around a point
+
+    :param point: The center point of the query.
+    :type point: list
+    :param radius: The radius to calculate the buffer
+    :type radius: float
+    "EPSG:32632".
+    :type crs: str, optional
+    :return: The region as a geodataframe
+    :rtype: gp.GeoDataFrame
+    """
+    if isinstance(point, (list, tuple)):
+        region = gp.GeoDataFrame(
+            {"geometry": [shapely.Point(point).buffer(radius)]},
+            crs=crs,
+        )
+    elif isinstance(point, (gp.GeoDataFrame, gp.GeoSeries)):
+        if point.crs != crs:
+            point = point.to_crs(crs)
+        region = point.buffer(radius)
+    elif isinstance(point, shapely.Point):
+        region = point.buffer(radius)
+    return region
 
 
 def bounds_to_polygon(bounds: rasterio.coords.BoundingBox) -> shapely.Polygon:
@@ -380,18 +601,6 @@ def bounds_to_polygon(bounds: rasterio.coords.BoundingBox) -> shapely.Polygon:
         )
     )
     return poly
-
-
-def xy_to_point(xy: tuple) -> shapely.Point:
-    """Quick converter for xy tuples to shapely points.
-
-    :param xy: The tuple with (x,y)
-    :type xy: tuple
-    :return: The point.
-    :rtype: shapely.Point
-    """
-    pnt = shapely.Point(xy)
-    return pnt
 
 
 def river_coordinates_from_osm(
@@ -607,29 +816,35 @@ def plus_minus_levels(half_sided: list) -> list:
     return half_sided
 
 
-def xy_values_to_gdf(
+def xy_data_to_gdf(
     x: np.ndarray | list,
     y: np.ndarray | list,
-    values: np.ndarray | list,
-    crs: str,
+    data: np.ndarray | list = [],
+    crs: str = "EPSG:32632",
+    z: np.ndarray | list = [],
 ) -> gp.GeoDataFrame:
     """Converts the three input iterables to a GeoDataFrame of Points with the
-    values as data column.
+    data as data column.
 
     :param x: The x coordinates.
     :type x: np.ndarray | list
     :param y: The y coordinates.
     :type y: np.ndarray | list
-    :param values: The values.
-    :type values: np.ndarray | list
-    :param crs: The coordinate system.
+    :param data: The values, defaults to [].
+    :type data: np.ndarray | list
+    :param crs: The coordinate system, defaults to "EPSG:32632".
     :type crs: str
     :return: The data as geodataframe.
     :rtype: gp.GeoDataFrame
     """
+    if len(z) > 0:
+        geometry = [shapely.Point(xx, yy, zz) for xx, yy, zz in zip(x, y, z)]
+    else:
+        geometry = [shapely.Point(xx, yy) for xx, yy in zip(x, y)]
 
-    geometry = [shapely.Point(xx, yy) for xx, yy in zip(x, y)]
-    gdf = gp.GeoDataFrame(data={"values": values}, geometry=geometry, crs=crs)
+    gdf = gp.GeoDataFrame(geometry=geometry, crs=crs)
+    if len(data) > 0:
+        gdf = gdf.assign(data=[*data])
     return gdf
 
 

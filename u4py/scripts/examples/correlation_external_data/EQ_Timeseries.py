@@ -14,16 +14,20 @@ import u4py.utils.projects as u4proj
 
 
 def main():
+    overwrite = True
     project = u4proj.get_project(
         required=[
             "base_path",
             "bld_path",
-            "psivert_path",
+            "psi_path",
             "ext_path",
             "processing_path",
             "output_path",
         ],
         interactive=False,
+    )
+    psi_fpath = os.path.join(
+        project["paths"]["psi_path"], "hessen_l3_clipped.gpkg"
     )
     file_path = os.path.join(
         project["paths"]["ext_path"],
@@ -34,19 +38,23 @@ def main():
         file_path, project["paths"]["bld_path"]
     )
     buffer = 1000
-    points = u4spatial._select_points_point(
-        eq_gdf, buffer, project["paths"]["psivert_path"], split_points=True
-    )
 
     # MAP
     fig = plt.figure(figsize=(18, 7), dpi=150)
-    grid = gs.GridSpec(ncols=3, nrows=len(points))
+    grid = gs.GridSpec(ncols=3, nrows=len(eq_gdf))
     axes = [fig.add_subplot(grid[:, 0])]
-    create_map(eq_gdf, points, buffer, ax=axes[0])
-    for ii, pnt in enumerate(points):
+    create_map(eq_gdf, buffer, ax=axes[0])
+    for ii, pnt in enumerate(eq_gdf.geometry):
         axes.append(fig.add_subplot(grid[ii, 1:]))
-        data = u4files.load_data_from_points(
-            project["paths"]["psivert_path"], pnt
+        data = u4files.get_point_data(
+            pnt,
+            radius=buffer,
+            region_name=eq_gdf.LOKATION.iloc[ii],
+            source_fpath=psi_fpath,
+            overwrite=overwrite,
+        )
+        u4spatial.xy_data_to_gdf(data["x"], data["y"], crs=eq_gdf.crs).plot(
+            ax=axes[0], color=f"C{ii}"
         )
         eqid = list(eq_gdf.ID)[ii]
         eqloc = list(eq_gdf.LOKATION)[ii]
@@ -79,11 +87,9 @@ def main():
     )
 
 
-def create_map(eq_gdf, points, buffer, ax):
+def create_map(eq_gdf, buffer, ax):
     eq_gdf.plot(ax=ax, color="k", marker="*", zorder=3)
     eq_gdf.buffer(buffer).boundary.plot(ax=ax, zorder=2, color="k")
-    for pnt in points:
-        pnt.plot(ax=ax)
     contextily.add_basemap(
         ax,
         crs=eq_gdf.crs.to_string(),

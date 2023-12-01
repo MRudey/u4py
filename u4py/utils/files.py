@@ -23,6 +23,7 @@ import pandas as pd
 import rasterio as rio
 import shapely
 import shapely.geometry as shpgeo
+from pathvalidate import sanitize_filename
 from rasterio.mask import mask as riomask
 from rasterio.merge import merge as riomerge
 from rasterio.transform import Affine
@@ -354,43 +355,86 @@ def multi_split(file_path: os.PathLike, nsplits: int) -> os.PathLike:
 
 
 def get_osm_points(
-    query: dict, source_file_path: os.PathLike, overwrite: bool = False
+    query: dict,
+    source_fpath: os.PathLike,
+    overwrite: bool = False,
+    crs: str = "EPSG:32632",
 ) -> Tuple[gp.GeoDataFrame, os.PathLike]:
     """Gets the PSI points in a region defined by an OSM query and saves them
     into a shape file for faster access.
 
     :param query: The OSM query
     :type query: dict
-    :param source_file_path: Path to folder or file where the PSI data is found.
-    :type source_file_path: os.PathLike
+    :param source_fpath: Path to folder or file where the PSI data is found.
+    :type source_fpath: os.PathLike
     :param overwrite: Whether to overwrite the output shape file, defaults to False
     :type overwrite: bool, optional
     :return: Returns the points as GeoDataFrame with time series attached and the path where the folder is found.
     :rtype: Tuple[gp.GeoDataFrame, os.PathLike]
     """
-    base_folder, source_name = os.path.split(source_file_path)
-    point_files_folder = os.path.join(
-        os.path.split(base_folder)[0], "selected_psi_points"
+    # Paths
+    p_fol, p_fpath = set_point_file_paths(
+        source_fpath, query["address"], "clip"
     )
-    os.makedirs(point_files_folder, exist_ok=True)
-    point_file_name = (
-        query["address"] + "_clip_" + os.path.splitext(source_name)[0] + ".shp"
-    )
-    point_file_path = os.path.join(point_files_folder, point_file_name)
 
-    if os.path.exists(point_file_path) and not overwrite:
-        points = gp.GeoDataFrame.from_file(point_file_path)
+    if not os.path.exists(p_fpath) or overwrite:
+        points = u4spatial.select_points_osm(query, source_fpath, crs=crs)
+        points.to_file(p_fpath)
     else:
-        points = u4spatial._select_points_osm(query, source_file_path)
-        points.to_file(point_file_path)
-        points = gp.GeoDataFrame.from_file(point_file_path)
-    return points
+        points = gp.GeoDataFrame.from_file(p_fpath)
+    return points, p_fol
+
+
+def get_osm_data(
+    query: dict,
+    source_fpath: os.PathLike,
+    overwrite: bool = False,
+    crs: str = "EPSG:32632",
+) -> dict:
+    """Gets the data from PSI points in a region defined by an OSM query and saves it into a pickle file for faster access.
+
+    :param query: The OSM query
+    :type query: dict
+    :param source_fpath: Path to folder or file where the PSI data is found.
+    :type source_fpath: os.PathLike
+    :param overwrite:  Whether to overwrite the output pickle file, defaults to False
+    :type overwrite: bool, optional
+    :param crs: The CRS of the input shapes, defaults to "EPSG:32632"
+    :type crs: str, optional
+    :return: The data as a merged, single dictionary.
+    :rtype: dict
+    """
+    pkl_fol, pkl_fpath = set_data_file_paths(
+        source_fpath, query["address"], "clip"
+    )
+    shp_fol, shp_fpath = set_point_file_paths(
+        source_fpath, query["address"], "clip"
+    )
+
+    if not os.path.exists(pkl_fpath) or overwrite:
+        if os.path.isdir(source_fpath) or source_fpath.endswith(".h5"):
+            points, p_fol = get_osm_points(
+                query, source_fpath=source_fpath, overwrite=overwrite, crs=crs
+            )
+
+            data = load_data_from_points(source_fpath, points)
+        elif source_fpath.endswith(".gpkg"):
+            data = u4spatial.load_gpkg_data_osm(query, source_fpath, crs=crs)
+            u4spatial.xy_data_to_gdf(data["x"], data["y"], crs=crs).to_file(
+                shp_fpath
+            )
+        with open(pkl_fpath, "wb") as pkl_file:
+            pkl.dump(data, pkl_file)
+    else:
+        with open(pkl_fpath, "rb") as pkl_file:
+            data = pkl.load(pkl_file)
+    return data
 
 
 def get_region_points(
     region: gp.GeoDataFrame,
     region_name: str,
-    source_file_path: os.PathLike,
+    source_fpath: os.PathLike,
     overwrite: bool = False,
     crs: str = "EPSG:32632",
 ) -> Tuple[gp.GeoDataFrame, os.PathLike]:
@@ -401,8 +445,8 @@ def get_region_points(
     :type region: gp.GeoDataFrame
     :param region_name: The name of the region.
     :type region_name: str
-    :param source_file_path: Path to folder or file where the PSI data is found.
-    :type source_file_path: os.PathLike
+    :param source_fpath: Path to folder or file where the PSI data is found.
+    :type source_fpath: os.PathLike
     :param overwrite:  Whether to overwrite the output shape file, defaults to False
     :type overwrite: bool, optional
     :param crs: The CRS of the input shapes, defaults to "EPSG:32632"
@@ -410,49 +454,93 @@ def get_region_points(
     :return: Returns the points as GeoDataFrame with time series attached and the path where the folder is found.
     :rtype: Tuple[gp.GeoDataFrame, os.PathLike]
     """
-    base_folder, source_name = os.path.split(source_file_path)
-    point_files_folder = os.path.join(
-        os.path.split(base_folder)[0], "selected_psi_points"
-    )
-    os.makedirs(point_files_folder, exist_ok=True)
-    point_file_name = (
-        region_name + "_region_" + os.path.splitext(source_name)[0] + ".shp"
-    )
-    point_file_path = os.path.join(point_files_folder, point_file_name)
+    # Paths
+    p_fol, p_fpath = set_point_file_paths(source_fpath, region_name, "region")
 
-    if os.path.exists(point_file_path) and not overwrite:
-        points = gp.GeoDataFrame.from_file(point_file_path)
+    # Selection
+    if os.path.exists(p_fpath) and not overwrite:
+        points = gp.GeoDataFrame.from_file(p_fpath)
     else:
-        if isinstance(region, gp.GeoDataFrame):
-            points = u4spatial._select_points_region(
-                region, source_file_path, crs=crs
-            )
-        elif isinstance(region, pd.Series):
-            points = u4spatial._select_points_region(
-                region, source_file_path, crs=crs
+        if isinstance(region, (gp.GeoDataFrame, pd.Series)):
+            points = u4spatial.select_points_region(
+                region, source_fpath, crs=crs
             )
         elif isinstance(region, shapely.Polygon):
             region_gdf = gp.GeoDataFrame(
                 geometry=gp.GeoSeries(region), crs=crs
             )
-            points = u4spatial._select_points_region(
-                region_gdf, source_file_path, crs=crs
+            points = u4spatial.select_points_region(
+                region_gdf, source_fpath, crs=crs
             )
-        points.to_file(point_file_path)
-        points = gp.GeoDataFrame.from_file(point_file_path)
-    return points, point_files_folder
+        points.to_file(p_fpath)
+        points = gp.GeoDataFrame.from_file(p_fpath)
+    return points, p_fol
+
+
+def get_region_data(
+    region: gp.GeoDataFrame,
+    region_name: str,
+    source_fpath: os.PathLike,
+    overwrite: bool = False,
+    crs: str = "EPSG:32632",
+) -> dict:
+    """Gets the data from PSI points in a region and saves them into a pickle file for faster access.
+
+    :param region: A `GeoDataFrame` of the region, e.g. from a shape file
+    :type region: gp.GeoDataFrame
+    :param region_name: The name of the region.
+    :type region_name: str
+    :param source_fpath: Path to folder or file where the PSI data is found.
+    :type source_fpath: os.PathLike
+    :param overwrite:  Whether to overwrite the output pickle file, defaults to False
+    :type overwrite: bool, optional
+    :param crs: The CRS of the input shapes, defaults to "EPSG:32632"
+    :type crs: str, optional
+    :return: The data as a merged, single dictionary.
+    :rtype: dict
+    """
+
+    pkl_fol, pkl_fpath = set_data_file_paths(
+        source_fpath, region_name, "region"
+    )
+    shp_fol, shp_fpath = set_point_file_paths(
+        source_fpath, region_name, "region"
+    )
+
+    if not os.path.exists(pkl_fpath) or overwrite:
+        if os.path.isdir(source_fpath) or source_fpath.endswith(".h5"):
+            points, p_fol = get_region_points(
+                region=region,
+                region_name=region_name,
+                source_fpath=source_fpath,
+                overwrite=overwrite,
+                crs=crs,
+            )
+            data = load_data_from_points(source_fpath, points)
+        elif source_fpath.endswith(".gpkg"):
+            data = u4spatial.load_gpkg_data_region(
+                region, source_fpath, crs=crs
+            )
+            u4spatial.xy_data_to_gdf(data["x"], data["y"], crs=crs).to_file(
+                shp_fpath
+            )
+        with open(pkl_fpath, "wb") as pkl_file:
+            pkl.dump(data, pkl_file)
+    else:
+        with open(pkl_fpath, "rb") as pkl_file:
+            data = pkl.load(pkl_file)
+    return data
 
 
 def get_point_points(
     point: Tuple[float, float],
     radius: float,
     region_name: str,
-    source_file_path: os.PathLike,
+    source_fpath: os.PathLike,
     overwrite: bool = False,
 ) -> gp.GeoDataFrame:
-    """Returns the points from `source_file_path` that are within `radius` of
-    `point`. Creates a shape file with the extracted points, for quicker
-    repeated data access.
+    """Returns only the points from `source_fpath` that are within `radius` of
+    `point`. Creates a shape file with only the extracted points for quick display.
 
     :param point: The point where to start.
     :type point: Tuple[float, float]
@@ -460,32 +548,77 @@ def get_point_points(
     :type radius: float
     :param region_name: A sensible name for the extraction point.
     :type region_name: str
-    :param source_file_path: The file where to extract the data.
-    :type source_file_path: os.PathLike
+    :param source_fpath: The file where to extract the data.
+    :type source_fpath: os.PathLike
     :param overwrite: Whether to overwrite the shape file, defaults to False
     :type overwrite: bool, optional
     :return: A GeoDataFrame with the points including all relevant data.
     :rtype: gp.GeoDataFrame
     """
-    base_folder, source_name = os.path.split(source_file_path)
-    output_folder = os.path.join(
-        os.path.split(base_folder)[0], "selected_psi_points"
-    )
-    os.makedirs(output_folder, exist_ok=True)
-    output_file_name = (
-        region_name + "_points_" + os.path.splitext(source_name)[0] + ".shp"
-    )
-    output_file_path = os.path.join(output_folder, output_file_name)
+    p_fol, p_fpath = set_point_file_paths(source_fpath, region_name, "points")
 
-    if os.path.exists(output_file_path) and not overwrite:
-        points = gp.GeoDataFrame.from_file(output_file_path)
+    if not os.path.exists(p_fpath) or overwrite:
+        points = u4spatial.select_points_point(point, radius, source_fpath)
+        points.to_file(p_fpath)
     else:
-        points = u4spatial._select_points_point(
-            point, radius, source_file_path
-        )
-        points.to_file(output_file_path)
-        points = gp.GeoDataFrame.from_file(output_file_path)
-    return points
+        points = gp.GeoDataFrame.from_file(p_fpath)
+    return points, p_fol
+
+
+def get_point_data(
+    point: Tuple[float, float] | shapely.Point,
+    radius: float,
+    region_name: str,
+    source_fpath: os.PathLike,
+    overwrite: bool = False,
+) -> dict:
+    """Returns the points with data from `source_fpath` that are within
+    `radius` of `point`. Creates a pkl file containing the data for faster loading.
+
+    :param point: The point where to start.
+    :type point: Tuple[float, float]
+    :param radius: The search radius around point (in meters).
+    :type radius: float
+    :param region_name: A sensible name for the extraction point.
+    :type region_name: str
+    :param source_fpath: The file where to extract the data.
+    :type source_fpath: os.PathLike
+    :param overwrite: Whether to overwrite the shape file, defaults to False
+    :type overwrite: bool, optional
+    :return: The data as a merged, single dictionary.
+    :rtype: dict
+    """
+    if isinstance(point, shapely.Point):
+        point = point.xy
+    pkl_fol, pkl_fpath = set_data_file_paths(
+        source_fpath, region_name, "points"
+    )
+    shp_fol, shp_fpath = set_point_file_paths(
+        source_fpath, region_name, "points"
+    )
+
+    if not os.path.exists(pkl_fpath) or overwrite:
+        if os.path.isdir(source_fpath) or source_fpath.endswith(".h5"):
+            points, p_fol = get_point_points(
+                point=point,
+                radius=radius,
+                region_name=region_name,
+                source_fpath=source_fpath,
+                overwrite=overwrite,
+            )
+
+            data = load_data_from_points(source_fpath, points)
+        elif source_fpath.endswith(".gpkg"):
+            data = u4spatial.load_gpkg_data_point(
+                point=point, radius=radius, gpkg_file_path=source_fpath
+            )
+            u4spatial.xy_data_to_gdf(data["x"], data["y"]).to_file(shp_fpath)
+        with open(pkl_fpath, "wb") as pkl_file:
+            pkl.dump(data, pkl_file)
+    else:
+        with open(pkl_fpath, "rb") as pkl_file:
+            data = pkl.load(pkl_file)
+    return data
 
 
 def get_pickled_inversion_results(
@@ -518,7 +651,7 @@ def get_pickled_inversion_results(
         elif isinstance(ind, int):
             return [data[ind]], 0
     elif points is not None:
-        closest = u4spatial._spatial_lookup(data, points)
+        closest = u4spatial.spatial_lookup(data, points)
         data = [data[c[1]] for c in closest]
         distance = np.mean([c[0] for c in closest])
         return data, distance
@@ -733,7 +866,7 @@ def get_osm_tiff(
     :rtype: list[os.PathLike]
     """
     file_list = get_file_list_tiff(source_file_path)
-    points = u4spatial._select_points_osm(query, file_list)
+    points = u4spatial.select_points_osm(query, file_list)
     out_file_list = np.array(file_list)[points.source_index]
     return np.unique(out_file_list).tolist()
 
@@ -764,14 +897,12 @@ def get_region_tiff(
 
     file_list = get_file_list_tiff(source_file_path)
     if isinstance(region, gp.GeoDataFrame):
-        points = u4spatial._select_points_region(region, file_list, crs=crs)
+        points = u4spatial.select_points_region(region, file_list, crs=crs)
     elif isinstance(region, pd.Series):
-        points = u4spatial._select_points_region(region, file_list, crs=crs)
+        points = u4spatial.select_points_region(region, file_list, crs=crs)
     elif isinstance(region, shapely.Polygon):
         region_gdf = gp.GeoDataFrame(geometry=gp.GeoSeries(region), crs=crs)
-        points = u4spatial._select_points_region(
-            region_gdf, file_list, crs=crs
-        )
+        points = u4spatial.select_points_region(region_gdf, file_list, crs=crs)
     out_file_list = np.array(file_list)[points.source_index]
     return np.unique(out_file_list).tolist()
 
@@ -801,7 +932,7 @@ def get_point_tiff(
     logging.info("Getting tiffs around point")
 
     file_list = get_file_list_tiff(source_file_path)
-    points = u4spatial._select_points_point(point, radius, file_list)
+    points = u4spatial.select_points_point(point, radius, file_list)
     out_file_list = np.array(file_list)[points.source_index]
     return np.unique(out_file_list).tolist()
 
@@ -1293,3 +1424,49 @@ def get_gma_results(
     else:
         logging.info("GMA-results found.")
     return gma_path
+
+
+def set_point_file_paths(
+    source_fpath: os.PathLike, name: str, rtype: str
+) -> Tuple[os.PathLike, os.PathLike]:
+    """Sets the paths for selected psi points.
+
+    :param source_fpath: The file path to the data source.
+    :type source_fpath: os.PathLike
+    :param name: A unique name for the region.
+    :type name: str
+    :param rtype: The extraction type (e.g., `points`, `clip`, `region`)
+    :type rtype: str
+    :return: The folder path and file path for data extraction.
+    :rtype: Tuple[os.PathLike, os.PathLike]
+    """
+    base_folder, source_name = os.path.split(source_fpath)
+    folder = os.path.join(os.path.split(base_folder)[0], "selected_psi_points")
+    os.makedirs(folder, exist_ok=True)
+    source = os.path.splitext(source_name)[0]
+    fname = sanitize_filename(f"{name}_{rtype}_{source}.shp")
+    fpath = os.path.join(folder, fname)
+    return folder, fpath
+
+
+def set_data_file_paths(
+    source_fpath: os.PathLike, name: str, rtype: str
+) -> Tuple[os.PathLike, os.PathLike]:
+    """Sets the path for storing the data of selected psi points as a pickle file.
+
+    :param source_fpath: The file path to the data source.
+    :type source_fpath: os.PathLike
+    :param name: A unique name for the region.
+    :type name: str
+    :param rtype: The extraction type (e.g., `points`, `clip`, `region`)
+    :type rtype: str
+    :return: The folder path and file path for data extraction.
+    :rtype: Tuple[os.PathLike, os.PathLike]
+    """
+    base_folder, source_name = os.path.split(source_fpath)
+    folder = os.path.join(os.path.split(base_folder)[0], "selected_psi_points")
+    os.makedirs(folder, exist_ok=True)
+    source = os.path.splitext(source_name)[0]
+    fname = sanitize_filename(f"{name}_{rtype}_{source}_data.pkl")
+    fpath = os.path.join(folder, fname)
+    return folder, fpath

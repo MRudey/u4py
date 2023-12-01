@@ -25,20 +25,23 @@ u4config.start_logger()
 def main():
     # Load Data
     warnings.filterwarnings("ignore")
-    overwrite = False
+    overwrite = True
     project = u4projects.get_project(
         proj_path=Path(
-            r"~\Documents\ArcGIS\U4_projects\Examples\U5_Frankfurt_and_JURSE_FFM.u4project"
+            r"~\Documents\ArcGIS\U4_projects\Examples\U5_Frankfurt_and_JURSE_FFM_GPKG.u4project"
         ).expanduser(),
         required=[
             "base_path",
-            "psivert_path",
+            "psi_path",
             "subsubregions_path",
             "output_path",
             "processing_path",
             "places_path",
         ],
         interactive=False,
+    )
+    psi_fpath = os.path.join(
+        project["paths"]["psi_path"], "hessen_l3_clipped.gpkg"
     )
     shp_fname = os.path.splitext(
         os.path.split(project["paths"]["subsubregions_path"])[-1]
@@ -98,15 +101,12 @@ def main():
             break
         ax_num = ax_nums[sel_name] + 1
         print("Inverting", sel_shape.Name)
-        sel_points, sel_fpath = u4files.get_region_points(
+        sel_data = u4files.get_region_data(
             sel_shape,
             sel_name,
-            project["paths"]["psivert_path"],
+            psi_fpath,
             overwrite=overwrite,
             crs=selection_shapes.crs,
-        )
-        sel_data = u4files.load_data_from_points(
-            project["paths"]["psivert_path"], sel_points
         )
 
         if sel_name == "Inner_City":

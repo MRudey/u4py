@@ -2,96 +2,120 @@
 
 import datetime
 import os
-import shutil
+from pathlib import Path
 
-import geopandas as gp
 import matplotlib.pyplot as plt
 import numpy as np
 import scipy.ndimage as spimage
 import scipy.stats as spstats
-from shapely.geometry import Point
 
+import u4py.addons.gnss as u4gnss
 import u4py.analysis.other as u4other
-import u4py.analysis.spatial as u4spatial
 import u4py.utils.convert as u4convert
 import u4py.utils.files as u4files
+import u4py.utils.projects as u4projects
 
 
 def main():
     # Options
 
-    distance = 250  # Distance around gnss station to look for psis
+    distance = 75  # Distance around gnss station to look for psis
     filter_width = 3  # median filter size, 0=nofilter
     take_diff = False  # Take differences between points to correlate
+    overwrite = False
+    id_selection = ["BADH00DEU", "KLOP00DEU", "FFMJ00DEU"]
 
     # Paths
-    gnss_folder = u4files.get_folder_paths(title="Select GNSS data folder.")
-    insar_folder = u4files.get_folder_paths(title="Select InSAR data folder.")
-    output_folder = os.path.split(gnss_folder)[0]
-    # get_converted_station_coordinates(gnss_folder)
-    gnss_file_list = u4files.get_file_list(
-        filetype=".dat", folder_path=gnss_folder
+    project = u4projects.get_project(
+        proj_path=Path(
+            r"~\Documents\ArcGIS\U4_projects\Examples\Compare_with_GPS_GPKG.u4project"
+        ).expanduser(),
+        required=["ext_path", "psi_path", "output_path"],
+        interactive=False,
     )
-    psivert_path = os.path.join(insar_folder, "BBD_2021_PSI_Vertikal.h5")
-    psiew_path = os.path.join(insar_folder, "BBD_2021_PSI_Ost_West.h5")
-    stations = get_converted_station_coordinates(gnss_folder)
-    lookup_tree_vert = u4spatial.get_cKDTree(psivert_path)
-    lookup_tree_ew = u4spatial.get_cKDTree(psiew_path)
+    psi_path = os.path.join(
+        project["paths"]["psi_path"], "hessen_l3_clipped.gpkg"
+    )
+    output_folder = os.path.join(
+        project["paths"]["output_path"], "Compare_With_GPS"
+    )
+    os.makedirs(output_folder, exist_ok=True)
+    gnss_folder = os.path.join(project["paths"]["ext_path"], "GNSS_Data")
+    gnss_file_list = u4files.get_file_list(
+        filetype=".dat",
+        folder_path=gnss_folder,
+    )
+    stations = u4gnss.get_station_coordinates(
+        os.path.join(gnss_folder, "Stations")
+    )
+    sel = [stations[stations.ID == ii] for ii in id_selection]
 
     fig, axes = plt.subplots(
-        nrows=len(stations), sharex=True, figsize=(8, len(stations) * 3)
+        nrows=len(sel), sharex=True, figsize=(8, len(sel) * 3)
     )
     min_t = datetime.datetime(3000, 1, 1)
     max_t = datetime.datetime(1000, 1, 1)
-    for ii, point in enumerate(stations.geometry):
-        closest_vert = lookup_tree_vert.query_ball_point(point, distance)
-        closest_vert.sort()
-        closest_ew = lookup_tree_ew.query_ball_point(point, distance)
-        closest_ew.sort()
-        data_vert = u4files.load_hdf5(psivert_path, ind=closest_vert)
-        data_ew = u4files.load_hdf5(psiew_path, ind=closest_ew)
-        gnss_data = u4convert.gnss_dat_to_dict(gnss_file_list[ii])
-
-        psi_t = data_vert["time"]
-        psi_v = np.nanmedian(data_vert["timeseries"], axis=0)
-        gnss_t = gnss_data["gps_datetime"]
-        gnss_v = gnss_data["res_up"]
-        if filter_width:
-            gnss_v = spimage.median_filter(gnss_v, filter_width)
-
-        if take_diff:
-            psi_t = psi_t[:-1]
-            psi_v = np.diff(psi_v)
-            gnss_t = gnss_t[:-1]
-            gnss_v = np.diff(gnss_v)
-
-        correlate_time_series(
-            psi_t,
-            psi_v,
-            gnss_t,
-            gnss_v,
-            stations.City[ii],
-            output_folder,
+    for ii, station in enumerate(sel):
+        data_vert = u4files.get_point_data(
+            station.geometry,
+            distance,
+            f"{station.ID.values[0]}_GNSS",
+            psi_path,
+            overwrite=overwrite,
         )
-        axes[ii].plot(
-            gnss_t,
-            gnss_v,
-            "-",
-        )
-        axes[ii].plot(
-            psi_t,
-            psi_v,
-            "-",
-        )
-        if psi_t[0] < min_t:
-            min_t = psi_t[0]
-        if psi_t[-1] > max_t:
-            max_t = psi_t[-1]
-        axes[ii].set_title(stations.City[ii])
+
+        if data_vert:
+            gnss_data = u4convert.gnss_dat_to_dict(gnss_file_list[ii])
+
+            psi_t = data_vert["time"]
+            psi_v = np.nanmedian(data_vert["timeseries"], axis=0)
+            gnss_t = gnss_data["gps_datetime"]
+            gnss_v = gnss_data["res_up"]
+            if filter_width:
+                gnss_v = spimage.median_filter(gnss_v, filter_width)
+
+            if take_diff:
+                psi_t = psi_t[:-1]
+                psi_v = np.diff(psi_v)
+                gnss_t = gnss_t[:-1]
+                gnss_v = np.diff(gnss_v)
+
+            correlate_time_series(
+                psi_t,
+                psi_v,
+                gnss_t,
+                gnss_v,
+                station.name.values[0],
+                output_folder,
+            )
+            axes[ii].plot(
+                gnss_t,
+                gnss_v,
+                "-",
+            )
+            axes[ii].plot(
+                psi_t,
+                psi_v,
+                "-",
+            )
+            if psi_t[0] < min_t:
+                min_t = psi_t[0]
+            if psi_t[-1] > max_t:
+                max_t = psi_t[-1]
+            axes[ii].set_title(station.name.values[0])
+            axes[ii].annotate(
+                f"#PS: {data_vert['num_points']}",
+                (0.05, 0.05),
+                xycoords="axes fraction",
+            )
     axes[0].set_xlim(
         min_t - datetime.timedelta(31), max_t + datetime.timedelta(31)
     )
-    axes[0].legend(["GNSS", f"PSI {distance}m Radius"], fontsize="small")
+    axes[0].legend(
+        ["GNSS", f"PSI {distance}m Radius"],
+        fontsize="small",
+        loc="lower right",
+    )
     for ax in axes:
         ax.set_ylabel("Displacement (mm)")
     axes[-1].set_xlabel("Time")
@@ -158,7 +182,7 @@ def remove_nonfinite(ref, x1, x2, x3):
     return (ref, x1, x2, x3)
 
 
-def correlate_time_series(psi_t, psi_v, gnss_t, gnss_v, name, output_folder):
+def correlate_time_series(psi_t, psi_v, gnss_t, gnss_v, name, output_path):
     """Does a simple correlation and returns correlation and lag"""
     gnss_t, gnss_v, psi_t, psi_v = resample_time_series(
         psi_t, psi_v, gnss_t, gnss_v
@@ -203,8 +227,8 @@ def correlate_time_series(psi_t, psi_v, gnss_t, gnss_v, name, output_folder):
     name = name.replace("/", "_")
 
     fig.set_constrained_layout(True)
-    fig.savefig(os.path.join(output_folder, f"cross_correlation_{name}"))
-    fig.savefig(os.path.join(output_folder, f"cross_correlation_{name}.pdf"))
+    fig.savefig(os.path.join(output_path, f"cross_correlation_{name}"))
+    fig.savefig(os.path.join(output_path, f"cross_correlation_{name}.pdf"))
 
 
 def scatter_hist(x, y, ax, ax_histx, ax_histy, xlabel, ylabel):
@@ -249,7 +273,7 @@ def plot_gnss_and_psi(gnss_file_list):
     i = 0
     for gnss_fpath in gnss_file_list:
         folder, fname = os.path.split(gnss_fpath)
-        if os.path.exists(psivert_path):
+        if os.path.exists(psi_path):
             gnss_data = u4convert.gnss_dat_to_dict(gnss_fpath)
             # psi_vert_med = np.nanmedian(psi_vert["timeseries"], axis=0)
             # psi_ew = u4files.load_hdf5(psiew_path)
@@ -294,29 +318,6 @@ def plot_cwt(x, y, f):
     ax.contourf(xx, yy, power, levels=20)
     ax.fill_between(x, coi, np.min(freqs), color="w", alpha=0.25)
     plt.show()
-
-
-def get_converted_station_coordinates(gnss_folder):
-    stations = gp.GeoDataFrame(
-        {
-            "ID": ["BADH00DEU", "FFMJ00DEU", "KLOP00DEU"],
-            "City": [
-                "Bad Homburg",
-                "Frankfurt a.M.",
-                "Kloppenheim / Frankfurt",
-            ],
-            "geometry": [
-                Point(8.6099, 50.228),
-                Point(8.665, 50.0906),
-                Point(8.7299, 50.2198),
-            ],
-        },
-        crs="epsg:4326",
-    )
-    stations = stations.to_crs("EPSG:32632")
-    # print("Station Data:")
-    # print(stations)
-    return stations
 
 
 if __name__ == "__main__":

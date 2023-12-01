@@ -10,8 +10,9 @@ import sqlite3
 import struct
 from datetime import datetime
 from multiprocessing import Pool
-from typing import Any, Tuple
+from typing import Any, Iterable, Tuple
 
+import geopandas as gp
 import numpy as np
 import shapely
 import utm
@@ -139,7 +140,10 @@ def sql_key_to_time(key: str) -> datetime:
 
 
 def table_to_dict(
-    file_path: os.PathLike, table: str, get_timeseries: bool = True
+    file_path: os.PathLike,
+    table: str,
+    bounds: Tuple = (),
+    get_timeseries: bool = True,
 ) -> dict:
     """Opens the given sql database and gets all content of the given table.
 
@@ -147,6 +151,8 @@ def table_to_dict(
     :type file_path: os.PathLike
     :param table: The Table to get from.
     :type table: str
+    :param bounds: Extent of a region where to get the data, limiting the number of SQL queries. The order follows the definition in geopandas: (`minx`, `miny`, `maxx`, `maxy`).
+    :type bounds: Tuple
     :param get_timeseries: Whether to read the time series or not. Only loads the mean velocity and variance when False, defaults to True.
     :type get_timeseries: str
     :return: The content of the table.
@@ -164,58 +170,55 @@ def table_to_dict(
         return
     info = read_info(cur, table)
     info["num_points"] = num_points
-    # Get Coordinates
-    xx, yy, zz = query_coordinates(cur, table)
-    # Get PS-ID
-    ps_id = np.array(
-        [
-            value[0]
-            for value in cur.execute(f"SELECT {info['id_key']} from {table}")
-        ]
+
+    if len(bounds) > 0:
+        if isinstance(bounds, tuple) or isinstance(bounds, list):
+            where = (
+                f"X > {bounds[0]} AND X < {bounds[2]} "
+                + f"Y > {bounds[1]} AND Y < {bounds[3]} "
+            )
+        elif isinstance(bounds, gp.pd.DataFrame):
+            where = (
+                f"X > {bounds.minx.values[0]} AND "
+                + f"X < {bounds.maxx.values[0]} AND "
+                + f"Y > {bounds.miny.values[0]} AND "
+                + f"Y < {bounds.maxy.values[0]}"
+            )
+        else:
+            TypeError("Bounds of invalid type.")
+    else:
+        where = ""
+
+    logging.info("Querying coordinates and keys")
+    xx, yy, zz, ps_id = multi_col_select(
+        cur, ["X", "Y", "Z", info["id_key"]], table, where=where
     )
 
     if info["has_time"] and get_timeseries:
-        con.close()
-        logging.info("Generating queries for timeseries extraction.")
-        time, queries = gen_timeseries_queries(file_path, table, info)
-        num_fields = len(queries)
-        timeseries = np.zeros((num_points, num_fields))
-        results = map_queries(queries)
-        logging.info("Aggregating results of queries to timeseries array.")
-        for r in results:
-            timeseries[:, r[1]] = np.array(r[0])
+        time, timeseries = read_timeseries(cur, table, info, where=where)
     else:
         logging.info(f"Getting means.")
         mv_key, var_mv_key = get_meanvelo_keys(info["all_keys"])
-        mean_vel = np.array(
-            [
-                value[0]
-                for value in cur.execute(f"SELECT {mv_key} from {table}")
-            ]
+        mean_vel, var_mean_vel = multi_col_select(
+            cur, [mv_key, var_mv_key], table, where
         )
-        var_mean_vel = np.array(
-            [
-                value[0]
-                for value in cur.execute(f"SELECT {var_mv_key} from {table}")
-            ]
-        )
-        con.close()
+    con.close()
 
     if info["has_time"] and get_timeseries:
         output = {
-            "x": xx,
-            "y": yy,
-            "z": zz,
+            "x": np.array(xx),
+            "y": np.array(yy),
+            "z": np.array(zz),
             "time": time,
-            "ps_id": ps_id,
+            "ps_id": np.array(ps_id),
             "timeseries": timeseries,
         }
     else:
         output = {
-            "x": xx,
-            "y": yy,
-            "z": zz,
-            "ps_id": ps_id,
+            "x": np.array(xx),
+            "y": np.array(yy),
+            "z": np.array(zz),
+            "ps_id": np.array(ps_id),
             "mean_vel": mean_vel,
             "var_mean_vel": var_mean_vel,
         }
@@ -223,27 +226,63 @@ def table_to_dict(
     return output
 
 
-def query_coordinates(cur: sqlite3.Cursor, table: str) -> Tuple:
-    """Loads X, Y, and Z coordinates from current dataase
+def select(
+    cur: sqlite3.Cursor, column: str, table: str, where: str = ""
+) -> Iterable:
+    """Wrapper for a `SELECT` query
 
-    :param cur: The cursor in the database
+    :param cur: The cursor of the open database.
     :type cur: sqlite3.Cursor
-    :param table: Table from where to select.
+    :param column: The column or statement to query.
+    :type column: str
+    :param table: The table where to extract
     :type table: str
-    :return: The coordinates in a Tuple
-    :rtype: Tuple
+    :param where: Predicates on rows, defaults to ""
+    :type where: str, optional
     """
-    logging.info("Getting station coordinates")
-    xx = np.array(
-        [value[0] for value in cur.execute(f"SELECT X from {table}")]
-    )
-    yy = np.array(
-        [value[0] for value in cur.execute(f"SELECT Y from {table}")]
-    )
-    zz = np.array(
-        [value[0] for value in cur.execute(f"SELECT Z from {table}")]
-    )
-    return xx, yy, zz
+
+    if where:
+        result = [
+            value[0]
+            for value in cur.execute(
+                f"SELECT {column} from {table} WHERE {where}"
+            )
+        ]
+    else:
+        result = [
+            value[0] for value in cur.execute(f"SELECT {column} from {table}")
+        ]
+    return result
+
+
+def multi_col_select(
+    cur: sqlite3.Cursor, columns: list[str], table: str, where: str = ""
+) -> Iterable:
+    """Wrapper for a `SELECT` query with multiple columns
+
+    :param cur: The cursor of the open database.
+    :type cur: sqlite3.Cursor
+    :param column: A list of columns to query.
+    :type column: list
+    :param table: The table where to extract
+    :type table: str
+    :param where: Predicates on rows, defaults to ""
+    :type where: str, optional
+    """
+    result = [list() for ii in range(len(columns))]
+    cols = ""
+    for cc in columns:
+        cols += cc + ","
+    cols = cols[:-1]
+    if where:
+        for value in cur.execute(f"SELECT {cols} from {table} WHERE {where}"):
+            for ii, val in enumerate(value):
+                result[ii].append(val)
+    else:
+        for value in cur.execute(f"SELECT {cols} from {table}"):
+            for ii, val in enumerate(value):
+                result[ii].append(val)
+    return result
 
 
 def read_info(cur: sqlite3.Cursor, table: str) -> dict:
@@ -306,8 +345,46 @@ def read_info(cur: sqlite3.Cursor, table: str) -> dict:
     return info
 
 
+def read_timeseries(
+    cur: sqlite3.Cursor, table: str, info: dict, where: str = ""
+) -> Tuple[np.ndarray, list]:
+    """
+    Generates queries for extracting time series data from the given file_path.
+    These can be used with sqlite3 to read them from the tables directly.
+
+    :param file_path: The path to the gpkg file
+    :type file_path: os.PathLike
+    :param table: The table/direction which to extract.
+    :type table: str
+    :param info: The extracted metadata from the gpkg file.
+    :type info: dict
+    :return: The timestamps and queries to extract.
+    :rtype: Tuple[np.ndarray, list]
+    """
+    logging.debug(f"Getting timeseries")
+    time_columns = [
+        k for k in info["all_keys"] if k not in info["non_time_keys"]
+    ]
+    time = np.array([sql_key_to_time(k) for k in time_columns])
+    cols = ""
+    for cc in time_columns:
+        cols += cc + ","
+    cols = cols[:-1]
+    if where:
+        timeseries = np.array(
+            cur.execute(f"SELECT {cols} from {table} WHERE {where}").fetchall()
+        )
+    else:
+        timeseries = np.array(
+            cur.execute(f"SELECT {cols} from {table}").fetchall()
+        )
+    timeseries[timeseries == None] = np.nan
+
+    return time, timeseries.astype("float64")
+
+
 def gen_timeseries_queries(
-    file_path: os.PathLike, table: str, info: dict
+    file_path: os.PathLike, table: str, info: dict, where: str = ""
 ) -> Tuple[np.ndarray, list]:
     """
     Generates queries for extracting time series data from the given file_path.
@@ -325,10 +402,16 @@ def gen_timeseries_queries(
     logging.debug(f"Getting timeseries")
     key_list = [k for k in info["all_keys"] if k not in info["non_time_keys"]]
     time = np.array([sql_key_to_time(k) for k in key_list])
-    queries = [
-        (file_path, f"SELECT {k} from {table}", jj)
-        for jj, k in enumerate(key_list)
-    ]
+    if where:
+        queries = [
+            (file_path, f"SELECT {k} from {table} WHERE {where}", jj)
+            for jj, k in enumerate(key_list)
+        ]
+    else:
+        queries = [
+            (file_path, f"SELECT {k} from {table}", jj)
+            for jj, k in enumerate(key_list)
+        ]
     return time, queries
 
 
@@ -557,7 +640,9 @@ def gen_queries_psi_gpkg(
     cur = con.cursor()
     info = read_info(cur, direction)
     # Get Coordinates
-    xx, yy, zz = query_coordinates(cur, direction)
+    xx = np.array(select(cur, "X", direction))
+    yy = np.array(select(cur, "Y", direction))
+    zz = np.array(select(cur, "Z", direction))
 
     if info["has_time"]:
         time, queries = gen_timeseries_queries(file_path, direction, info)

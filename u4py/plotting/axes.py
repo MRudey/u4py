@@ -309,7 +309,7 @@ def plot_region_trend(
     if not use_gdf:
         u4plotprep.matshow_region(data_region, region_trend, ax)
     else:
-        gdf = u4spatial.xy_values_to_gdf(
+        gdf = u4spatial.xy_data_to_gdf(
             data_region["x"], data_region["y"], region_trend, crs="EPSG:32632"
         )
         vmax = np.percentile(np.abs(region_trend), 95)
@@ -319,7 +319,7 @@ def plot_region_trend(
             "label": "Mean Vertical Velocity (mm/a)",
         }
         gdf.plot(
-            "values",
+            "data",
             ax=ax,
             cmap="RdYlBu",
             legend_kwds=legend_args,

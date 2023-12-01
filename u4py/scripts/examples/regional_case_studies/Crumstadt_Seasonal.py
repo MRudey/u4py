@@ -33,11 +33,12 @@ import u4py.utils.projects as u4proj
 
 def main():
     # Paths
-    psi_source = "L3_BBD_Vert_2023"
-    overwrite = False
+    psi_source = "hessen_l3_clipped"
+    crs = "EPSG:32632"
+    overwrite = True
     project = u4proj.get_project(
         proj_path=Path(
-            r"~\Documents\ArcGIS\U4_projects\Crumstadt_Seasonal.u4project"
+            r"~\Documents\ArcGIS\U4_projects\Examples\Crumstadt_Seasonal_GPKG.u4project"
         ).expanduser(),
         required=[
             "base_path",
@@ -49,19 +50,52 @@ def main():
         ],
         interactive=False,
     )
+    psi_path = os.path.join(
+        project["paths"]["psivert_path"], f"{psi_source}.gpkg"
+    )
     fig_path = os.path.join(
-        project["paths"]["output_path"], "Crumstadt_" + psi_source
+        project["paths"]["output_path"], f"Crumstadt_{psi_source}"
     )
 
     # Load Data
-    data, crs = get_data_within_osm_query(project["paths"]["psivert_path"])
-    data_region, pcrs = get_data_within_region(
-        project["paths"]["psivert_path"], crs=crs, overwrite=overwrite
+    data_well = u4files.get_point_data(
+        (464350, 5516100),
+        500,
+        "OilWell",
+        psi_path,
+        overwrite=overwrite,
     )
-    data_well, _ = get_data_at_well(project["paths"]["psivert_path"])
-    # date_rhine, level_rhine = u4rivers.load_rhine_date(
-    #     os.path.join(project["paths"]["ext_path"], "Wasserstand_Rhein_DD.csv")
-    # )
+    query = {
+        "address": "Crumstadt",
+        "tags": {
+            "landuse": ["residential", "industrial"],
+            "amenity": "hospital",
+        },
+    }
+    data = u4files.get_osm_data(query, psi_path, overwrite=overwrite)
+    region = gp.GeoDataFrame(
+        {
+            "geometry": [
+                Polygon(
+                    [
+                        (462000, 5514000),
+                        (462000, 5521000),
+                        (470000, 5521000),
+                        (470000, 5514000),
+                    ]
+                )
+            ]
+        },
+        crs=crs,
+    )
+    data_region = u4files.get_region_data(
+        region,
+        "Crumstadt_FullArea",
+        psi_path,
+        crs=crs,
+        overwrite=overwrite,
+    )
+
     data_gw = u4gw.get_groundwater_data(
         os.path.join(
             project["paths"]["ext_path"], "GWStände_2015", "GWStände_2015.pkl"
@@ -105,7 +139,7 @@ def main():
     plot_map(
         axes[0],
         data_region,
-        crs=pcrs,
+        crs=crs,
         places_path=project["paths"]["places_path"],
         station_list=station_list,
         label_list=label_list,
@@ -189,64 +223,9 @@ def get_data_within_osm_query(h5path: os.PathLike) -> Tuple[dict, str]:
     :rtype: Tuple[dict, str]
     """
     # Define osm query
-    query = {
-        "address": "Crumstadt",
-        "tags": {
-            "landuse": ["residential", "industrial"],
-            "amenity": "hospital",
-        },
-    }
+
     # Get points from file, if not available creates new file
     points = u4files.get_osm_points(query, h5path)
-    data = u4files.load_data_from_points(h5path, points)
-    return data, points.crs
-
-
-def get_data_within_region(
-    h5path: os.PathLike, crs: str, overwrite: bool = False
-) -> Tuple[dict, str]:
-    """Gets the data in the region of the map's extend for plotting as points on the map.
-
-    :param h5path: The path to the data.
-    :type h5path: os.PathLike
-    :param crs: The target crs.
-    :type crs: str
-    :return:  A tuple containing (data, crs).
-    :rtype: Tuple[dict, str]
-    """
-    region = gp.GeoDataFrame(
-        {
-            "geometry": [
-                Polygon(
-                    [
-                        (462000, 5514000),
-                        (462000, 5521000),
-                        (470000, 5521000),
-                        (470000, 5514000),
-                    ]
-                )
-            ]
-        },
-        crs=crs,
-    )
-    points, _ = u4files.get_region_points(
-        region, "Crumstadt", h5path, overwrite=overwrite
-    )
-    data = u4files.load_data_from_points(h5path, points)
-    return data, points.crs
-
-
-def get_data_at_well(h5path: os.PathLike) -> Tuple[dict, str]:
-    """Gets the data in a radius of 300 m around the well.
-
-    :param h5path: The path to the data.
-    :type h5path: os.PathLike
-    :return: A tuple containing (data, crs)
-    :rtype: Tuple[dict, str]
-    """
-    points = u4files.get_point_points(
-        (464350, 5516100), 500, "OilWell", h5path
-    )
     data = u4files.load_data_from_points(h5path, points)
     return data, points.crs
 
