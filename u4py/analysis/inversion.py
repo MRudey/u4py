@@ -788,26 +788,50 @@ def _set_g_matrices(g_funcs) -> np.ndarray:
     return splinalg.block_diag(gE, gN, gU)
 
 
-def remove_outliers(data: dict, threshold: float = 2.5) -> np.ndarray:
-    """Creates a numpy slicing array that removes all data which is more than
-    `threshold` standard deviations away from median.
+def remove_outliers(
+    data: dict, threshold: float = 2.5, use_stddev: bool = False
+) -> np.ndarray:
+    """Creates a numpy slicing array that gives back all data between the 5% and 95% percentile.
 
     :param data: The data dictionary containing the timeseries.
     :type data: dict
-    :param threshold: The number of standard deviations to take, defaults to 2.5
+    :param threshold: The number of standard deviations to take, legacy option, defaults to 2.5
     :type threshold: float, optional
+    :param use_stddev: Uses the standard deviation to remove outliers,legacy option, defaults to False
+    :type use_stddev: bool, optional
     :return: The indices to remove the outliers.
     :rtype: np.ndarray
+
+    Using the option `use_stddev` is only recommended when the data is normal distributed.
     """
     logging.info("Removing Outliers.")
-    thrE = threshold * np.std(data["dresE"])
-    thrN = threshold * np.std(data["dresN"])
-    thrU = threshold * np.std(data["dresU"])
-    ind = (
-        np.nonzero(np.abs(data["dresE"]) < thrE)
-        and np.nonzero(np.abs(data["dresN"]) < thrN)
-        and np.nonzero(np.abs(data["dresU"]) < thrU)
-    )
+    if use_stddev:
+        thrE = threshold * np.std(data["dresE"])
+        thrN = threshold * np.std(data["dresN"])
+        thrU = threshold * np.std(data["dresU"])
+
+        ind = (
+            np.nonzero(np.abs(data["dresE"]) < thrE)
+            and np.nonzero(np.abs(data["dresN"]) < thrN)
+            and np.nonzero(np.abs(data["dresU"]) < thrU)
+        )
+    else:
+        upp_thrE = np.percentile(data["dresE"], 95)
+        upp_thrN = np.percentile(data["dresN"], 95)
+        upp_thrU = np.percentile(data["dresU"], 95)
+        low_thrE = np.percentile(data["dresE"], 5)
+        low_thrN = np.percentile(data["dresN"], 5)
+        low_thrU = np.percentile(data["dresU"], 5)
+
+        ind = (
+            np.nonzero(data["dresE"] < upp_thrE)
+            and np.nonzero(data["dresN"] < upp_thrN)
+            and np.nonzero(data["dresU"] < upp_thrU)
+            and np.nonzero(data["dresE"] > low_thrE)
+            and np.nonzero(data["dresN"] > low_thrN)
+            and np.nonzero(data["dresU"] > low_thrU)
+        )
+
     return ind
 
 
