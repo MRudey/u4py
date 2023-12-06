@@ -6,6 +6,7 @@ Most functions also can detect if the script is running in a non-interactive she
 from __future__ import annotations
 
 import configparser
+import csv
 import logging
 import os
 import pickle as pkl
@@ -1470,3 +1471,100 @@ def set_data_file_paths(
     fname = sanitize_filename(f"{name}_{rtype}_{source}_data.pkl")
     fpath = os.path.join(folder, fname)
     return folder, fpath
+
+
+def load_csv(file_path: os.PathLike) -> dict:
+    """Loads a CSV File from the EGMS
+
+    :param file_path: The path to file.
+    :type file_path: os.PathLike
+    :return: A dictionary with the data and the headers as keys.
+    :rtype: dict
+    """
+    num_lines = buf_count_newlines_gen(file_path) - 1
+    logging.info("Loading CSV file")
+    with open(file_path, "rt", encoding="utf-8", newline="\n") as csv_file:
+        reader = csv.reader(csv_file)
+        header = next(reader)
+
+        data = dict()
+        for ii, k in enumerate(header):
+            if ii > 0:
+                data[k] = np.ones((num_lines,))
+            else:
+                data[k] = []
+        for irow, row in enumerate(reader):
+            for ii, (v, k) in enumerate(zip(row, header)):
+                if ii > 0:
+                    data[k][irow] = float(v)
+                else:
+                    data[k].append(v)
+    logging.info("Creating geometries")
+    data["geometry"] = [
+        shapely.Point(x, y, z)
+        for x, y, z in zip(data["easting"], data["northing"], data["height"])
+    ]
+    return data
+
+
+def buf_count_newlines_gen(fname: os.PathLike) -> int:
+    """Counts the number of lines in a text file.
+    Adapted from https://stackoverflow.com/questions/845058/how-to-get-the-line-count-of-a-large-file-cheaply-in-python.
+
+    :param fname: The input file
+    :type fname: str
+    :return: The number of lines in the input file.
+    :rtype: int
+    """
+    logging.info(f"Counting lines in {fname}")
+
+    def _make_gen(reader):
+        b = reader(2**16)
+        while b:
+            yield b
+            b = reader(2**16)
+
+    with open(fname, "rb") as f:
+        count = sum(buf.count(b"\n") for buf in _make_gen(f.raw.read))
+    return count
+
+
+def egms_csv_to_gdf(file_path: os.PathLike) -> gp.GeoDataFrame:
+    """Imports the csv in EGMS format and converts it to a geodatabase in the correct CRS.
+
+    :param file_path: The path to the csv file
+    :type file_path: os.PathLike
+    :return: The data as a geodataframe
+    :rtype: gp.GeoDataFrame
+    """
+    logging.info("Starting import")
+    data = load_csv(file_path)
+    logging.info("Creating GeoDataFrame")
+    gdf = gp.GeoDataFrame(data=data, crs="EPSG:3035").to_crs("EPSG:32632")
+    return gdf
+
+
+def csv_to_gpkg(file_path: os.PathLike, gpkg_path: os.PathLike):
+    """Takes the input csv file and adds its contents to the gpkg file given in `gpkg_path`. Creates a new gpkg file if it does not exist yet.
+
+    :param file_path: The path to the csv file
+    :type file_path: os.PathLike
+    :param gpkg_path: The path to the gpkg file
+    :type gpkg_path: os.PathLike
+    """
+    fname = os.path.split(file_path)[-1]
+    if "_E_" in fname:
+        layer = "East-West"
+    elif "_U_" in fname:
+        layer = "Vertical"
+    else:
+        ValueError(
+            "Filename does not contain direction of movement (_E_ or _U_)"
+        )
+    gdf = egms_csv_to_gdf(file_path)
+    logging.info("Saving to file")
+    if os.path.exists(gpkg_path):
+        gdf.to_file(gpkg_path, layer=layer, driver="GPKG", mode="a")
+    else:
+        gdf.to_file(gpkg_path, layer=layer, driver="GPKG")
+    logging.info("Finished")
