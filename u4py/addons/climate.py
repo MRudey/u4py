@@ -53,7 +53,7 @@ def load_climate_data(file_path: os.PathLike) -> dict:
     return climate_data
 
 
-def _load_rainfall_data(file_path: os.PathLike) -> tuple:
+def _load_rainfall_data(file_path: os.PathLike) -> dict:
     """Loads the data and saves it to a pickle file.
 
     :param file_path: The path to the csv file containing the data.
@@ -82,7 +82,7 @@ def _load_rainfall_data(file_path: os.PathLike) -> tuple:
     return data
 
 
-def _load_temperature_data(file_path: os.PathLike) -> tuple:
+def _load_temperature_data(file_path: os.PathLike) -> dict:
     """Loads the data and saves it to a pickle file.
 
     :param file_path: The path to the csv file containing the data.
@@ -177,7 +177,7 @@ def get_temperature_data(
             return _load_temperature_data(file_path)
 
 
-def thermal_expansion(length: float, alpha: float, delta_T: float):
+def thermal_expansion(length: float, alpha: float, delta_T: float) -> float:
     """Theoretical thermal expansion of a material.
 
     :math:`\\Delta L \\approx \\alpha L_0 \\Delta T`
@@ -188,15 +188,19 @@ def thermal_expansion(length: float, alpha: float, delta_T: float):
     :type alpha: float
     :param delta_T: The temperature change.
     :type delta_T: float
+    :return: Thermal expansion of a material.
+    :rtype: float
     """
     return alpha * length * delta_T
 
 
-def load_station_coords_rainfall(file_path: os.PathLike) -> dict():
+def load_station_coords_rainfall(file_path: os.PathLike) -> dict:
     """Loads a dictionary with station coordinates from a json file
 
     :param file_path: Path to the JSON file.
     :type file_path: os.PathLike
+    :return: Station coordinates
+    :rtype: dict
     """
     with open(file_path, "rt", encoding="utf-8") as json_file:
         data = json.load(json_file)
@@ -204,13 +208,15 @@ def load_station_coords_rainfall(file_path: os.PathLike) -> dict():
     return data
 
 
-def load_station_coords_temperature(file_path: os.PathLike) -> dict():
+def load_station_coords_temperature(file_path: os.PathLike) -> dict:
     """Loads a dictionary with station coordinates from a csv file containing coordinates for weather stations.
 
     Also saves it as a shapefile.
 
     :param file_path: Path to the file.
     :type file_path: os.PathLike
+    :return: Station coordinates
+    :rtype: dict
     """
 
     with open(file_path, "rt", encoding="utf8") as csv_file:
