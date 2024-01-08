@@ -206,6 +206,8 @@ def chunk_data(
 ) -> list:
     """Chunks data into many smaller files with spanning a square of `chunksize` meters. Discards chunks with less than `min_values`.
 
+    In some cases the chunking is not able to process some data. These are returned as a list.
+
     :param data: The data loaded from a large unchunked h5 file.
     :type data: dict
     :param save_folder: The folder where to store the smaller files.
@@ -267,8 +269,6 @@ def chunk_data_numba(
     :type min_values: int, optional
     :param compress: Whether to compress the data using gzip, defaults to True
     :type compress: bool, optional
-    :return: A list of chunks that have not been converted for some reason.
-    :rtype: list
     """
     logging.info(f"Chunking data with numba.")
     xrange = get_bounds(np.min(data["x"]), np.max(data["x"]), chunksize)
@@ -333,11 +333,11 @@ def numba_chunking(
         progress_proxy.update(1)
 
 
-def chunking_worker(args) -> str:
+def chunking_worker(args: tuple) -> str:
     """Encapsulated worker for getting a chunk out of the data.
 
     :param args: The chunking arguments as specified in :func:`numba_chunking`
-    :type args: list
+    :type args: tuple
     :return: Chunks that have not been converted for some reason.
     :rtype: str
     """
@@ -594,7 +594,7 @@ def get_datetime(time: float | Iterable) -> float | Iterable:
     return t
 
 
-def datetime_to_floatyear(t: datetime) -> float:
+def datetime_to_floatyear(time: datetime) -> float:
     """Converts a datettime into a floatyear.
 
     :param time: The timestamp as datetime.
@@ -602,7 +602,7 @@ def datetime_to_floatyear(t: datetime) -> float:
     :return: The floatyear.
     :rtype: float
     """
-    return t.year + ((t - datetime(t.year, 1, 1)).days / 365.25)
+    return time.year + ((time - datetime(time.year, 1, 1)).days / 365.25)
 
 
 def floatyear_to_datetime(time: float) -> datetime:
