@@ -28,7 +28,7 @@ def main():
     # Paths are stored in project file
     project = u4proj.get_project(
         proj_path=Path(
-            "~/Documents/umwelt4/Reclassify_GroundMotions_Server.u4project"
+            "~/Documents/umwelt4/Clip_and_Merge_DEM_Tiles_Server.u4project"
         ).expanduser(),
         required=[
             "base_path",
@@ -36,12 +36,13 @@ def main():
             "piloten_path",
             "diff_plan_path",
         ],
+        interactive=False,
     )
 
     rois = gp.read_file(project["paths"]["piloten_path"])
     shp_cfg = get_shape_config()
     overwrite = True
-    excluded_regions = ["Rhein-Main"]
+    excluded_regions = []
     for region_name in tqdm(
         rois.Name,
         desc="Clipping and Merging Tiffs",
@@ -54,28 +55,34 @@ def main():
             tiff_file_list = u4files.get_region_tiff(
                 roi, region_name, project["paths"]["diff_plan_path"]
             )
-            with rio.open(tiff_file_list[0], "r") as tile:
-                tiff_crs = tile.crs.to_string()
-            merged_data, merged_path = u4files.get_buffered_shapefiles(
-                project["paths"]["places_path"],
-                roi,
-                region_name,
-                shp_cfg,
-                out_crs=tiff_crs,
-                overwrite=overwrite,
-            )
+            if len(tiff_file_list) > 1000:
+                logging.info("Region too large, subdividing.")
+                roi_file_list, new_rois = u4files.get_subdivided_roi_file_list(
+                    roi, region_name, project["paths"]["diff_plan_path"]
+                )
+                for ii in tqdm(
+                    range(len(roi_file_list)),
+                    desc="Processing subdivisions",
+                    leave=False,
+                ):
+                    clip_merge_region(
+                        roi_file_list[ii],
+                        project,
+                        new_rois[ii],
+                        region_name + f"_{ii}",
+                        shp_cfg,
+                        overwrite=overwrite,
+                    )
+            else:
+                clip_merge_region(
+                    tiff_file_list,
+                    project,
+                    roi,
+                    region_name,
+                    shp_cfg,
+                    overwrite=overwrite,
+                )
 
-            clipped_tiffs_list = u4files.get_clipped_tiff_list(
-                tiff_file_list,
-                merged_path,
-                region_name=region_name,
-                overwrite=overwrite,
-            )
-
-            clipped_tiff_folder, _ = os.path.split(clipped_tiffs_list[0])
-            merged_tiff_file_path = u4files.get_merged_tiff_path(
-                clipped_tiff_folder, mask=roi, overwrite=overwrite
-            )
         else:
             logging.info(f"{region_name} on ignore list.")
 
@@ -85,6 +92,33 @@ def main():
     # # _show_selected_tiffs(clipped_tiffs_list, ax=ax)
     # # _show_merged_data(merged_data, ax=ax)
     # plt.show()
+
+
+def clip_merge_region(
+    tiff_file_list, project, roi, region_name, shp_cfg, overwrite
+):
+    with rio.open(tiff_file_list[0], "r") as tile:
+        tiff_crs = tile.crs.to_string()
+    merged_data, merged_path = u4files.get_buffered_shapefiles(
+        project["paths"]["places_path"],
+        roi,
+        region_name,
+        shp_cfg,
+        out_crs=tiff_crs,
+        overwrite=overwrite,
+    )
+
+    clipped_tiffs_list = u4files.get_clipped_tiff_list(
+        tiff_file_list,
+        merged_path,
+        region_name=region_name,
+        overwrite=overwrite,
+    )
+
+    clipped_tiff_folder, _ = os.path.split(clipped_tiffs_list[0])
+    merged_tiff_file_path = u4files.get_merged_tiff_path(
+        clipped_tiff_folder, mask=roi, overwrite=overwrite
+    )
 
 
 def _show_merged_data(merged_data, ax):

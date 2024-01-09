@@ -958,3 +958,59 @@ def scattered_to_gridded(
     grid[xi, yi] = values
 
     return grid
+
+
+def subdivide_polygon(
+    roi: gp.GeoDataFrame,
+    overlap: int = 250,
+):
+    if isinstance(roi, gp.GeoDataFrame):
+        bounds = roi.bounds.to_numpy()[0]
+    elif isinstance(roi, shapely.Polygon):
+        bounds = roi.bounds
+    minx = bounds[0]
+    miny = bounds[1]
+    maxx = bounds[2]
+    maxy = bounds[3]
+    lenx = (maxx - minx) / 2
+    leny = (maxy - miny) / 2
+    if lenx > leny:  # split along x axis
+        new_poly1 = shapely.Polygon(
+            [
+                (minx, miny),
+                (minx + lenx + overlap, miny),
+                (minx + lenx + overlap, maxy),
+                (minx, maxy),
+                (minx, miny),
+            ]
+        )
+        new_poly2 = shapely.Polygon(
+            [
+                (minx + lenx, miny),
+                (minx + 2 * lenx + overlap, miny),
+                (minx + 2 * lenx + overlap, maxy),
+                (minx + lenx, maxy),
+                (minx + lenx, miny),
+            ]
+        )
+    else:  # split along y axis
+        new_poly1 = shapely.Polygon(
+            [
+                (minx, miny),
+                (maxx, miny),
+                (maxx, miny + leny + overlap),
+                (minx, miny + leny + overlap),
+                (minx, miny),
+            ]
+        )
+        new_poly2 = shapely.Polygon(
+            [
+                (minx, miny + leny),
+                (maxx, miny + leny),
+                (maxx, miny + 2 * leny + overlap),
+                (minx, miny + 2 * leny + overlap),
+                (minx, miny + leny),
+            ]
+        )
+
+    return (new_poly1, new_poly2)

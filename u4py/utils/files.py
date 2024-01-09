@@ -10,6 +10,7 @@ import csv
 import logging
 import os
 import pickle as pkl
+import sys
 from datetime import datetime
 from multiprocessing import Pool
 from tkinter import TclError, Tk, filedialog
@@ -1359,6 +1360,7 @@ def fiona_load(shp_path: os.PathLike, fclasses: list = []) -> gp.GeoDataFrame:
                     shapefile,
                     desc="Reading selected shapes from file",
                     leave=False,
+                    file=sys.stdout,
                 )
                 if feature.properties["fclass"] in fclasses
             ]
@@ -1366,7 +1368,10 @@ def fiona_load(shp_path: os.PathLike, fclasses: list = []) -> gp.GeoDataFrame:
             geometries = [
                 shpgeo.shape(feature.geometry)
                 for feature in tqdm(
-                    shapefile, desc="Reading all shapes from file", leave=False
+                    shapefile,
+                    desc="Reading all shapes from file",
+                    leave=False,
+                    file=sys.stdout,
                 )
             ]
         crs = shapefile.crs
@@ -1491,12 +1496,20 @@ def load_csv(file_path: os.PathLike) -> dict:
         for ii, k in enumerate(header):
             if ii > 0:
                 data[k] = np.ones((num_lines,))
+                # if k in ["easting", "northing", "height"]:
+                #     data[k] = np.ones((num_lines,))
+                # else:
+                #     pass
             else:
                 data[k] = []
         for irow, row in enumerate(reader):
             for ii, (v, k) in enumerate(zip(row, header)):
                 if ii > 0:
                     data[k][irow] = float(v)
+                    # if k in ["easting", "northing", "height"]:
+                    #     data[k][irow] = float(v)
+                    # else:
+                    #     pass
                 else:
                     data[k].append(v)
     logging.info("Creating geometries")
@@ -1529,7 +1542,14 @@ def buf_count_newlines_gen(fname: os.PathLike) -> int:
     return count
 
 
-def egms_csv_to_gdf(file_path: os.PathLike) -> gp.GeoDataFrame:
+def egms_csv_to_gdf(file_path: os.PathLike) -> Tuple[gp.GeoDataFrame, str]:
+    """Imports the csv in EGMS format and converts it to a geodatabase in the correct CRS.
+
+    :param file_path: The path to the csv file
+    :type file_path: os.PathLike
+    :return: The data as a geodataframe and the associated layer (EW or vertical)
+    :rtype: Tuple[gp.GeoDataFrame, str]
+    """
     """Imports the csv in EGMS format and converts it to a geodatabase in the correct CRS.
 
     :param file_path: The path to the csv file
@@ -1537,34 +1557,82 @@ def egms_csv_to_gdf(file_path: os.PathLike) -> gp.GeoDataFrame:
     :return: The data as a geodataframe
     :rtype: gp.GeoDataFrame
     """
-    logging.info("Starting import")
-    data = load_csv(file_path)
-    logging.info("Creating GeoDataFrame")
-    gdf = gp.GeoDataFrame(data=data, crs="EPSG:3035").to_crs("EPSG:32632")
-    return gdf
-
-
-def csv_to_gpkg(file_path: os.PathLike, gpkg_path: os.PathLike):
-    """Takes the input csv file and adds its contents to the gpkg file given in `gpkg_path`. Creates a new gpkg file if it does not exist yet.
-
-    :param file_path: The path to the csv file
-    :type file_path: os.PathLike
-    :param gpkg_path: The path to the gpkg file
-    :type gpkg_path: os.PathLike
-    """
     fname = os.path.split(file_path)[-1]
-    if "_E_" in fname:
+    if "_E_" in fname or fname.endswith("_E.csv"):
         layer = "East-West"
-    elif "_U_" in fname:
+    elif "_U_" in fname or fname.endswith("_U.csv"):
         layer = "Vertical"
     else:
         ValueError(
             "Filename does not contain direction of movement (_E_ or _U_)"
         )
-    gdf = egms_csv_to_gdf(file_path)
-    logging.info("Saving to file")
-    if os.path.exists(gpkg_path):
-        gdf.to_file(gpkg_path, layer=layer, driver="GPKG", mode="a")
-    else:
-        gdf.to_file(gpkg_path, layer=layer, driver="GPKG")
-    logging.info("Finished")
+    logging.info("Starting import")
+    data = load_csv(file_path)
+    logging.info("Creating GeoDataFrame")
+    gdf = gp.GeoDataFrame(data=data, crs="EPSG:3035").to_crs("EPSG:32632")
+    return gdf, layer
+
+
+def egms_csv_list_to_gdf(
+    file_list: list[os.PathLike],
+) -> Tuple[gp.GeoDataFrame, gp.GeoDataFrame]:
+    """Loads all files from the file list and returns two geodataframes, one vertical and one for east-west component.
+
+    :param file_list: The list of csv files to read.
+    :type file_list: list[os.PathLike]
+    :return: _description_
+    :rtype: Tuple[gp.GeoDataFrame,gp.GeoDataFrame]
+    """
+    logging.info("Converting list to geodataframes")
+    all_gdf = {"East-West": [], "Vertical": []}
+    for file_path in tqdm(file_list, desc="Converting Files"):
+        gdf, layer = egms_csv_to_gdf(file_path)
+        all_gdf[layer].append(gdf)
+    merged_v = merge_gdf_list(all_gdf["Vertical"])
+    merged_ew = merge_gdf_list(all_gdf["East-West"])
+    return (merged_v, merged_ew)
+
+
+def merge_gdf_list(gdf_list: list[gp.GeoDataFrame]) -> gp.GeoDataFrame:
+    """Merges all geodataframes in a list to a single geodataframe. Uses "inner join" which only keeps the keys that are present in all geodataframes.
+
+    :param gdf_list: A list of geodataframe objects for merging.
+    :type gdf_list: list
+    :return: _description_
+    :rtype: gp.GeoDataFrame
+    """
+    logging.info("Merging GeoDataFrames")
+    merged = gdf_list[0]
+    for ii in range(1, len(gdf_list)):
+        merged = merged.merge(gdf_list[ii], how="outer")
+
+    return merged
+
+
+def get_subdivided_roi_file_list(
+    roi: gp.GeoDataFrame, region_name: str, file_path: os.PathLike
+) -> list:
+    logging.info("Getting subdivided regions of interest.")
+    new_polys = u4spatial.subdivide_polygon(roi)
+    too_large = True
+    while too_large:
+        tiff_file_list_new = get_region_tiff(
+            new_polys[0],
+            region_name,
+            file_path,
+        )
+        if len(tiff_file_list_new) < 1000:
+            too_large = False
+        else:
+            old_polys = new_polys
+            new_polys = []
+            for op in old_polys:
+                new_polys.extend(u4spatial.subdivide_polygon(op))
+    roi_file_list = [
+        get_region_tiff(reg, region_name, file_path) for reg in new_polys
+    ]
+    new_rois = [
+        gp.GeoDataFrame(geometry=[reg], crs=roi.crs) for reg in new_polys
+    ]
+
+    return roi_file_list, new_rois
