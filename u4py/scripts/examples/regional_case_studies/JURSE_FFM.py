@@ -25,7 +25,7 @@ u4config.start_logger()
 def main():
     # Load Data
     warnings.filterwarnings("ignore")
-    overwrite = True
+    overwrite = False
     project = u4projects.get_project(
         proj_path=Path(
             r"~\Documents\ArcGIS\U4_projects\Examples\U5_Frankfurt_and_JURSE_FFM_GPKG.u4project"
@@ -62,8 +62,8 @@ def main():
     annot_pos = {
         "Inner_City": [],
         "Inner_Subsidence": [
-            (u4convert.get_datetime(2016), -15),
-            (u4convert.get_datetime(2019), -25),
+            (u4convert.get_datetime(2016), -20),
+            (u4convert.get_datetime(2019), -30),
         ],
         "Outer_Subsidence": [],
         "Uplift": [
@@ -158,34 +158,34 @@ def main():
                 if "water extraction" in parlist[ii]
             ]
 
-            for vv, (ts, te) in zip(vals, t_EX):
-                if vv > 0:
-                    col = "C0"
-                else:
-                    col = "C3"
+            # for vv, (ts, te) in zip(vals, t_EX):
+            #     if vv > 0:
+            #         col = "C0"
+            #     else:
+            #         col = "C3"
 
-                arrow = mpatch.FancyArrowPatch(
-                    (u4convert.get_datetime(ts), ylow),
-                    (u4convert.get_datetime(te), ylow + vv),
-                    fc=col,
-                    mutation_scale=25,
-                )
-                ylow = ylow + vv
-                if ylow < axes[ax_num].get_ylim()[0]:
-                    axes[ax_num].set_ylim(ylow, ylims[1])
-                axes[ax_num].add_patch(arrow)
+            #     arrow = mpatch.FancyArrowPatch(
+            #         (u4convert.get_datetime(ts), ylow),
+            #         (u4convert.get_datetime(te), ylow + vv),
+            #         fc=col,
+            #         mutation_scale=25,
+            #     )
+            #     ylow = ylow + vv
+            #     if ylow < axes[ax_num].get_ylim()[0]:
+            #         axes[ax_num].set_ylim(ylow, ylims[1])
+            #     axes[ax_num].add_patch(arrow)
 
-            for annpos, vv in zip(annot_pos[sel_name], vals):
-                if vv > 0:
-                    col = "C0"
-                else:
-                    col = "C3"
-                axes[ax_num].annotate(
-                    f"{vv:.2f} mm",
-                    annpos,
-                    horizontalalignment="center",
-                    color=col,
-                )
+            # for annpos, vv in zip(annot_pos[sel_name], vals):
+            #     if vv > 0:
+            #         col = "C0"
+            #     else:
+            #         col = "C3"
+            #     axes[ax_num].annotate(
+            #         f"{vv:.2f} mm",
+            #         annpos,
+            #         horizontalalignment="center",
+            #         color=col,
+            #     )
         print("========================")
     print("Formatting Plot")
     # Formatting
@@ -197,7 +197,7 @@ def main():
         # zoom=17,
         source=contextily.providers.OpenStreetMap.Mapnik,
     )
-    axes[1].set_ylim(-30, 10)
+    axes[1].set_ylim(-35, 15)
     for ax in axes[1:]:
         ax.set_ylabel("d$_{vert}$ (mm)")
         ax.sharex(axes[1])
@@ -248,7 +248,7 @@ def plot_map(ax, data_region, crs):
     ax.set_xlabel("Longitude (m)")
     ax.set_ylabel("Latitude (m)")
     ax.annotate(
-        f"#PSI = {len(data_region['x'])}", (0, -0.1), xycoords="axes fraction"
+        f"#PS = {len(data_region['x'])}", (0, -0.1), xycoords="axes fraction"
     )
     u4plotfmt.map_style(ax, divisor=2000, crs=crs)
 

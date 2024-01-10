@@ -219,8 +219,8 @@ def table_to_dict(
             "y": np.array(yy),
             "z": np.array(zz),
             "ps_id": np.array(ps_id),
-            "mean_vel": mean_vel,
-            "var_mean_vel": var_mean_vel,
+            "mean_vel": np.array(mean_vel),
+            "var_mean_vel": np.array(var_mean_vel),
         }
 
     return output
