@@ -107,11 +107,12 @@ def _load_project(
     """
     project = configparser.ConfigParser()
 
-    if proj_path:
+    if proj_path and os.path.exists(proj_path):
         project.read(proj_path)
         logging.info("Config read.")
 
     else:
+        logging.info("Project file not found.")
         proj_path = u4files.get_file_paths(
             filetypes=((".u4project", ".u4project"),),
             title="Select project file.",
@@ -206,26 +207,29 @@ def _path_dialog(
     entries = dict()
     # required = [p for p in project["paths"].keys()]
     for ii, k in enumerate(PROJECT.defaults().keys()):
-        entry = dict()
-        entry["var"] = tk.StringVar()  # Holds the path string
-        entry["var"].set(PROJECT["paths"][k])
-        entry["var"].trace_add(
-            "write",
-            lambda *args, entries=entries, required=required: _check_paths(
-                entries, required, *args
-            ),
-        )
-        entry["label"] = ttk.Label(mainframe, text=k)  # Label with path_name
-        entry["label"].grid(column=1, row=ii + 1, sticky=tk.W)
-        entry["entry"] = ttk.Entry(  # The entry
-            mainframe, width=75, textvariable=entry["var"]
-        )
-        entry["entry"].grid(column=2, row=ii + 1, sticky=(tk.W, tk.E))
-        entry["button"] = ttk.Button(  # Button for opening path
-            mainframe, text="...", command=partial(_set_path, entry)
-        )
-        entry["button"].grid(column=3, row=ii + 1, sticky=tk.W)
-        entries[k] = entry
+        if k in required:
+            entry = dict()
+            entry["var"] = tk.StringVar()  # Holds the path string
+            entry["var"].set(PROJECT["paths"][k])
+            entry["var"].trace_add(
+                "write",
+                lambda *args, entries=entries, required=required: _check_paths(
+                    entries, required, *args
+                ),
+            )
+            entry["label"] = ttk.Label(
+                mainframe, text=k
+            )  # Label with path_name
+            entry["label"].grid(column=1, row=ii + 1, sticky=tk.W)
+            entry["entry"] = ttk.Entry(  # The entry
+                mainframe, width=75, textvariable=entry["var"]
+            )
+            entry["entry"].grid(column=2, row=ii + 1, sticky=(tk.W, tk.E))
+            entry["button"] = ttk.Button(  # Button for opening path
+                mainframe, text="...", command=partial(_set_path, entry)
+            )
+            entry["button"].grid(column=3, row=ii + 1, sticky=tk.W)
+            entries[k] = entry
 
     # Start Button
     entries["start_button"] = ttk.Button(
