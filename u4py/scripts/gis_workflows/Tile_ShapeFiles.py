@@ -1,15 +1,17 @@
-from datetime import timedelta
-import time
-from typing import Tuple
 import itertools
 import logging
 import os
-import shapely
+import time
+from datetime import timedelta
+from multiprocessing import Pool
+from typing import Tuple
+
 import geopandas as gp
 import matplotlib.pyplot as plt
 import numpy as np
+import shapely
 from tqdm import tqdm
-from multiprocessing import Pool
+
 import u4py.utils.config as u4config
 import u4py.utils.files as u4files
 import u4py.utils.sql as u4sql
@@ -18,7 +20,7 @@ u4config.start_logger()
 
 
 def main():
-    shp_cfg = get_shape_config()
+    shp_cfg = u4config.get_shape_config()
     # project = u4proj.get_project(required=["places_path", "diff_plan_path"])
     project = dict()
     project["paths"] = {
@@ -180,126 +182,6 @@ def sort_indices_worker(args):
     ix = int(np.floor((centroid.x - minx) / step))
     iy = int(np.floor((centroid.y - miny) / step))
     return (ix, iy)
-
-
-def get_shape_config():
-    # Names of the shapes for the legend
-    name = {
-        "build": "Buildings",
-        "landuse": "Steinbruch & Industrie",
-        "construction": "Baustellen",
-        "railway": "Railways",
-        "mainroads": "Main Roads",
-        "minor_roads": "Kleine Straßen",
-        "water": "Waterways",
-        "lakes": "Lakes",
-        "power": "Windkraftanlagen",
-        "parking": "Parkplätze",
-    }
-    # Name of the shapefile containing the original data
-    shp_file = {
-        "build": "gis_osm_buildings_a_free_1.gpkg",
-        "landuse": "gis_osm_landuse_a_free_1.gpkg",
-        "construction": "lan-con.gpkg",
-        "railway": "gis_osm_railways_free_1.gpkg",
-        "mainroads": "gis_osm_roads_free_1.gpkg",
-        "minor_roads": "gis_osm_roads_free_1.gpkg",
-        "water": "gis_osm_waterways_free_1.gpkg",
-        "lakes": "gis_osm_water_a_free_1.gpkg",
-        "power": "pow-gen_gen-win.gpkg",
-        "parking": "par-sur.gpkg",
-    }
-    # List of feature classes to extract from the file (empty=all)
-    fclass = {
-        "build": [],
-        "landuse": ["quarry", "construction", "industrial"],
-        "construction": [],
-        "railway": [],
-        "mainroads": [
-            "motorway",
-            "trunk",
-            "primary",
-            "secondary",
-            "tertiary",
-            "motorway_link",
-            "trunk_link",
-            "primary_link",
-            "secondary_link",
-            "tertiary_link",
-            "unclassified",  # necessary for some slip roads
-        ],
-        "minor_roads": [
-            "residential",
-            "living_street",
-            "service",
-            "pedestrian",
-            "track",
-            "track_grade5",
-            "track_grade4",
-            "track_grade3",
-            "track_grade2",
-            "track_grade1",
-            "road",
-            "bridleway",
-            "steps",
-            "path",
-            "cycleway",
-        ],
-        "water": [],
-        "lakes": [],
-        "power": [],
-        "parking": [],
-    }
-    # Default buffer size around each feature is 10 meters.
-    buffer_dist = {
-        "build": 10,
-        "landuse": 10,
-        "construction": 10,
-        "railway": 15,
-        "mainroads": 15,
-        "minor_roads": 5,
-        "water": 10,
-        "lakes": 10,
-        "power": 150,
-        "parking": 10,
-    }
-
-    # Plotting Stuff
-    colors = {
-        "build": "dimgray",
-        "landuse": "rosybrown",
-        "construction": "rosybrown",
-        "railway": "black",
-        "mainroads": "orange",
-        "minor_roads": "green",
-        "water": "aqua",
-        "lakes": "aqua",
-        "power": "yellow",
-        "parking": "blue",
-    }
-    zorder = {
-        "build": 2,
-        "landuse": 1,
-        "construction": 1,
-        "railway": 5,
-        "mainroads": 4,
-        "minor_roads": 3,
-        "water": 3,
-        "lakes": 3,
-        "power": 3,
-        "parking": 3,
-    }
-
-    shp_cfg = {
-        "buffer_dist": buffer_dist,
-        "name": name,
-        "shp_file": shp_file,
-        "fclass": fclass,
-        "colors": colors,
-        "zorder": zorder,
-    }
-
-    return shp_cfg
 
 
 if __name__ == "__main__":
