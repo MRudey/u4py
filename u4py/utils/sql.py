@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import itertools
 import logging
+import multiprocessing.pool as mpp
 import os
 import sqlite3
 import struct
@@ -16,12 +17,13 @@ import geopandas as gp
 import numpy as np
 import shapely
 import utm
+from osgeo import ogr
 from tqdm import tqdm
 
 import u4py.utils.config as u4config
 
 
-def get_table_names(file_path: os.PathLike) -> list:
+def get_BBD_table_names(file_path: os.PathLike) -> list:
     """Gets all tables which start with:
     |    'Zeitreihe_',
     |    'Ost_West', or
@@ -67,6 +69,39 @@ def get_table_names(file_path: os.PathLike) -> list:
         logging.info(f"Found {len(tables)} tables in {file_path}")
         for ii, t in enumerate(tables):
             logging.debug(f" {ii:03g}: {t}")
+    return tables
+
+
+def get_table_names(
+    file_path: os.PathLike, include_gpkg: bool = False
+) -> list:
+    """Gets a list of all table names in the sql file. Excludes gpkg specific
+    tables by default!.
+
+    :param file_path: The path to the sql file.
+    :type file_path: os.PathLike
+    :param include_gpkg: Whether to include specifics for gpkg files and rtrees, defaults to False
+    :type include_gpkg: bool
+    :return: The list of all tables.
+    :rtype: list
+    """
+    con = sqlite3.connect(file_path)
+    cur = con.cursor()
+    tables = [
+        res[0]
+        for res in cur.execute(
+            "SELECT name FROM sqlite_schema WHERE type='table'"
+        )
+    ]
+    con.close()
+    if not include_gpkg:
+        tables = [
+            tab
+            for tab in tables
+            if not tab.startswith("rtree")
+            and not tab.startswith("gpkg")
+            and not tab.startswith("sqlite")
+        ]
     return tables
 
 
@@ -424,14 +459,17 @@ def load_tables(file_path: os.PathLike) -> dict:
     :rtype: dict
     """
     data = dict()
-    tables = get_table_names(file_path)
+    tables = get_BBD_table_names(file_path)
     for table in tqdm(tables, desc="Reading from tables"):
         data[table] = table_to_dict(file_path, table)
     return data
 
 
 def load_osm_gpkg(
-    gpkg_file: os.PathLike, fclass: list = [], pool=False
+    gpkg_file: os.PathLike,
+    fclass: list = [],
+    pool: bool | mpp.Pool = False,
+    table_name: str = "",
 ) -> list:
     """
     Loads geometry data by reading the bytestream directly from the gpkg file.
@@ -442,10 +480,13 @@ def load_osm_gpkg(
     :type fclass: list, optional
     :param pool: Use existing parallel Pool, defaults to False
     :type pool: bool, optional
+    :param table_name: The name of the table where to extract the features, defaults to "".
+    :type table_name: str, optional
     :return: A list containing all geometries
     :rtype: list
     """
-    table_name = os.path.splitext(os.path.split(gpkg_file)[-1])[0]
+    if not table_name:
+        table_name = os.path.splitext(os.path.split(gpkg_file)[-1])[0]
 
     logging.info(f"Loading geometries from {gpkg_file}")
     con = sqlite3.connect(gpkg_file)
@@ -647,6 +688,8 @@ def gen_queries_psi_gpkg(
     if info["has_time"]:
         time, queries = gen_timeseries_queries(file_path, direction, info)
 
+    con.close()
+
     return xx, yy, zz, time, queries, info
 
 
@@ -666,3 +709,55 @@ def get_meanvelo_keys(all_keys: list) -> Tuple[str, str]:
         return ("mean_velo_east", "var_mean_velo_east")
     else:
         raise KeyError("No keys for mean velocity found.")
+
+
+def table_key_exists(fpath: os.PathLike, table_name: str, key: str) -> bool:
+    """Checks if a particular `key` exists in the table in the sql database.
+
+    :param fpath: The filepath to the database.
+    :type fpath: os.PathLike
+    :param table_name: The name of the table to che
+    :type table_name: str
+    :param key: The key to look for.
+    :type key: str
+    :return: True if the key exists in the table.
+    :rtype: bool
+    """
+
+    con = sqlite3.connect(fpath)
+    cur = con.cursor()
+    info = read_info(cur, table_name)
+    con.close()
+    return key in info["all_keys"]
+
+
+def add_new_key_value_pairs(
+    fpath: os.PathLike, table_name: str, key: str, values: Iterable
+):
+    """Adds a new key and values to the table in the sql file.
+
+    :param fpath: The path to the database.
+    :type fpath: os.PathLike
+    :param table_name: The name of the table.
+    :type table_name: str
+    :param key: The name of the key.
+    :type key: str
+    :param values: The values, size must be compatible with other entries!
+    :type values: Iterable
+    """
+
+    with ogr.Open(fpath, update=1) as con:
+        if table_key_exists(fpath, table_name=table_name, key=key):
+            con.ExecuteSQL(f"ALTER TABLE {table_name} DROP COLUMN {key}")
+        con.ExecuteSQL(
+            f"ALTER TABLE {table_name} ADD COLUMN {key} float(32)",
+            dialect="OGRSQL",
+        )
+        values = [np.round(val, 2) for val in values]
+        values_str = repr(values).replace("[", "(")
+        values_str = values_str.replace("]", ")")
+        logging.info("Writing values to sql table.")
+        con.ExecuteSQL(
+            f"UPDATE {table_name} SET ({key})={values_str}",
+            dialect="SQLITE",
+        )

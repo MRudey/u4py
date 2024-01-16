@@ -25,7 +25,9 @@ import pandas as pd
 import rasterio as rio
 import shapely
 import shapely.geometry as shpgeo
+from osgeo import ogr
 from pathvalidate import sanitize_filename
+from pyproj import CRS, Transformer
 from rasterio.mask import mask as riomask
 from rasterio.merge import merge as riomerge
 from rasterio.transform import Affine
@@ -36,6 +38,8 @@ import u4py.analysis.spatial as u4spatial
 import u4py.utils.config as u4config
 import u4py.utils.convert as u4convert
 import u4py.utils.sql as u4sql
+
+ogr.UseExceptions()
 
 
 def get_file_paths(**kwargs) -> list | os.PathLike:
@@ -875,21 +879,15 @@ def get_osm_tiff(
 
 def get_region_tiff(
     region: gp.GeoDataFrame,
-    region_name: str,
     source_file_path: os.PathLike,
-    overwrite: bool = False,
     crs: str = "EPSG:32632",
 ) -> list[os.PathLike]:
     """Gets a list of paths to tiff files in a region.
 
     :param region: A `GeoDataFrame` of the region, e.g. from a shape file
     :type region: gp.GeoDataFrame
-    :param region_name: The name of the region.
-    :type region_name: str
     :param source_file_path: The path to the folder where the tiffs are stored (in `TB` folders)
     :type source_file_path: os.PathLike
-    :param overwrite: Whether to overwrite the output shapefile, defaults to False
-    :type overwrite: bool, optional
     :param crs: The CRS of the input shapes, defaults to "EPSG:32632"
     :type crs: str, optional
     :return: A list of paths to the tiff files within the osm region.
@@ -912,9 +910,7 @@ def get_region_tiff(
 def get_point_tiff(
     point: Tuple[float, float],
     radius: float,
-    region_name: str,
     source_file_path: os.PathLike,
-    overwrite: bool = False,
 ) -> list[os.PathLike]:
     """Returns paths of tiff files that are within `radius` of `point`.
 
@@ -922,12 +918,9 @@ def get_point_tiff(
     :type point: Tuple[float, float]
     :param radius: The search radius around point (in meters).
     :type radius: float
-    :param region_name: A sensible name for the extraction point.
-    :type region_name: str
     :param source_file_path: The path to the folder where the tiffs are stored (in `TB` folders)
     :type source_file_path: os.PathLike
     :param overwrite: Whether to overwrite the output shapefile, defaults to False
-    :type overwrite: bool, optional
     :return: A list of paths to the tiff files within the osm region.
     :rtype: list[os.PathLike]
     """
@@ -987,15 +980,16 @@ def get_clipped_shapefile(
     return clipped_data, clipped_path
 
 
-def get_buffered_shapefiles(
+def get_buffered_shp_in_roi(
     places_path: os.PathLike,
     mask: gp.GeoDataFrame | gp.GeoSeries,
     region_name: str,
     shp_cfg: dict,
-    out_crs: str = "",
+    out_crs: str = "EPSG:32632",
     overwrite: bool = False,
 ) -> Tuple[gp.GeoDataFrame, os.PathLike]:
-    """Gets buffered and masked shapes for clipping from shapefile, recreates the shapefile if not found.
+    """Gets buffered and masked shapes for clipping from shapefile, recreates
+    the shapefile if not found.
 
     :param places_path: The path to the folder containing the shapefiles.
     :type places_path: os.PathLike
@@ -1003,10 +997,17 @@ def get_buffered_shapefiles(
     :type mask: gp.GeoDataFrame | gp.GeoSeries
     :param shp_cfg: The configuration dictionary for the shapefiles in `places_path`
     :type shp_cfg: dict
+    :param out_crs: The coordinate system for the output shapes, defaults to: "EPSG:32632".
+    :type out_crs: str
     :param overwrite: Whether to overwrite the final file, defaults to False
     :type overwrite: bool, optional
     :return: A geodataframe with the shapes and the path to the output file.
     :rtype: Tuple[gp.GeoDataFrame, os.PathLike]
+
+    First clips the input shapes by the region extend in `mask`. Then buffers
+    each feature class and merges together the buffers. If necessary the
+    output is converted to EPSG:32632. The output is saved into a shapefile
+    and given back as `gp.GeoDataFrame` and the path to the shapefile.
     """
     logging.info("Getting buffered shapefiles")
     merged_base = os.path.join(places_path, "buffered_and_merged_shapes")
@@ -1114,12 +1115,104 @@ def get_clipped_tiff_list(
     return clipped_tiff_list
 
 
+def get_clipped_tiff_list_gpkg(
+    tiff_file_list: list[os.PathLike],
+    gpkg_path: os.PathLike,
+    overwrite: bool = False,
+    use_parallel: bool = True,
+) -> list[os.PathLike]:
+    """Gets all tiffs clipped by the shapes in gpkg. Uses SQL logic to
+    determine which shapes to take. The buffer distances are taken from `u4py.
+    utils.config`. Each tiff file is clipped individually rather than creating a large single tiff. This is outsourced to several parallel workers.
+
+    :param tiff_file_list: The file list of tiffs to clip.
+    :type tiff_file_list: list[os.PathLike]
+    :param gpkg_path: The path to the gpkg file containing all features for clipping.
+    :type gpkg_path: os.PathLike
+    :param overwrite: Whether to overwrite the output tiffs, defaults to False
+    :type overwrite: bool, optional
+    :param use_parallel: Whether to use parallel processing, defaults to True
+    :type use_parallel: bool, optional
+    :return: A list of clipped tiffs.
+    :rtype: list[os.PathLike]
+    """
+    logging.info("Getting clipped tiffs using GPKG shapes and SQL.")
+    base_path = multi_split(tiff_file_list[0], 2)
+    ctiff_fol = os.path.join(base_path, f"clipped_tiffs_gpkg")
+    os.makedirs(ctiff_fol, exist_ok=True)
+
+    clipped_tiff_list = []
+    if os.path.exists(ctiff_fol) and not overwrite:
+        logging.info("Loading existing data")
+        clipped_tiff_list = [
+            os.path.join(ctiff_fol, tf)
+            for tf in os.listdir(ctiff_fol)
+            if tf.endswith(".tif")
+        ]
+    if not clipped_tiff_list:
+        logging.info("Clipping tiff files.")
+        args = [(tfp, gpkg_path, ctiff_fol) for tfp in tiff_file_list]
+
+        if use_parallel:
+            with Pool(u4config.cpu_count) as p:
+                logging.info("Starting Parallel Pool")
+                list(
+                    tqdm(
+                        p.imap_unordered(batch_clip_tiff_gpkg, args),
+                        total=len(tiff_file_list),
+                        desc="Masking Rasters",
+                        leave=False,
+                    )
+                )
+        else:
+            for arg in tqdm(
+                args,
+                total=len(tiff_file_list),
+                desc="Masking Rasters",
+                leave=False,
+            ):
+                batch_clip_tiff_gpkg(arg)
+
+        clipped_tiff_list = [
+            os.path.join(ctiff_fol, tf)
+            for tf in os.listdir(ctiff_fol)
+            if tf.endswith(".tif")
+        ]
+
+
 def batch_clip_tiff(args):
     """Wrapper for clipping with parallel Pool
 
     :param args: The arguments
     """
     clip_tiff(*args)
+
+
+def batch_clip_tiff_gpkg(args):
+    """Wrapper for clipping with parallel Pool
+
+    :param args: The arguments
+    """
+    clip_tiff_gpkg(*args)
+
+
+def clip_tiff_gpkg(
+    tiff_path: os.PathLike,
+    gpkg_path: os.PathLike,
+    ctiff_fol: os.PathLike,
+):
+    """Extracts the buffered shapes from the gpkg file and uses them to call `clip_tiff`.
+
+    :param tiff_path: The path of the tif file to clip.
+    :type tiff_path: os.PathLike
+    :param gpkg_path: The path to the gpkg file containing all features for clipping.
+    :type gpkg_path: os.PathLike
+    :param ctiff_fol: The folder where to store the clipped tiffs.
+    :type ctiff_fol: os.PathLike
+    """
+    shp_cfg = u4config.get_shape_config()
+    shapes = load_osm_gpkg(gpkg_path, tiff_path, shp_cfg=shp_cfg)
+    clip_tiff(tiff_path, ctiff_fol, shapes.geometry.to_list())
 
 
 def clip_tiff(in_path: os.PathLike, ctiff_fol: os.PathLike, shapes: list):
@@ -1636,3 +1729,115 @@ def get_subdivided_roi_file_list(
     ]
 
     return roi_file_list, new_rois
+
+
+def load_osm_gpkg(
+    gpkg_path: os.PathLike,
+    tiff_path: os.PathLike,
+    tables: list = [],
+    shp_cfg: dict = {},
+    out_crs: str = "EPSG:32632",
+    buffer_dist: bool = False,
+) -> gp.GeoDataFrame:
+    """Loads all features within the bounds of a tiff file as a geodataframe.
+
+    :param fpath: The path to the gpkg file.
+    :type fpath: os.PathLike
+    :param fpath: The path to the tiff file.
+    :type fpath: os.PathLike
+    :param tables: List of tables to extract, defaults to [] = all tables are extracted.
+    :type tables: list, optional
+    :param fclass_filter: List of feature classes to extract, defaults to [] = all fclasses are extracted.
+    :type fclass_filter: list, optional
+    :param out_crs: CRS for the output, defaults to "EPSG:32632".
+    :type out_crs: str, optional
+    :param buffer: Dictionary of buffer sizes for all `fclass_filter`, defaults to {} = no buffering.
+    :type buffer: dict, optional
+    :return: The loaded geometries in a geodataframe.
+    :rtype: gp.GeoDataFrame
+    """
+    wkt_bounds = wkt_from_tiff_bounds(tiff_path, "EPSG:4326")
+    if shp_cfg and tables:
+        UserWarning("Shape config overwrites tables argument!")
+    if shp_cfg:
+        tables = [
+            val.replace(".shp", "") for val in shp_cfg["shp_file"].values()
+        ]
+        keys = [k for k in shp_cfg["shp_file"].keys()]
+
+    if not tables:
+        tables = u4sql.get_table_names(gpkg_path)
+
+    geometries = []
+    fclasses = []
+    buffer_dists = []
+    for ii, table in enumerate(tables):
+        if shp_cfg:
+            fclass_filter = shp_cfg["fclass"][keys[ii]]
+            buffer_dist = shp_cfg["buffer_dist"][keys[ii]]
+        else:
+            fclass_filter = []
+        with ogr.Open(gpkg_path) as con:
+            layer = con.ExecuteSQL(
+                f"SELECT * FROM '{table}' WHERE ST_Intersects(geom, ST_GeomFromText('{wkt_bounds}', 0))",
+            )
+            for feature in layer:
+                if hasattr(feature, "fclass"):
+                    fclass = feature.fclass
+                elif hasattr(feature, "generator_"):
+                    fclass = "power"
+                elif hasattr(feature, "man_made"):
+                    fclass = feature.man_made
+                elif table == "lan-con":
+                    fclass = "construction"
+                elif table == "par-sur":
+                    fclass = "parking"
+
+                if not fclass_filter or fclass in fclass_filter:
+                    fclasses.append(fclass)
+                    if buffer_dist:
+                        buffer_dists.append(buffer_dist)
+                    geometries.append(
+                        shapely.from_wkt(feature.geom.ExportToWkt())
+                    )
+
+    gdf = gp.GeoDataFrame(
+        crs="EPSG:4326",
+        data={"fclass": fclasses, "geometry": geometries},
+    ).to_crs(out_crs)
+
+    if buffer_dists:
+        buf_geoms = [
+            geom.buffer(buffer_dists[ii])
+            for ii, geom in enumerate(gdf.geometry)
+        ]
+        gdf = gp.GeoDataFrame(
+            crs=gdf.crs,
+            data={"fclass": fclasses, "geometry": buf_geoms},
+        )
+
+    return gdf
+
+
+def wkt_from_tiff_bounds(fpath: os.PathLike, out_crs: str = "") -> str:
+    """Returns the boundaries of a tiff file as a wkt string.
+
+    :param fpath: The path to the tiff file.
+    :type fpath: os.PathLike
+    :param out_crs: The output CRS, defaults to "" which keeps the tiff's CRS
+    :type out_crs: str, optional
+    :return: A wkt string of the bounding polygon.
+    :rtype: str
+    """
+
+    tile = load_tiff(fpath)
+    wkt = u4spatial.bounds_to_polygon(tile.bounds).wkt
+    if out_crs:
+        wkt = (
+            gp.GeoDataFrame(geometry=[shapely.from_wkt(wkt)], crs=tile.crs)
+            .to_crs(out_crs)
+            .to_wkt()
+            .geometry[0]
+        )
+
+    return wkt

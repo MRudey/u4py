@@ -11,6 +11,7 @@ import pickle as pkl
 import re
 from typing import Iterable, List, Tuple
 
+import fiona
 import geopandas as gp
 import h5py
 import matplotlib.pyplot as plt
@@ -25,6 +26,7 @@ import shapely.geometry as shpgeo
 from matplotlib.axes import Axes
 from matplotlib.collections import PolyCollection
 from matplotlib.figure import Figure
+from pyproj import Transformer
 from skimage import measure as skmeasure
 from tqdm import tqdm
 
@@ -1014,3 +1016,147 @@ def subdivide_polygon(
         )
 
     return (new_poly1, new_poly2)
+
+
+def buffer_features(
+    feature: fiona.Feature,
+    distance: float,
+    transformer: Transformer,
+    fshapes: dict,
+) -> list[shapely.Polygon]:
+    """Buffers the given feature depending on its feature type. If it is not
+
+    :param feature: The feature for buffering
+    :type feature: fiona.Feature
+    :param distance: The buffer distance
+    :type distance: float
+    :param transformer: A transformer that maps the feature coordinates to the desired output CRS. If is None, then keeps the input CRS.
+    :type transformer: Transformer
+    :param fshapes: Dictionary mapping the Fiona shape types to shapely geometry.
+    :type fshapes: dict
+    :return: A list of polygons representing the buffers.
+    :rtype: list[shapely.Polygon]
+    """
+    coords, isMulti = get_coords_fiona(feature)
+    if not isMulti:
+        if transformer:
+            geometry = [
+                buffer_geometry(
+                    transform_coords(coords, transformer),
+                    fshapes,
+                    feature.geometry.type,
+                    distance,
+                )
+            ]
+        else:
+            geometry = [
+                buffer_geometry(
+                    coords, fshapes, feature.geometry.type, distance
+                )
+            ]
+    else:
+        if transformer:
+            geometry = [
+                buffer_geometry(
+                    transform_coords(np.array(coord[0]), transformer),
+                    fshapes,
+                    feature.geometry.type,
+                    distance,
+                )
+                for coord in coords
+            ]
+        else:
+            geometry = [
+                buffer_geometry(
+                    np.array(coord[0]),
+                    fshapes,
+                    feature.geometry.type,
+                    distance,
+                )
+                for coord in coords
+            ]
+    return geometry
+
+
+def transform_coords(
+    coords: np.ndarray, transformer: Transformer
+) -> np.ndarray:
+    """Transforms the coordinates in `coords` using `transformer`. The
+    transformer is preinitialized with input and output CRS. This is
+    presumably faster than creating a geopandas geometry and calling `to_crs`.
+    Actually, this is similar to how it is implemented in geopandas.
+
+    :param coords: The coordinates a two dimensional numpy array.
+    :type coords: np.ndarray
+    :param transformer: A transformer object converting from one to another CRS.
+    :type transformer: Transformer
+    :return: An array with transformed coordinates.
+    :rtype: np.ndarray
+
+    *Does not support 3D geometries*
+    """
+    x, y = transformer.transform(coords[:, 0], coords[:, 1])
+    return np.array([(xx, yy) for xx, yy in zip(x, y)])
+
+
+def buffer_geometry(
+    coords: np.ndarray, fshapes: dict, ftype: str, distance: float
+) -> shapely.Polygon:
+    """Buffers the input geometry according to the feature class by distance.
+
+    :param coords: An array of coordinates.
+    :type coords: np.ndarray
+    :param fshapes: A dictionary mapping Fiona feature types to shapely geometries types, e.g. `{"Polygon": shapely.Polygon}`.
+    :type fshapes: dict
+    :param ftype: The feature type.
+    :type ftype: str
+    :param distance: The distance to use for buffering.
+    :type distance: float
+    :return: The buffered shape.
+    :rtype: shapely.Polygon
+    """
+    return fshapes[ftype](coords).buffer(distance)
+
+
+def get_coords_fiona(feature):
+    isMulti = False
+    if feature.geometry.type != "MultiPolygon":
+        coords = np.array(feature.geometry.coordinates[0])
+    elif feature.geometry.type == "MultiPolygon":
+        isMulti = True
+        coords = feature.geometry.coordinates
+    return coords, isMulti
+
+
+def calculate_bounds(features: list[shapely.Geometry]) -> dict:
+    """Calculates the boundaries of all geometries in the list. Returns a
+    dictionary with the keys "min_x", "max_x", "min_y", "max_y".
+
+    :param features: A list of geometries to determine the boundaries.
+    :type features: list[shapely.Geometry]
+    :return: The boundaries as a dictionary containing lists of the boundaries.
+    :rtype: dict
+    """
+    bounds = {
+        "min_x": [],
+        "max_x": [],
+        "min_y": [],
+        "max_y": [],
+    }
+    if isinstance(features[0], shapely.Point):
+        for feat in tqdm(features, "Getting bounds"):
+            bounds["min_x"].append(feat.x)
+            bounds["max_x"].append(feat.x)
+            bounds["min_y"].append(feat.y)
+            bounds["max_y"].append(feat.y)
+
+    if isinstance(features[0], shapely.LineString):
+        raise NotImplementedError
+    if isinstance(features[0], shapely.MultiLineString):
+        raise NotImplementedError
+    if isinstance(features[0], shapely.Polygon):
+        raise NotImplementedError
+    if isinstance(features[0], shapely.MultiPolygon):
+        raise NotImplementedError
+
+    return bounds

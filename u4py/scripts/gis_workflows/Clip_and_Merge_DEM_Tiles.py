@@ -36,7 +36,7 @@ def main():
             "piloten_path",
             "diff_plan_path",
         ],
-        interactive=False,
+        # interactive=False,
     )
 
     rois = gp.read_file(project["paths"]["piloten_path"])
@@ -99,7 +99,7 @@ def clip_merge_region(
 ):
     with rio.open(tiff_file_list[0], "r") as tile:
         tiff_crs = tile.crs.to_string()
-    merged_data, merged_path = u4files.get_buffered_shapefiles(
+    merged_data, merged_path = u4files.get_buffered_shp_in_roi(
         project["paths"]["places_path"],
         roi,
         region_name,

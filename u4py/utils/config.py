@@ -7,7 +7,15 @@ import logging
 import os
 import sys
 
-cpu_count = os.cpu_count() - 4
+# Setting the cpu count for parallel processing to a convenient amount.
+if os.cpu_count() < 2:
+    ResourceWarning("Not enough processors for parallel processing.")
+    cpu_count = 1
+elif os.cpu_count() < 16:  # e.g. Laptop and Workstations
+    cpu_count = os.cpu_count() - 2
+else:  # Servers
+    cpu_count = os.cpu_count() - 4
+
 in_path = ""
 log_level = logging.INFO
 

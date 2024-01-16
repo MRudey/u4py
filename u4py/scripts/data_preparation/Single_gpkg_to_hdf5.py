@@ -62,7 +62,7 @@ def chunk_file_list(file_list, chunksize):
         )
         os.makedirs(export_path, exist_ok=True)
 
-        tables = u4sql.get_table_names(file_path)
+        tables = u4sql.get_BBD_table_names(file_path)
         for (
             table
         ) in tables:  # tqdm(tables, desc="Reading from tables", leave=False):
