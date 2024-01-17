@@ -1210,9 +1210,12 @@ def clip_tiff_gpkg(
     :param ctiff_fol: The folder where to store the clipped tiffs.
     :type ctiff_fol: os.PathLike
     """
+    fname = os.path.split(tiff_path)[1]
+    logging.info(f"Clipping {fname}")
     shp_cfg = u4config.get_shape_config()
     shapes = load_osm_gpkg(gpkg_path, tiff_path, shp_cfg=shp_cfg)
-    clip_tiff(tiff_path, ctiff_fol, shapes.geometry.to_list())
+    if len(shapes) > 0:
+        clip_tiff(tiff_path, ctiff_fol, shapes.geometry.to_list())
 
 
 def clip_tiff(in_path: os.PathLike, ctiff_fol: os.PathLike, shapes: list):
