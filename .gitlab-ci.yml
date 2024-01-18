@@ -20,7 +20,7 @@ pages:
   script:
       - pip install sphinx sphinx_rtd_theme
       # - pip install .
-      - sphinx-apidoc -f -e -M -o doc/source u4py
+      - sphinx-apidoc -f -e -M -o doc/source .
       - sphinx-build -d doc/build doc/source public
   artifacts:
     paths:
