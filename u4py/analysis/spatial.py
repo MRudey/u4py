@@ -9,11 +9,12 @@ import logging
 import os
 import pickle as pkl
 import re
-from typing import Iterable, List, Tuple
+from typing import Callable, Iterable, List, Tuple
 
 import fiona
 import geopandas as gp
 import h5py
+import mahotas.polygon as mhpoly
 import matplotlib.pyplot as plt
 import numpy as np
 import osmnx
@@ -759,7 +760,7 @@ def contour_shapes(
     :return: A list of Polygons together with the levels they have been generated from.
     :rtype: gp.GeoDataFrame
     """
-    logging.info("Generating Contour Shapes")
+    logging.debug("Generating Contour Shapes")
 
     if delete_outside:
         logging.debug("Deleting values outside level range")
@@ -769,13 +770,17 @@ def contour_shapes(
     logging.debug("Making contour set")
     contours = [
         skmeasure.find_contours(np.rot90(zz, 3), level=level)
-        for level in tqdm(levels, desc="Getting Contours")
+        for level in levels
     ]
 
     logging.debug("Separating contour set")
-    polygons = []  # The polygon shapes
-    polygon_levels = []  # The levels of the polygon
-    color_levels = []  # The midpoint of the levels for easy plotting
+    data = {
+        "geometry": [],  # The polygon shapes
+        "polygon_levels": [],  # The levels of the polygon
+        "color_levels": [],  # The midpoint of the levels for easy plotting
+        "areas": [],
+        "sums": [],
+    }
     for ii, segs in enumerate(contours):
         if len(segs) > 0:
             for p in segs:
@@ -789,19 +794,44 @@ def contour_shapes(
                     ]
                     pgon = shpgeo.Polygon(p_rescaled)
                     if pgon.area > min_area:
-                        polygons.append(pgon)
-                        polygon_levels.append(f"{levels[ii]} - {levels[ii+1]}")
-                        color_levels.append(
-                            np.mean([levels[ii], levels[ii + 1]])
+                        data["geometry"].append(pgon)
+                        data["polygon_levels"].append(
+                            f"{levels[ii]} - {levels[ii+1]}"
+                        )
+                        data["color_levels"].append(levels[ii])
+                        data["areas"].append(pgon.area)
+                        data["sums"].append(
+                            calculate_in_contour(zz, p, np.nansum)
                         )
 
     logging.debug("Generating GeoDataFrame")
     gdf = gp.GeoDataFrame(
-        data={"contour": polygon_levels, "level": color_levels},
-        geometry=polygons,
+        data=data,
         crs=crs,
     )
     return gdf
+
+
+def calculate_in_contour(
+    zz: np.ndarray, polygon: Iterable, fnc: Callable
+) -> float:
+    """Extracts the values within the polygon from the image in `zz`and applies the function to it.
+
+    :param zz: The numpy array from where to extract the data
+    :type zz: np.ndarray
+    :param polygon: The polygon used for slicing as a list of (x,y) tuples
+    :type polygon: Iterable
+    :param fnc: The function to be used for the data.
+    :type polygon: Callable
+    :return: The result of the function.
+    :rtype: float
+    """
+    contour_int = [(int(np.round(y)), int(np.round(x))) for x, y in polygon]
+    mask = np.zeros_like(zz)
+    mhpoly.fill_polygon(contour_int, mask)
+    mask = mask.astype(bool)
+
+    return fnc(zz[mask])
 
 
 def plus_minus_levels(half_sided: list) -> list:

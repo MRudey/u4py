@@ -1144,11 +1144,20 @@ def get_clipped_tiff_list_gpkg(
     clipped_tiff_list = []
     if os.path.exists(ctiff_fol) and not overwrite:
         logging.info("Loading existing data")
-        clipped_tiff_list = [
-            os.path.join(ctiff_fol, tf)
-            for tf in os.listdir(ctiff_fol)
-            if tf.endswith(".tif")
+        clipped_fnames = [
+            tf for tf in os.listdir(ctiff_fol) if tf.endswith(".tif")
         ]
+        clipped_tiff_list = [
+            os.path.join(ctiff_fol, tf) for tf in clipped_fnames
+        ]
+        tiff_file_list = [
+            tfp
+            for tfp in tiff_file_list
+            if os.path.split(tfp)[1] not in clipped_fnames
+        ]
+        if len(tiff_file_list) > 0:
+            clipped_tiff_list = []
+
     if not clipped_tiff_list:
         logging.info("Clipping tiff files.")
         args = [(tfp, gpkg_path, ctiff_fol) for tfp in tiff_file_list]
@@ -1178,6 +1187,7 @@ def get_clipped_tiff_list_gpkg(
             for tf in os.listdir(ctiff_fol)
             if tf.endswith(".tif")
         ]
+    return clipped_tiff_list
 
 
 def batch_clip_tiff(args):
@@ -1210,12 +1220,15 @@ def clip_tiff_gpkg(
     :param ctiff_fol: The folder where to store the clipped tiffs.
     :type ctiff_fol: os.PathLike
     """
-    fname = os.path.split(tiff_path)[1]
-    logging.info(f"Clipping {fname}")
-    shp_cfg = u4config.get_shape_config()
-    shapes = load_osm_gpkg(gpkg_path, tiff_path, shp_cfg=shp_cfg)
-    if len(shapes) > 0:
-        clip_tiff(tiff_path, ctiff_fol, shapes.geometry.to_list())
+    try:
+        folder, fname = os.path.split(tiff_path)
+        _, folder = os.path.split(folder)
+        shp_cfg = u4config.get_shape_config()
+        shapes = load_osm_gpkg(gpkg_path, tiff_path, shp_cfg=shp_cfg)
+        if len(shapes) > 0:
+            clip_tiff(tiff_path, ctiff_fol, shapes.geometry.to_list())
+    except ValueError:
+        logging.info(f"Clipping of {folder}/{tiff_path} not successfull")
 
 
 def clip_tiff(in_path: os.PathLike, ctiff_fol: os.PathLike, shapes: list):
@@ -1303,14 +1316,14 @@ def extract_xyz_tiff(
     :return: A Tuple with a dictionary containing the coordinates, the values as ndarray and a string with the coordinate system.
     :rtype: Tuple[dict, np.ndarray, str]
     """
-    logging.info("Reading data from tiff file.")
+    logging.debug("Reading data from tiff file.")
     with rio.open(file_path, "r") as tile:
-        logging.info("Loading tile data")
+        logging.debug("Loading tile data")
         zz = np.squeeze(tile.read())
         crs = tile.crs.to_string()
         shp = zz.shape
 
-        logging.info("Reading coordinates")
+        logging.debug("Reading coordinates")
         x = []
         for ii in range(shp[1]):
             x.append(tile.xy(0, ii)[0])
@@ -1331,6 +1344,7 @@ def get_thresholded_contours(
     levels: list,
     threshold: float,
     overwrite: bool = False,
+    save_intermediate: bool = True,
 ) -> gp.GeoDataFrame:
     """Gets contours around regions of specific ground motions (`levels`) that
     are larger than the `threshold` area (in m²). Data is stored as a
@@ -1347,9 +1361,9 @@ def get_thresholded_contours(
     :return: A GeoDataFrame containing polygon shapes including some more info.
     :rtype: gp.GeoDataFrame
     """
-    logging.info("Getting thresholded contours")
+    logging.debug("Getting thresholded contours")
 
-    logging.info("Setting up paths")
+    logging.debug("Setting up paths")
     base_path, fname = os.path.split(tiff_file_path)
     out_folder = os.path.join(base_path, "thresholded tiffs")
     os.makedirs(out_folder, exist_ok=True)
@@ -1358,13 +1372,14 @@ def get_thresholded_contours(
     out_path = os.path.join(out_folder, out_fname + ".shp")
 
     if os.path.exists(out_path) and not overwrite:
-        logging.info("Loading from file")
+        logging.debug("Loading from file")
         gdf = gp.read_file(out_path)
     else:
-        logging.info("Generating new results")
+        logging.debug("Generating new results")
         coords, zz, crs = extract_xyz_tiff(tiff_file_path)
         gdf = u4spatial.contour_shapes(coords, zz, levels, threshold, crs)
-        gdf.to_file(out_path)
+        if save_intermediate:
+            gdf.to_file(out_path)
     return gdf
 
 
