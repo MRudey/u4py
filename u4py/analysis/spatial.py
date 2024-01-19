@@ -778,8 +778,18 @@ def contour_shapes(
         "geometry": [],  # The polygon shapes
         "polygon_levels": [],  # The levels of the polygon
         "color_levels": [],  # The midpoint of the levels for easy plotting
-        "areas": [],
-        "sums": [],
+        "areas": [],  # The area of the polygon
+        "sums": [],  # Sum of all displacements (total volume balance)
+        "vol_removed": [],  # Sum of all negative displacements (material removed)
+        "vol_added": [],  # Sum of all positive displacements (material added)
+        "vol_moved": [],  # Absolute sum of all displacements (volume moved)
+        "avg_displ": [],  # Average displacement over whole area.
+        "min": [],  # min displacement
+        "max": [],  # max displacement
+        "prc95": [],  # 95 percentile displacement
+        "prc5": [],  # 5 percentile displacement
+        "prc68": [],  # 68 percentile displacement
+        "prc32": [],  # 32 percentile displacement
     }
     for ii, segs in enumerate(contours):
         if len(segs) > 0:
@@ -803,6 +813,36 @@ def contour_shapes(
                         data["sums"].append(
                             calculate_in_contour(zz, p, np.nansum)
                         )
+                        data["min"].append(
+                            calculate_in_contour(zz, p, np.nanmin)
+                        )
+                        data["max"].append(
+                            calculate_in_contour(zz, p, np.nanmax)
+                        )
+                        data["prc95"].append(
+                            calculate_in_contour(zz, p, np.nanpercentile, q=95)
+                        )
+                        data["prc5"].append(
+                            calculate_in_contour(zz, p, np.nanpercentile, q=5)
+                        )
+                        data["prc68"].append(
+                            calculate_in_contour(zz, p, np.nanpercentile, q=68)
+                        )
+                        data["prc32"].append(
+                            calculate_in_contour(zz, p, np.nanpercentile, q=32)
+                        )
+                        data["vol_removed"].append(
+                            calculate_in_contour(zz, p, vol_removed)
+                        )
+                        data["vol_added"].append(
+                            calculate_in_contour(zz, p, vol_added)
+                        )
+                        data["vol_moved"].append(
+                            data["vol_added"][-1] + data["vol_removed"][-1]
+                        )
+                        data["avg_displ"].append(
+                            data["sums"][-1] / data["areas"][-1]
+                        )
 
     logging.debug("Generating GeoDataFrame")
     gdf = gp.GeoDataFrame(
@@ -813,7 +853,7 @@ def contour_shapes(
 
 
 def calculate_in_contour(
-    zz: np.ndarray, polygon: Iterable, fnc: Callable
+    zz: np.ndarray, polygon: Iterable, fnc: Callable, **kwargs
 ) -> float:
     """Extracts the values within the polygon from the image in `zz`and applies the function to it.
 
@@ -823,6 +863,7 @@ def calculate_in_contour(
     :type polygon: Iterable
     :param fnc: The function to be used for the data.
     :type polygon: Callable
+    :param **kwargs: Additional keyword arguments passed to the function.
     :return: The result of the function.
     :rtype: float
     """
@@ -830,8 +871,40 @@ def calculate_in_contour(
     mask = np.zeros_like(zz)
     mhpoly.fill_polygon(contour_int, mask)
     mask = mask.astype(bool)
+    if kwargs:
+        return fnc(zz[mask], **kwargs)
+    else:
+        return fnc(zz[mask])
 
-    return fnc(zz[mask])
+
+def vol_removed(values: np.ndarray) -> float:
+    """Sum of all negative displacements.
+
+    :param values: Displacement in polygon
+    :type values: np.ndarray
+    :return: Sum of all negative input values
+    :rtype: float
+    """
+    values = values[values < 0]
+    if np.isfinite(values).any():
+        return np.nansum(np.abs(values))
+    else:
+        return 0
+
+
+def vol_added(values: np.ndarray) -> float:
+    """Sum of all positive displacements.
+
+    :param values: Displacement in polygon
+    :type values: np.ndarray
+    :return: Sum of all positive input values
+    :rtype: float
+    """
+    values = values[values > 0]
+    if np.isfinite(values).any():
+        return np.nansum(np.abs(values))
+    else:
+        return 0
 
 
 def plus_minus_levels(half_sided: list) -> list:
