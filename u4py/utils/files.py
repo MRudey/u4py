@@ -1759,10 +1759,10 @@ def load_osm_gpkg(
 ) -> gp.GeoDataFrame:
     """Loads all features within the bounds of a tiff file as a geodataframe.
 
-    :param fpath: The path to the gpkg file.
-    :type fpath: os.PathLike
-    :param fpath: The path to the tiff file.
-    :type fpath: os.PathLike
+    :param gpkg_path: The path to the gpkg file.
+    :type gpkg_path: os.PathLike
+    :param tiff_path: The path to the tiff file.
+    :type tiff_path: os.PathLike
     :param tables: List of tables to extract, defaults to [] = all tables are extracted.
     :type tables: list, optional
     :param fclass_filter: List of feature classes to extract, defaults to [] = all fclasses are extracted.
@@ -1774,7 +1774,8 @@ def load_osm_gpkg(
     :return: The loaded geometries in a geodataframe.
     :rtype: gp.GeoDataFrame
     """
-    wkt_bounds = wkt_from_tiff_bounds(tiff_path, "EPSG:4326")
+
+    logging.info(f"Loading Features in {os.path.split(tiff_path)[-1]}")
     if shp_cfg and tables:
         UserWarning("Shape config overwrites tables argument!")
     if shp_cfg:
@@ -1783,22 +1784,41 @@ def load_osm_gpkg(
         ]
         keys = [k for k in shp_cfg["shp_file"].keys()]
 
+    # Use all tables in case none were given
     if not tables:
         tables = u4sql.get_table_names(gpkg_path)
 
     geometries = []
     fclasses = []
     buffer_dists = []
+
+    # Loop over all tables
     for ii, table in enumerate(tables):
+        # See if we need to filter specific fclasses and set buffer distance
         if shp_cfg:
             fclass_filter = shp_cfg["fclass"][keys[ii]]
             buffer_dist = shp_cfg["buffer_dist"][keys[ii]]
         else:
             fclass_filter = []
+
+        # Cache for geometries, depending on CRS we need to reproject them.
+        geometries_table = []
+
         with ogr.Open(gpkg_path) as con:
+            # Getting spatial reference of geometries in table and calculate
+            # boundaries accordingly
+            srs_query = con.ExecuteSQL(
+                f"SELECT srs_id from gpkg_geometry_columns WHERE table_name == '{table}'"
+            )
+            srs_id = srs_query[0].srs_id
+            wkt_bounds = wkt_from_tiff_bounds(tiff_path, f"EPSG:{srs_id}")
+
+            # Load geometries within bounds
             layer = con.ExecuteSQL(
                 f"SELECT * FROM '{table}' WHERE ST_Intersects(geom, ST_GeomFromText('{wkt_bounds}', 0))",
             )
+
+            # Set fclass type
             for feature in layer:
                 if hasattr(feature, "fclass"):
                     fclass = feature.fclass
@@ -1811,20 +1831,36 @@ def load_osm_gpkg(
                 elif table == "par-sur":
                     fclass = "parking"
 
+                # Collect features in list
                 if not fclass_filter or fclass in fclass_filter:
                     fclasses.append(fclass)
                     if buffer_dist:
                         buffer_dists.append(buffer_dist)
-                    geometries.append(
+                    geometries_table.append(
                         shapely.from_wkt(feature.geom.ExportToWkt())
                     )
 
+            # If CRS/SRS of current table does not match with WGS84,
+            # reproject the geometries.
+            if geometries_table:
+                if srs_id != 4326:
+                    geometries_table = (
+                        gp.GeoDataFrame(
+                            geometry=geometries_table, crs=f"EPSG:{srs_id}"
+                        )
+                        .to_crs("EPSG:4326")
+                        .geometry
+                    )
+            geometries.extend(geometries_table)
+
+    logging.debug("Creating new geodataframe from extracted geometries")
     gdf = gp.GeoDataFrame(
         crs="EPSG:4326",
         data={"fclass": fclasses, "geometry": geometries},
     ).to_crs(out_crs)
 
     if buffer_dists:
+        logging.debug("Buffering the geometries")
         buf_geoms = [
             geom.buffer(buffer_dists[ii])
             for ii, geom in enumerate(gdf.geometry)

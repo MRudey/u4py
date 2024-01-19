@@ -15,7 +15,7 @@ def main():
     fpath = Path(
         r"~\Documents\ArcGIS\Places\OSM_shapes\all_shapes.gpkg"
     ).expanduser()
-    tiff_path = r"D:\Projekte\Umwelt4\DGM-Differenzenplan_MitKorrektur\TB1\dgm1_32_472_5686_1_he_Kor_Diff_sys.tif"
+    tiff_path = r"D:\Projekte\Umwelt4\DGM-Differenzenplan_MitKorrektur\TB15\dgm1_32_487_5478_1_he_Kor_Diff.tif"
     shp_cfg = u4config.get_shape_config()
 
     buffered_gdf = u4files.load_osm_gpkg(fpath, tiff_path, shp_cfg=shp_cfg)
@@ -25,9 +25,10 @@ def main():
 
     fig, ax = plt.subplots()
     u4ax.add_tile(tiff_path, ax=ax, cmap="bone")
-    buffered_gdf.plot(ax=ax, fc="None", column="fclass")
+    buffered_gdf.plot(ax=ax, fc="None", column="fclass", legend=True)
     ax.set_xlim(tiff_tile.bounds.left, tiff_tile.bounds.right)
     ax.set_ylim(tiff_tile.bounds.bottom, tiff_tile.bounds.top)
+    fig.tight_layout()
     plt.show()
 
 
