@@ -44,7 +44,7 @@ def get_shape_config() -> dict:
     # Names of the shapes for the legend
     name = {
         "build": "Buildings",
-        "landuse": "Quarries and Industrial",
+        "landuse": "Quarries, Industrial",
         "construction": "Construction Sites",
         "railway": "Railways",
         "mainroads": "Main Roads",
@@ -52,7 +52,7 @@ def get_shape_config() -> dict:
         "water": "Waterways",
         "lakes": "Lakes",
         "power": "Wind Turbines",
-        "parking": "Parking Lots",
+        "traffic": "Parking Lots, Airports,...",
     }
     # Name of the shapefile containing the original data
     shp_file = {
@@ -65,7 +65,7 @@ def get_shape_config() -> dict:
         "water": "gis_osm_waterways_free_1.shp",
         "lakes": "gis_osm_water_a_free_1.shp",
         "power": "pow-gen_gen-win.shp",
-        "parking": "par-sur.shp",
+        "traffic": "gis_osm_traffic_a_free_1.shp",
     }
     # List of feature classes to extract from the file (empty=all)
     fclass = {
@@ -106,7 +106,7 @@ def get_shape_config() -> dict:
         "water": [],
         "lakes": [],
         "power": [],
-        "parking": [],
+        "traffic": [],
     }
     # Default buffer size around each feature is 10 meters.
     buffer_dist = {
@@ -119,7 +119,7 @@ def get_shape_config() -> dict:
         "water": 10,
         "lakes": 10,
         "power": 150,
-        "parking": 10,
+        "traffic": 10,
     }
 
     # Plotting Stuff
@@ -133,7 +133,7 @@ def get_shape_config() -> dict:
         "water": "aqua",
         "lakes": "aqua",
         "power": "yellow",
-        "parking": "blue",
+        "traffic": "blue",
     }
     zorder = {
         "build": 2,
@@ -145,7 +145,7 @@ def get_shape_config() -> dict:
         "water": 3,
         "lakes": 3,
         "power": 3,
-        "parking": 3,
+        "traffic": 3,
     }
 
     shp_cfg = {
