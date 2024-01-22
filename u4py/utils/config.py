@@ -70,7 +70,13 @@ def get_shape_config() -> dict:
     # List of feature classes to extract from the file (empty=all)
     fclass = {
         "build": [],
-        "landuse": ["quarry", "construction", "industrial"],
+        "landuse": [
+            "quarry",
+            "construction",
+            "industrial",
+            "landfill",
+            "commercial",
+        ],
         "construction": [],
         "railway": [],
         "mainroads": [
