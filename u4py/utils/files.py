@@ -1775,7 +1775,7 @@ def load_osm_gpkg(
     :rtype: gp.GeoDataFrame
     """
 
-    logging.info(f"Loading Features in {os.path.split(tiff_path)[-1]}")
+    logging.debug(f"Loading Features in {os.path.split(tiff_path)[-1]}")
     if shp_cfg and tables:
         UserWarning("Shape config overwrites tables argument!")
     if shp_cfg:

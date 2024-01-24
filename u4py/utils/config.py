@@ -44,7 +44,8 @@ def get_shape_config() -> dict:
     # Names of the shapes for the legend
     name = {
         "build": "Buildings",
-        "landuse": "Quarries, Industrial",
+        "landfill": "Landfills",
+        "landuse": "Unfavorable Landuse",
         "construction": "Construction Sites",
         "railway": "Railways",
         "mainroads": "Main Roads",
@@ -52,11 +53,13 @@ def get_shape_config() -> dict:
         "water": "Waterways",
         "lakes": "Lakes",
         "power": "Wind Turbines",
-        "traffic": "Parking Lots, Airports,...",
+        "traffic": "Parking Lots,...",
+        "transportx": "Terminals, Airports,...",
     }
     # Name of the shapefile containing the original data
     shp_file = {
         "build": "gis_osm_buildings_a_free_1.shp",
+        "landfill": "lan-lan.shp",
         "landuse": "gis_osm_landuse_a_free_1.shp",
         "construction": "lan-con.shp",
         "railway": "gis_osm_railways_free_1.shp",
@@ -66,15 +69,16 @@ def get_shape_config() -> dict:
         "lakes": "gis_osm_water_a_free_1.shp",
         "power": "pow-gen_gen-win.shp",
         "traffic": "gis_osm_traffic_a_free_1.shp",
+        "transport": "gis_osm_transport_a_free_1.shp",
     }
     # List of feature classes to extract from the file (empty=all)
     fclass = {
         "build": [],
+        "landfill": [],
         "landuse": [
             "quarry",
             "construction",
             "industrial",
-            "landfill",
             "commercial",
         ],
         "construction": [],
@@ -113,10 +117,12 @@ def get_shape_config() -> dict:
         "lakes": [],
         "power": [],
         "traffic": [],
+        "transport": [],
     }
     # Default buffer size around each feature is 10 meters.
     buffer_dist = {
         "build": 10,
+        "landfill": 10,
         "landuse": 10,
         "construction": 10,
         "railway": 15,
@@ -126,11 +132,13 @@ def get_shape_config() -> dict:
         "lakes": 10,
         "power": 150,
         "traffic": 10,
+        "transport": 10,
     }
 
     # Plotting Stuff
     colors = {
         "build": "dimgray",
+        "landfill": "rosybrown",
         "landuse": "rosybrown",
         "construction": "rosybrown",
         "railway": "black",
@@ -140,9 +148,11 @@ def get_shape_config() -> dict:
         "lakes": "aqua",
         "power": "yellow",
         "traffic": "blue",
+        "transport": "blue",
     }
     zorder = {
         "build": 2,
+        "landfill": 1,
         "landuse": 1,
         "construction": 1,
         "railway": 5,
@@ -152,6 +162,7 @@ def get_shape_config() -> dict:
         "lakes": 3,
         "power": 3,
         "traffic": 3,
+        "transport": 3,
     }
 
     shp_cfg = {

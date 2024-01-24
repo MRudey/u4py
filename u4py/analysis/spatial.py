@@ -741,7 +741,7 @@ def contour_shapes(
     levels: list,
     min_area: float,
     crs: str,
-    delete_outside: bool = True,
+    delete_outside: bool = False,
 ) -> gp.GeoDataFrame:
     """Generates a geodataframe of `Polygons` from the `xx, yy, zz` dataset using the contour `levels`.
 
@@ -755,7 +755,7 @@ def contour_shapes(
     :type min_area: float
     :param min_area: The coordinate system of the Polygons.
     :type min_area: str
-    :param delete_outside: Whether to set values above the highest level to nan (and below the lowest), defaults to True
+    :param delete_outside: Whether to set values above the highest level to nan (and below the lowest), defaults to False
     :type delete_outside: bool, optional
     :return: A list of Polygons together with the levels they have been generated from.
     :rtype: gp.GeoDataFrame
@@ -795,6 +795,7 @@ def contour_shapes(
         if len(segs) > 0:
             for p in segs:
                 if len(p) > 3:
+                    # Scale contours back to CRS
                     p_rescaled = [
                         (
                             coords["x"] + c[0] * coords["dx"],
@@ -805,9 +806,12 @@ def contour_shapes(
                     pgon = shpgeo.Polygon(p_rescaled)
                     if pgon.area > min_area:
                         data["geometry"].append(pgon)
-                        data["polygon_levels"].append(
-                            f"{levels[ii]} - {levels[ii+1]}"
-                        )
+                        if ii < 9:
+                            data["polygon_levels"].append(
+                                f"{levels[ii]} - {levels[ii+1]}"
+                            )
+                        else:
+                            data["polygon_levels"].append(f">{levels[ii]}")
                         data["color_levels"].append(levels[ii])
                         data["areas"].append(pgon.area)
                         data["sums"].append(
@@ -871,10 +875,13 @@ def calculate_in_contour(
     mask = np.zeros_like(zz)
     mhpoly.fill_polygon(contour_int, mask)
     mask = mask.astype(bool)
-    if kwargs:
-        return fnc(zz[mask], **kwargs)
+    if np.isfinite(zz[mask]).any():  # prevents all nans
+        if kwargs:
+            return fnc(zz[mask], **kwargs)
+        else:
+            return fnc(zz[mask])
     else:
-        return fnc(zz[mask])
+        return 0
 
 
 def vol_removed(values: np.ndarray) -> float:
@@ -886,7 +893,7 @@ def vol_removed(values: np.ndarray) -> float:
     :rtype: float
     """
     values = values[values < 0]
-    if np.isfinite(values).any():
+    if np.isfinite(values).any():  # prevents all nans
         return np.nansum(np.abs(values))
     else:
         return 0
@@ -901,7 +908,7 @@ def vol_added(values: np.ndarray) -> float:
     :rtype: float
     """
     values = values[values > 0]
-    if np.isfinite(values).any():
+    if np.isfinite(values).any():  # prevents all nans
         return np.nansum(np.abs(values))
     else:
         return 0
@@ -1263,3 +1270,160 @@ def calculate_bounds(features: list[shapely.Geometry]) -> dict:
         raise NotImplementedError
 
     return bounds
+
+
+def group_nearest(x: np.ndarray, y: np.ndarray, max_dist: float) -> list:
+    """Groups input points based on their maximum distance between each other.
+
+    :param x: The x coordinate of the points
+    :type x: np.ndarray
+    :param y: The y coordinate of the points
+    :type y: np.ndarray
+    :param max_dist: The maximum distance below which two points belong together in the same CRS as the points.
+    :type max_dist: float
+    :return: A numpy array of integers with the group for each point.
+    :rtype: list
+    """
+    logging.info("Calculating distance matrix. USES A LOT OF RAM!")
+    xx, yy = np.meshgrid(x, y)
+    dist = np.sqrt((xx - xx.T) ** 2 + (yy - yy.T) ** 2)
+    near_indices = [
+        np.squeeze(np.argwhere(dist[ii, :] <= max_dist)).tolist()
+        for ii in tqdm(range(len(x)), desc="Computing indices", leave=False)
+    ]
+
+    merged_idx = []
+    for nidx in tqdm(near_indices, desc="Merging indices", leave=False):
+        current = []
+        get_near_idx(nidx, near_indices, current)
+        merged_idx.append(str(np.unique(current).tolist()))
+    unique_merges = np.unique(merged_idx)
+    groups = [
+        np.argwhere(mgd_idx == unique_merges)[0][0]
+        for mgd_idx in tqdm(merged_idx, desc="Grouping merges", leave=False)
+    ]
+    logging.info(f"{len(unique_merges)} individual groups have been found")
+    return groups
+
+
+def get_near_idx(nidx: list | int, near_indices: list, current: list):
+    """Adds nearest indices from the list and recurses through the entries
+    that have not been added so far to `current`.
+
+    :param nidx: A list of indices or single index of nearest neighbours.
+    :type nidx: list | int
+    :param near_indices: The whole list of nearest neighbours for recursion.
+    :type near_indices: list
+    :param current: The list of all nearest neighbours for the initial point. This gets bigger with each iteration.
+    :type current: list
+    """
+    if isinstance(nidx, int) and nidx not in current:
+        current.append(nidx)
+    elif isinstance(nidx, list):
+        for nii in nidx:
+            if nii not in current:
+                current.append(nii)
+                get_near_idx(near_indices[nii], near_indices, current)
+
+
+def join_groups_with_level(gdf: gp.GeoDataFrame) -> gp.GeoDataFrame:
+    """Joins all geometries of the same level and group into a single (Multi-)
+    Polygon.
+
+    :param gdf: The input geodatabase with grouped items.
+    :type gdf: gp.GeoDataFrame
+    :return: A newly created geodatabase with the joined geometries
+    :rtype: gp.GeoDataFrame
+    """
+
+    if not ("color_levels" in gdf.keys() and "groups" in gdf.keys()):
+        raise KeyError(
+            "The GDF is missing the required keys for merging: 'color_levels' and/or 'groups'."
+        )
+
+    groups = gdf.groups.to_numpy()
+    collev = gdf.color_levels.to_numpy()
+
+    un_groups = np.unique(groups)
+
+    data = dict()
+    for k in gdf.keys():
+        data[k] = []
+
+    for grp in tqdm(un_groups, desc="Joining by group", leave=False):
+        slc = np.squeeze(np.argwhere(groups == grp))
+        if slc.shape:
+            subset = np.squeeze(collev[slc])
+            un_subset = np.unique(subset)
+            if len(un_subset) < len(subset):
+                to_merge = [
+                    np.squeeze(slc[np.argwhere(ii == subset)])
+                    for ii in un_subset
+                ]
+                for mrg in to_merge:
+                    if mrg.shape:
+                        data["geometry"].append(
+                            shapely.MultiPolygon(
+                                merge_geometries(
+                                    gdf["geometry"][mrg]
+                                ).geometry.to_list()
+                            )
+                        )
+                        data["polygon_levels"].append(
+                            gdf["polygon_levels"][mrg[0]]
+                        )
+                        data["color_levels"].append(
+                            gdf["color_levels"][mrg[0]]
+                        )
+                        data["areas"].append(np.sum(gdf["areas"][mrg]))
+                        data["sums"].append(np.sum(gdf["sums"][mrg]))
+                        data["vol_removed"].append(
+                            np.sum(gdf["vol_removed"][mrg])
+                        )
+                        data["vol_added"].append(np.sum(gdf["vol_added"][mrg]))
+                        data["vol_moved"].append(np.sum(gdf["vol_moved"][mrg]))
+                        data["avg_displ"].append(
+                            data["sums"][-1] / data["areas"][-1]
+                        )
+                        data["min"].append(np.nanmin(gdf["min"][mrg]))
+                        data["max"].append(np.nanmax(gdf["max"][mrg]))
+                        data["prc95"].append(np.nanmean(gdf["prc95"][mrg]))
+                        data["prc5"].append(np.nanmean(gdf["prc5"][mrg]))
+                        data["prc68"].append(np.nanmean(gdf["prc68"][mrg]))
+                        data["prc32"].append(np.nanmean(gdf["prc32"][mrg]))
+                        data["groups"].append(gdf["groups"][mrg[0]])
+
+                    else:
+                        for k in gdf.keys():
+                            data[k].append(gdf[k][mrg])
+
+            else:
+                for ii in slc:
+                    for k in gdf.keys():
+                        data[k].append(gdf[k][ii])
+
+        else:
+            for k in gdf.keys():
+                data[k].append(gdf[k][slc])
+    return gp.GeoDataFrame(data=data, crs=gdf.crs)
+
+
+def merge_geometries(geometries: gp.GeoSeries):
+    merged_geometries = []
+    geom_buf = geometries.buffer(0.1).to_list()
+    current_geom = geom_buf.pop(0)
+    while len(geom_buf) > 0:
+        overlapping = current_geom.overlaps(geom_buf)
+        if np.any(overlapping):
+            join_idx = [ii for ii, ovlp in enumerate(overlapping) if ovlp]
+            to_join = [geom_buf[ii] for ii in join_idx]
+            for ii in sorted(join_idx, reverse=True):
+                del geom_buf[ii]
+            to_join.append(current_geom)
+            current_geom = gp.GeoSeries(to_join).unary_union
+        else:
+            if isinstance(current_geom, shapely.MultiPolygon):
+                current_geom = current_geom.geoms[0]
+            merged_geometries.append(current_geom)
+            current_geom = geom_buf.pop(0)
+    return gp.GeoSeries(merged_geometries)
