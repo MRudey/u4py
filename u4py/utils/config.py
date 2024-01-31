@@ -44,6 +44,7 @@ def get_shape_config() -> dict:
     # Names of the shapes for the legend
     name = {
         "build": "Buildings",
+        "pois_area": "Unfavorable POIs, (Sports Centres, Pools)",
         "landfill": "Landfills",
         "landuse": "Unfavorable Landuse",
         "construction": "Construction Sites",
@@ -59,6 +60,7 @@ def get_shape_config() -> dict:
     # Name of the shapefile containing the original data
     shp_file = {
         "build": "gis_osm_buildings_a_free_1.shp",
+        "pois_area": "gis_osm_pois_a_free_1.shp",
         "landfill": "lan-lan.shp",
         "landuse": "gis_osm_landuse_a_free_1.shp",
         "construction": "lan-con.shp",
@@ -74,12 +76,22 @@ def get_shape_config() -> dict:
     # List of feature classes to extract from the file (empty=all)
     fclass = {
         "build": [],
+        "pois_area": [
+            "sports_centre",
+            "track" "pitch",
+            "swimming_pool",
+            "wastewater_plant",
+            "golf_course",
+            "camp_site",
+            "playground",
+        ],
         "landfill": [],
         "landuse": [
             "quarry",
             "construction",
             "industrial",
             "commercial",
+            "farmyard",
         ],
         "construction": [],
         "railway": [],
@@ -122,6 +134,7 @@ def get_shape_config() -> dict:
     # Default buffer size around each feature is 10 meters.
     buffer_dist = {
         "build": 10,
+        "pois_area": 10,
         "landfill": 10,
         "landuse": 10,
         "construction": 10,
@@ -138,6 +151,7 @@ def get_shape_config() -> dict:
     # Plotting Stuff
     colors = {
         "build": "dimgray",
+        "pois_area": "dimgray",
         "landfill": "rosybrown",
         "landuse": "rosybrown",
         "construction": "rosybrown",
@@ -152,6 +166,7 @@ def get_shape_config() -> dict:
     }
     zorder = {
         "build": 2,
+        "pois_area": 2,
         "landfill": 1,
         "landuse": 1,
         "construction": 1,

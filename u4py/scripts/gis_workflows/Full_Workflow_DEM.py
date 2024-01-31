@@ -37,7 +37,7 @@ def main():
 
     # Options:
     use_parallel_clipping = True
-    overwrite_clipping = False
+    overwrite_clipping = True
     use_parallel_contouring = True
 
     # Loading Project

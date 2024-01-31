@@ -747,18 +747,6 @@ def load_pickled_results(pickle_path: os.PathLike) -> Tuple[dict, int]:
     return results, chunk_size
 
 
-def load_tiff(tiff_file_path: os.PathLike) -> rio.DatasetReader:
-    """Loads a tiff file for plotting with rasterio.
-
-    :param tiff_file_path: The path to the georeference tiff file.
-    :type tiff_file_path: os.PathLike
-    :return: The openend dataset.
-    :rtype: rio.DatasetReader
-    """
-    tiff_tile = rio.open(tiff_file_path)
-    return tiff_tile
-
-
 def get_all_tiff_regions(
     project: configparser.ConfigParser, overwrite: bool = False
 ) -> gp.GeoDataFrame:
@@ -784,11 +772,12 @@ def get_all_tiff_regions(
         )
         all_tiff_list = []
         for tiff_file in tqdm(tiff_file_list, desc="Generating overviews"):
-            tile = load_tiff(tiff_file)
-            all_tiff_list.append(u4spatial.bounds_to_polygon(tile.bounds))
+            with rio.open(tiff_file) as tile:
+                all_tiff_list.append(u4spatial.bounds_to_polygon(tile.bounds))
+                crs = tile.crs
         all_tiff_gdf = gp.GeoDataFrame(
             {"src_path": tiff_file_list, "geometry": all_tiff_list},
-            crs=tile.crs,
+            crs=crs,
         )
         all_tiff_gdf.to_file(all_tiff_path)
     return all_tiff_gdf
@@ -1884,14 +1873,15 @@ def wkt_from_tiff_bounds(fpath: os.PathLike, out_crs: str = "") -> str:
     :rtype: str
     """
 
-    tile = load_tiff(fpath)
-    wkt = u4spatial.bounds_to_polygon(tile.bounds).wkt
-    if out_crs:
-        wkt = (
-            gp.GeoDataFrame(geometry=[shapely.from_wkt(wkt)], crs=tile.crs)
-            .to_crs(out_crs)
-            .to_wkt()
-            .geometry[0]
-        )
+    with rio.open(fpath) as tile:
+        wkt = u4spatial.bounds_to_polygon(tile.bounds).wkt
+        if out_crs:
+            wkt = (
+                gp.GeoDataFrame(geometry=[shapely.from_wkt(wkt)], crs=tile.crs)
+                .to_crs(out_crs)
+                .to_wkt()
+                .geometry[0]
+            )
+    tile.close()
 
     return wkt

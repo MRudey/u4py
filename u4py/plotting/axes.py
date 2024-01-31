@@ -522,41 +522,41 @@ def add_tile(
     :return: The boundaries and crs of the tile (bounds, crs).
     :rtype: Tuple[tuple, str]
     """
-    tiff_tile = u4files.load_tiff(tiff_tile_path)
-    if show:
-        diff_tile = tiff_tile.read(1)
+    with rasterio.open(tiff_tile_path) as tiff_tile:
+        if show:
+            diff_tile = tiff_tile.read(1)
 
-        # Resizing image to smaller resolution
-        if imsize:
-            tile_resized = sktransf.resize(
-                diff_tile, (imsize, imsize), anti_aliasing=True
+            # Resizing image to smaller resolution
+            if imsize:
+                tile_resized = sktransf.resize(
+                    diff_tile, (imsize, imsize), anti_aliasing=True
+                )
+            else:
+                tile_resized = diff_tile
+
+            # Minimum maximum for colorbar
+            if not vm:
+                vm = np.nanpercentile(np.abs(tile_resized), 95)
+                vmin = -vm
+                vmax = vm
+            elif isinstance(vm, Iterable):
+                vmin = vm[0]
+                vmax = vm[1]
+
+            ims = ax.imshow(
+                tile_resized,
+                cmap=cmap,
+                vmin=vmin,
+                vmax=vmax,
+                extent=(
+                    tiff_tile.bounds.left,
+                    tiff_tile.bounds.right,
+                    tiff_tile.bounds.bottom,
+                    tiff_tile.bounds.top,
+                ),
+                **kwargs,
             )
-        else:
-            tile_resized = diff_tile
-
-        # Minimum maximum for colorbar
-        if not vm:
-            vm = np.nanpercentile(np.abs(tile_resized), 95)
-            vmin = -vm
-            vmax = vm
-        elif isinstance(vm, Iterable):
-            vmin = vm[0]
-            vmax = vm[1]
-
-        ims = ax.imshow(
-            tile_resized,
-            cmap=cmap,
-            vmin=vmin,
-            vmax=vmax,
-            extent=(
-                tiff_tile.bounds.left,
-                tiff_tile.bounds.right,
-                tiff_tile.bounds.bottom,
-                tiff_tile.bounds.top,
-            ),
-            **kwargs,
-        )
-        ax.yaxis.set_inverted(False)
-        if colorbar:
-            plt.colorbar(ims, ax=ax, **colorbar)
-    return tiff_tile.bounds, tiff_tile.crs
+            ax.yaxis.set_inverted(False)
+            if colorbar:
+                plt.colorbar(ims, ax=ax, **colorbar)
+        return tiff_tile.bounds, tiff_tile.crs

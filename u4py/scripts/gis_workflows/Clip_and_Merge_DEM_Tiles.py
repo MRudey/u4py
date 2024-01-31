@@ -136,11 +136,10 @@ def _show_selected_tiffs(tiff_file_list, ax):
     x = []
     y = []
     for tf in tqdm(tiff_file_list, desc="Reading Rasters"):
-        tile = u4files.load_tiff(tf)
-        x.extend([tile.bounds[0], tile.bounds[2]])
-        y.extend([tile.bounds[1], tile.bounds[3]])
-        rioplot.show(tile, ax=ax, cmap="RdBu", vmin=-2, vmax=2)
-        tile.close()
+        with rio.open(tf) as tile:
+            x.extend([tile.bounds[0], tile.bounds[2]])
+            y.extend([tile.bounds[1], tile.bounds[3]])
+            rioplot.show(tile, ax=ax, cmap="RdBu", vmin=-2, vmax=2)
     ax.set_xlim(min(x), max(x))
     ax.set_ylim(min(y), max(y))
 
