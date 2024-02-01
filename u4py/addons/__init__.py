@@ -8,6 +8,7 @@ read by `GeoPandas` or `NumPy`. In some cases the data has to be converted to
 match the other datatypes in our projects.
 """
 from . import (
+    adatools,
     climate,
     gas_storage,
     geology,
@@ -16,6 +17,7 @@ from . import (
     rivers,
     web_services,
 )
+from .adatools import *
 from .climate import *
 from .gas_storage import *
 from .geology import *

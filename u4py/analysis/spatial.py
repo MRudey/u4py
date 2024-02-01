@@ -394,6 +394,7 @@ def load_gpkg_data_point(
     point: list | Tuple | gp.GeoDataFrame | shapely.Point,
     radius: float,
     gpkg_file_path: os.PathLike,
+    table: str = "vertikal",
     split_points: bool = False,
     crs: str = "EPSG:32632",
 ) -> gp.GeoDataFrame | List[gp.GeoDataFrame]:
@@ -407,6 +408,8 @@ def load_gpkg_data_point(
     :type radius: float
     :param gpkg_file_path: The file or folder to select from
     :type gpkg_file_path: os.PathLike
+    :param table: The table from which to extract the data, defaults to "vertikal"
+    :type table: str, optional
     :param split_points: Splits the output into a list of points based on the selection, defaults to False
     :type split_points: bool, optional
     :param crs: The coordinate system of the output points, defaults to "EPSG:32632".
@@ -417,7 +420,7 @@ def load_gpkg_data_point(
 
     region = region_around_point(point, radius, crs=crs)
 
-    data = u4sql.table_to_dict(gpkg_file_path, "vertikal", region.bounds)
+    data = u4sql.table_to_dict(gpkg_file_path, table, region.bounds)
     clipped_data = clip_data_points(
         data, region, split_points=split_points, crs=crs
     )
@@ -427,6 +430,7 @@ def load_gpkg_data_point(
 def load_gpkg_data_osm(
     osm_query: dict,
     gpkg_file_path: os.PathLike,
+    table: str = "vertikal",
     split_points: bool = False,
     crs: str = "EPSG:32632",
 ) -> gp.GeoDataFrame | List[gp.GeoDataFrame]:
@@ -438,6 +442,8 @@ def load_gpkg_data_osm(
     :type osm_query: dict
     :param gpkg_file_path: The file or folder to select from
     :type gpkg_file_path: os.PathLike
+    :param table: The table from which to extract the data, defaults to "vertikal"
+    :type table: str, optional
     :param split_points: Splits the output into a list of points based on the selection, defaults to False
     :type split_points: bool, optional
     :param crs: The coordinate system of the output points, defaults to "EPSG:32632".
@@ -448,9 +454,7 @@ def load_gpkg_data_osm(
 
     region = get_osm_region(osm_query, crs=crs)
 
-    data = u4sql.table_to_dict(
-        gpkg_file_path, "vertikal", bounds=region.bounds
-    )
+    data = u4sql.table_to_dict(gpkg_file_path, table, bounds=region.bounds)
     clipped_data = clip_data_points(
         data, region, split_points=split_points, crs=crs
     )
@@ -460,17 +464,20 @@ def load_gpkg_data_osm(
 def load_gpkg_data_region(
     region: gp.GeoDataFrame | gp.GeoSeries,
     gpkg_file_path: os.PathLike,
+    table: str = "vertikal",
     split_points: bool = False,
     crs: str = "EPSG:32632",
 ) -> gp.GeoDataFrame | List[gp.GeoDataFrame]:
-    """Selects PSI measurements in a `radius` around the specified `point` from the given **GPKG** File.
+    """Selects PSI measurements in the specified region from the given **GPKG** File.
 
     This function loads the data directly using sql, no second step is required.
 
-    :param osm_query: A properly formatted osm query in dictionary form. (see https://osmnx.readthedocs.io/en/stable/ for more)
-    :type osm_query: dict
+    :param region: The region as GeoDataFrame
+    :type region: gp.GeoDataFrame | gp.GeoSeries
     :param gpkg_file_path: The file or folder to select from
     :type gpkg_file_path: os.PathLike
+    :param table: The table from which to extract the data, defaults to "vertikal"
+    :type table: str, optional
     :param split_points: Splits the output into a list of points based on the selection, defaults to False
     :type split_points: bool, optional
     :param crs: The coordinate system of the output points, defaults to "EPSG:32632".
@@ -487,9 +494,7 @@ def load_gpkg_data_region(
         )
         region = gp.GeoDataFrame(geometry=[region.geometry], crs=crs)
 
-    data = u4sql.table_to_dict(
-        gpkg_file_path, "vertikal", bounds=region.bounds
-    )
+    data = u4sql.table_to_dict(gpkg_file_path, table, bounds=region.bounds)
     clipped_data = clip_data_points(
         data, region, split_points=split_points, crs=crs
     )

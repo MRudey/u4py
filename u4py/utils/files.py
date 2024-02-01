@@ -22,10 +22,14 @@ import h5py
 import numpy as np
 import osmnx
 import pandas as pd
+import pyproj
 import rasterio as rio
 import shapely
 import shapely.geometry as shpgeo
+from fiona import drivers as fiona_env
+from geopandas.io import file as gpiofile
 from osgeo import ogr
+from packaging.version import Version
 from pathvalidate import sanitize_filename
 from pyproj import CRS, Transformer
 from rasterio.mask import mask as riomask
@@ -1885,3 +1889,111 @@ def wkt_from_tiff_bounds(fpath: os.PathLike, out_crs: str = "") -> str:
     tile.close()
 
     return wkt
+
+
+def gdb_to_shp(gdb_path: os.PathLike) -> list[os.PathLike]:
+    """Converts all features inside a geodatabase to shapefiles with the same name.
+
+    :param gdb_path: The path to the geodatabase.
+    :type gdb_path: os.PathLike
+    :return: A list of paths to the shapefiles.
+    :rtype: list[os.PathLike]
+    """
+    base_path, gdb_name = os.path.split(gdb_path)
+    gdb_name = gdb_name.replace(".gdb", "")
+    export_path = os.path.join(base_path, gdb_name + "_shpfiles")
+    os.makedirs(export_path, exist_ok=True)
+    shp_list = []
+    layers = fiona.listlayers(gdb_path)
+    for layer in tqdm(layers, desc="Extracting Shapes", leave=False):
+        gdf = gp.read_file(gdb_path, layer=layer)
+        gdf = clean_fields(gdf)
+        out_path = os.path.join(export_path, layer + ".shp")
+        gdf.to_file(out_path)
+        shp_list.append(out_path)
+    return shp_list
+
+
+def clean_fields(gdf: gp.GeoDataFrame) -> gp.GeoDataFrame:
+    """Cleans all unsupported fields from the geodataframe and converts them to corresponding types.
+
+    :param gdf: The input dataframe
+    :type gdf: gp.GeoDataFrame
+    :return: The cleaned dataframe
+    :rtype: gp.GeoDataFrame
+    """
+
+    for k in gdf.keys():
+        if gdf[k].dtype == "datetime64[ns, UTC]":
+            gdf[k] = gp.pd.Series([str(df) for df in gdf[k]])
+
+    return gdf
+
+
+def to_file_fiona(
+    df: gp.GeoDataFrame,
+    filename: os.PathLike,
+    driver: str,
+    schema: dict = None,
+    crs: str = "",
+    mode: str = "w",
+    chunk_size: int = 1000,
+    **kwargs,
+):
+    """Monkey patched version of the geopandas `_to_file_fiona` version including a tqdm progressbar to see the saving progress.
+
+    :param df: The source geodataframe
+    :type df: gp.GeoDataFrame
+    :param filename: The filename where to save the data
+    :type filename: os.PathLike
+    :param driver: The driver for the file
+    :type driver: str
+    :param schema: The schema, defaults to None
+    :type schema: dict
+    :param crs: The CRS, defaults to ""
+    :type crs: str
+    :param mode: The mode of the file, defaults to "w" (write).
+    :type mode: str
+    """
+    if schema is None:
+        schema = gpiofile.infer_schema(df)
+
+    if crs:
+        crs = pyproj.CRS.from_user_input(crs)
+    else:
+        crs = df.crs
+
+    with fiona_env():
+        crs_wkt = None
+        try:
+            gdal_version = Version(
+                fiona.env.get_gdal_release_name().strip("e")
+            )  # GH3147
+        except (AttributeError, ValueError):
+            gdal_version = Version("2.0.0")  # just assume it is not the latest
+        if gdal_version >= Version("3.0.0") and crs:
+            crs_wkt = crs.to_wkt()
+        elif crs:
+            crs_wkt = crs.to_wkt("WKT1_GDAL")
+        with fiona.open(
+            filename,
+            mode=mode,
+            driver=driver,
+            crs_wkt=crs_wkt,
+            schema=schema,
+            **kwargs,
+        ) as colxn:
+            # colxn.writerecords(df.iterfeatures())
+            records = []
+            for ii, feature in tqdm(
+                enumerate(df.iterfeatures()),
+                desc="Saving features to disc",
+                total=len(df),
+                leave=False,
+            ):
+                if ii and (not (ii % chunk_size) or ii == len(df)):
+                    colxn.writerecords(records)
+                    records = []
+                else:
+                    records.append(feature)
+                # colxn.write(feature)
