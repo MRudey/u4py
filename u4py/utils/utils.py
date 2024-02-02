@@ -20,6 +20,6 @@ def eta(start_time: float, current_progress: float):
         eta_time = datetime.datetime.now() + datetime.timedelta(
             seconds=remaining
         )
-        logging.info(
-            f"{int(remaining)}s remaining, ETA: {eta_time.isoformat()}"
-        )
+        logstr = f"{int(remaining)}s remaining, ETA: {eta_time.isoformat()}"
+        logging.info(logstr)
+        return logstr

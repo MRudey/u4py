@@ -5,6 +5,7 @@ GPKGs and saving them to shapefiles.
 """
 import logging
 import os
+from multiprocessing import Pool
 from typing import Tuple
 
 import fiona
@@ -13,6 +14,7 @@ import shapely as shp
 from tqdm import tqdm
 
 import u4py.analysis.spatial as u4spatial
+import u4py.utils.config as u4config
 import u4py.utils.files as u4files
 import u4py.utils.sql as u4sql
 
@@ -151,39 +153,59 @@ def convert_gpkg_to_shp(
     gpkg_path = os.path.join(project["paths"]["psi_path"], fname)
     if not tables:
         tables = fiona.listlayers(gpkg_path)
-    for table in tqdm(tables, desc="Converting tables"):
-        if "Geschwindigkeit" in table:
-            pass
+    args = [
+        (gpkg_path, table, region, project, ii + 1)
+        for ii, table in enumerate(tables)
+    ]
+    ncpu = min(len(args), u4config.cpu_count)
+    with Pool(ncpu) as p:
+        logging.info("Starting Parallel Conversion")
+        list(
+            tqdm(
+                p.imap_unordered(conversion_worker, args),
+                total=len(args),
+                desc="Processing Layers",
+                leave=False,
+                position=0,
+            )
+        )
+
+
+def conversion_worker(args):
+    gpkg_path, table, region, project, ii = args
+    if "Geschwindigkeit" in table:
+        pass
+    else:
+        gdf, time_stamps = load_region_as_gdf(gpkg_path, table, region)
+        if len(gdf) > 0:
+            logging.info("Writing input_points to Shapefile")
+            tblshrt = table.replace("Zeitreihe_", "")
+            # gdf.to_file(
+            #     os.path.join(
+            #         project["paths"]["output_path"],
+            #         f"input_points_{tblshrt}.shp",
+            #     )
+            # )
+            u4files.to_file_fiona(
+                gdf,
+                os.path.join(
+                    project["paths"]["output_path"],
+                    f"input_points_{tblshrt}.shp",
+                ),
+                driver="ESRI Shapefile",
+                position=ii,
+            )
+            logging.info("Creating readmap for input_points")
+            create_adafinder_read_map(
+                os.path.join(
+                    project["paths"]["output_path"],
+                    f"input_points_{tblshrt}_readmap.op",
+                ),
+                position_x=0,
+                position_y=1,
+                position_velocity=2,
+                position_time_series=3,
+                output_ts_field_names=time_stamps,
+            )
         else:
-            gdf, time_stamps = load_region_as_gdf(gpkg_path, table, region)
-            if len(gdf) > 0:
-                logging.info("Writing input_points to Shapefile")
-                tblshrt = table.replace("Zeitreihe_", "")
-                # gdf.to_file(
-                #     os.path.join(
-                #         project["paths"]["output_path"],
-                #         f"input_points_{tblshrt}.shp",
-                #     )
-                # )
-                u4files.to_file_fiona(
-                    gdf,
-                    os.path.join(
-                        project["paths"]["output_path"],
-                        f"input_points_{tblshrt}.shp",
-                    ),
-                    driver="ESRI Shapefile",
-                )
-                logging.info("Creating readmap for input_points")
-                create_adafinder_read_map(
-                    os.path.join(
-                        project["paths"]["output_path"],
-                        f"input_points_{tblshrt}_readmap.op",
-                    ),
-                    position_x=0,
-                    position_y=1,
-                    position_velocity=2,
-                    position_time_series=3,
-                    output_ts_field_names=time_stamps,
-                )
-            else:
-                logging.info(f"{table} has no entries.")
+            logging.info(f"{table} has no entries.")

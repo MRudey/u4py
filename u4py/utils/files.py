@@ -11,6 +11,7 @@ import logging
 import os
 import pickle as pkl
 import sys
+import time
 from datetime import datetime
 from multiprocessing import Pool
 from tkinter import TclError, Tk, filedialog
@@ -42,6 +43,7 @@ import u4py.analysis.spatial as u4spatial
 import u4py.utils.config as u4config
 import u4py.utils.convert as u4convert
 import u4py.utils.sql as u4sql
+import u4py.utils.utils as u4utils
 
 ogr.UseExceptions()
 
@@ -1938,6 +1940,7 @@ def to_file_fiona(
     crs: str = "",
     mode: str = "w",
     chunk_size: int = 1000,
+    position: int = None,
     **kwargs,
 ):
     """Monkey patched version of the geopandas `_to_file_fiona` version including a tqdm progressbar to see the saving progress.
@@ -1985,13 +1988,12 @@ def to_file_fiona(
         ) as colxn:
             # colxn.writerecords(df.iterfeatures())
             records = []
-            for ii, feature in tqdm(
-                enumerate(df.iterfeatures()),
-                desc="Saving features to disc",
-                total=len(df),
-                leave=False,
-            ):
+            tic = time.time()
+            for ii, feature in enumerate(df.iterfeatures()):
                 if ii and (not (ii % chunk_size) or ii == len(df)):
+                    if position:
+                        u4utils.eta(tic, ii / len(df))
+                        logging.info(f"#{position} : {ii}/{len(df)}")
                     colxn.writerecords(records)
                     records = []
                 else:
