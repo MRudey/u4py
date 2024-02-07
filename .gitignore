@@ -1,4 +1,5 @@
 # Data Files etc...
+*.gpkg
 *.nc
 *.h5
 *.code-workspace
