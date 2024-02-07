@@ -3,6 +3,7 @@ Contains simple file and folder utilities for u4py. These are mainly wrappers fo
 
 Most functions also can detect if the script is running in a non-interactive shell without access to a user interface, i.e., on a server. Then the user has to input the path manually into the command line.
 """
+
 from __future__ import annotations
 
 import configparser
@@ -32,7 +33,6 @@ from geopandas.io import file as gpiofile
 from osgeo import ogr
 from packaging.version import Version
 from pathvalidate import sanitize_filename
-from pyproj import CRS, Transformer
 from rasterio.mask import mask as riomask
 from rasterio.merge import merge as riomerge
 from rasterio.transform import Affine
@@ -431,7 +431,7 @@ def get_osm_data(
 
             data = load_data_from_points(source_fpath, points)
         elif source_fpath.endswith(".gpkg"):
-            data = u4spatial.load_gpkg_data_osm(query, source_fpath, crs=crs)
+            data = u4sql.load_gpkg_data_osm(query, source_fpath, crs=crs)
             u4spatial.xy_data_to_gdf(data["x"], data["y"], crs=crs).to_file(
                 shp_fpath
             )
@@ -530,9 +530,7 @@ def get_region_data(
             )
             data = load_data_from_points(source_fpath, points)
         elif source_fpath.endswith(".gpkg"):
-            data = u4spatial.load_gpkg_data_region(
-                region, source_fpath, crs=crs
-            )
+            data = u4sql.load_gpkg_data_region(region, source_fpath, crs=crs)
             u4spatial.xy_data_to_gdf(data["x"], data["y"], crs=crs).to_file(
                 shp_fpath
             )
@@ -621,7 +619,7 @@ def get_point_data(
 
             data = load_data_from_points(source_fpath, points)
         elif source_fpath.endswith(".gpkg"):
-            data = u4spatial.load_gpkg_data_point(
+            data = u4sql.load_gpkg_data_point(
                 point=point, radius=radius, gpkg_file_path=source_fpath
             )
             u4spatial.xy_data_to_gdf(data["x"], data["y"]).to_file(shp_fpath)

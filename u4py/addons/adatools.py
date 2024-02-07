@@ -3,17 +3,16 @@ Contains helper functions to prepare and rearrange data for working with
 ADATools, such as automatic creation of readmaps and extracting PS data from
 GPKGs and saving them to shapefiles.
 """
+
 import logging
 import os
 from multiprocessing import Pool
-from typing import Tuple
+from typing import Iterable, Tuple
 
-import fiona
 import geopandas as gp
 import shapely as shp
 from tqdm import tqdm
 
-import u4py.analysis.spatial as u4spatial
 import u4py.utils.config as u4config
 import u4py.utils.files as u4files
 import u4py.utils.sql as u4sql
@@ -102,8 +101,8 @@ def load_region_as_gdf(
     :rtype: Tuple[gp.GeoDataFrame, list]
     """
 
-    if len(region) > 0:
-        data = u4spatial.load_gpkg_data_region(
+    if region:
+        data = u4sql.load_gpkg_data_region(
             region,
             gpkg_path,
             table=table,
@@ -133,30 +132,39 @@ def load_region_as_gdf(
         return [], []
 
 
-def convert_gpkg_to_shp(
-    fname: str, project: dict, tables: list = [], region: gp.GeoDataFrame = []
-):
+def convert_gpkg_to_shp(fname: str, project: dict):
     """Converts the data from the gpkg to a shape file and readmap for table.
-
-    - If the table is empty, extracts each table into a separate file.
-    - If the region is empty, extracts the whole table.
 
     :param fname: The filename of the gpkg file.
     :type fname: str
     :param project: The project config
     :type project: dict
-    :param tables: The sql table name to get the data from.
-    :type tables: str
-    :param region: The region to extract the data in, defaults to [].
-    :type region: gp.GeoDataFrame
+
+    Subdivides the tables into smaller shape files depending on the number of
+    entries in the table. The resulting subdivisions are stored in shapefiles
+    for easier later access and quality control.
     """
-    gpkg_path = os.path.join(project["paths"]["psi_path"], fname)
-    if not tables:
-        tables = fiona.listlayers(gpkg_path)
-    args = [
-        (gpkg_path, table, region, project, ii + 1)
-        for ii, table in enumerate(tables)
-    ]
+    fpath = os.path.join(project["paths"]["psi_path"], fname)
+
+    args = []
+    ii = 0
+    # For ADAtools the maximum size for the dBASE is 2 GB. This means a
+    # shapefile can have about 70M entries for points, we have about 360
+    # fields per entry, so 150k is a good estimate for maximum size.
+
+    subregs = u4sql.get_subdivided_regions(fpath, "vertikal", 150000)
+    subregs_gdf = gp.GeoDataFrame(geometry=subregs, crs="EPSG:32632")
+    subregs_gdf.to_file(
+        os.path.join(project["paths"]["psi_path"], "subregions.shp")
+    )
+    for jj, reg in enumerate(subregs):
+        ii += 1
+        args.append((fpath, "vertikal", reg, project, ii, jj + 1))
+        ii += 1
+        args.append((fpath, "Ost_West", reg, project, ii, jj + 1))
+
+    # for arg in args:
+    #     conversion_worker(arg)
     ncpu = min(len(args), u4config.cpu_count)
     with Pool(ncpu) as p:
         logging.info("Starting Parallel Conversion")
@@ -171,41 +179,42 @@ def convert_gpkg_to_shp(
         )
 
 
-def conversion_worker(args):
-    gpkg_path, table, region, project, ii = args
+def conversion_worker(args: Iterable):
+    """Parallel processing wrapper for file conversion.
+
+    :param args: A set of arguments for processing.
+    :type args: Iterable
+    """
+    gpkg_path, table, region, project, ii, subreg = args
     if "Geschwindigkeit" in table:
         pass
     else:
         gdf, time_stamps = load_region_as_gdf(gpkg_path, table, region)
-        if len(gdf) > 0:
-            logging.info("Writing input_points to Shapefile")
-            tblshrt = table.replace("Zeitreihe_", "")
-            # gdf.to_file(
-            #     os.path.join(
-            #         project["paths"]["output_path"],
-            #         f"input_points_{tblshrt}.shp",
-            #     )
-            # )
-            u4files.to_file_fiona(
-                gdf,
-                os.path.join(
-                    project["paths"]["output_path"],
-                    f"input_points_{tblshrt}.shp",
-                ),
-                driver="ESRI Shapefile",
-                position=ii,
-            )
-            logging.info("Creating readmap for input_points")
-            create_adafinder_read_map(
-                os.path.join(
-                    project["paths"]["output_path"],
-                    f"input_points_{tblshrt}_readmap.op",
-                ),
-                position_x=0,
-                position_y=1,
-                position_velocity=2,
-                position_time_series=3,
-                output_ts_field_names=time_stamps,
-            )
-        else:
-            logging.info(f"{table} has no entries.")
+        logging.info("Writing input_points to Shapefile")
+        tblshrt = table.replace("Zeitreihe_", "")
+        if subreg:
+            tblshrt += f"_{subreg}"
+
+        # Use custom saving function with progress display
+        u4files.to_file_fiona(
+            gdf,
+            os.path.join(
+                project["paths"]["output_path"],
+                f"input_points_{tblshrt}.shp",
+            ),
+            driver="ESRI Shapefile",
+            position=ii,
+        )
+
+        logging.info("Creating readmap for input_points")
+        create_adafinder_read_map(
+            os.path.join(
+                project["paths"]["output_path"],
+                f"input_points_{tblshrt}_readmap.op",
+            ),
+            position_x=0,
+            position_y=1,
+            position_velocity=2,
+            position_time_series=3,
+            output_ts_field_names=time_stamps,
+        )

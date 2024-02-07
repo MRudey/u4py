@@ -1,8 +1,10 @@
 """
 Contains some sqlite functions for working with gpkg files
 """
+
 from __future__ import annotations
 
+import copy
 import itertools
 import logging
 import multiprocessing.pool as mpp
@@ -20,6 +22,7 @@ import utm
 from osgeo import ogr
 from tqdm import tqdm
 
+import u4py.analysis.spatial as u4spatial
 import u4py.utils.config as u4config
 
 
@@ -196,21 +199,25 @@ def table_to_dict(
     This function has differently shaped and named dictionaries depending on
     the type of table or file.
     """
-    logging.info(f"Opening {file_path} and getting content of {table}")
     # Get number of rows and names of columns
-    con = sqlite3.connect(file_path)
-    cur = con.cursor()
-    num_points = cur.execute(f"SELECT COUNT(*) FROM {table}").fetchone()[0]
+    num_points = get_num_entries(file_path, table)
     if num_points == 0:
         return
+
+    logging.info(f"Opening {file_path} and getting content of {table}")
+    # Read data
+    con = sqlite3.connect(file_path)
+    cur = con.cursor()
     info = read_info(cur, table)
     info["num_points"] = num_points
 
     if len(bounds) > 0:
         if isinstance(bounds, tuple) or isinstance(bounds, list):
             where = (
-                f"X > {bounds[0]} AND X < {bounds[2]} "
-                + f"Y > {bounds[1]} AND Y < {bounds[3]} "
+                f"X > {bounds[0]} AND "
+                + f"X < {bounds[2]} AND "
+                + f"Y > {bounds[1]} AND "
+                + f"Y < {bounds[3]} "
             )
         elif isinstance(bounds, gp.pd.DataFrame):
             where = (
@@ -280,12 +287,13 @@ def select(
         result = [
             value[0]
             for value in cur.execute(
-                f"SELECT {column} from {table} WHERE {where}"
+                f"SELECT {column} FROM '{table}' WHERE {where}"
             )
         ]
     else:
         result = [
-            value[0] for value in cur.execute(f"SELECT {column} from {table}")
+            value[0]
+            for value in cur.execute(f"SELECT {column} FROM '{table}'")
         ]
     return result
 
@@ -310,11 +318,13 @@ def multi_col_select(
         cols += cc + ","
     cols = cols[:-1]
     if where:
-        for value in cur.execute(f"SELECT {cols} from {table} WHERE {where}"):
+        for value in cur.execute(
+            f"SELECT {cols} FROM '{table}' WHERE {where}"
+        ):
             for ii, val in enumerate(value):
                 result[ii].append(val)
     else:
-        for value in cur.execute(f"SELECT {cols} from {table}"):
+        for value in cur.execute(f"SELECT {cols} FROM '{table}'"):
             for ii, val in enumerate(value):
                 result[ii].append(val)
     return result
@@ -407,11 +417,13 @@ def read_timeseries(
     cols = cols[:-1]
     if where:
         timeseries = np.array(
-            cur.execute(f"SELECT {cols} from {table} WHERE {where}").fetchall()
+            cur.execute(
+                f"SELECT {cols} FROM '{table}' WHERE {where}"
+            ).fetchall()
         )
     else:
         timeseries = np.array(
-            cur.execute(f"SELECT {cols} from {table}").fetchall()
+            cur.execute(f"SELECT {cols} FROM '{table}'").fetchall()
         )
     timeseries[timeseries == None] = np.nan
 
@@ -439,12 +451,12 @@ def gen_timeseries_queries(
     time = np.array([sql_key_to_time(k) for k in key_list])
     if where:
         queries = [
-            (file_path, f"SELECT {k} from {table} WHERE {where}", jj)
+            (file_path, f"SELECT {k} FROM '{table}' WHERE {where}", jj)
             for jj, k in enumerate(key_list)
         ]
     else:
         queries = [
-            (file_path, f"SELECT {k} from {table}", jj)
+            (file_path, f"SELECT {k} FROM '{table}'", jj)
             for jj, k in enumerate(key_list)
         ]
     return time, queries
@@ -761,3 +773,216 @@ def add_new_key_value_pairs(
             f"UPDATE {table_name} SET ({key})={values_str}",
             dialect="SQLITE",
         )
+
+
+def get_num_entries(
+    file_path: os.PathLike, table: str, region: shapely.Polygon | Tuple = ()
+) -> int:
+    """Gets number of entries in given sql file and table.
+
+    :param file_path: The path to the sql file.
+    :type file_path: os.PathLike
+    :param table: The table to look for data.
+    :type table: str
+    :param region: The region to use for clipping the database
+    :type region: str
+    :return: The number of entries.
+    :rtype: int
+    """
+    con = sqlite3.connect(file_path)
+    cur = con.cursor()
+    if region:
+        if isinstance(region, shapely.Polygon):
+            region = region.bounds
+
+        num_points = cur.execute(
+            f"SELECT COUNT(*) FROM '{table}' WHERE "
+            + f"X > {region[0]} AND X < {region[2]} AND "
+            + f"Y > {region[1]} AND Y < {region[3]} "
+        ).fetchone()[0]
+    else:
+        num_points = cur.execute(f"SELECT COUNT(*) FROM '{table}'").fetchone()[
+            0
+        ]
+    con.close()
+    return num_points
+
+
+def get_subdivided_regions(
+    file_path: os.PathLike, table: str, max_entries: int
+) -> list[shapely.Polygon]:
+    """Subdivides the regions into equally sized areas with a maximum number of entries. This is needed for keeping the shapefile size below 2GB.
+
+    :param file_path: The path to the sql file.
+    :type file_path: os.PathLike
+    :param table: The table to look for data.
+    :type table: str
+    :param max_entries: The maximum number of entries that a region may have.
+    :type max_entries: int
+    :return: A list of Polygons dividing the area.
+    :rtype: list[shapely.Polygon]
+    """
+    logging.info("Subdividing Polygons")
+    con = sqlite3.connect(file_path)
+    cur = con.cursor()
+    bounds = cur.execute(
+        f"SELECT min_x, min_y, max_x, max_y FROM gpkg_contents WHERE table_name=='{table}'"
+    ).fetchall()[0]
+    xy = cur.execute(f"SELECT X, Y FROM '{table}'").fetchall()
+    x = np.zeros(len(xy))
+    y = np.zeros_like(x)
+    for ii in range(len(xy)):
+        x[ii], y[ii] = xy[ii]
+    new_regions = u4spatial.subdivide_polygon(
+        u4spatial.bounds_to_polygon(bounds), overlap=100
+    )
+    ne_new_regions = [
+        get_num_entries_numpy(reg.bounds, x, y) for reg in new_regions
+    ]
+    while max(ne_new_regions) > max_entries:
+        old_regions = copy.copy(new_regions)
+        old_ne = copy.copy(ne_new_regions)
+        new_regions = []
+        ne_new_regions = []
+        for reg, ne in zip(old_regions, old_ne):
+            if ne > max_entries:
+                subdiv = u4spatial.subdivide_polygon(reg, overlap=100)
+                new_regions.extend(subdiv)
+                ne_new_regions.extend(
+                    [get_num_entries_numpy(sub.bounds, x, y) for sub in subdiv]
+                )
+            else:
+                new_regions.append(reg)
+                ne_new_regions.append(ne)
+    return new_regions
+
+
+def get_num_entries_numpy(bounds: tuple, x: np.ndarray, y: np.ndarray) -> int:
+    """Returns the number of entries in x,y that are within the bounds.
+
+    :param bounds: The boundary as a tuple of xmin, ymin, xmax, ymax
+    :type bounds: tuple
+    :param x: The x coordinates.
+    :type x: np.ndarray
+    :param y: The y coordinates
+    :type y: np.ndarray
+    :return: The number of entries
+    :rtype: int
+    """
+
+    all_scl = np.bitwise_and(
+        np.bitwise_and(x >= bounds[0], x < bounds[2]),
+        np.bitwise_and(y >= bounds[1], y <= bounds[3]),
+    )
+    return len(all_scl[all_scl])
+
+
+def load_gpkg_data_point(
+    point: list | Tuple | gp.GeoDataFrame | shapely.Point,
+    radius: float,
+    gpkg_file_path: os.PathLike,
+    table: str = "vertikal",
+    split_points: bool = False,
+    crs: str = "EPSG:32632",
+) -> gp.GeoDataFrame | list[gp.GeoDataFrame]:
+    """Selects PSI measurements in a `radius` around the specified `point` from the given **GPKG** File.
+
+    This function loads the data directly using sql, no second step is required.
+
+    :param point: The center point of the query.
+    :type point: list
+    :param radius: The radius to calculate the buffer
+    :type radius: float
+    :param gpkg_file_path: The file or folder to select from
+    :type gpkg_file_path: os.PathLike
+    :param table: The table from which to extract the data, defaults to "vertikal"
+    :type table: str, optional
+    :param split_points: Splits the output into a list of points based on the selection, defaults to False
+    :type split_points: bool, optional
+    :param crs: The coordinate system of the output points, defaults to "EPSG:32632".
+    :type crs: str, optional
+    :return: The points from `psi_file_path` in a `radius` round `point`.
+    :rtype: gp.GeoDataFrame
+    """
+
+    region = u4spatial.region_around_point(point, radius, crs=crs)
+
+    data = table_to_dict(gpkg_file_path, table, region.bounds)
+    clipped_data = u4spatial.clip_data_points(
+        data, region, split_points=split_points, crs=crs
+    )
+    return clipped_data
+
+
+def load_gpkg_data_osm(
+    osm_query: dict,
+    gpkg_file_path: os.PathLike,
+    table: str = "vertikal",
+    split_points: bool = False,
+    crs: str = "EPSG:32632",
+) -> gp.GeoDataFrame | list[gp.GeoDataFrame]:
+    """Selects PSI measurements in a region defined by an OSM query from the given **GPKG** File.
+
+    This function loads the data directly using sql, no second step is required.
+
+    :param osm_query: A properly formatted osm query in dictionary form. (see https://osmnx.readthedocs.io/en/stable/ for more)
+    :type osm_query: dict
+    :param gpkg_file_path: The file or folder to select from
+    :type gpkg_file_path: os.PathLike
+    :param table: The table from which to extract the data, defaults to "vertikal"
+    :type table: str, optional
+    :param split_points: Splits the output into a list of points based on the selection, defaults to False
+    :type split_points: bool, optional
+    :param crs: The coordinate system of the output points, defaults to "EPSG:32632".
+    :type crs: str, optional
+    :return: The points from `psi_file_path` in a `radius` round `point`.
+    :rtype: gp.GeoDataFrame
+    """
+
+    region = u4spatial.get_osm_region(osm_query, crs=crs)
+
+    data = table_to_dict(gpkg_file_path, table, bounds=region.bounds)
+    clipped_data = u4spatial.clip_data_points(
+        data, region, split_points=split_points, crs=crs
+    )
+    return clipped_data
+
+
+def load_gpkg_data_region(
+    region: gp.GeoDataFrame | gp.GeoSeries,
+    gpkg_file_path: os.PathLike,
+    table: str = "vertikal",
+    split_points: bool = False,
+    crs: str = "EPSG:32632",
+) -> gp.GeoDataFrame | list[gp.GeoDataFrame]:
+    """Selects PSI measurements in the specified region from the given **GPKG** File.
+
+    This function loads the data directly using sql, no second step is required.
+
+    :param region: The region as GeoDataFrame
+    :type region: gp.GeoDataFrame | gp.GeoSeries
+    :param gpkg_file_path: The file or folder to select from
+    :type gpkg_file_path: os.PathLike
+    :param table: The table from which to extract the data, defaults to "vertikal"
+    :type table: str, optional
+    :param split_points: Splits the output into a list of points based on the selection, defaults to False
+    :type split_points: bool, optional
+    :param crs: The coordinate system of the output points, defaults to "EPSG:32632".
+    :type crs: str, optional
+    :return: The points from `psi_file_path` in a `radius` round `point`.
+    :rtype: gp.GeoDataFrame
+    """
+    if isinstance(region, gp.GeoDataFrame):
+        if region.crs != crs:
+            region = region.to_crs(crs)
+    elif isinstance(region, (gp.pd.Series, gp.GeoSeries)):
+        UserWarning(
+            "Region for selection is a GeoSeries, check input CRS manually!"
+        )
+        region = gp.GeoDataFrame(geometry=[region.geometry], crs=crs)
+
+    data = table_to_dict(gpkg_file_path, table, bounds=region.bounds)
+    clipped_data = u4spatial.clip_data_points(
+        data, region, split_points=split_points, crs=crs
+    )
+    return clipped_data

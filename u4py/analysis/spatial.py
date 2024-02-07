@@ -31,8 +31,6 @@ from pyproj import Transformer
 from skimage import measure as skmeasure
 from tqdm import tqdm
 
-import u4py.utils.sql as u4sql
-
 
 def reproject_raster(
     in_path: os.PathLike,
@@ -390,117 +388,6 @@ def select_points_point(
         return points.clip(region)
 
 
-def load_gpkg_data_point(
-    point: list | Tuple | gp.GeoDataFrame | shapely.Point,
-    radius: float,
-    gpkg_file_path: os.PathLike,
-    table: str = "vertikal",
-    split_points: bool = False,
-    crs: str = "EPSG:32632",
-) -> gp.GeoDataFrame | List[gp.GeoDataFrame]:
-    """Selects PSI measurements in a `radius` around the specified `point` from the given **GPKG** File.
-
-    This function loads the data directly using sql, no second step is required.
-
-    :param point: The center point of the query.
-    :type point: list
-    :param radius: The radius to calculate the buffer
-    :type radius: float
-    :param gpkg_file_path: The file or folder to select from
-    :type gpkg_file_path: os.PathLike
-    :param table: The table from which to extract the data, defaults to "vertikal"
-    :type table: str, optional
-    :param split_points: Splits the output into a list of points based on the selection, defaults to False
-    :type split_points: bool, optional
-    :param crs: The coordinate system of the output points, defaults to "EPSG:32632".
-    :type crs: str, optional
-    :return: The points from `psi_file_path` in a `radius` round `point`.
-    :rtype: gp.GeoDataFrame
-    """
-
-    region = region_around_point(point, radius, crs=crs)
-
-    data = u4sql.table_to_dict(gpkg_file_path, table, region.bounds)
-    clipped_data = clip_data_points(
-        data, region, split_points=split_points, crs=crs
-    )
-    return clipped_data
-
-
-def load_gpkg_data_osm(
-    osm_query: dict,
-    gpkg_file_path: os.PathLike,
-    table: str = "vertikal",
-    split_points: bool = False,
-    crs: str = "EPSG:32632",
-) -> gp.GeoDataFrame | List[gp.GeoDataFrame]:
-    """Selects PSI measurements in a region defined by an OSM query from the given **GPKG** File.
-
-    This function loads the data directly using sql, no second step is required.
-
-    :param osm_query: A properly formatted osm query in dictionary form. (see https://osmnx.readthedocs.io/en/stable/ for more)
-    :type osm_query: dict
-    :param gpkg_file_path: The file or folder to select from
-    :type gpkg_file_path: os.PathLike
-    :param table: The table from which to extract the data, defaults to "vertikal"
-    :type table: str, optional
-    :param split_points: Splits the output into a list of points based on the selection, defaults to False
-    :type split_points: bool, optional
-    :param crs: The coordinate system of the output points, defaults to "EPSG:32632".
-    :type crs: str, optional
-    :return: The points from `psi_file_path` in a `radius` round `point`.
-    :rtype: gp.GeoDataFrame
-    """
-
-    region = get_osm_region(osm_query, crs=crs)
-
-    data = u4sql.table_to_dict(gpkg_file_path, table, bounds=region.bounds)
-    clipped_data = clip_data_points(
-        data, region, split_points=split_points, crs=crs
-    )
-    return clipped_data
-
-
-def load_gpkg_data_region(
-    region: gp.GeoDataFrame | gp.GeoSeries,
-    gpkg_file_path: os.PathLike,
-    table: str = "vertikal",
-    split_points: bool = False,
-    crs: str = "EPSG:32632",
-) -> gp.GeoDataFrame | List[gp.GeoDataFrame]:
-    """Selects PSI measurements in the specified region from the given **GPKG** File.
-
-    This function loads the data directly using sql, no second step is required.
-
-    :param region: The region as GeoDataFrame
-    :type region: gp.GeoDataFrame | gp.GeoSeries
-    :param gpkg_file_path: The file or folder to select from
-    :type gpkg_file_path: os.PathLike
-    :param table: The table from which to extract the data, defaults to "vertikal"
-    :type table: str, optional
-    :param split_points: Splits the output into a list of points based on the selection, defaults to False
-    :type split_points: bool, optional
-    :param crs: The coordinate system of the output points, defaults to "EPSG:32632".
-    :type crs: str, optional
-    :return: The points from `psi_file_path` in a `radius` round `point`.
-    :rtype: gp.GeoDataFrame
-    """
-    if isinstance(region, gp.GeoDataFrame):
-        if region.crs != crs:
-            region = region.to_crs(crs)
-    elif isinstance(region, (gp.pd.Series, gp.GeoSeries)):
-        UserWarning(
-            "Region for selection is a GeoSeries, check input CRS manually!"
-        )
-        region = gp.GeoDataFrame(geometry=[region.geometry], crs=crs)
-
-    data = u4sql.table_to_dict(gpkg_file_path, table, bounds=region.bounds)
-    clipped_data = clip_data_points(
-        data, region, split_points=split_points, crs=crs
-    )
-    return clipped_data
-
-
 def clip_data_points(
     data: dict,
     region: gp.GeoDataFrame,
@@ -591,23 +478,36 @@ def region_around_point(
     return region
 
 
-def bounds_to_polygon(bounds: rasterio.coords.BoundingBox) -> shapely.Polygon:
+def bounds_to_polygon(
+    bounds: rasterio.coords.BoundingBox | Tuple,
+) -> shapely.Polygon:
     """Creates a `shapely.Polygon` from the `BoundingBox` of loaded raster.
 
-    :param bounds: The `BoundingBox` of a raster.
-    :type bounds: rasterio.coords.BoundingBox
+    :param bounds: The `BoundingBox` of a raster or a set of (minx,miny,maxx, maxy) coordinates.
+    :type bounds: rasterio.coords.BoundingBox | Tuple
     :return: The polygon.
     :rtype: shapely.Polygon
     """
-    poly = shapely.Polygon(
-        shell=(
-            (bounds.left, bounds.bottom),
-            (bounds.left, bounds.top),
-            (bounds.right, bounds.top),
-            (bounds.right, bounds.bottom),
-            (bounds.left, bounds.bottom),
+    if isinstance(bounds, rasterio.coords.BoundingBox):
+        poly = shapely.Polygon(
+            shell=(
+                (bounds.left, bounds.bottom),
+                (bounds.left, bounds.top),
+                (bounds.right, bounds.top),
+                (bounds.right, bounds.bottom),
+                (bounds.left, bounds.bottom),
+            )
         )
-    )
+    else:
+        poly = shapely.Polygon(
+            shell=(
+                (bounds[0], bounds[1]),
+                (bounds[0], bounds[3]),
+                (bounds[2], bounds[3]),
+                (bounds[2], bounds[1]),
+                (bounds[0], bounds[1]),
+            )
+        )
     return poly
 
 
@@ -1078,9 +978,19 @@ def scattered_to_gridded(
 
 
 def subdivide_polygon(
-    roi: gp.GeoDataFrame,
+    roi: gp.GeoDataFrame | shapely.Polygon,
     overlap: int = 250,
-):
+) -> list:
+    """Splits a Polygon into two equally sized subpolygons with `overlap`.
+
+    :param roi: The input polygon
+    :type roi: gp.GeoDataFrame | shapely.Polygon
+    :param overlap: The amount of overlap in meters, defaults to 250
+    :type overlap: int, optional
+    :return: A tuple with two new Polygons
+    :rtype: list
+    """
+    logging.debug("Subdividing and getting number of entries.")
     if isinstance(roi, gp.GeoDataFrame):
         bounds = roi.bounds.to_numpy()[0]
     elif isinstance(roi, shapely.Polygon):
@@ -1130,7 +1040,7 @@ def subdivide_polygon(
             ]
         )
 
-    return (new_poly1, new_poly2)
+    return [new_poly1, new_poly2]
 
 
 def buffer_features(
