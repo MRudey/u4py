@@ -6,6 +6,7 @@ GPKGs and saving them to shapefiles.
 
 import logging
 import os
+from collections import OrderedDict
 from multiprocessing import Pool
 from typing import Iterable, Tuple
 
@@ -218,3 +219,89 @@ def conversion_worker(args: Iterable):
             position_time_series=3,
             output_ts_field_names=time_stamps,
         )
+
+
+def create_adafinder_config(
+    in_path: os.PathLike, project: dict, **kwargs
+) -> os.PathLike:
+    """Creates a config for use with ADAfinder CLI
+
+    :param in_path: The path to the input points shapefile or csvfile.
+    :type in_path: os.PathLike
+    :param project: The u4py project config
+    :type project: dict
+    :param **kwargs: Additional arguments passed to ADAfinder config, with keys in UPPERCASE.
+    :type **kwargs: dict
+    :return: The path to the ADAfinder config
+    :rtype: os.PathLike
+    """
+    logging.info("Creating config")
+    file_format = {".shp": "SHAPEFILE", ".csv": "CSV-COMMA"}
+
+    in_folder, in_file = os.path.split(in_path)
+    in_fname, in_format = os.path.splitext(in_file)
+    adacfg_path = os.path.join(in_folder, f"{in_fname}_adafinder.op")
+
+    out_folder = project["paths"]["output_path"]
+    os.makedirs(out_folder, exist_ok=True)
+    output_shapefile_adas = os.path.join(out_folder, f"{in_fname}_adas.shp")
+    output_points = os.path.join(out_folder, f"{in_fname}_points.csv")
+    output_shapefile_buffered_adas = os.path.join(
+        out_folder, f"{in_fname}_buffered_adas.shp"
+    )
+    output_buffered_points = os.path.join(
+        out_folder, f"{in_fname}_buffered_points.csv"
+    )
+
+    adacfg = OrderedDict(
+        INPUT_POINTS=in_path,
+        INPUT_POINTS_FORMAT=file_format[in_format],
+        INPUT_POINTS_READMAP=in_path.replace(".shp", "_readmap.op"),
+        INPUT_SHAPEFILE_BOUNDARIES="-",
+        OUTPUT_SHAPEFILE_ADAS=output_shapefile_adas,
+        OUTPUT_POINTS=output_points,
+        OUTPUT_POINTS_FORMAT="CSV-COMMA",
+        POINT_SUBSET_TO_WRITE=2,
+        COMPUTE_BUFFERED_ADAS=False,
+        OUTPUT_SHAPEFILE_BUFFERED_ADAS=output_shapefile_buffered_adas,
+        OUTPUT_BUFFERED_POINTS=output_buffered_points,
+        OUTPUT_BUFFERED_POINTS_FORMAT="CSV-COMMA",
+        # Options -------------------------------------------------------------
+        PURGE_ISOLATED_POINTS=False,
+        PURGE_SMALL_CLUSTERS=False,
+        ISOLATION_DISTANCE=40,
+        ISOLATION_CLUSTER_SIZE=2,
+        VELOCITY_THRESHOLD_MODE=1,
+        VELOCITY_FACTOR_OR_THRESHOLD=2,
+        ADA_RADIUS=26,
+        ADA_MINIMUM_CLUSTER_SIZE=5,
+        ADA_BUFFER_SIZE=30,
+        # Advanced options ----------------------------------------------------
+        ADA_DISPLAY_MODE=1,
+        ALLOW_OVERLAPPING_ADAS=False,
+        ADA_SHIFT_TO_CM=2,
+        ADA_CIRCLE_STEPS=40,
+        N_VALUES_MEAN_DEFORMATION=4,
+        TNITABLE_N_VALUES=3,
+        TNITABLE_THRESHOLDS=[0.53, 0.7, 0.84],
+        SNITABLE_N_VALUES=3,
+        SNITABLE_THRESHOLDS=[0.53, 0.7, 0.84],
+        QITABLE_CLASSES=[1, 1, 2, 4, 1, 2, 3, 4, 2, 3, 3, 4, 4, 4, 4, 4],
+    )
+
+    adacfg.update(**kwargs)
+
+    with open(adacfg_path, "wt") as cfgf:
+        for k, v in adacfg.items():
+            if isinstance(v, str):
+                cfgf.write(f"{k} = {v}\n")
+            elif isinstance(v, bool):
+                if v:
+                    cfgf.write(f"{k} = YES\n")
+                else:
+                    cfgf.write(f"{k} = NO\n")
+            elif isinstance(v, Iterable):
+                cfgf.write(f"{k} = {' '.join([str(va) for va in v])}\n")
+            elif isinstance(v, int):
+                cfgf.write(f"{k} = {v}\n")
+    return adacfg_path
