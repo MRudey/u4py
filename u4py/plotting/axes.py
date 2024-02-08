@@ -12,6 +12,7 @@ All functions should follow the following template::
 - For flexibility keywords can be added, e.g. to change plot color.
 
 """
+
 from __future__ import annotations
 
 import os
@@ -36,7 +37,6 @@ import u4py.analysis.other as u4other
 import u4py.analysis.spatial as u4spatial
 import u4py.plotting.preparation as u4plotprep
 import u4py.utils.convert as u4convert
-import u4py.utils.files as u4files
 
 
 def _add_or_create(internal_plot: Callable) -> Tuple[Figure, Axes] | None:

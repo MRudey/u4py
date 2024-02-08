@@ -19,50 +19,11 @@ import pickle
 from multiprocessing import Pool
 from typing import Callable, Iterable, Tuple
 
-import numpy as np
-from scipy import optimize as spopt
 from tqdm import tqdm
 
 import u4py.analysis.inversion as u4invert
-import u4py.analysis.other as u4other
 import u4py.utils.config as u4config
 import u4py.utils.convert as u4convert
-import u4py.utils.files as u4files
-
-
-def linear_component(x: np.ndarray, y: np.ndarray) -> Tuple:
-    """Gets the linear fit of x and y using scipy.curve_fit.
-
-    :param x: The time axis
-    :type x: np.ndarray
-    :param y: The data to fit as 1D numpy array.
-    :type y: np.ndarray
-    :return: A Tuple containing optimized parameters, covariance and 2 sigma
-    :rtype: Tuple
-    """
-    lin_popt, lin_pcov = spopt.curve_fit(u4other.poly1, x, y)
-    lin_perr = 2 * np.sqrt(np.diag(lin_pcov))
-    return (lin_popt, lin_pcov, lin_perr)
-
-
-def sinus_component(x: np.ndarray, y: np.ndarray) -> Tuple:
-    """Gets the sinusoidal fit of x and y, adjusted to psi time in days using scipy.curve_fit.
-
-    :param x: The time axis
-    :type x: np.ndarray
-    :param y: The data to fit as 1D numpy array.
-    :type y: np.ndarray
-    :return: A Tuple containing optimized parameters, covariance and 2 sigma
-    :rtype: Tuple
-    """
-    try:
-        sin_popt, sin_pcov = spopt.curve_fit(
-            u4other.cosinefunc, x, y, p0=[2, 6 / 365.25, 0]
-        )
-        sin_perr = 2 * np.sqrt(np.diag(sin_pcov))
-    except RuntimeError:
-        sin_popt = [np.nan, np.nan, np.nan]
-    return (sin_popt, sin_pcov, sin_perr)
 
 
 def invert_psi_dict(
@@ -191,7 +152,7 @@ def batch_mapping(fnc_args: Iterable, fnc: Callable, desc: str) -> list:
     with Pool(u4config.cpu_count) as p:
         results = list(
             tqdm(
-                p.imap_unordered(inversion_map_worker, fnc_args),
+                p.imap_unordered(fnc, fnc_args),
                 total=len(fnc_args),
                 desc=desc,
             )

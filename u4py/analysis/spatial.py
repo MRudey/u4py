@@ -12,7 +12,6 @@ import re
 from typing import Callable, Iterable, List, Tuple
 
 import geopandas as gp
-import h5py
 import mahotas.polygon as mhpoly
 import matplotlib.pyplot as plt
 import numpy as np
@@ -111,10 +110,7 @@ def _get_coords(in_path: os.PathLike | list) -> list:
             source_index = np.arange(len(coords))
 
     elif isinstance(in_path, str):
-        if in_path.endswith(".h5"):
-            coords = _h5_to_coords(in_path)
-            source_index = np.arange(len(coords))
-        elif in_path.endswith(".pkl"):
+        if in_path.endswith(".pkl"):
             coords = _pkl_to_coords(in_path)
             source_index = np.arange(len(coords))
         elif os.path.isdir(in_path):
@@ -192,21 +188,6 @@ def _bounds_to_coords(fpath: os.PathLike, tilesize=1000) -> list:
         shapely.Point(right, bottom),
         shapely.Point(right, top),
     ]
-    return coords
-
-
-def _h5_to_coords(h5file_path: os.PathLike) -> list:
-    """Converts a h5 file containing x and y to list of coordinates.
-
-    :param h5file_path: The path to the h5 file.
-    :type h5file_path: os.PathLike
-    :return: List of coordinates [(x1, y1), (x2, y2),...].
-    :rtype: list
-    """
-    with h5py.File(h5file_path, "r") as h5file:
-        coords = np.array(
-            [(x, y) for x, y in zip(h5file["x"][()], h5file["y"][()])]
-        )
     return coords
 
 
