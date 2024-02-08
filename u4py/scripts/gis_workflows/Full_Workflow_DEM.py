@@ -6,6 +6,7 @@ geometries for clipping and outputs a gpkg file with contours of surface
 displacements. It subdivides the study region into smaller subsets which are
 processed individually, with a certain overlap.
 """
+
 import logging
 import os
 from multiprocessing import Pool
@@ -15,8 +16,9 @@ import geopandas as gp
 from tqdm import tqdm
 
 import u4py.analysis.spatial as u4spatial
+import u4py.io.files as u4files
+import u4py.io.tiff as u4tiff
 import u4py.utils.config as u4config
-import u4py.utils.files as u4files
 import u4py.utils.projects as u4proj
 
 u4config.start_logger()
@@ -61,7 +63,7 @@ def main():
     gpkg_path = os.path.join(
         project["paths"]["places_path"], "OSM_shapes", "all_shapes.gpkg"
     )
-    clipped_tiff_list = u4files.get_clipped_tiff_list_gpkg(
+    clipped_tiff_list = u4tiff.get_clipped_tiff_list(
         tiff_file_list,
         gpkg_path,
         overwrite=overwrite_clipping,
@@ -77,7 +79,9 @@ def main():
             logging.info("Starting Parallel Contouring")
             clgdf_list = list(
                 tqdm(
-                    p.imap_unordered(batch_get_thresholded_contours, args),
+                    p.imap_unordered(
+                        u4tiff.batch_get_thresholded_contours, args
+                    ),
                     total=len(tiff_file_list),
                     desc="Getting contours",
                     leave=False,
@@ -86,7 +90,7 @@ def main():
     else:
         logging.info("Starting Single-threaded Contouring")
         clgdf_list = [
-            batch_get_thresholded_contours(arg)
+            u4tiff.batch_get_thresholded_contours(arg)
             for arg in tqdm(args, desc="Getting contours", leave=False)
         ]
 
@@ -117,11 +121,6 @@ def main():
             "thresholded_contours_all_shapes.gpkg",
         )
     )
-
-
-def batch_get_thresholded_contours(args):
-    gdf = u4files.get_thresholded_contours(*args, save_intermediate=False)
-    return gdf
 
 
 def create_empty_dict(gdf):

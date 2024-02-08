@@ -9,7 +9,6 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 import u4py.utils.config as u4config
-import u4py.utils.files as u4files
 import u4py.utils.projects as u4proj
 
 u4config.start_logger()

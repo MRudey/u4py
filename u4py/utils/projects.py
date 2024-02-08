@@ -18,7 +18,7 @@ import tkinter as tk
 from functools import partial
 from tkinter import TclError, messagebox, ttk
 
-import u4py.utils.files as u4files
+import u4py.io.files as u4files
 
 global PROJECT
 

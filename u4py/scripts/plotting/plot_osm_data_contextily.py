@@ -7,7 +7,7 @@ import rasterio
 import rasterio.plot as rioplot
 
 import u4py.analysis.spatial as u4spatial
-import u4py.utils.files as u4files
+import u4py.io.files as u4files
 
 
 def main():

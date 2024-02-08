@@ -23,11 +23,12 @@ import u4py.addons.groundwater as u4gw
 import u4py.analysis.inversion as u4invert
 import u4py.analysis.other as u4other
 import u4py.analysis.processing as u4proc
+import u4py.io.files as u4files
+import u4py.io.psi as u4psi
 import u4py.plotting.axes as u4ax
 import u4py.plotting.formatting as u4plotfmt
 import u4py.plotting.preparation as u4plotprep
 import u4py.utils.convert as u4convert
-import u4py.utils.files as u4files
 import u4py.utils.projects as u4proj
 
 
@@ -58,7 +59,7 @@ def main():
     )
 
     # Load Data
-    data_well = u4files.get_point_data(
+    data_well = u4psi.get_point_data(
         (464350, 5516100),
         500,
         "OilWell",
@@ -72,7 +73,7 @@ def main():
             "amenity": "hospital",
         },
     }
-    data = u4files.get_osm_data(query, psi_path, overwrite=overwrite)
+    data = u4psi.get_osm_data(query, psi_path, overwrite=overwrite)
     region = gp.GeoDataFrame(
         {
             "geometry": [
@@ -88,7 +89,7 @@ def main():
         },
         crs=crs,
     )
-    data_region = u4files.get_region_data(
+    data_region = u4psi.get_region_data(
         region,
         "Crumstadt_FullArea",
         psi_path,

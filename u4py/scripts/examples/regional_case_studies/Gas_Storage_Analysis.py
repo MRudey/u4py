@@ -6,14 +6,14 @@ import contextily
 import geopandas as gp
 import matplotlib.gridspec as gs
 import matplotlib.pyplot as plt
-from matplotlib.axes import Axes
 from shapely import Polygon
 
 import u4py.addons.gas_storage as u4gas
 import u4py.analysis.processing as u4proc
+import u4py.io.files as u4files
+import u4py.io.psi as u4psi
 import u4py.plotting.axes as u4ax
 import u4py.plotting.formatting as u4plotfmt
-import u4py.utils.files as u4files
 import u4py.utils.projects as u4proj
 
 
@@ -35,7 +35,7 @@ def main():
     )
 
     # Load Data
-    data_well = u4files.get_point_data(
+    data_well = u4psi.get_point_data(
         (464350, 5516100), 500, "OilWell", gpkg_path
     )
     results = u4proc.invert_psi_dict(
@@ -59,7 +59,7 @@ def main():
             "amenity": "hospital",
         },
     }
-    data_crumstadt = u4files.get_osm_data(query, gpkg_path)
+    data_crumstadt = u4psi.get_osm_data(query, gpkg_path)
     region = gp.GeoDataFrame(
         {
             "geometry": [
@@ -75,9 +75,7 @@ def main():
         },
         crs="EPSG:32632",
     )
-    data_region, _ = u4files.get_region_data(
-        region, "Crumstadt Area", gpkg_path
-    )
+    data_region, _ = u4psi.get_region_data(region, "Crumstadt Area", gpkg_path)
 
     # fig, axes = plt.subplots(figsize=(10, 8), sharex=True)
     fig = plt.figure(figsize=(16 * 0.75, 10 * 0.75), dpi=150)

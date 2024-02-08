@@ -14,7 +14,7 @@ import numpy as np
 from tqdm import tqdm
 
 import u4py.addons.web_services as u4webs
-import u4py.utils.files as u4files
+import u4py.io.files as u4files
 
 
 def get_pegel_data(file_path: os.PathLike, overwrite: bool = False) -> dict:

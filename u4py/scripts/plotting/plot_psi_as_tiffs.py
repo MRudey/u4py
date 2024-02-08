@@ -8,10 +8,10 @@ from datetime import datetime
 import numpy as np
 from tqdm import tqdm
 
+import u4py.io.sql as u4sql
+import u4py.io.tiff as u4tiff
 import u4py.utils.config as u4config
-import u4py.utils.files as u4files
 import u4py.utils.projects as u4proj
-import u4py.utils.sql as u4sql
 
 u4config.start_logger()
 
@@ -76,7 +76,7 @@ def multi_geotiff(arguments: tuple):
     fname = f"{time_str}.tif"
 
     # Create GeoTiff
-    u4files.ndarray_to_geotiff(
+    u4tiff.ndarray_to_geotiff(
         vels,
         extent,
         os.path.join(output_dir, fname),

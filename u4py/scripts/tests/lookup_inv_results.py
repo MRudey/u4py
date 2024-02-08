@@ -5,7 +5,7 @@ from pathlib import Path
 
 import geopandas as gp
 
-import u4py.utils.files as u4files
+import u4py.io.psi as u4psi
 
 
 def main():
@@ -17,7 +17,7 @@ def main():
         base_path, "selected_psi_points", "OilWell_points_BBD_Vert.shp"
     )
     points = gp.GeoDataFrame.from_file(pntfile_path)
-    data, avg_dist = u4files.get_pickled_inversion_results(
+    data, avg_dist = u4psi.get_pickled_inversion_results(
         pklfile_path, points=points
     )
     print(points)

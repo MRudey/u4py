@@ -10,9 +10,9 @@ import scipy.ndimage as spimage
 import scipy.stats as spstats
 
 import u4py.addons.gnss as u4gnss
-import u4py.analysis.other as u4other
+import u4py.io.files as u4files
+import u4py.io.psi as u4psi
 import u4py.utils.convert as u4convert
-import u4py.utils.files as u4files
 import u4py.utils.projects as u4projects
 
 
@@ -56,7 +56,7 @@ def main():
     min_t = datetime.datetime(3000, 1, 1)
     max_t = datetime.datetime(1000, 1, 1)
     for ii, station in enumerate(sel):
-        data_vert = u4files.get_point_data(
+        data_vert = u4psi.get_point_data(
             station.geometry,
             distance,
             f"{station.ID.values[0]}_GNSS",

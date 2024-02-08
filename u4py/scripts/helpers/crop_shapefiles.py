@@ -3,7 +3,7 @@
 import os
 
 import u4py.addons.geology as u4geol
-import u4py.utils.files as u4files
+import u4py.io.files as u4files
 
 
 def main():

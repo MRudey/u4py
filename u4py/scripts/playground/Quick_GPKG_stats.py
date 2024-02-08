@@ -6,7 +6,7 @@ from pathlib import Path
 
 import numpy as np
 
-import u4py.utils.sql as u4sql
+import u4py.io.sql as u4sql
 
 
 def main():

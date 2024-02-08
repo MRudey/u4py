@@ -3,7 +3,7 @@ import os
 import arcpy.management
 from tqdm import tqdm
 
-import u4py.utils.files as u4files
+import u4py.io.files as u4files
 
 
 def main():

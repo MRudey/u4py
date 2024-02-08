@@ -19,9 +19,11 @@ import numpy as np
 from tqdm import tqdm
 
 import u4py.analysis.other as u4other
+import u4py.io.files as u4files
+import u4py.io.psi as u4psi
+import u4py.io.tiff as u4tiff
 import u4py.plotting.preparation as u4plotprep
 import u4py.utils.config as u4config
-import u4py.utils.files as u4files
 import u4py.utils.projects as u4proj
 
 u4config.start_logger()
@@ -47,7 +49,7 @@ def main():
 
     logging.info("Loading and rearranging data for further analysis")
     if is_normal:
-        data = u4files.get_pickled_inversion_results(
+        data = u4psi.get_pickled_inversion_results(
             project["paths"]["results_path"]
         )
         converted_data, chunk_size = u4plotprep.convert_results_for_grid(
@@ -79,7 +81,7 @@ def main():
         leave=False,
     ):
         grid[np.abs(grid) > np.nanpercentile(np.abs(grid), 99.99)] = np.nan
-        u4files.ndarray_to_geotiff(
+        u4tiff.ndarray_to_geotiff(
             grid,
             extend,
             os.path.join(
@@ -98,7 +100,7 @@ def main():
         leave=False,
     ):
         grid[np.abs(grid) > np.nanpercentile(np.abs(grid), 99.99)] = np.nan
-        u4files.ndarray_to_geotiff(
+        u4tiff.ndarray_to_geotiff(
             np.abs(grid),
             extend,
             os.path.join(
@@ -113,7 +115,7 @@ def main():
     max_vals, max_time = u4other.find_maximum_sines(
         grids[1], grids[2], interval=365
     )
-    u4files.ndarray_to_geotiff(
+    u4tiff.ndarray_to_geotiff(
         max_vals,
         extend,
         os.path.join(
@@ -123,7 +125,7 @@ def main():
         crs="EPSG:32632",
         compress="lzw",
     )
-    u4files.ndarray_to_geotiff(
+    u4tiff.ndarray_to_geotiff(
         max_time,
         extend,
         os.path.join(
@@ -138,7 +140,7 @@ def main():
     max_vals, max_time = u4other.find_maximum_sines(
         grids[3], grids[4], interval=365 / 2
     )
-    u4files.ndarray_to_geotiff(
+    u4tiff.ndarray_to_geotiff(
         max_vals,
         extend,
         os.path.join(
@@ -148,7 +150,7 @@ def main():
         crs="EPSG:32632",
         compress="lzw",
     )
-    u4files.ndarray_to_geotiff(
+    u4tiff.ndarray_to_geotiff(
         max_time,
         extend,
         os.path.join(

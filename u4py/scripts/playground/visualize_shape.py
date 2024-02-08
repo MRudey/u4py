@@ -5,8 +5,8 @@ import geopandas as gp
 import matplotlib.pyplot as plt
 from tqdm import tqdm
 
+import u4py.io.shp as u4shp
 import u4py.utils.config as u4config
-import u4py.utils.files as u4files
 
 
 def main():
@@ -23,7 +23,7 @@ def main():
     for osm_type in tqdm(
         shp_cfg["shp_file"].keys(), desc="Getting Clipped Shapefiles"
     ):
-        shp_data[osm_type], _ = u4files.get_clipped_shapefile(
+        shp_data[osm_type], _ = u4shp.get_clipped_shapefile(
             os.path.join(
                 osm_folder,
                 shp_cfg["shp_file"][osm_type],

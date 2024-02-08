@@ -2,11 +2,12 @@
 Extracts all features from a list of geodatabases and stores them in
 individual folders for each GDB.
 """
+
 from pathlib import Path
 
 from tqdm import tqdm
 
-import u4py.utils.files as u4files
+import u4py.io.shp as u4shp
 
 
 def main():
@@ -19,7 +20,7 @@ def main():
     ]
 
     for file_path in tqdm(file_list, desc="Processing GDB", leave=False):
-        u4files.gdb_to_shp(Path(file_path).expanduser())
+        u4shp.gdb_to_shp(Path(file_path).expanduser())
 
 
 if __name__ == "__main__":

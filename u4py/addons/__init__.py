@@ -7,11 +7,13 @@ specific procedures to import and convert data in formats that are not easily
 read by `GeoPandas` or `NumPy`. In some cases the data has to be converted to
 match the other datatypes in our projects.
 """
+
 from . import (
     adatools,
     climate,
     gas_storage,
     geology,
+    gma,
     gnss,
     groundwater,
     rivers,
@@ -21,6 +23,7 @@ from .adatools import *
 from .climate import *
 from .gas_storage import *
 from .geology import *
+from .gma import *
 from .gnss import *
 from .groundwater import *
 from .rivers import *

@@ -10,8 +10,8 @@ import matplotlib.pyplot as plt
 from tqdm import tqdm
 
 import u4py.analysis.processing as u4proc
+import u4py.io.files as u4files
 import u4py.plotting.axes as u4ax
-import u4py.utils.files as u4files
 import u4py.utils.projects as u4proj
 
 

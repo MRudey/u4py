@@ -7,7 +7,7 @@ from typing import Callable, Tuple
 import geopandas as gp
 import shapely as shp
 
-import u4py.utils.files as u4files
+import u4py.io.files as u4files
 
 
 def sitelog_to_shp(folder_path: os.PathLike, shp_path: os.PathLike):

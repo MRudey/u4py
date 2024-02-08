@@ -6,8 +6,8 @@ import os
 import pickle
 
 import u4py.analysis.processing as u4proc
+import u4py.io.sql as u4sql
 import u4py.utils.projects as u4proj
-import u4py.utils.sql as u4sql
 
 
 def main():

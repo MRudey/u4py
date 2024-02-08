@@ -2,7 +2,7 @@
 Test for decoding of wkb with custom function.
 """
 
-import u4py.utils.sql as u4sql
+import u4py.io.sql as u4sql
 
 
 def main():

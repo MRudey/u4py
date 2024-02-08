@@ -14,9 +14,9 @@ import geopandas as gp
 import shapely as shp
 from tqdm import tqdm
 
+import u4py.io.files as u4files
+import u4py.io.sql as u4sql
 import u4py.utils.config as u4config
-import u4py.utils.files as u4files
-import u4py.utils.sql as u4sql
 
 
 def create_adafinder_read_map(

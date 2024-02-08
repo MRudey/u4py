@@ -7,9 +7,9 @@ import matplotlib.pyplot as plt
 import u4py.addons.seismo as u4seismo
 import u4py.analysis.processing as u4proc
 import u4py.analysis.spatial as u4spatial
+import u4py.io.psi as u4psi
 import u4py.plotting.axes as u4ax
 import u4py.plotting.formatting as u4fmt
-import u4py.utils.files as u4files
 import u4py.utils.projects as u4proj
 
 
@@ -46,7 +46,7 @@ def main():
     create_map(eq_gdf, buffer, ax=axes[0])
     for ii, pnt in enumerate(eq_gdf.geometry):
         axes.append(fig.add_subplot(grid[ii, 1:]))
-        data = u4files.get_point_data(
+        data = u4psi.get_point_data(
             pnt,
             radius=buffer,
             region_name=eq_gdf.LOKATION.iloc[ii],

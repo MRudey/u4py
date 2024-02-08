@@ -5,22 +5,17 @@ Contains functions with ready made plots. This module uses axis functions define
 from __future__ import annotations
 
 import os
-from datetime import datetime, timedelta
 from typing import Iterable
 
 import geopandas as gp
 import matplotlib.pyplot as plt
 import numpy as np
-import scipy.optimize as spopt
-import scipy.stats as spstats
-import uncertainties as unc
 
-import u4py.analysis.other as u4other
-import u4py.analysis.spatial as u4spatial
+import u4py.addons.gma as u4gma
+import u4py.io.files as u4files
+import u4py.io.tiff as u4tiff
 import u4py.plotting.axes as u4ax
 import u4py.plotting.formatting as u4plotfmt
-import u4py.plotting.preparation as u4plotprep
-import u4py.utils.files as u4files
 
 
 def plot_inversion_results(
@@ -317,11 +312,9 @@ def plot_hotspots(
     """
 
     # Load data
-    coords, vals, crs = u4files.extract_xyz_tiff(tif_file_path)
+    coords, vals, crs = u4tiff.extract_xyz_tiff(tif_file_path)
 
-    fig, ax, h = u4spatial.hotspots_hexbin(
-        vals, coords, thresh, nbins, min_count
-    )
+    fig, ax, h = u4gma.hotspots_hexbin(vals, coords, thresh, nbins, min_count)
 
     if output_filepath:
         fpath_woex = os.path.splitext(output_filepath)[0]
@@ -383,7 +376,7 @@ def plot_GroundMotionAnalyzer(
     :param overwrite: Whether to overwrite the existing results, defaults to False
     :type overwrite: bool, optional
     """
-    gma_tile_path = u4files.get_gma_results(
+    gma_tile_path = u4gma.get_gma_results(
         psi_fpath,
         processing_path,
         cellsize,

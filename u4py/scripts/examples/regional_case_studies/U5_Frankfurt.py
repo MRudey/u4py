@@ -7,6 +7,7 @@ Several regions were identified and outlined as shapes in a shapefile of
 of all PSs, timeseries and residuals. This simplifies the identification of
 transient movements for inversion.
 """
+
 import os
 import warnings
 
@@ -18,12 +19,12 @@ import matplotlib.pyplot as plt
 from matplotlib.axes import Axes
 
 import u4py.analysis.processing as u4proc
+import u4py.io.psi as u4psi
 import u4py.plotting.axes as u4ax
 import u4py.plotting.formatting as u4plotfmt
 import u4py.plotting.preparation as u4plotprep
 import u4py.utils.config as u4config
 import u4py.utils.convert as u4convert
-import u4py.utils.files as u4files
 import u4py.utils.projects as u4projects
 
 u4config.start_logger()
@@ -88,7 +89,7 @@ def main():
             break
         print("=============================")
         print("Inverting", sel_shape.Name)
-        sel_data = u4files.get_region_data(
+        sel_data = u4psi.get_region_data(
             sel_shape,
             sel_name,
             psi_fpath,

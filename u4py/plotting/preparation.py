@@ -6,13 +6,12 @@ from __future__ import annotations
 
 import logging
 from datetime import datetime, timedelta
-from typing import Callable, Tuple
+from typing import Tuple
 
 import matplotlib.pyplot as plt
 import numpy as np
 import scipy.interpolate as spinterp
 import scipy.optimize as spopt
-import scipy.stats as spstats
 from matplotlib.axes import Axes
 
 import u4py.analysis.inversion as u4invert
