@@ -1,3 +1,7 @@
+"""
+Test for decoding of wkb with custom function.
+"""
+
 import u4py.utils.sql as u4sql
 
 

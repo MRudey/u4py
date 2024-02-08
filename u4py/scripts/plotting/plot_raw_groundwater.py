@@ -7,7 +7,6 @@ from pathlib import Path
 import matplotlib.pyplot as plt
 
 import u4py.addons.groundwater as u4gw
-import u4py.plotting.axes as u4ax
 
 
 def main():
