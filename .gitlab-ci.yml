@@ -10,6 +10,7 @@ cache:
 
 before_script:
   - python --version ; python -m pip --version  # For debugging
+  - apt-get update
   - apt-get install -y libgdal-dev g++ binutils libproj-dev gdal-bin --no-install-recommends
   - python -m pip install virtualenv
   - virtualenv venv
