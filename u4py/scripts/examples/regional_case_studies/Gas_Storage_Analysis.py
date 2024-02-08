@@ -22,7 +22,7 @@ def main():
     project = u4proj.get_project(
         required=[
             "base_path",
-            "psivert_path",
+            "psi_path",
             "results_path",
             "ext_path",
             "places_path",
@@ -30,14 +30,13 @@ def main():
             "processing_path",
         ]
     )
-
-    points = u4files.get_point_points(
-        (464350, 5516100), 500, "OilWell", project["paths"]["psivert_path"]
+    gpkg_path = os.path.join(
+        project["paths"]["psi_path"], "hessen_l3_clipped.gpkg"
     )
 
     # Load Data
-    data_well = u4files.load_data_from_points(
-        project["paths"]["psivert_path"], points
+    data_well = u4files.get_point_data(
+        (464350, 5516100), 500, "OilWell", gpkg_path
     )
     results = u4proc.invert_psi_dict(
         data_well,
@@ -51,9 +50,33 @@ def main():
             project["paths"]["ext_path"], "Inventory Turnover Data_23.txt"
         )
     )
-    _, crs = get_data_within_osm_query(project["paths"]["psivert_path"])
-    data_region, _ = get_data_within_region(
-        project["paths"]["psivert_path"], crs=crs
+
+    # Load PSI Data
+    query = {
+        "address": "Crumstadt",
+        "tags": {
+            "landuse": ["residential", "industrial"],
+            "amenity": "hospital",
+        },
+    }
+    data_crumstadt = u4files.get_osm_data(query, gpkg_path)
+    region = gp.GeoDataFrame(
+        {
+            "geometry": [
+                Polygon(
+                    [
+                        (463200, 5514800),
+                        (463200, 5520400),
+                        (469500, 5520400),
+                        (469500, 5514800),
+                    ]
+                )
+            ]
+        },
+        crs="EPSG:32632",
+    )
+    data_region, _ = u4files.get_region_data(
+        region, "Crumstadt Area", gpkg_path
     )
 
     # fig, axes = plt.subplots(figsize=(10, 8), sharex=True)
@@ -70,7 +93,7 @@ def main():
     plot_map(
         axes[0],
         data_region,
-        crs=crs,
+        crs="EPSG:32632",
         places_path=project["paths"]["places_path"],
     )
     u4ax.plot_timeseries_fit(ax=axes[1], results=results)
@@ -105,7 +128,7 @@ def main():
     # plt.show()
     contextily.add_basemap(
         axes[0],
-        crs=crs,
+        crs="EPSG:32632",
         # zoom=15,
         source=contextily.providers.OpenStreetMap.Mapnik,
     )
@@ -125,21 +148,21 @@ def main():
     )
 
 
-def add_gas_geology(places_path: os.PathLike, ax: Axes):
-    u4ax.add_shapefile(
-        os.path.join(places_path, "Tiefenlinie_Top_Sand_7.shp"),
-        ax=ax,
-        column="Z",
-        facecolor="none",
-        zorder=1,
-    )
-    u4ax.add_shapefile(
-        os.path.join(places_path, "Gas_Störungen.shp"),
-        ax=ax,
-        color="k",
-        label="Faults",
-        zorder=1,
-    )
+# def add_gas_geology(places_path: os.PathLike, ax: Axes):
+#     u4ax.add_shapefile(
+#         os.path.join(places_path, "Tiefenlinie_Top_Sand_7.shp"),
+#         ax=ax,
+#         column="Z",
+#         facecolor="none",
+#         zorder=1,
+#     )
+#     u4ax.add_shapefile(
+#         os.path.join(places_path, "Gas_Störungen.shp"),
+#         ax=ax,
+#         color="k",
+#         label="Faults",
+#         zorder=1,
+#     )
 
 
 def plot_map(ax, data_region, crs, places_path):
@@ -189,42 +212,6 @@ def plot_map(ax, data_region, crs, places_path):
     ax.set_xlabel("Longitude (m)")
     ax.set_ylabel("Latitude (m)")
     u4plotfmt.map_style(ax, divisor=2000)
-
-
-def get_data_within_osm_query(h5path):
-    # Define osm query
-    query = {
-        "address": "Crumstadt",
-        "tags": {
-            "landuse": ["residential", "industrial"],
-            "amenity": "hospital",
-        },
-    }
-    # Get points from file, if not available creates new file
-    points = u4files.get_osm_points(query, h5path)
-    data = u4files.load_data_from_points(h5path, points)
-    return data, points.crs
-
-
-def get_data_within_region(h5path, crs):
-    region = gp.GeoDataFrame(
-        {
-            "geometry": [
-                Polygon(
-                    [
-                        (463200, 5514800),
-                        (463200, 5520400),
-                        (469500, 5520400),
-                        (469500, 5514800),
-                    ]
-                )
-            ]
-        },
-        crs=crs,
-    )
-    points, _ = u4files.get_region_points(region, "Crumstadt", h5path)
-    data = u4files.load_data_from_points(h5path, points)
-    return data, points.crs
 
 
 if __name__ == "__main__":

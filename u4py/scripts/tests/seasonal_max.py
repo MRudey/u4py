@@ -9,9 +9,9 @@ import u4py.analysis.other as u4other
 
 
 def main():
-    # max_of_added_sines()
+    max_of_added_sines()
+    add_two_sines()
     random_add_two_sines(0.0, -0.03)
-    # add_two_sines()
     # u4other.superpose()
 
 

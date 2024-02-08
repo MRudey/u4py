@@ -17,18 +17,16 @@ has to be in dictionary format and may include errors for each component:
 |    }
 
 **Examples:**
-An implementation using test data is found in :func:`invert_test_data`. A best
-practice to work with real data is implemented in
-:func:`u4py.analysis.processing.invert_file`.
+An implementation using test data is found in :func:`invert_test_data`.
 
 **Source**:
 This code has been transcribed from the Matlab source code of S. Metzger, GFZ-Potsdam.
 
 """
+
 from __future__ import annotations
 
 import logging
-import random
 import sys
 from datetime import datetime
 from pathlib import Path
@@ -326,7 +324,8 @@ def invert_time_series(
     time_vector = [data["t"][ind], data["t"][ind], data["t"][ind]]
     if use_sparse:
         matrix = _invert(g_matrix, data_vector, sigma_matrix)
-    # elif use_tensorflow:
+    elif use_tensorflow:
+        raise NotImplementedError()
     #     matrix = _invert_tf(g_matrix, data_vector, sigma_matrix)
     else:
         matrix = _invert_np(g_matrix, data_vector, sigma_matrix)
@@ -835,35 +834,6 @@ def remove_outliers(
     return ind
 
 
-def medianize_station(
-    dataset: dict, data_keys: list, include_sigma=True
-) -> dict:
-    """Takes the median of the dataset and returns it as a timeseries.
-
-    :param dataset: The input dataset as dictionary.
-    :type dataset: dict
-    :param data_keys: Keys where the data is found in `dataset`.
-    :type data_keys: list
-    :param include_sigma: Whether to include the errors or not, defaults to True
-    :type include_sigma: bool, optional
-    :return: The medianized dataset.
-    :rtype: dict
-    """
-    logging.info("Medianizing Station.")
-    time_series = dict()
-    for k in ["dataE", "dataN", "dataU"]:
-        time_series[k] = np.nanmedian(
-            [dataset[kk][k] for kk in data_keys], axis=0
-        )
-        if include_sigma:
-            time_series[k.replace("data", "sigm")] = np.nanstd(
-                [dataset[kk][k] for kk in data_keys], axis=0
-            )
-    time_series["t"] = dataset[data_keys[0]]["t"]
-    time_series["station"] = [dataset[kk]["station"] for kk in data_keys]
-    return time_series
-
-
 def stack_data(dataset: dict) -> dict:
     """Stacks all datapoints for inversion
 
@@ -899,26 +869,6 @@ def stack_data(dataset: dict) -> dict:
         time_series["station"] = [str(nn) for nn in dataset["ps_id"]]
         time_series["xmid"] = dataset["xmid"]
         time_series["ymid"] = dataset["ymid"]
-    return time_series
-
-
-def downsample_timeseries(time_series: dict, maxn: int) -> dict:
-    """Randomly takes `maxn` datapoints from the timeseries to circumvent
-    memory limitations.
-
-    :param time_series: The timeseries dictionary.
-    :type time_series: dict
-    :param maxn: The number of samples to take.
-    :type maxn: int
-    :return: A downsampled version of `time_series`.
-    :rtype: dict
-    """
-    samples = random.sample(range(len(time_series["dataE"])), maxn)
-    time_series["t"] = time_series["t"][samples]
-    asorted = np.argsort(time_series["t"])
-    time_series["t"] = time_series["t"][asorted]
-    for k in ["dataE", "dataN", "dataU"]:
-        time_series[k] = time_series[k][samples][asorted]
     return time_series
 
 
@@ -1009,17 +959,6 @@ def reformat_simple_timeseries(
         "ymid": ymid,
     }
     return data
-
-
-def smooth_stacked_data(data: dict) -> dict:
-    """Takes a stacked data set with irregular sampling intervals and generates a "smooth" version using running means and interpolation.
-
-    :param data: The stacked dataset
-    :type data: dict
-    :return: The "smoothed" dataset.
-    :rtype: dict
-    """
-    print(data["t"])
 
 
 def invert_test_data():

@@ -6,21 +6,18 @@ Most functions also can detect if the script is running in a non-interactive she
 
 from __future__ import annotations
 
-import configparser
 import csv
 import logging
 import os
 import pickle as pkl
 import sys
 import time
-from datetime import datetime
 from multiprocessing import Pool
 from tkinter import TclError, Tk, filedialog
 from typing import Iterable, Tuple
 
 import fiona
 import geopandas as gp
-import h5py
 import numpy as np
 import osmnx
 import pandas as pd
@@ -34,14 +31,11 @@ from osgeo import ogr
 from packaging.version import Version
 from pathvalidate import sanitize_filename
 from rasterio.mask import mask as riomask
-from rasterio.merge import merge as riomerge
 from rasterio.transform import Affine
 from tqdm import tqdm
 
-import u4py.analysis.inversion as u4invert
 import u4py.analysis.spatial as u4spatial
 import u4py.utils.config as u4config
-import u4py.utils.convert as u4convert
 import u4py.utils.sql as u4sql
 import u4py.utils.utils as u4utils
 
@@ -121,15 +115,15 @@ def get_folder_paths(**kwargs) -> os.PathLike:
 
 
 def get_file_list(
-    filetype: str = ".h5",
+    filetype: str,
     folder_path: os.PathLike = None,
     recursive: bool = False,
     **kwargs,
 ) -> list:
     """Asks for folder and returns all files of given filetype
 
-    :param filetype: The filetype to create the list from, defaults to ".h5"
-    :type filetype: str, optional
+    :param filetype: The filetype to create the list from
+    :type filetype: str
     :param folder_path: The base path to look for files, if emtpy the user is asked to select a folder, defaults to None
     :type folder_path: os.PathLike, optional
     :param recursive: When True, recurses through all subfolders, defaults to False
@@ -164,193 +158,6 @@ def get_file_list(
     return file_list
 
 
-def load_hdf5(
-    file_path: os.PathLike,
-    timefmt: str = "datetime",
-    ind: np.ndarray = np.array([]),
-) -> dict:
-    """Loads data from a hdf5 file. Converts timestamps to datetime.
-
-    :param file_path:  The path to the hdf5 file.
-    :type file_path: os.PathLike
-    :param timefmt: Converts timestamps to datetime. Different timestamp formats are supported: `"datetime"` - Python built-in datetime, `"floatyear"` - Years in float point numbers, defaults to "datetime"
-    :type timefmt: str, optional
-    :param ind: The indices of the timeseries to load. Creates a subset of the data from the file, defaults to np.array([])
-    :type ind: np.ndarray, optional
-    :return: The data as a dictionary.
-    :rtype: dict
-    """
-    with h5py.File(file_path, "r") as h5file:
-        data = get_data(h5file, timefmt, ind)
-    return data
-
-
-def load_hdf5_list(file_list: list, timefmt: str = "datetime") -> dict:
-    """Loads and merges all data from all files in the file list.
-
-    :param file_list: A list of hdf5 files created from a gpkg file
-    :type file_list: list
-    :param timefmt: Timestamp format for 'load_hdf5', defaults to "datetime"
-    :type timefmt: str, optional
-    :return: The data as a dictionary.
-    :rtype: dict
-    """
-    data = dict()
-    for h5path in file_list:
-        data_new = load_hdf5(h5path, timefmt)
-        if not data:
-            data.update(data_new)
-        else:
-            data = merge_data(data, data_new)
-
-    return data
-
-
-def merge_data(data: dict, data_new: dict) -> dict:
-    """Updates the contents of data depending on the content
-
-    :param data: The current data dictionary
-    :type data: dict
-    :param data_new: The data to be added
-    :type data_new: dict
-    :raises NotImplementedError: Raised when files with different chunk sizes are merged.
-    :return: Merged data dictionary
-    :rtype: dict
-    """
-    try:
-        # Type 1 (xyz notation)
-        if data_new["chunk_size"] != data["chunk_size"]:
-            raise NotImplementedError(
-                "You are attempting to merge two files with different chunk size."
-            )
-        data["num_points"] += data_new["num_points"]
-        data["ps_id"] = np.hstack((data["ps_id"], data_new["ps_id"]))
-        data["x"] = np.hstack((data["x"], data_new["x"]))
-        data["xmid"] = np.mean(data["x"])
-        data["y"] = np.hstack((data["y"], data_new["y"]))
-        data["ymid"] = np.mean(data["y"])
-        data["z"] = np.hstack((data["z"], data_new["z"]))
-        data["timeseries"] = np.vstack(
-            (data["timeseries"], data_new["timeseries"])
-        )
-    except KeyError:
-        # Type 2 (dataE, dataN, dataU notation)
-        data.update(data_new)
-        data["inversion_results"] = None
-    return data
-
-
-def merge_directions(inputs: Tuple[os.PathLike, os.PathLike]):
-    """Converts average LOS movement into EW and UD component
-
-    :param inputs: A tuple containing the pat to folder with ASCE and DESC folder and the common filename for calculation.
-    :type inputs: Tuple[os.PathLike, os.PathLike]
-    """
-    base_path = inputs[0]
-    file_name = inputs[1]
-    logging.info(f"Merging {file_name}")
-    path_a = os.path.join(base_path, "BBD_EW", file_name)
-    path_d = os.path.join(base_path, "BBD_Vert", file_name)
-    output_path = os.path.join(base_path, "merged")
-    data_ew = load_hdf5(path_a)
-    data_ud = load_hdf5(path_d)
-
-    common_ps_id = np.nonzero(data_ew["ps_id"] == data_ud["ps_id"])
-    output_data = dict()
-    for ii in common_ps_id[0]:
-        station = data_ew["ps_id"][ii]
-        output_data[f"{station}"] = {
-            "t": data_ew["time"],
-            "dataE": data_ew["timeseries"][ii],
-            "dataN": data_ew["timeseries"][ii],
-            "dataU": data_ud["timeseries"][ii],
-            # "sigmE": sigmE,
-            # "sigmN": sigmE,
-            # "sigmU": sigmE,
-            "station": f"{station}",
-            "xmid": data_ew["xmid"],
-            "ymid": data_ew["ymid"],
-            "chunk_size": data_ew["chunk_size"],
-        }
-    u4convert.dict_to_hdf5(os.path.join(output_path, file_name), output_data)
-
-
-def points_to_filelist(gdf: gp.GeoDataFrame, data_folder: os.PathLike) -> list:
-    """Gets a list of files to load the data from
-
-    :param gdf: A dataframe containing the points.
-    :type gdf: gp.GeoDataFrame
-    :param data_folder: Folder path where a hdf5 file for each point in the dataframe is found.
-    :type data_folder: os.PathLike
-    :return: List of all files to be loaded for data aggregation.
-    :rtype: list
-    """
-
-    file_list = [
-        os.path.join(data_folder, f"PSI_chunk_x{int(p.x)}_y{int(p.y)}.h5")
-        for p in gdf.geometry
-    ]
-    return file_list
-
-
-def get_data(
-    h5group: h5py.Group,
-    timefmt: str = "datetime",
-    ind: np.ndarray = np.array([]),
-) -> dict:
-    """
-
-    :param h5group: Recursively gets data from a group. Going deeper if a group is found.
-    :type h5group: h5py.Group
-    :param timefmt: The format for time to use, defaults to "datetime"
-    :type timefmt: str, optional
-    :param ind: Only loads the data at the indices `ind`, defaults to np.array([])
-    :type ind: np.ndarray, optional
-    :return: The loaded data.
-    :rtype: dict
-    """
-    convert_time = {
-        "datetime": datetime.fromisoformat,
-        "floatyear": u4convert.get_floatyear,
-    }
-    data = dict()
-    if ind.size > 0:
-        ind.sort()
-    for k in h5group.keys():
-        if k == "time" or k == "t":
-            v = np.array(
-                [convert_time[timefmt](val.decode()) for val in h5group[k]]
-            )
-        else:
-            try:
-                if ind.size > 0:
-                    v = h5group[k][ind]
-                else:
-                    v = h5group[k][()]
-            except ValueError:
-                if ind.size > 0:
-                    v = h5group[k][ind]
-                else:
-                    v = h5group[k][()]
-            except TypeError:
-                v = get_data(h5group[k], timefmt, ind=ind)
-        data[k] = v
-    return data
-
-
-def get_data_for_inversion(file_path: os.PathLike) -> dict:
-    """Loads file and prepares dataset for inversion.
-
-    :param file_path: The path to the data file.
-    :type file_path: os.PathLike
-    :return: A dictionary formatted for inversion
-    :rtype: dict
-    """
-    dataset = load_hdf5(file_path, timefmt="floatyear")
-    data = u4invert.reformat_dict(dataset)
-    return data
-
-
 def multi_split(file_path: os.PathLike, nsplits: int) -> os.PathLike:
     """Splits the filepath multiple times. Useful for traversing several levels upwards.
 
@@ -364,37 +171,6 @@ def multi_split(file_path: os.PathLike, nsplits: int) -> os.PathLike:
     for n in range(nsplits):
         file_path = os.path.split(file_path)[0]
     return file_path
-
-
-def get_osm_points(
-    query: dict,
-    source_fpath: os.PathLike,
-    overwrite: bool = False,
-    crs: str = "EPSG:32632",
-) -> Tuple[gp.GeoDataFrame, os.PathLike]:
-    """Gets the PSI points in a region defined by an OSM query and saves them
-    into a shape file for faster access.
-
-    :param query: The OSM query
-    :type query: dict
-    :param source_fpath: Path to folder or file where the PSI data is found.
-    :type source_fpath: os.PathLike
-    :param overwrite: Whether to overwrite the output shape file, defaults to False
-    :type overwrite: bool, optional
-    :return: Returns the points as GeoDataFrame with time series attached and the path where the folder is found.
-    :rtype: Tuple[gp.GeoDataFrame, os.PathLike]
-    """
-    # Paths
-    p_fol, p_fpath = set_point_file_paths(
-        source_fpath, query["address"], "clip"
-    )
-
-    if not os.path.exists(p_fpath) or overwrite:
-        points = u4spatial.select_points_osm(query, source_fpath, crs=crs)
-        points.to_file(p_fpath)
-    else:
-        points = gp.GeoDataFrame.from_file(p_fpath)
-    return points, p_fol
 
 
 def get_osm_data(
@@ -416,77 +192,20 @@ def get_osm_data(
     :return: The data as a merged, single dictionary.
     :rtype: dict
     """
-    pkl_fol, pkl_fpath = set_data_file_paths(
-        source_fpath, query["address"], "clip"
-    )
-    shp_fol, shp_fpath = set_point_file_paths(
-        source_fpath, query["address"], "clip"
-    )
+    _, pkl_fpath = set_data_file_paths(source_fpath, query["address"], "clip")
+    _, shp_fpath = set_point_file_paths(source_fpath, query["address"], "clip")
 
     if not os.path.exists(pkl_fpath) or overwrite:
-        if os.path.isdir(source_fpath) or source_fpath.endswith(".h5"):
-            points, p_fol = get_osm_points(
-                query, source_fpath=source_fpath, overwrite=overwrite, crs=crs
-            )
-
-            data = load_data_from_points(source_fpath, points)
-        elif source_fpath.endswith(".gpkg"):
-            data = u4sql.load_gpkg_data_osm(query, source_fpath, crs=crs)
-            u4spatial.xy_data_to_gdf(data["x"], data["y"], crs=crs).to_file(
-                shp_fpath
-            )
+        data = u4sql.load_gpkg_data_osm(query, source_fpath, crs=crs)
+        u4spatial.xy_data_to_gdf(data["x"], data["y"], crs=crs).to_file(
+            shp_fpath
+        )
         with open(pkl_fpath, "wb") as pkl_file:
             pkl.dump(data, pkl_file)
     else:
         with open(pkl_fpath, "rb") as pkl_file:
             data = pkl.load(pkl_file)
     return data
-
-
-def get_region_points(
-    region: gp.GeoDataFrame,
-    region_name: str,
-    source_fpath: os.PathLike,
-    overwrite: bool = False,
-    crs: str = "EPSG:32632",
-) -> Tuple[gp.GeoDataFrame, os.PathLike]:
-    """Gets the PSI points in a region and saves them into a shape file for
-    faster access.
-
-    :param region: A `GeoDataFrame` of the region, e.g. from a shape file
-    :type region: gp.GeoDataFrame
-    :param region_name: The name of the region.
-    :type region_name: str
-    :param source_fpath: Path to folder or file where the PSI data is found.
-    :type source_fpath: os.PathLike
-    :param overwrite:  Whether to overwrite the output shape file, defaults to False
-    :type overwrite: bool, optional
-    :param crs: The CRS of the input shapes, defaults to "EPSG:32632"
-    :type crs: str, optional
-    :return: Returns the points as GeoDataFrame with time series attached and the path where the folder is found.
-    :rtype: Tuple[gp.GeoDataFrame, os.PathLike]
-    """
-    # Paths
-    p_fol, p_fpath = set_point_file_paths(source_fpath, region_name, "region")
-
-    # Selection
-    if os.path.exists(p_fpath) and not overwrite:
-        points = gp.GeoDataFrame.from_file(p_fpath)
-    else:
-        if isinstance(region, (gp.GeoDataFrame, pd.Series)):
-            points = u4spatial.select_points_region(
-                region, source_fpath, crs=crs
-            )
-        elif isinstance(region, shapely.Polygon):
-            region_gdf = gp.GeoDataFrame(
-                geometry=gp.GeoSeries(region), crs=crs
-            )
-            points = u4spatial.select_points_region(
-                region_gdf, source_fpath, crs=crs
-            )
-        points.to_file(p_fpath)
-        points = gp.GeoDataFrame.from_file(p_fpath)
-    return points, p_fol
 
 
 def get_region_data(
@@ -512,67 +231,20 @@ def get_region_data(
     :rtype: dict
     """
 
-    pkl_fol, pkl_fpath = set_data_file_paths(
-        source_fpath, region_name, "region"
-    )
-    shp_fol, shp_fpath = set_point_file_paths(
-        source_fpath, region_name, "region"
-    )
+    _, pkl_fpath = set_data_file_paths(source_fpath, region_name, "region")
+    _, shp_fpath = set_point_file_paths(source_fpath, region_name, "region")
 
     if not os.path.exists(pkl_fpath) or overwrite:
-        if os.path.isdir(source_fpath) or source_fpath.endswith(".h5"):
-            points, p_fol = get_region_points(
-                region=region,
-                region_name=region_name,
-                source_fpath=source_fpath,
-                overwrite=overwrite,
-                crs=crs,
-            )
-            data = load_data_from_points(source_fpath, points)
-        elif source_fpath.endswith(".gpkg"):
-            data = u4sql.load_gpkg_data_region(region, source_fpath, crs=crs)
-            u4spatial.xy_data_to_gdf(data["x"], data["y"], crs=crs).to_file(
-                shp_fpath
-            )
+        data = u4sql.load_gpkg_data_region(region, source_fpath, crs=crs)
+        u4spatial.xy_data_to_gdf(data["x"], data["y"], crs=crs).to_file(
+            shp_fpath
+        )
         with open(pkl_fpath, "wb") as pkl_file:
             pkl.dump(data, pkl_file)
     else:
         with open(pkl_fpath, "rb") as pkl_file:
             data = pkl.load(pkl_file)
     return data
-
-
-def get_point_points(
-    point: Tuple[float, float],
-    radius: float,
-    region_name: str,
-    source_fpath: os.PathLike,
-    overwrite: bool = False,
-) -> gp.GeoDataFrame:
-    """Returns only the points from `source_fpath` that are within `radius` of
-    `point`. Creates a shape file with only the extracted points for quick display.
-
-    :param point: The point where to start.
-    :type point: Tuple[float, float]
-    :param radius: The search radius around point (in meters).
-    :type radius: float
-    :param region_name: A sensible name for the extraction point.
-    :type region_name: str
-    :param source_fpath: The file where to extract the data.
-    :type source_fpath: os.PathLike
-    :param overwrite: Whether to overwrite the shape file, defaults to False
-    :type overwrite: bool, optional
-    :return: A GeoDataFrame with the points including all relevant data.
-    :rtype: gp.GeoDataFrame
-    """
-    p_fol, p_fpath = set_point_file_paths(source_fpath, region_name, "points")
-
-    if not os.path.exists(p_fpath) or overwrite:
-        points = u4spatial.select_points_point(point, radius, source_fpath)
-        points.to_file(p_fpath)
-    else:
-        points = gp.GeoDataFrame.from_file(p_fpath)
-    return points, p_fol
 
 
 def get_point_data(
@@ -600,29 +272,14 @@ def get_point_data(
     """
     if isinstance(point, shapely.Point):
         point = point.xy
-    pkl_fol, pkl_fpath = set_data_file_paths(
-        source_fpath, region_name, "points"
-    )
-    shp_fol, shp_fpath = set_point_file_paths(
-        source_fpath, region_name, "points"
-    )
+    _, pkl_fpath = set_data_file_paths(source_fpath, region_name, "points")
+    _, shp_fpath = set_point_file_paths(source_fpath, region_name, "points")
 
     if not os.path.exists(pkl_fpath) or overwrite:
-        if os.path.isdir(source_fpath) or source_fpath.endswith(".h5"):
-            points, p_fol = get_point_points(
-                point=point,
-                radius=radius,
-                region_name=region_name,
-                source_fpath=source_fpath,
-                overwrite=overwrite,
-            )
-
-            data = load_data_from_points(source_fpath, points)
-        elif source_fpath.endswith(".gpkg"):
-            data = u4sql.load_gpkg_data_point(
-                point=point, radius=radius, gpkg_file_path=source_fpath
-            )
-            u4spatial.xy_data_to_gdf(data["x"], data["y"]).to_file(shp_fpath)
+        data = u4sql.load_gpkg_data_point(
+            point=point, radius=radius, gpkg_file_path=source_fpath
+        )
+        u4spatial.xy_data_to_gdf(data["x"], data["y"]).to_file(shp_fpath)
         with open(pkl_fpath, "wb") as pkl_file:
             pkl.dump(data, pkl_file)
     else:
@@ -669,31 +326,6 @@ def get_pickled_inversion_results(
         return data, 0
 
 
-def load_data_from_points(
-    input_path: os.PathLike, points: gp.GeoDataFrame
-) -> dict:
-    """Loads the data from a h5 file or folder at the locations extracted from points.
-
-    :param h5path: The path to the data.
-    :type h5path: os.PathLike
-    :param points: A point shape file loaded from disk or generated by :func:`get_point_points`
-    :type points: gp.GeoDataFrame
-    :return: The data as a merged, single dictionary.
-    :rtype: dict
-    """
-    logging.info("Loading data from points.")
-    # Loading for a single file:
-    if input_path.endswith(".h5"):
-        ind = points.source_ind.to_numpy()
-        data = load_hdf5(input_path, ind=ind)
-
-    # Loading for a folder of split files (better parallelization)
-    else:
-        data_filelist = points_to_filelist(points, input_path)
-        data = load_hdf5_list(data_filelist)
-    return data
-
-
 def ndarray_to_geotiff(
     Z: np.ndarray,
     bounds: tuple,
@@ -735,56 +367,6 @@ def ndarray_to_geotiff(
         compress=compress,
     ) as dst:
         dst.write(Z, 1)
-
-
-def load_pickled_results(pickle_path: os.PathLike) -> Tuple[dict, int]:
-    """Loads the given pickle file containing the inversion results for plotting.
-
-    :param pickle_path: The path to the pickle file.
-    :type pickle_path: os.PathLike
-    :return: A results dictionary and chunk size in a tuple.
-    :rtype: Tuple[dict, int]
-    """
-    """"""
-    with open(pickle_path, "rb") as pkl_file:
-        results, chunk_size = pkl.load(pkl_file)
-    return results, chunk_size
-
-
-def get_all_tiff_regions(
-    project: configparser.ConfigParser, overwrite: bool = False
-) -> gp.GeoDataFrame:
-    """Gets the tiff files as regions (WIP)
-
-    :param project: The project config.
-    :type project: configparser.ConfigParser
-    :param overwrite: Overwrite existing files if True, defaults to False
-    :type overwrite: bool, optional
-    :return: The tiffs as a geodataframe.
-    :rtype: gp.GeoDataFrame
-    """
-    all_tiff_path = os.path.join(
-        project["paths"]["diff_plan_path"], "all_tiff_overviews.shp"
-    )
-    if os.path.exists(all_tiff_path) and not overwrite:
-        all_tiff_gdf = gp.GeoDataFrame.from_file(all_tiff_path)
-    else:
-        tiff_file_list = get_file_list(
-            folder_path=project["paths"]["diff_plan_path"],
-            filetype=".tif",
-            recursive=True,
-        )
-        all_tiff_list = []
-        for tiff_file in tqdm(tiff_file_list, desc="Generating overviews"):
-            with rio.open(tiff_file) as tile:
-                all_tiff_list.append(u4spatial.bounds_to_polygon(tile.bounds))
-                crs = tile.crs
-        all_tiff_gdf = gp.GeoDataFrame(
-            {"src_path": tiff_file_list, "geometry": all_tiff_list},
-            crs=crs,
-        )
-        all_tiff_gdf.to_file(all_tiff_path)
-    return all_tiff_gdf
 
 
 def get_rois(file_path: os.PathLike) -> list[Tuple[str, shapely.Polygon]]:
@@ -973,141 +555,6 @@ def get_clipped_shapefile(
     return clipped_data, clipped_path
 
 
-def get_buffered_shp_in_roi(
-    places_path: os.PathLike,
-    mask: gp.GeoDataFrame | gp.GeoSeries,
-    region_name: str,
-    shp_cfg: dict,
-    out_crs: str = "EPSG:32632",
-    overwrite: bool = False,
-) -> Tuple[gp.GeoDataFrame, os.PathLike]:
-    """Gets buffered and masked shapes for clipping from shapefile, recreates
-    the shapefile if not found.
-
-    :param places_path: The path to the folder containing the shapefiles.
-    :type places_path: os.PathLike
-    :param mask: The mask for the dataset (e.g. a region of interest)
-    :type mask: gp.GeoDataFrame | gp.GeoSeries
-    :param shp_cfg: The configuration dictionary for the shapefiles in `places_path`
-    :type shp_cfg: dict
-    :param out_crs: The coordinate system for the output shapes, defaults to: "EPSG:32632".
-    :type out_crs: str
-    :param overwrite: Whether to overwrite the final file, defaults to False
-    :type overwrite: bool, optional
-    :return: A geodataframe with the shapes and the path to the output file.
-    :rtype: Tuple[gp.GeoDataFrame, os.PathLike]
-
-    First clips the input shapes by the region extend in `mask`. Then buffers
-    each feature class and merges together the buffers. If necessary the
-    output is converted to EPSG:32632. The output is saved into a shapefile
-    and given back as `gp.GeoDataFrame` and the path to the shapefile.
-    """
-    logging.info("Getting buffered shapefiles")
-    merged_base = os.path.join(places_path, "buffered_and_merged_shapes")
-    os.makedirs(merged_base, exist_ok=True)
-
-    merged_path = os.path.join(merged_base, region_name + "_merged.shp")
-
-    if os.path.exists(merged_path) and not overwrite:
-        logging.info("Loading from existing merged and buffered file")
-        merged_gdf = gp.read_file(merged_path)
-    else:
-        logging.info("Creating new merged and clipped shapefiles")
-        shp_data = dict()
-        for osm_type in tqdm(
-            shp_cfg["shp_file"].keys(),
-            desc="Getting Clipped Shapefiles",
-            leave=False,
-        ):
-            shp_data[osm_type], _ = get_clipped_shapefile(
-                os.path.join(
-                    places_path,
-                    shp_cfg["shp_file"][osm_type],
-                ),
-                mask,
-                region_name,
-                fclass=shp_cfg["fclass"][osm_type],
-                overwrite=overwrite,
-            )
-
-        logging.info("Merging and buffering")
-        for ii, kk in enumerate(shp_data.keys()):
-            if ii == 0:
-                first_crs = shp_data[kk].crs
-            if shp_data[kk].crs != first_crs:
-                shp_data[kk] = shp_data[kk].to_crs(first_crs)
-
-        merged_geometry = u4spatial.buffer_and_merge(shp_data, shp_cfg)
-        logging.info("Saving Merged Geometry")
-        if isinstance(merged_geometry, list):
-            merged_gdf = gp.GeoDataFrame(
-                geometry=merged_geometry, crs=shp_data[osm_type].crs
-            )
-        else:
-            merged_gdf = merged_geometry
-        if out_crs:
-            logging.debug("Converting to different CRS")
-            merged_gdf = merged_gdf.to_crs(out_crs)
-        merged_gdf.to_file(merged_path)
-    return merged_gdf, merged_path
-
-
-def get_clipped_tiff_list(
-    tiff_file_list: list[os.PathLike],
-    mask_shp: os.PathLike,
-    region_name: str,
-    overwrite: bool = False,
-) -> list[os.PathLike]:
-    """Gets all tiffs from `tiff_file_list` clipped by the shapes in
-    `mask_shp`. The results are saved in a separate folder for quicker loading.
-
-    :param tiff_file_list: The file list of tiffs to clip
-    :type tiff_file_list: list[os.PathLike]
-    :param mask_shp: The shapefile containing the geometries for clipping.
-    :type mask_shp: os.PathLike
-    :param region_name: The name of the region for naming the output folder.
-    :type region_name: str
-    :param overwrite: Whether to overwrite the existing results, defaults to False
-    :type overwrite: bool, optional
-    :return: A list with paths to the clipped tiff files.
-    :rtype: list[os.PathLike]
-    """
-    logging.info("Getting clipped tiffs")
-    base_path = multi_split(tiff_file_list[0], 2)
-    ctiff_fol = os.path.join(base_path, f"clipped_tiffs_{region_name}")
-    os.makedirs(ctiff_fol, exist_ok=True)
-
-    clipped_tiff_list = []
-    if os.path.exists(ctiff_fol) and not overwrite:
-        logging.info("Loading existing data")
-        clipped_tiff_list = [
-            os.path.join(ctiff_fol, tf)
-            for tf in os.listdir(ctiff_fol)
-            if tf.endswith(".tif")
-        ]
-    if not clipped_tiff_list:
-        logging.info("Clipping tiff files.")
-        with fiona.open(mask_shp, "r") as shapefile:
-            shapes = [feature["geometry"] for feature in shapefile]
-        args = [(fp, ctiff_fol, shapes) for fp in tiff_file_list]
-        with Pool(u4config.cpu_count) as p:
-            logging.info("Starting Parallel Pool")
-            list(
-                tqdm(
-                    p.imap_unordered(batch_clip_tiff, args),
-                    total=len(tiff_file_list),
-                    desc="Masking Rasters",
-                    leave=False,
-                )
-            )
-        clipped_tiff_list = [
-            os.path.join(ctiff_fol, tf)
-            for tf in os.listdir(ctiff_fol)
-            if tf.endswith(".tif")
-        ]
-    return clipped_tiff_list
-
-
 def get_clipped_tiff_list_gpkg(
     tiff_file_list: list[os.PathLike],
     gpkg_path: os.PathLike,
@@ -1183,14 +630,6 @@ def get_clipped_tiff_list_gpkg(
     return clipped_tiff_list
 
 
-def batch_clip_tiff(args):
-    """Wrapper for clipping with parallel Pool
-
-    :param args: The arguments
-    """
-    clip_tiff(*args)
-
-
 def batch_clip_tiff_gpkg(args):
     """Wrapper for clipping with parallel Pool
 
@@ -1250,53 +689,6 @@ def clip_tiff(in_path: os.PathLike, ctiff_fol: os.PathLike, shapes: list):
     )
     with rio.open(out_path, "w", **out_meta) as dest:
         dest.write(out_image)
-
-
-def get_merged_tiff_path(
-    tiff_folder: os.PathLike,
-    mask: gp.GeoDataFrame = "",
-    overwrite: bool = False,
-) -> os.PathLike:
-    """Gets the path to the merged tiff, if not existent merges the tiffs in `tiff_folder`
-
-    :param tiff_folder: The path to a folder containing tiffs
-    :type tiff_folder: os.PathLike
-    :param mask: The mask to cut the merged file, defaults to ""
-    :type mask: gp.GeoDataFrame, optional
-    :param overwrite: Whether to overwrite existing results, defaults to False
-    :type overwrite: bool, optional
-    :return: The path to the merged tiff file.
-    :rtype: os.PathLike
-    """
-    logging.info("Getting merged and cut tiff files")
-    logging.info("Setting paths")
-    base_folder, folder_name = os.path.split(tiff_folder)
-    merged_folder_path = os.path.join(base_folder, "merged_tiffs")
-    merged_file_path = os.path.join(
-        merged_folder_path, f"{folder_name}_merged.tif"
-    )
-    os.makedirs(merged_folder_path, exist_ok=True)
-    if not os.path.exists(merged_file_path) or overwrite:
-        logging.info("No files found or overwrite=True")
-        tiff_file_list = [
-            rio.open(os.path.join(tiff_folder, tf), "r")
-            for tf in tqdm(
-                os.listdir(tiff_folder),
-                desc="Reading Tiffs for Merge",
-                leave=False,
-            )
-            if tf.endswith(".tif")
-        ]
-        if len(mask) > 0:
-            logging.info("Merging with mask")
-            bounds = tuple(np.squeeze(mask.bounds.values))
-            riomerge(tiff_file_list, dst_path=merged_file_path, bounds=bounds)
-        else:
-            logging.info("Merging without mask")
-            riomerge(tiff_file_list, dst_path=merged_file_path)
-        for tf in tiff_file_list:
-            tf.close()
-    return merged_file_path
 
 
 def extract_xyz_tiff(
@@ -1711,35 +1103,6 @@ def merge_gdf_list(gdf_list: list[gp.GeoDataFrame]) -> gp.GeoDataFrame:
         merged = merged.merge(gdf_list[ii], how="outer")
 
     return merged
-
-
-def get_subdivided_roi_file_list(
-    roi: gp.GeoDataFrame, region_name: str, file_path: os.PathLike
-) -> list:
-    logging.info("Getting subdivided regions of interest.")
-    new_polys = u4spatial.subdivide_polygon(roi)
-    too_large = True
-    while too_large:
-        tiff_file_list_new = get_region_tiff(
-            new_polys[0],
-            region_name,
-            file_path,
-        )
-        if len(tiff_file_list_new) < 1000:
-            too_large = False
-        else:
-            old_polys = new_polys
-            new_polys = []
-            for op in old_polys:
-                new_polys.extend(u4spatial.subdivide_polygon(op))
-    roi_file_list = [
-        get_region_tiff(reg, region_name, file_path) for reg in new_polys
-    ]
-    new_rois = [
-        gp.GeoDataFrame(geometry=[reg], crs=roi.crs) for reg in new_polys
-    ]
-
-    return roi_file_list, new_rois
 
 
 def load_osm_gpkg(

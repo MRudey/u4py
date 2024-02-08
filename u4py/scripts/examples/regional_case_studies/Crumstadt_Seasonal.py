@@ -214,22 +214,6 @@ def main():
     fig.savefig(fig_path + ".pdf")
 
 
-def get_data_within_osm_query(h5path: os.PathLike) -> Tuple[dict, str]:
-    """Defines the OSM query for Crumstadt and loads the data from the region.
-
-    :param h5path: The path to the h5file.
-    :type h5path: os.PathLike
-    :return: A tuple containing (data, crs).
-    :rtype: Tuple[dict, str]
-    """
-    # Define osm query
-
-    # Get points from file, if not available creates new file
-    points = u4files.get_osm_points(query, h5path)
-    data = u4files.load_data_from_points(h5path, points)
-    return data, points.crs
-
-
 def prepare_figure() -> Tuple[Figure, Axes]:
     """Generates a gridded plot with suplots that span several rows.
 

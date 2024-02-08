@@ -100,28 +100,6 @@ def make_gridded_data(
     return grids, extent
 
 
-def clean_points(
-    points: np.ndarray, sigma: int = 2, fnc: Callable = spstats.norm
-) -> np.ndarray:
-    """Creates a numpy array for slicing that removes all outliers from the
-    given points array. The outliers are defined by the standard deviation of
-    the given statistical function which can be any scipy statistics function
-    that supports standard deviations.
-
-    :param points: The array of points to clean
-    :type points: np.ndarray
-    :param sigma: The amounts of standard deviations to use, defaults to 2
-    :type sigma: int, optional
-    :param fnc: The statistical function to use, defaults to spstats.norm
-    :type fnc: Callable, optional
-    :return: A numpy array that can be used to slice other arrays
-    :rtype: np.ndarray
-    """
-    limit = sigma * fnc(*fnc.fit(points)).std()
-    slc = np.nonzero(points > -limit) and np.nonzero(points < limit)
-    return slc
-
-
 def get_linfit_each_timeseries(data: dict) -> np.ndarray:
     """Fits each timeseries in the data dictionary. Suitable only for small
     datasets. Good for creating scatter plots.

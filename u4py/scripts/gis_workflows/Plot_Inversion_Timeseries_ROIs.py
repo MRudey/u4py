@@ -18,7 +18,7 @@ import u4py.utils.projects as u4proj
 def main():
     project = u4proj.get_project(
         required=[
-            "psivert_path",
+            "psi_path",
             "base_path",
             "piloten_path",
             "output_path",
@@ -29,11 +29,10 @@ def main():
 
     regions = u4files.get_rois(project["paths"]["piloten_path"])
     for name, roi in tqdm(regions, desc="Inverting and plotting"):
-        points, _ = u4files.get_region_points(
-            roi, name, project["paths"]["psivert_path"]
-        )
-        data = u4files.load_data_from_points(
-            project["paths"]["psivert_path"], points
+        data = u4files.get_region_data(
+            roi,
+            name,
+            project["paths"]["psi_path"],
         )
         inv_save_path = os.path.join(
             project["paths"]["processing_path"], f"{name}.pkl"

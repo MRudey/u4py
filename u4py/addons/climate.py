@@ -1,6 +1,7 @@
 """
 Contains functions to work with climate data.
 """
+
 from __future__ import annotations
 
 import csv
@@ -90,7 +91,6 @@ def _load_temperature_data(file_path: os.PathLike) -> dict:
     :return: The data as dictionary of time and temperatures for each station.
     :rtype: dict
     """
-    time = []
 
     # Load station coordinates
     station_path = os.path.join(

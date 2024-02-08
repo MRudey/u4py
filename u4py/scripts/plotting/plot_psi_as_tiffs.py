@@ -1,6 +1,7 @@
 """
 Plots all PSI from the gpkg file into geotiffs and saves them in a folder.
 """
+
 import os
 from datetime import datetime
 
@@ -29,7 +30,7 @@ def main():
     os.makedirs(output_dir, exist_ok=True)
 
     # Reading common data, elevation data (zs) not used atm
-    xs, ys, zs, time, queries, info = u4sql.gen_queries_psi_gpkg(
+    xs, ys, _, time, queries, info = u4sql.gen_queries_psi_gpkg(
         os.path.join(project["paths"]["psi_path"], "hessen_l3_clipped.gpkg"),
         direction,
     )

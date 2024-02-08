@@ -1,14 +1,13 @@
 """
 Functions for working with river level data
 """
+
 from __future__ import annotations
 
 import csv
-import locale
 import os
 import pickle as pkl
 from datetime import datetime
-from typing import Tuple
 
 import geopandas as gp
 import numpy as np
@@ -16,38 +15,6 @@ from tqdm import tqdm
 
 import u4py.addons.web_services as u4webs
 import u4py.utils.files as u4files
-
-
-def _date2num_rhine(in_date: str) -> datetime:
-    """Converts a date in river level data to datetime
-
-    :param in_date: input date as string
-    :type in_date: str
-    :return: time as datetime object
-    :rtype: datetime
-    """
-    locale.setlocale(locale.LC_ALL, "de_DE")
-    date = datetime.strptime(in_date, "%b %Y")
-    return date
-
-
-def load_rhine_date(file_path: os.PathLike) -> Tuple[list, list]:
-    """Loads rhine water level data downloaded from Düsseldorf city
-
-    :param file_path: The input file.
-    :type file_path: os.PathLike
-    :return: A Tuple containing to lists: (`date`, `level`)
-    :rtype: Tuple[list, list]
-    """
-    with open(file_path, "rt") as rhinefile:
-        _ = rhinefile.readline()
-        date = []
-        level = []
-        for row in rhinefile.readlines():
-            row_text = row.split(",")
-            date.append(_date2num_rhine(row_text[0]))
-            level.append(float(row_text[3].replace("\n", "").replace(" ", "")))
-    return (date, level)
 
 
 def get_pegel_data(file_path: os.PathLike, overwrite: bool = False) -> dict:
