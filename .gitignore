@@ -9,6 +9,8 @@ requirements.txt
 *.pdf
 cache/
 images/
+todo.md
+
 
 # Include images for GitLab Page
 !/public/_static/*.png
