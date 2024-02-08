@@ -1,4 +1,4 @@
-image: ghcr.io/osgeo/gdal:ubuntu-full-3.8.3
+image: python:3.11-bookworm
 
 variables:
   PIP_CACHE_DIR: "$CI_PROJECT_DIR/.cache/pip"
@@ -10,7 +10,7 @@ cache:
 
 before_script:
   - python --version ; python -m pip --version  # For debugging
-  # - apt-get install -y libgdal-dev g++ binutils libproj-dev gdal-bin --no-install-recommends
+  - apt-get install -y libgdal-dev g++ binutils libproj-dev gdal-bin --no-install-recommends
   - python -m pip install virtualenv
   - virtualenv venv
   - source venv/bin/activate
