@@ -11,12 +11,19 @@ This Python module was created in the framework of the project Umwelt 4.0 financ
  - :doc:`analysis <../u4py.analysis>`: Does the data analysis, e.g., inversion or spatial analysis.
  - :doc:`plotting <../u4py.plotting>`: Pre-made figures and axis objects for specific plots including formatting.
  - :doc:`utils <../u4py.utils>`: Various utility functions, e.g., file and project management.
+ - :doc:`io <../u4py.io>`: Tools to read various file formats.
  - :doc:`addons <../u4py.addons>`: Tools to read externally supplied data such as groundwater levels or weather data.
 
- Each module can be imported and used separately for creating individual workflows and plots.
+:doc:`View the Full API Documentation here <u4py>`
+
+Each module can be imported and used separately for creating individual workflows and plots.
 
 Installation
 ============
+
+This module uses `GDAL <https://gdal.org>`_ which cannot be installed from pypi for many operating systems. You can download precompiled binary wheels from `here <https://github.com/cgohlke/geospatial-wheels/releases>`_.
+
+Some scripts use ADAtools by Barra et al. 2017, Tomás et al. 2019 and Navarro et al. 2020. If this functionality is needed, please contact one of the authors for a personal copy of ADAtools.
 
 To install the module you need to use pip together with git:
 
@@ -31,32 +38,27 @@ Examples and Notebooks
 
 Several standalone scripts and interactive Jupyter notebooks are available. Scripts and notebooks require ``u4py`` installed on your system. Additionally, all notebooks and some scripts (``arcpy_*.py``) require a valid installation of ArcGIS including an ``arcpy`` environment.
 
-The scripts contain full workflows to do data preparation or processing. You can find details on the scripts in the :doc:`Documentation of Scripts <../scripts>` and you can `Download Example Scripts <https://git-ce.rwth-aachen.de/rudolf/u4py/-/archive/main/u4py-main.zip?path=scripts>`_ as zip files.
+The scripts contain full workflows to do data preparation or processing. You can `Download Example Scripts <https://git-ce.rwth-aachen.de/rudolf/u4py/-/archive/main/u4py-main.zip?path=scripts>`_ as zip files.
 
-The notebooks contain the workflow to prepare the dataset for manual classification. You can find details in the :doc:`Documentation for Notebooks <../notebooks>` and you can `Download Example Notebooks <https://git-ce.rwth-aachen.de/rudolf/u4py/-/archive/main/u4py-main.zip?path=notebooks>`_ as zip files.
+The notebooks contain the workflow to prepare the dataset for manual classification. You can `Download Example Notebooks <https://git-ce.rwth-aachen.de/rudolf/u4py/-/archive/main/u4py-main.zip?path=notebooks>`_ as zip files.
 
-.. toctree::
-   :maxdepth: 4
-   :caption: Contents:
+Source
+======
 
-.. automodule:: u4py
-   :members:
-   :undoc-members:
-   :show-inheritance:
+You can find the `source repository here: <https://git-ce.rwth-aachen.de/rudolf/u4py>`_.
 
-.. automodule:: scripts
-   :members:
-   :undoc-members:
-   :show-inheritance:
-
-.. automodule:: notebooks
-   :members:
-   :undoc-members:
-   :show-inheritance:
 
 Indices and tables
 ==================
 
 * :ref:`Overview of module <modindex>`
 * :ref:`Index of all functions <genindex>`
-.. * :ref:`search`
+
+References
+----------
+
+- A. Barra, L. Solari, M. Béjar-Pizarro, O. Monserrat, S. Bianchini, G. Herrera, M. Crosetto, R. Sarro, A. G.E., R. Maria Mateos, S. Ligüerzana, C. López, S. Moretti, A Methodology to Detect and Update Active Deformation Areas Based on Sentinel-1 SAR Images , Remote Sensing, Vol. 9, No. 10, September 2017.
+
+- R. Tomás, J. Ignacio Pagán, J. A. Navarro, M. Cano, J. Luis Pastor, A. Riquelme, M. Cuevas-González, M. Crosetto, A. Barra, O. Monserrat, J. M. López-Sánchez, A. Ramón, S. Iborra, M. del Soldato, L. Solari, S. Bianchini, F. Raspini, F. Novali, A. Ferreti, M. Constantini, F. Trillo, G. Herrera, N. Casagli, Semi-Automatic Identification and Pre-Screening of Geological-Geotechnical Deformational Processes Using Persistent Scatterer Interferometry Datasets , Remote Sensing, Vol. 11, No. 14, July 2019.
+
+- J. A. Navarro, R. Tomás, A, Barra, J. I. Pagán, C. Reyes-Carmona, L. Solari, J. L.Vinielles, S. Falco, M. Crosetto, ADAtools: Automatic Detection and Classification of Active Deformation Areas from PSI Displacement Maps. ISPRS Int. J. Geo-Inf. 2020, 9, 584.
