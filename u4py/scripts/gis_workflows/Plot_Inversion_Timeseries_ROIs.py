@@ -4,7 +4,6 @@ Gets PSI points within all rectangles in the shape file, does an inversion and p
 Saves the results for each rectangle in a separate pkl file.
 """
 
-import logging
 import os
 
 import matplotlib.pyplot as plt
@@ -12,11 +11,8 @@ from tqdm import tqdm
 
 import u4py.analysis.processing as u4proc
 import u4py.plotting.axes as u4ax
-import u4py.utils.config as u4config
 import u4py.utils.files as u4files
 import u4py.utils.projects as u4proj
-
-# logging.getLogger().setLevel(u4config.log_level)
 
 
 def main():

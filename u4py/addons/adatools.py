@@ -307,3 +307,38 @@ def create_adafinder_config(
             elif isinstance(v, float):
                 cfgf.write(f"{k} = {v:.2f}\n")
     return adacfg_path
+
+
+def merge_shps(project: dict, ending: str, direction: str):
+    """Merges output of several ADAfinder runs into a single shapefile.
+
+    :param project: The project config
+    :type project: dict
+    :param ending: The ending to identify the type of results.
+    :type ending: str
+    :param direction: The direction (vertikal, Ost_West) of the results.
+    :type direction: str
+    """
+    shp_file_list = [
+        os.path.join(project["paths"]["output_path"], fp)
+        for fp in os.listdir(project["paths"]["output_path"])
+        if fp.endswith(f"{ending}") and direction in fp
+    ]
+    outfilep = os.path.join(
+        project["paths"]["output_path"],
+        "merged_ada_results",
+        f"merged_{direction}_{ending}",
+    )
+    if shp_file_list:
+        data = dict()
+        for shpf in tqdm(
+            shp_file_list, desc="Reading files for merge", leave=False
+        ):
+            gdf = gp.read_file(shpf)
+            if not data:
+                for k in gdf.keys():
+                    data[k] = []
+            for k in gdf.keys():
+                data[k].extend(gdf[k])
+        fgdf = gp.GeoDataFrame(data=data, crs=gdf.crs)
+        fgdf.to_file(outfilep)

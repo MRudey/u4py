@@ -8,13 +8,10 @@ import os
 import subprocess
 from pathlib import Path
 
-import geopandas as gp
 from tqdm import tqdm
 
 import u4py.addons.adatools as u4ada
 import u4py.utils.projects as u4proj
-
-# u4config.start_logger()
 
 
 def main():
@@ -64,34 +61,8 @@ def main():
         project["paths"]["output_path"], "merged_ada_results"
     )
     os.makedirs(merged_path, exist_ok=True)
-    merge_shps(project, "adas.shp", "vertikal")
-    merge_shps(project, "adas.shp", "Ost_West")
-
-
-def merge_shps(project: dict, ending: str, direction: str):
-    shp_file_list = [
-        os.path.join(project["paths"]["output_path"], fp)
-        for fp in os.listdir(project["paths"]["output_path"])
-        if fp.endswith(f"{ending}") and direction in fp
-    ]
-    outfilep = os.path.join(
-        project["paths"]["output_path"],
-        "merged_ada_results",
-        f"merged_{direction}_{ending}",
-    )
-    if shp_file_list:
-        data = dict()
-        for shpf in tqdm(
-            shp_file_list, desc="Reading files for merge", leave=False
-        ):
-            gdf = gp.read_file(shpf)
-            if not data:
-                for k in gdf.keys():
-                    data[k] = []
-            for k in gdf.keys():
-                data[k].extend(gdf[k])
-        fgdf = gp.GeoDataFrame(data=data, crs=gdf.crs)
-        fgdf.to_file(outfilep)
+    u4ada.merge_shps(project, "adas.shp", "vertikal")
+    u4ada.merge_shps(project, "adas.shp", "Ost_West")
 
 
 if __name__ == "__main__":
