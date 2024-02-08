@@ -10,6 +10,7 @@ cache:
 
 before_script:
   - python --version ; pip --version  # For debugging
+  - apt-get install -y libgdal-dev g++ --no-install-recommends
   - pip install virtualenv
   - virtualenv venv
   - source venv/bin/activate
