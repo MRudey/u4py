@@ -21,9 +21,6 @@ def main():
         interactive=False,
     )
 
-    # First test:
-    # create_test_region(project)
-
     # Full conversion
     u4ada.convert_gpkg_to_shp("hessen_l3_clipped.gpkg", project)
 
