@@ -2,6 +2,9 @@
 Illustrates the principle of the inversion algorithm
 """
 
+import os
+from pathlib import Path
+
 import matplotlib.pyplot as plt
 import numpy as np
 
@@ -9,10 +12,11 @@ import u4py.analysis.inversion as u4invert
 
 
 def main():
+    cm = 1 / 2.54
     syn_comps = [
-        1.1,
-        0.6,
-        0.8,
+        3,
+        1,
+        2,
         -0.1,
         0.05,
         [
@@ -34,22 +38,42 @@ def main():
             (2001, 2005),
         ],
     ]
+    annotations = {
+        "lin": "Linear",
+        "ann_sin": "Saisonal Sinus",
+        "ann_cos": "Saisonal Cosinus",
+        "sem_sin": "Halbjährl. Sinus",
+        "sem_cos": "Halbjährl. Cosinus",
+        "d_noise": "Rauschen",
+        "f_at": "Abrupte Bewegung",
+        "f_eq": "Erdbeben",
+        "f_ex": "Transiente",
+    }
     test_data = u4invert.create_synthetic_data(*syn_comps)
     t = test_data[0]["t"]
     ind_g_funcs = test_data[-1]
-    fig, axes = plt.subplots(
-        nrows=len(ind_g_funcs), sharex=True, figsize=(7, 5)
-    )
+    ind_g_funcs["lin"] -= np.min(ind_g_funcs["lin"])
+    cumulative = np.ones_like(t)
     for ii, kk in enumerate(ind_g_funcs.keys()):
-        axes[ii].plot(t, ind_g_funcs[kk])
-        axes[ii].annotate(kk, (1.01, 0.5), xycoords="axes fraction")
-        axes[ii].set_yticks([np.min(ind_g_funcs[kk]), np.max(ind_g_funcs[kk])])
-    for ax in axes:
-        for sp in ["top", "bottom", "left", "right"]:
-            ax.spines[sp].set_linewidth(0.25)
-    axes[-1].set_xlabel("Time")
-    fig.tight_layout(pad=0)
-    fig.savefig(r"~\HESSENBOX-DA\Umwelt_4_privat\2023-07 Treffen\lin_comb.pdf")
+        fig, axes = plt.subplots(
+            nrows=2, sharex=True, figsize=(11.22 * cm, 10.88 * cm), dpi=150
+        )
+        cumulative += ind_g_funcs[kk]
+        axes[0].plot(t, cumulative, label=kk)
+        axes[1].plot(t, ind_g_funcs[kk], label=kk)
+        axes[0].set_ylabel("Gesamtbewegung\n(mm)")
+        axes[1].set_ylabel("Anteil Komponente\n(mm)")
+        axes[-1].set_xlabel("Zeit")
+        fig.suptitle(annotations[kk])
+        fig.tight_layout()
+        fig.savefig(
+            os.path.join(
+                Path(
+                    r"~\HESSENBOX-DA\Umwelt_4_privat\2023-12 HLNUG Kolloq"
+                ).expanduser(),
+                f"{kk}.png",
+            )
+        )
 
 
 if __name__ == "__main__":
