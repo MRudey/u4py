@@ -1,11 +1,11 @@
 """
 Merges Point Shapefiles and removes duplicate Points
 """
+
 import os
 from pathlib import Path
 
 import geopandas as gp
-import matplotlib.pyplot as plt
 
 
 def main():
@@ -37,9 +37,6 @@ def main():
     )
     print("Merged Points:", len(merged_points))
     merged_points.to_file(os.path.join(folder_path, "Erdfaelle_merged.shp"))
-    # fig, ax = plt.subplots()
-    # merged_points.plot(ax=ax, marker=".")
-    # plt.show()
 
 
 if __name__ == "__main__":
