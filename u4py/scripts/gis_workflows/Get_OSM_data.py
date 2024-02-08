@@ -11,9 +11,10 @@ u4config.start_logger()
 
 def main():
     tags_list = [
-        {"power": "generator", "generator:method": "wind_turbine"},
-        {"parking": "surface"},
-        {"landuse": "construction"},
+        # {"power": "generator", "generator:method": "wind_turbine"},
+        # {"parking": "surface"},
+        # {"landuse": "construction"},
+        {"landuse": "landfill"},
     ]
     types_list = [shapely.Point, shapely.Polygon, shapely.Polygon]
 
