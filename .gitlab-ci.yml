@@ -1,4 +1,4 @@
-image: debian:12
+image: ghcr.io/osgeo/gdal:ubuntu-full-3.8.3
 
 variables:
   PIP_CACHE_DIR: "$CI_PROJECT_DIR/.cache/pip"
@@ -9,9 +9,9 @@ cache:
     - venv/
 
 before_script:
-  - python3 --version ; python3 -m pip --version  # For debugging
+  - python --version ; pip --version  # For debugging
   - apt-get install -y libgdal-dev g++ binutils libproj-dev gdal-bin --no-install-recommends
-  - python3 -m pip install virtualenv
+  - pip install virtualenv
   - virtualenv venv
   - source venv/bin/activate
 
@@ -19,8 +19,8 @@ pages:
   stage: deploy
   environment: production
   script:
-      - python3 -m pip install sphinx sphinx_rtd_theme
-      - python3 -m pip install .
+      - pip install sphinx sphinx_rtd_theme
+      - pip install .
       - sphinx-apidoc -f -e -M -o doc/source .
       - sphinx-build -d doc/build doc/source public
   artifacts:
