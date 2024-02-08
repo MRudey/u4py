@@ -7,9 +7,9 @@
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#project-information
 
 project = "U4Py"
-copyright = "2023, M. Rudolf"
+copyright = "2024, M. Rudolf"
 author = "M. Rudolf"
-release = "0.0.2dev"
+release = "0.0.7beta"
 
 # -- General configuration ---------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#general-configuration
@@ -28,9 +28,7 @@ autodoc_default_options = {
     "member-order": "bysource",
     "special-members": "__init__",
 }
-autodoc_mock_imports = [
-    "GDAL",
-]
+
 
 language = "en"
 
