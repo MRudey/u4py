@@ -9,9 +9,9 @@ cache:
     - venv/
 
 before_script:
-  - python --version ; pip --version  # For debugging
-  - apt-get install -y libgdal-dev g++ binutils libproj-dev gdal-bin --no-install-recommends
-  - pip install virtualenv
+  - python --version ; python -m pip --version  # For debugging
+  # - apt-get install -y libgdal-dev g++ binutils libproj-dev gdal-bin --no-install-recommends
+  - python -m pip install virtualenv
   - virtualenv venv
   - source venv/bin/activate
 
@@ -19,8 +19,8 @@ pages:
   stage: deploy
   environment: production
   script:
-      - pip install sphinx sphinx_rtd_theme
-      - pip install .
+      - python -m pip install sphinx sphinx_rtd_theme
+      - python -m pip install .
       - sphinx-apidoc -f -e -M -o doc/source .
       - sphinx-build -d doc/build doc/source public
   artifacts:
