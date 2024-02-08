@@ -269,19 +269,19 @@ def create_adafinder_config(
         # Options -------------------------------------------------------------
         PURGE_ISOLATED_POINTS=False,
         PURGE_SMALL_CLUSTERS=False,
-        ISOLATION_DISTANCE=40,
+        ISOLATION_DISTANCE=100,  # 2*resolution
         ISOLATION_CLUSTER_SIZE=2,
-        VELOCITY_THRESHOLD_MODE=1,
-        VELOCITY_FACTOR_OR_THRESHOLD=2,
-        ADA_RADIUS=26,
+        VELOCITY_THRESHOLD_MODE=3 * 0.65,  # Roughly matches 3*std
+        VELOCITY_FACTOR_OR_THRESHOLD=1,
+        ADA_RADIUS=65,  # 1.3*resolution
         ADA_MINIMUM_CLUSTER_SIZE=5,
-        ADA_BUFFER_SIZE=30,
+        ADA_BUFFER_SIZE=50,
         # Advanced options ----------------------------------------------------
         ADA_DISPLAY_MODE=1,
         ALLOW_OVERLAPPING_ADAS=False,
         ADA_SHIFT_TO_CM=2,
         ADA_CIRCLE_STEPS=40,
-        N_VALUES_MEAN_DEFORMATION=4,
+        N_VALUES_MEAN_DEFORMATION=6,
         TNITABLE_N_VALUES=3,
         TNITABLE_THRESHOLDS=[0.53, 0.7, 0.84],
         SNITABLE_N_VALUES=3,
@@ -304,4 +304,6 @@ def create_adafinder_config(
                 cfgf.write(f"{k} = {' '.join([str(va) for va in v])}\n")
             elif isinstance(v, int):
                 cfgf.write(f"{k} = {v}\n")
+            elif isinstance(v, float):
+                cfgf.write(f"{k} = {v:.2f}\n")
     return adacfg_path
