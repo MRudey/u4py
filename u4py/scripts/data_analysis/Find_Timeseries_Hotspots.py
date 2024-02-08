@@ -1,9 +1,9 @@
-"""Uses the geotiffs for maximum sinusoidal and linear activity and detects
+"""
+Uses the geotiffs for maximum sinusoidal and linear activity and detects
 regions with larger than average movement.
 
 This script uses 2d histogram binning with hexagons (`matplotlib.hexbin`).
 """
-
 
 import os
 from pathlib import Path

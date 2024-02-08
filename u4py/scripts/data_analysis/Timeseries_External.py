@@ -1,6 +1,7 @@
 """
 Time series analysis of external data, such as groundwater, weather or other data.
 """
+
 # import logging
 import os
 from pathlib import Path
@@ -53,9 +54,9 @@ def main():
         parameters_list,
     ) = u4invert.invert_time_series(stacked_data)
     inversion_results = {"matrix_ori": matrix}
-    inversion_string = u4invert.print_inversion_results(
-        matrix, parameters_list
-    )
+    # inversion_string = u4invert.print_inversion_results(
+    #     matrix, parameters_list
+    # )
     fig, ax = u4plots.plot_inversion_results(
         time=time_vector,
         data=data_inv_out,

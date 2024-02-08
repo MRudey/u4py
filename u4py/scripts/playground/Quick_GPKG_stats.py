@@ -4,7 +4,6 @@ Some quick and dirty statistics for a gpkg file.
 
 from pathlib import Path
 
-import matplotlib.pyplot as plt
 import numpy as np
 
 import u4py.utils.sql as u4sql

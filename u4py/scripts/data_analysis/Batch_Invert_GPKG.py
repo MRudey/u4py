@@ -1,44 +1,56 @@
 """
-Converts a gpkg file containing points with timeseries into chunked hdf5 files.
-
-#Parallelized
-#SLURM
+Inverts all timeseries in a GPKG file and outputs the results as a pkl file.
 """
-
 
 import os
 import pickle
 
 import u4py.analysis.processing as u4proc
-import u4py.utils.files as u4files
+import u4py.utils.projects as u4proj
 import u4py.utils.sql as u4sql
 
 
 def main():
-    file_path = "/mnt/Raid/Umwelt4/Daten/hessen_l3_clipped.gpkg"
+    overwrite_intermediate = False
+    overwrite_results = False
+    project = u4proj.get_project(
+        required=["base_path", "psi_path", "output_path"]
+    )
 
-    # START PROCESSING
-    output_folder = u4files.multi_split(file_path, 2)
-    output_file = os.path.join(output_folder, "extracted_hessen_l3_data.pkl")
-    if os.path.exists(output_file):
-        with open(output_file, "rb") as pkl_file:
+    # Set Paths
+    input_file = os.path.join(
+        project["paths"]["psi_path"], "hessen_l3_clipped.gpkg"
+    )
+    intermediate_file = os.path.join(
+        project["paths"]["output_path"], "extracted_hessen_l3_data.pkl"
+    )
+    output_file = os.path.join(
+        project["paths"]["output_path"], "all_inversion_results.pkl"
+    )
+
+    # Loads data from intermediate storage
+    if os.path.exists(intermediate_file) and not overwrite_intermediate:
+        with open(intermediate_file, "rb") as pkl_file:
             data = pickle.load(pkl_file)
     else:
-        data = u4sql.load_tables(file_path)
-        with open(output_file, "wb") as pkl_file:
+        data = u4sql.load_tables(input_file)
+        with open(intermediate_file, "wb") as pkl_file:
             pickle.dump(data, pkl_file)
 
-    extracts = u4proc.get_extracts(data)
-    results = u4proc.batch_mapping(
-        extracts, u4proc.inversion_map_worker, "Inverting Extracts"
-    )
-    # results = [u4proc.inversion_map_worker(ext) for ext in tqdm(extracts)]
+    # Start processing
+    if not os.path.exists(output_file) or overwrite_results:
+        extracts = u4proc.get_extracts(data)
 
-    with open(
-        os.path.join(output_folder, "all_inversion_results.pkl"),
-        "wb",
-    ) as pkl_file:
-        pickle.dump(results, pkl_file)
+        # Parallel processing
+        results = u4proc.batch_mapping(
+            extracts, u4proc.inversion_map_worker, "Inverting Extracts"
+        )
+
+        # Single processing
+        # results = [u4proc.inversion_map_worker(ext) for ext in tqdm(extracts)]
+
+        with open(output_file, "wb") as pkl_file:
+            pickle.dump(results, pkl_file)
 
 
 if __name__ == "__main__":
