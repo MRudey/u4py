@@ -6,6 +6,8 @@ This repository contains an installable Python module, Jupyter notebooks and scr
 
 ### Prerequisites
 
+Currently supported Python **Version: 3.11.**, due to some packages being not available for 3.12, yet.
+
 This module uses [GDAL](https://gdal.org) which cannot be installed from pypi for many operating systems. You can download precompiled binary wheels from [here](https://github.com/cgohlke/geospatial-wheels/releases).
 
 Some scripts use ADAtools by Barra et al. 2017, Tomás et al. 2019 and Navarro et al. 2020. If this functionality is needed, please contact one of the authors for a personal copy of ADAtools.

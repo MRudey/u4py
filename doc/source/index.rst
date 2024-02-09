@@ -20,6 +20,7 @@ Each module can be imported and used separately for creating individual workflow
 
 Installation
 ============
+Currently supported Python **Version: 3.11.**, due to some packages being not available for 3.12, yet.
 
 This module uses `GDAL <https://gdal.org>`_ which cannot be installed from pypi for many operating systems. You can download precompiled binary wheels from `here <https://github.com/cgohlke/geospatial-wheels/releases>`_.
 
