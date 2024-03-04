@@ -190,7 +190,7 @@ def get_all_pickle_data(
         return (fit_1, fit_2)
 
 
-def get_file_list_tiff(folder_path: os.PathLike) -> list:
+def get_file_list_tiff(folder_path: os.PathLike) -> list[os.PathLike]:
     """Gets a file list of tif files in `TB` folders
 
     :param folder_path: The path to the folder containing `TB` folders
@@ -260,3 +260,21 @@ def set_data_file_paths(
     fname = sanitize_filename(f"{name}_{rtype}_{source}_data.pkl")
     fpath = os.path.join(folder, fname)
     return folder, fpath
+
+
+def get_file_list_adf(base_folder: os.PathLike) -> list[os.PathLike]:
+    """Gets a file list of all folders containing individual adf files for a DEM raster dataset.
+
+    :param base_folder: The path to the raster folder containing folders in the form of `g_lat_long`.
+    :type base_folder: os.PathLike
+    :return: The list of paths to the adf files.
+    :rtype: list[os.PathLike]
+    """
+
+    folders = [
+        os.path.join(base_folder, fol)
+        for fol in os.listdir(base_folder)
+        if fol.startswith("g_")
+        and os.path.isdir(os.path.join(base_folder, fol))
+    ]
+    return folders

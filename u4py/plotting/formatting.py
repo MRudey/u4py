@@ -1,6 +1,7 @@
 """
 Contains functions for consistent figure and axis formatting.
 """
+
 from __future__ import annotations
 
 import re
@@ -10,7 +11,6 @@ from typing import Tuple
 import matplotlib.patches as mpatches
 import matplotlib.path as mpath
 import matplotlib.patheffects as path_effects
-import matplotlib.pyplot as plt
 import matplotlib.ticker as ticker
 import matplotlib.transforms as mptransf
 import numpy as np
@@ -36,10 +36,24 @@ def add_map_label(text: str, coords: tuple, ax: Axes):
         horizontalalignment="left",
         verticalalignment="top",
         fontweight="bold",
+        zorder=25,
     )
+    outline_text(txt)
+
+
+def outline_text(txt: mpath.Path, color: str = "white", width: float = 3):
+    """Helper function to format text with outline.
+
+    :param txt: The text object.
+    :type txt: str
+    :param color: The outline color, defaults to "white"
+    :type color: str, optional
+    :param width: The outline width, defaults to 3
+    :type width: float, optional
+    """
     txt.set_path_effects(
         [
-            path_effects.Stroke(linewidth=3, foreground="white"),
+            path_effects.Stroke(linewidth=width, foreground=color),
             path_effects.Normal(),
         ]
     )
@@ -69,7 +83,12 @@ def map_style(ax: Axes, divisor: int = 0, grid: bool = True, crs: str = ""):
         ax.yaxis.set_major_locator(ticker.MultipleLocator(divisor))
     ax.xaxis.set_major_formatter(coordinate_formatter)
     ax.yaxis.set_major_formatter(coordinate_formatter)
-    plt.yticks(verticalalignment="center", rotation=90)
+    # ax.set_yticks(
+    #     ax.get_yticks(),
+    #     ax.get_yticklabels(),
+    #     verticalalignment="center",
+    #     rotation=90,
+    # )
     if crs:
         crs_obj = pyproj.CRS.from_user_input(crs)
         ax.annotate(
@@ -80,6 +99,38 @@ def map_style(ax: Axes, divisor: int = 0, grid: bool = True, crs: str = ""):
             fontsize="small",
             annotation_clip=False,
         )
+        xlbl, ylbl = get_axislabel_from_crs(crs_obj)
+        ax.set_xlabel(xlbl)
+        ax.set_ylabel(ylbl)
+
+
+def get_axislabel_from_crs(crs: pyproj.CRS) -> Tuple[str]:
+    """Gets the information from the crs object and creates appropriate axis labels.
+
+    :param crs: The coordinate system for the axis.
+    :type crs: pyproj.CRS
+    """
+
+    xname = crs.axis_info[0].name
+    yname = crs.axis_info[1].name
+    xunit = crs.axis_info[0].unit_name
+    yunit = crs.axis_info[0].unit_name
+
+    xname = xname.replace("Geodetic l", "L")
+    yname = yname.replace("Geodetic l", "L")
+    if xunit == "degree":
+        xunit = "°"
+    elif xunit == "metre":
+        xunit = "m"
+
+    if yunit == "degree":
+        yunit = "°"
+    elif yunit == "metre":
+        yunit = "m"
+
+    xstr = f"{xname} ({xunit})"
+    ystr = f"{yname} ({yunit})"
+    return (xstr, ystr)
 
 
 def coordinate_formatter(x: float, pos: int) -> str:

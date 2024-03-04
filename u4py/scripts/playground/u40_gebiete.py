@@ -13,21 +13,20 @@ def main():
     bld_path = Path(r"~\Documents\ArcGIS\Places\vg2500_bld.shp").expanduser()
     out_path = Path(r"~\Documents\ArcGIS\INSAR_plots").expanduser()
     bld_shp = gp.read_file(bld_path)
-    ffm = (470500, 5548000, 479000, 5555000)
 
+    ffm = (460000, 5540000, 479000, 5555000)
     ffm_shp = shapely.Polygon.from_bounds(*ffm)
     ffm_shp_c = shapely.Point(ffm_shp.centroid)
     ffm_gdf = gp.GeoSeries(data=ffm_shp, crs="EPSG:32632")
     ffm_gdf_c = gp.GeoSeries(data=ffm_shp_c, crs="EPSG:32632")
 
     crum = (462000, 5514000, 470000, 5520400)
-
     crum_shp = shapely.Polygon.from_bounds(*crum)
     crum_shp_c = shapely.Point(crum_shp.centroid)
     crum_gdf = gp.GeoSeries(data=crum_shp, crs="EPSG:32632")
     crum_gdf_c = gp.GeoSeries(data=crum_shp_c, crs="EPSG:32632")
 
-    fig, ax = plt.subplots(dpi=150)
+    fig, ax = plt.subplots(dpi=300)
     figb = fig.bbox.bounds
     axb = ax.bbox.bounds
     width = 0.4
@@ -40,6 +39,27 @@ def main():
     crum_gdf.plot(
         ax=ax, facecolor="None", edgecolor="C1", zorder=4, linewidth=2
     )
+    u4pltfmt.outline_text(
+        ax.annotate(
+            "Frankfurt",
+            (ffm[0], ffm[1] - 300),
+            color="C0",
+            fontweight="bold",
+            fontsize="x-large",
+            verticalalignment="top",
+        ),
+        width=2,
+    )
+    u4pltfmt.outline_text(
+        ax.annotate(
+            "Crumstadt",
+            (crum[0], crum[3] + 300),
+            color="C1",
+            fontweight="bold",
+            fontsize="x-large",
+        ),
+        width=2,
+    )
 
     in_ax = fig.add_axes([left, bottom, width, width])
     bld_shp.plot(ax=in_ax, facecolor="w", edgecolor="k", linewidth=0.5)
@@ -50,9 +70,9 @@ def main():
     crum_gdf_c.to_crs(bld_shp.crs).plot(ax=in_ax, edgecolor="C1", marker=".")
     in_ax.axis("off")
     ax.set_xlim(440000, 502500)
-    u4ax.add_basemap(ax=ax, crs="EPSG:32632")
     u4pltfmt.map_style(ax=ax, crs="EPSG:32632")
     fig.tight_layout()
+    u4ax.add_basemap(ax=ax, crs="EPSG:32632")
     fig.savefig(os.path.join(out_path, "Overview_exJURSE.pdf"))
     fig.savefig(os.path.join(out_path, "Overview_exJURSE.png"))
 

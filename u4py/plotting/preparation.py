@@ -13,6 +13,7 @@ import numpy as np
 import scipy.interpolate as spinterp
 import scipy.optimize as spopt
 from matplotlib.axes import Axes
+from tqdm import tqdm
 
 import u4py.analysis.inversion as u4invert
 import u4py.analysis.other as u4other
@@ -111,20 +112,20 @@ def get_linfit_each_timeseries(data: dict) -> np.ndarray:
     """
 
     lintrend = []
-    time = data["time"]
-    for y in data["timeseries"]:
+    lincov = []
+    duration = data["time"][-1] - data["time"][0]
+    time_year = np.linspace(
+        0, duration.days / 365.25, len(data["timeseries"][0])
+    )
+    for y in tqdm(data["timeseries"], desc="Linear Fitting", leave=False):
         slc = np.nonzero(np.isfinite(y))
-        time_slice = time[slc]
         y = y[slc]
-        time_days = np.linspace(0, len(time_slice) * 6, len(time_slice))
+        time = time_year[slc]
 
-        lin_popt, _ = spopt.curve_fit(
-            u4other.poly1,
-            time_days,
-            y,
-        )
-        lintrend.append(lin_popt[0] * 365)
-    return lintrend
+        lin_popt, lin_cov = spopt.curve_fit(u4other.poly1, time, y)
+        lintrend.append(lin_popt[0])
+        lincov.append(np.nanvar(y - u4other.poly1(time, *lin_popt)))
+    return lintrend, lincov
 
 
 def get_final_each_timeseries(data: dict) -> np.ndarray:

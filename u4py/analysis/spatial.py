@@ -17,11 +17,14 @@ import numpy as np
 import osmnx
 import rasterio as rio
 import rasterio.coords
+import rasterio.mask as riomask
 import rasterio.warp as riowarp
 import scipy.spatial as spspatial
 import shapely
 from skimage import measure as skmeasure
 from tqdm import tqdm
+
+import u4py.io.files as u4files
 
 
 def reproject_raster(
@@ -149,14 +152,30 @@ def _file_list_to_coords(
                 source_index.extend([ii] * 4)
             else:
                 fname, _ = os.path.splitext(os.path.split(fpath)[-1])
-                ind = [m.start() for m in re.finditer("_", fname)]
-                coords.append(
-                    shapely.Point(
-                        int(fname[ind[1] + 1 : ind[2]]) * 1000,
-                        int(fname[ind[2] + 1 : ind[3]]) * 1000,
+                if fname.startswith("g_"):
+                    x = int(fname[2:5]) * 1000
+                    y = int(fname[6:]) * 1000
+                    coords.append(
+                        shapely.Polygon(
+                            [
+                                (x, y),
+                                (x + 5000, y),
+                                (x + 5000, y + 5000),
+                                (x, y + 5000),
+                                (x, y),
+                            ]
+                        )
                     )
-                )
-                source_index.append(ii)
+                    source_index.append(ii)
+                else:
+                    ind = [m.start() for m in re.finditer("_", fname)]
+                    coords.append(
+                        shapely.Point(
+                            int(fname[ind[1] + 1 : ind[2]]) * 1000,
+                            int(fname[ind[2] + 1 : ind[3]]) * 1000,
+                        )
+                    )
+                    source_index.append(ii)
     else:
         NotImplementedError(f"Conversion of {in_path} not supported.")
 
@@ -256,7 +275,7 @@ def select_points_osm(
     points = gp.GeoDataFrame(
         {
             "geometry": coords,
-            "source_index": source_index,
+            "source_ind": source_index,
         },
         crs=crs,
     )
@@ -296,7 +315,7 @@ def select_points_region(
     :type region: gp.GeoDataFrame | gp.GeoSeries
     :param psi_file_path: The file or folder to select from
     :type psi_file_path: os.PathLike
-    :param crs: The CRS of the input region, defaults to ""
+    :param crs: The CRS of thinput region, defaults to ""
     :type crs: str, optional
     :return: The points from `psi_file_path` cropped to the `region`.
     :rtype: gp.GeoDataFrame
@@ -306,7 +325,7 @@ def select_points_region(
     points = gp.GeoDataFrame(
         {
             "geometry": coords,
-            "source_index": source_index,
+            "source_ind": source_index,
         },
         crs="EPSG:32632",
     )
@@ -351,7 +370,7 @@ def select_points_point(
     points = gp.GeoDataFrame(
         {
             "geometry": coords,
-            "source_index": source_index,
+            "source_ind": source_index,
         },
         crs=crs,
     )
@@ -385,6 +404,9 @@ def clip_data_points(
         data["x"], data["y"], data["timeseries"], z=data["z"], crs=crs
     )
     points = points.assign(ps_id=data["ps_id"])
+    if "mean_vel" in data.keys():
+        points = points.assign(mean_vel=data["mean_vel"])
+        points = points.assign(var_mean_vel=data["var_mean_vel"])
 
     if split_points:
         return [
@@ -419,6 +441,9 @@ def clipped_data_to_dict(
         "timeseries": np.vstack(clipped_data.data.to_numpy()),
         "time": time,
     }
+    if "mean_vel" in clipped_data.keys():
+        loaded_data["mean_vel"] = clipped_data["mean_vel"]
+        loaded_data["var_mean_vel"] = clipped_data["var_mean_vel"]
     return loaded_data
 
 
@@ -937,7 +962,14 @@ def join_groups_with_level(gdf: gp.GeoDataFrame) -> gp.GeoDataFrame:
     return gp.GeoDataFrame(data=data, crs=gdf.crs)
 
 
-def merge_geometries(geometries: gp.GeoSeries):
+def merge_geometries(geometries: gp.GeoSeries) -> gp.GeoSeries:
+    """Merges the geometries when they overlap in a buffer radius of 10 cm.
+
+    :param geometries: The input geometries
+    :type geometries: gp.GeoSeries
+    :return: The merged geometries
+    :rtype: gp.GeoSeries
+    """
     merged_geometries = []
     geom_buf = geometries.buffer(0.1).to_list()
     current_geom = geom_buf.pop(0)
@@ -956,3 +988,148 @@ def merge_geometries(geometries: gp.GeoSeries):
             merged_geometries.append(current_geom)
             current_geom = geom_buf.pop(0)
     return gp.GeoSeries(merged_geometries)
+
+
+def get_subset(
+    shp_gdf: gp.GeoDataFrame, group: int, level: float = 0.5
+) -> gp.GeoDataFrame:
+    """Selects a subset of contours from the geodataframe. The selection is based on the `group` and +- `level`.
+
+    :param shp_gdf: The full set of thresholded contours.
+    :type shp_gdf: gp.GeoDataFrame
+    :param group: The group number.
+    :type group: str
+    :param level: The level to select, defaults to 0.5 (the smallest detected contour.)
+    :type level: float, optional
+    :return: The selected subset from the main geodataframe.
+    :rtype: gp.GeoDataFrame
+    """
+
+    slc = (shp_gdf.groups == group) & (
+        (shp_gdf.color_levels == -level) | (shp_gdf.color_levels == level)
+    )
+    return shp_gdf[slc]
+
+
+def get_subset_hull(
+    shp_gdf: gp.GeoDataFrame, group: int, buffer_size: float
+) -> gp.GeoDataFrame:
+    """Gets the hull of a subset. First selects the subset using the `group` and then calculates the convex hull of all selected shapes. The hull is then buffered by `buffer_size` for better coverage of the immediate surroundings.
+
+    :param shp_gdf: The full set of thresholded contours.
+    :type shp_gdf: gp.GeoDataFrame
+    :param group: The group number.
+    :type group: int
+    :param buffer_size: The buffer size around the hull.
+    :type buffer_size: float
+    :return: The buffered hull of the subset.
+    :rtype: gp.GeoDataFrame
+    """
+    sub_set = get_subset(shp_gdf, group)
+    sub_set_hull = gp.GeoDataFrame(
+        geometry=[sub_set.unary_union.convex_hull.buffer(buffer_size)],
+        crs=shp_gdf.crs,
+    )
+    return sub_set_hull
+
+
+def calculate_slope_in_shapes(
+    shapes: gp.GeoDataFrame, tiff_folder: os.PathLike
+) -> gp.GeoDataFrame:
+    """Calculates the slope for each shape in `shapes` using the data from the DEM found in `tiff_folder`. Also computes some basic statistics for each area.
+
+    :param shapes: The shapes in a geodataframe.
+    :type shapes: gp.GeoDataFrame
+    :param tiff_folder: The folder where to find the DEM data (in `*.adf` format.)
+    :type tiff_folder: os.PathLike
+    :return: A set of Polygons including mean and median slope, and standard deviation.
+    :rtype: gp.GeoDataFrame
+    """
+    file_list = u4files.get_file_list_adf(tiff_folder)
+    points = select_points_region(shapes, file_list)
+    file_list = [file_list[ii] for ii in points.source_ind]
+    slope_data = {
+        "geometry": [],
+        "slope_mean": [],
+        "slope_median": [],
+        "slope_std": [],
+    }
+    for geom in shapes.geometry.to_list():
+        if isinstance(geom, shapely.Polygon):
+            data = []
+            for fp in file_list:
+                data.extend(compute_for_raster_in_geom(fp, geom, dem_slope))
+            slope_data["geometry"].append(geom)
+            slope_data["slope_mean"].append(np.mean(data))
+            slope_data["slope_median"].append(np.median(data))
+            slope_data["slope_std"].append(np.std(data))
+        elif isinstance(geom, shapely.MultiPolygon):
+            for poly in tqdm(
+                list(geom.geoms),
+                desc="Calculating Slope in Polygons",
+                leave=False,
+            ):
+                data = []
+                for fp in file_list:
+                    data.extend(
+                        compute_for_raster_in_geom(fp, poly, dem_slope)
+                    )
+                slope_data["geometry"].append(poly)
+                slope_data["slope_mean"].append(np.mean(data))
+                slope_data["slope_median"].append(np.median(data))
+                slope_data["slope_std"].append(np.std(data))
+    slopes = gp.GeoDataFrame(data=slope_data, crs=shapes.crs)
+    return slopes
+
+
+def compute_for_raster_in_geom(
+    fpath: os.PathLike, geom: shapely.Polygon, func: Callable
+) -> np.ndarray:
+    """Applies the function `func` to the data in the raster file, masked by `geom`.
+
+    :param fpath: The path to the raster file
+    :type fpath: os.PathLike
+    :param geom: The geometry to use for masking.
+    :type geom: shapely.Polygon
+    :param func: The function to apply to the data.
+    :type func: Callable
+    :return: The results of the function call.
+    :rtype: np.ndarray
+    """
+    with rio.open(fpath, "r") as src:
+        data, _ = riomask.mask(src, [geom], nodata=np.nan)
+    return func(data[0])
+
+
+def dem_slope(im_data: np.ndarray) -> np.ndarray:
+    """Calculates the slope inside the area of the numpy array.
+
+    :param im_data: The input raster dem data.
+    :type im_data: np.ndarray
+    :return: The slope at each pixel in degrees.
+    :rtype: np.ndarray
+    """
+    px, py = np.gradient(im_data)
+    slope = np.degrees(np.arctan(np.sqrt(px**2 + py**2)))
+    return slope[np.isfinite(slope)]
+
+
+def area_per_feature(
+    gdf: gp.GeoDataFrame, index_column: str
+) -> Tuple[list[str], list[float]]:
+    """Computes the area for each unique entry of the given index column in the geodataframe.
+
+    :param gdf: The input shapes with at least one index column for sorting.
+    :type gdf: gp.GeoDataFrame
+    :param index_colum: The column used for indexing.
+    :type index_column: str
+    :return: A list of all unique features and their area.
+    :rtype: Tuple[list[str], list[float]]
+    """
+    if len(gdf) > 0:
+        fclasses = list(np.unique(gdf[index_column]))
+        areas = [gdf[gdf[index_column] == lnd].area.sum() for lnd in fclasses]
+    else:
+        fclasses = []
+        areas = []
+    return (fclasses, areas)

@@ -7,12 +7,12 @@ from __future__ import annotations
 import os
 from typing import Iterable
 
+import contextily
 import geopandas as gp
 import matplotlib.pyplot as plt
 import numpy as np
 
 import u4py.addons.gma as u4gma
-import u4py.io.files as u4files
 import u4py.io.tiff as u4tiff
 import u4py.plotting.axes as u4ax
 import u4py.plotting.formatting as u4plotfmt
@@ -385,9 +385,9 @@ def plot_GroundMotionAnalyzer(
         crs,
         overwrite=overwrite,
     )
-    fig, ax = plt.subplots(figsize=(6, 10), dpi=150)
-    u4ax.add_tile(gma_tile_path, ax=ax, cmap="Reds", vm=(-2, -1), zorder=3)
     if output_filepath:
+        fig, ax = plt.subplots(figsize=(6, 10), dpi=150)
+        u4ax.add_tile(gma_tile_path, ax=ax, cmap="Reds", vm=(-2, -1), zorder=3)
         fpath_woex = os.path.splitext(output_filepath)[0]
         u4ax.add_basemap(ax=ax, crs=crs)
         u4plotfmt.map_style(ax, divisor=25000, crs=crs)

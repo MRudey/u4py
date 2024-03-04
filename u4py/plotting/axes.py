@@ -184,7 +184,7 @@ def plot_quantile_timeseries(
         color=color,
         alpha=0.5,
         edgecolor=None,
-        label="Data Range",
+        label="95% Range",
     )
     ax.fill_between(
         x,
@@ -286,7 +286,13 @@ def plot_timeseries_fit(
 
 @_add_or_create
 def plot_region_trend(
-    data_region: dict, ax: Axes, fit: bool = True, use_gdf: bool = True
+    data_region: dict,
+    ax: Axes,
+    fit: bool = True,
+    use_gdf: bool = True,
+    vm: Tuple | float = 0,
+    key: str = "",
+    legend_args: dict = dict(),
 ) -> Tuple[Figure, Axes] | None:
     """Calculates and plots the regional trend in a region of data.
 
@@ -298,11 +304,19 @@ def plot_region_trend(
     :type fit: bool
     :param use_gdf: Uses a geodataframe for the values instead of showing a grid (optional), defaults to True.
     :type use_gdf: bool
+    :param vm: Minimum or maximum for plot colorscale (optional), defaults to 0. If is a Tuple uses the values as min and max, if a single value uses this as min and max, if 0 then use the 95% percentile of the absolute for min and max.
+    :type vm: Tuple | float
+    :param key: Key to use for plotting if not fitting (optional), defaults to "" which uses the final value of the timeseries.
+    :type key: str
+    :param legend_args: Arguments passed to gdf.plot()
+    :type legend_args: dict
     :return: The figure and axis if there was no axis specified.
     :rtype: Tuple[Figure, Axes] | None
     """
     if fit:
         region_trend = u4plotprep.get_linfit_each_timeseries(data_region)
+    elif key:
+        region_trend = data_region[key]
     else:
         region_trend = u4plotprep.get_final_each_timeseries(data_region)
 
@@ -312,21 +326,32 @@ def plot_region_trend(
         gdf = u4spatial.xy_data_to_gdf(
             data_region["x"], data_region["y"], region_trend, crs="EPSG:32632"
         )
-        vmax = np.percentile(np.abs(region_trend), 95)
-        legend_args = {
-            "orientation": "horizontal",
+        if vm:
+            if isinstance(vm, Iterable):
+                vmin = vm[0]
+                vmax = vm[1]
+            else:
+                vmin = -vm
+                vmax = vm
+        else:
+            vmax = np.percentile(np.abs(region_trend), 95)
+            vmin = -vmax
+        leg_args = {
+            "orientation": "vertical",
             "extend": "both",
             "label": "Mean Vertical Velocity (mm/a)",
         }
+        if legend_args:
+            leg_args.update(legend_args)
         gdf.plot(
             "data",
             ax=ax,
             cmap="RdYlBu",
-            legend_kwds=legend_args,
+            legend_kwds=leg_args,
             legend=True,
             markersize=3,
             vmax=vmax,
-            vmin=-vmax,
+            vmin=vmin,
         )
 
 
@@ -359,14 +384,20 @@ def add_shapefile(
 
     if kwgs["keys"]:
         for k, l in zip(kwgs["keys"], kwgs["labels"]):
-            to_label = shape[shape.name == k]
-            ax.annotate(
-                l,
-                (to_label.geometry.x, to_label.geometry.y),
-                xytext=(5, -5),
-                textcoords="offset points",
-                color=kwgs["color"],
-            )
+            if "name" in shape.keys():
+                to_label = shape[shape["name"] == k]
+            elif "station" in shape.keys():
+                to_label = shape[shape["station"] == k]
+            else:
+                to_label = []
+            if len(to_label) > 0:
+                ax.annotate(
+                    l,
+                    (to_label.geometry.x, to_label.geometry.y),
+                    xytext=(5, -5),
+                    textcoords="offset points",
+                    color=kwgs["color"],
+                )
 
     kwgs.pop("keys")
     kwgs.pop("labels")
@@ -379,6 +410,7 @@ def add_basemap(
     ax: Axes = None,
     crs: str = "EPSG:23032",
     zoom: str | int = "auto",
+    source=contextily.providers.OpenStreetMap.DE,
     **kwargs,
 ) -> Tuple[Figure, Axes] | None:
     """Creates a plot with the basemap as the lowest layer. If no basemap is given it is automatically loaded from osm.
@@ -400,13 +432,29 @@ def add_basemap(
         with rasterio.open(base_map_path) as base_map:
             rioplot.show(base_map, ax=ax, zorder=0, **kwargs)
     else:
-        contextily.add_basemap(
-            ax=ax,
-            crs=crs,
-            source=contextily.providers.OpenStreetMap.Mapnik,
-            zoom=zoom,
-            zorder=0,
-        )
+        if source == contextily.providers.CartoDB.Voyager:
+            contextily.add_basemap(
+                ax=ax,
+                crs=crs,
+                source=contextily.providers.CartoDB.VoyagerNoLabels,
+                zoom=zoom,
+                zorder=0,
+            )
+            contextily.add_basemap(
+                ax=ax,
+                crs=crs,
+                source=contextily.providers.CartoDB.VoyagerOnlyLabels,
+                zoom=zoom,
+                zorder=20,
+            )
+        else:
+            contextily.add_basemap(
+                ax=ax,
+                crs=crs,
+                source=source,
+                zoom=zoom,
+                zorder=0,
+            )
 
 
 @_add_or_create

@@ -15,7 +15,7 @@ import shapely
 
 import u4py.analysis.spatial as u4spatial
 import u4py.io.files as u4files
-import u4py.io.sql as u4sql
+import u4py.io.gpkg as u4gpkg
 
 
 def get_osm_data(
@@ -38,23 +38,32 @@ def get_osm_data(
     :rtype: dict
     """
     _, pkl_fpath = u4files.set_data_file_paths(
-        source_fpath, query["address"], "clip"
+        source_fpath, query["address"], "osm"
     )
     _, shp_fpath = u4files.set_point_file_paths(
-        source_fpath, query["address"], "clip"
+        source_fpath, query["address"], "osm"
+    )
+    _, region_fpath = u4files.set_point_file_paths(
+        source_fpath, query["address"], "osm_region"
     )
 
-    if not os.path.exists(pkl_fpath) or overwrite:
-        data = u4sql.load_gpkg_data_osm(query, source_fpath, crs=crs)
+    if (
+        not os.path.exists(pkl_fpath)
+        or not os.path.exists(region_fpath)
+        or overwrite
+    ):
+        data, region = u4gpkg.load_gpkg_data_osm(query, source_fpath, crs=crs)
         u4spatial.xy_data_to_gdf(data["x"], data["y"], crs=crs).to_file(
             shp_fpath
         )
+        region.to_file(region_fpath)
         with open(pkl_fpath, "wb") as pkl_file:
             pkl.dump(data, pkl_file)
     else:
         with open(pkl_fpath, "rb") as pkl_file:
             data = pkl.load(pkl_file)
-    return data
+        region = gp.read_file(region_fpath)
+    return data, region
 
 
 def get_region_data(
@@ -88,7 +97,9 @@ def get_region_data(
     )
 
     if not os.path.exists(pkl_fpath) or overwrite:
-        data = u4sql.load_gpkg_data_region(region, source_fpath, crs=crs)
+        data = u4gpkg.load_gpkg_data_region(
+            region, source_fpath, table="vertikal"
+        )
         u4spatial.xy_data_to_gdf(data["x"], data["y"], crs=crs).to_file(
             shp_fpath
         )
@@ -126,23 +137,32 @@ def get_point_data(
     if isinstance(point, shapely.Point):
         point = point.xy
     _, pkl_fpath = u4files.set_data_file_paths(
-        source_fpath, region_name, "points"
+        source_fpath, region_name, "point"
     )
     _, shp_fpath = u4files.set_point_file_paths(
-        source_fpath, region_name, "points"
+        source_fpath, region_name, "point"
+    )
+    _, region_fpath = u4files.set_point_file_paths(
+        source_fpath, region_name, "point_region"
     )
 
-    if not os.path.exists(pkl_fpath) or overwrite:
-        data = u4sql.load_gpkg_data_point(
+    if (
+        not os.path.exists(pkl_fpath)
+        or not os.path.exists(region_fpath)
+        or overwrite
+    ):
+        data, region = u4gpkg.load_gpkg_data_point(
             point=point, radius=radius, gpkg_file_path=source_fpath
         )
         u4spatial.xy_data_to_gdf(data["x"], data["y"]).to_file(shp_fpath)
+        region.to_file(region_fpath)
         with open(pkl_fpath, "wb") as pkl_file:
             pkl.dump(data, pkl_file)
     else:
         with open(pkl_fpath, "rb") as pkl_file:
             data = pkl.load(pkl_file)
-    return data
+        region = gp.read_file(region_fpath)
+    return data, region
 
 
 def get_pickled_inversion_results(

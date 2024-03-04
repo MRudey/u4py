@@ -2,11 +2,10 @@
 
 import os
 import warnings
+from datetime import datetime
 from pathlib import Path
 
-import contextily
 import geopandas as gp
-import matplotlib.gridspec as gs
 import matplotlib.lines as mlines
 import matplotlib.patches as mpatch
 import matplotlib.pyplot as plt
@@ -59,21 +58,9 @@ def main():
         "Uplift": [(2016.75, 2017.5), (2017.5, 2018)],
     }
 
-    # annot_pos = {
-    #     "Inner_City": [],
-    #     "Inner_Subsidence": [
-    #         (u4convert.get_datetime(2016), -20),
-    #         (u4convert.get_datetime(2019), -30),
-    #     ],
-    #     "Outer_Subsidence": [],
-    #     "Uplift": [
-    #         (u4convert.get_datetime(2016.25), -10),
-    #         (u4convert.get_datetime(2018.5), -10),
-    #     ],
-    # }
     fit_nums = {
         "Inner_City": 2,
-        "Inner_Subsidence": 1,
+        "Inner_Subsidence": 2,
         "Outer_Subsidence": 2,
         "Uplift": 1,
     }
@@ -85,21 +72,14 @@ def main():
         "Uplift": 3,
     }
 
-    fig = plt.figure(figsize=(16 * 0.75, 10 * 0.75), dpi=150)
-    grid = gs.GridSpec(ncols=2, nrows=4)
-    axes = [
-        fig.add_subplot(grid[:, 0]),
-        fig.add_subplot(grid[0, 1]),
-        fig.add_subplot(grid[1, 1]),
-        fig.add_subplot(grid[2, 1]),
-        fig.add_subplot(grid[3, 1]),
-    ]
+    fig, axes = plt.subplots(
+        figsize=(7, 10), dpi=300, nrows=4, sharex=True, sharey=True
+    )
+
     print("========================")
     for ii, sel_shape in selection_shapes.iterrows():
         sel_name = (sel_shape.Name).replace(" ", "_")
-        if sel_name == "FFM_Hoechst":
-            break
-        ax_num = ax_nums[sel_name] + 1
+        ax_num = ax_nums[sel_name]
         print("Inverting", sel_shape.Name)
         sel_data = u4psi.get_region_data(
             sel_shape,
@@ -109,15 +89,6 @@ def main():
             crs=selection_shapes.crs,
         )
 
-        if sel_name == "Inner_City":
-            plot_map(axes[0], sel_data, selection_shapes.crs)
-        gp.GeoSeries(sel_shape["geometry"]).plot(
-            ax=axes[0],
-            facecolor="None",
-            edgecolor=f"C{ax_num-1}",
-            zorder=3,
-            linewidth=3,
-        )
         # Timeseries Fit and Residuals
         t_EX = ext_times[sel_name]
         results = u4proc.invert_psi_dict(
@@ -137,74 +108,28 @@ def main():
             results=results,
             fit_num=fit_nums[sel_name],
             annotate=False,
-            color=f"C{ax_num-1}",
+            color=f"C{ax_num}",
             color_fit="k",
         )
 
         axes[ax_num].annotate(
             sel_shape.Name,
-            (0.99, 0.9),
+            (0.99, 0.01),
             xycoords="axes fraction",
+            fontweight="bold",
             horizontalalignment="right",
         )
-
-        ylims = axes[ax_num].get_ylim()
-        ylow = ylims[0] + 0.2 * (ylims[1] - ylims[0])
-        if t_EX:
-            parlist = results["U"]["parameters_list"]
-            vals = [
-                results["U"]["inversion_results"][ii]
-                for ii in range(len(parlist))
-                if "water extraction" in parlist[ii]
-            ]
-
-            # for vv, (ts, te) in zip(vals, t_EX):
-            #     if vv > 0:
-            #         col = "C0"
-            #     else:
-            #         col = "C3"
-
-            #     arrow = mpatch.FancyArrowPatch(
-            #         (u4convert.get_datetime(ts), ylow),
-            #         (u4convert.get_datetime(te), ylow + vv),
-            #         fc=col,
-            #         mutation_scale=25,
-            #     )
-            #     ylow = ylow + vv
-            #     if ylow < axes[ax_num].get_ylim()[0]:
-            #         axes[ax_num].set_ylim(ylow, ylims[1])
-            #     axes[ax_num].add_patch(arrow)
-
-            # for annpos, vv in zip(annot_pos[sel_name], vals):
-            #     if vv > 0:
-            #         col = "C0"
-            #     else:
-            #         col = "C3"
-            #     axes[ax_num].annotate(
-            #         f"{vv:.2f} mm",
-            #         annpos,
-            #         horizontalalignment="center",
-            #         color=col,
-            #     )
         print("========================")
-    print("Formatting Plot")
-    # Formatting
-    axes[0].set_xlim(470500, 479000)
-    axes[0].set_ylim(5548000, 5555000)
-    contextily.add_basemap(
-        axes[0],
-        crs=selection_shapes.crs,
-        # zoom=17,
-        source=contextily.providers.OpenStreetMap.Mapnik,
+
+    # axes[0].set_ylim(-35, 15)
+    axes[0].set_xlim(
+        datetime(2015, 1, 1),
+        # datetime(2021, 1, 1),
     )
-    axes[1].set_ylim(-35, 15)
-    for ax in axes[1:]:
+    for ax in axes:
         ax.set_ylabel("d$_{vert}$ (mm)")
-        ax.sharex(axes[1])
-        ax.sharey(axes[1])
-    # axes[-1].set_yticklabels(rotation=0)
     axes[-1].set_xlabel("Year")
-    axes[1].legend(
+    axes[0].legend(
         handles=[
             mlines.Line2D(
                 [],
@@ -218,12 +143,12 @@ def main():
             mpatch.Patch(fc="C0", alpha=0.75, label="68% range"),
             mlines.Line2D([], [], color="k", label="Fit"),
         ],
-        loc="lower center",
-        ncols=4,
+        loc="lower left",
+        # ncols=4,
         markerscale=0.75,
         fontsize="small",
     )
-    u4plotfmt.enumerate_axes(fig, ignore=[5])
+    u4plotfmt.enumerate_axes(fig)
     fig.tight_layout()
     print("Saving Plots...")
     output_path = os.path.join(project["paths"]["output_path"], "U5_Frankfurt")
@@ -240,17 +165,6 @@ def main():
             f"JURSE_FFM_Timeseries",
         )
     )
-
-
-def plot_map(ax, data_region, crs):
-    # Map
-    u4ax.plot_region_trend(data_region, ax=ax)
-    ax.set_xlabel("Longitude (m)")
-    ax.set_ylabel("Latitude (m)")
-    ax.annotate(
-        f"#PS = {len(data_region['x'])}", (0, -0.1), xycoords="axes fraction"
-    )
-    u4plotfmt.map_style(ax, divisor=2000, crs=crs)
 
 
 if __name__ == "__main__":

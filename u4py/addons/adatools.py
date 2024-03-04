@@ -15,6 +15,7 @@ import shapely as shp
 from tqdm import tqdm
 
 import u4py.io.files as u4files
+import u4py.io.gpkg as u4gpkg
 import u4py.io.sql as u4sql
 import u4py.utils.config as u4config
 
@@ -103,7 +104,7 @@ def load_region_as_gdf(
     """
 
     if region:
-        data = u4sql.load_gpkg_data_region(
+        data = u4gpkg.load_gpkg_data_region(
             region,
             gpkg_path,
             table=table,

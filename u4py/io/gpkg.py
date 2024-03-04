@@ -152,7 +152,7 @@ def load_gpkg_data_point(
     table: str = "vertikal",
     split_points: bool = False,
     crs: str = "EPSG:32632",
-) -> gp.GeoDataFrame | list[gp.GeoDataFrame]:
+) -> Tuple[dict, gp.GeoDataFrame]:
     """Selects PSI measurements in a `radius` around the specified `point` from the given **GPKG** File.
 
     This function loads the data directly using sql, no second step is required.
@@ -169,8 +169,8 @@ def load_gpkg_data_point(
     :type split_points: bool, optional
     :param crs: The coordinate system of the output points, defaults to "EPSG:32632".
     :type crs: str, optional
-    :return: The points from `psi_file_path` in a `radius` round `point`.
-    :rtype: gp.GeoDataFrame
+    :return: The points from `psi_file_path` in a `radius` round `point` and the region.
+    :rtype: Tuple[dict, gp.GeoDataFrame]
     """
 
     region = u4spatial.region_around_point(point, radius, crs=crs)
@@ -179,7 +179,8 @@ def load_gpkg_data_point(
     clipped_data = u4spatial.clip_data_points(
         data, region, split_points=split_points, crs=crs
     )
-    return clipped_data
+    clipped_data["crs"] = crs
+    return clipped_data, region
 
 
 def load_gpkg_data_osm(
@@ -188,7 +189,7 @@ def load_gpkg_data_osm(
     table: str = "vertikal",
     split_points: bool = False,
     crs: str = "EPSG:32632",
-) -> gp.GeoDataFrame | list[gp.GeoDataFrame]:
+) -> Tuple[dict, gp.GeoDataFrame]:
     """Selects PSI measurements in a region defined by an OSM query from the given **GPKG** File.
 
     This function loads the data directly using sql, no second step is required.
@@ -203,8 +204,8 @@ def load_gpkg_data_osm(
     :type split_points: bool, optional
     :param crs: The coordinate system of the output points, defaults to "EPSG:32632".
     :type crs: str, optional
-    :return: The points from `psi_file_path` in a `radius` round `point`.
-    :rtype: gp.GeoDataFrame
+    :return: The points from `psi_file_path` within the query region and the region
+    :rtype: Tuple[dict, gp.GeoDataFrame]
     """
 
     region = u4spatial.get_osm_region(osm_query, crs=crs)
@@ -213,16 +214,16 @@ def load_gpkg_data_osm(
     clipped_data = u4spatial.clip_data_points(
         data, region, split_points=split_points, crs=crs
     )
-    return clipped_data
+    clipped_data["crs"] = crs
+    return clipped_data, region
 
 
 def load_gpkg_data_region(
     region: gp.GeoDataFrame | gp.GeoSeries,
     gpkg_file_path: os.PathLike,
-    table: str = "vertikal",
+    table: str = "",
     split_points: bool = False,
-    crs: str = "EPSG:32632",
-) -> gp.GeoDataFrame | list[gp.GeoDataFrame]:
+) -> dict:
     """Selects PSI measurements in the specified region from the given **GPKG** File.
 
     This function loads the data directly using sql, no second step is required.
@@ -231,26 +232,70 @@ def load_gpkg_data_region(
     :type region: gp.GeoDataFrame | gp.GeoSeries
     :param gpkg_file_path: The file or folder to select from
     :type gpkg_file_path: os.PathLike
-    :param table: The table from which to extract the data, defaults to "vertikal"
+    :param table: The table from which to extract the data, defaults to ""
     :type table: str, optional
-    :param split_points: Splits the output into a list of points based on the selection, defaults to False
-    :type split_points: bool, optional
-    :param crs: The coordinate system of the output points, defaults to "EPSG:32632".
-    :type crs: str, optional
     :return: The points from `psi_file_path` in a `radius` round `point`.
-    :rtype: gp.GeoDataFrame
+    :rtype: dict
     """
+    if not table:
+        tables = u4sql.get_table_names(gpkg_file_path)
+        if len(tables) < 1:
+            raise ValueError("File does not contain any tables")
+        elif len(tables) == 1:
+            table = tables[0]
+        else:
+            raise ValueError(
+                f"File contains several tables, please specify appropriate table from: {tables}"
+            )
+
+    # Get CRS of sql datbase and convert region to it.
+    gpkg_crs = u4sql.get_crs(gpkg_file_path, table)[0]
     if isinstance(region, gp.GeoDataFrame):
-        if region.crs != crs:
-            region = region.to_crs(crs)
+        if region.crs != gpkg_crs:
+            region = region.to_crs(gpkg_crs)
     elif isinstance(region, (gp.pd.Series, gp.GeoSeries)):
         UserWarning(
             "Region for selection is a GeoSeries, check input CRS manually!"
         )
-        region = gp.GeoDataFrame(geometry=[region.geometry], crs=crs)
-
+        region = gp.GeoDataFrame(geometry=[region.geometry], crs=gpkg_crs)
+    # Extract Data
     data = u4sql.table_to_dict(gpkg_file_path, table, bounds=region.bounds)
     clipped_data = u4spatial.clip_data_points(
-        data, region, split_points=split_points, crs=crs
+        data, region, split_points=split_points, crs=gpkg_crs
     )
+    clipped_data["crs"] = gpkg_crs
     return clipped_data
+
+
+def load_gpkg_data_region_ogr(
+    region: gp.GeoDataFrame | gp.GeoSeries,
+    gpkg_file_path: os.PathLike,
+    table: str = "",
+    crs: str = "EPSG:32632",
+) -> gp.GeoDataFrame:
+
+    # Check tables
+    if not table:
+        tables = u4sql.get_tables(gpkg_file_path)
+        if len(tables) < 1:
+            raise ValueError("File does not contain any tables")
+        elif len(tables) == 1:
+            table = tables[0]
+        else:
+            raise ValueError(
+                f"File contains several tables, please specify appropriate table from: {tables}"
+            )
+
+    # Homogenize input CRS for extraction
+    gpkg_crs = u4sql.get_crs(gpkg_file_path, table)[0]
+    if region.crs != gpkg_crs:
+        region = region.to_crs(gpkg_crs)
+
+    # Get WKT representation of geometry and load data
+    region_wkt = region["geometry"].to_wkt().to_list()[0]
+    data = u4sql.ogr_spatial_select(gpkg_file_path, table, region_wkt)
+    if data:
+        gdf = gp.GeoDataFrame(data, crs=gpkg_crs).clip(region).to_crs(crs)
+        return gdf
+    else:
+        return []

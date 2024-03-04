@@ -911,7 +911,18 @@ def reformat_dict(dataset: dict) -> dict:
     :return: The reformatted dictionary.
     :rtype: dict
     """
-    data = stack_data(dataset)
+    try:
+        if len(dataset["t"].shape) == 1:
+            is_invert_data = True
+        else:
+            is_invert_data = False
+    except KeyError:
+        is_invert_data = False
+
+    if is_invert_data:
+        data = dataset
+    else:
+        data = stack_data(dataset)
     if isinstance(data["t"][0], datetime):
         data["t"] = u4convert.get_floatyear(data["t"])
     data["sigmE"] = np.ones_like(data["dataE"])

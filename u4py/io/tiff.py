@@ -5,7 +5,7 @@ Functions for handling tiff files.
 import logging
 import os
 from multiprocessing import Pool
-from typing import Tuple
+from typing import Callable, Tuple
 
 import geopandas as gp
 import numpy as np
@@ -68,7 +68,7 @@ def clip_tiff(in_path: os.PathLike, ctiff_fol: os.PathLike, shapes: list):
     _, fname = os.path.split(in_path)
     out_path = os.path.join(ctiff_fol, fname)
     with rio.open(in_path, "r") as src:
-        out_image, out_transform = riomask(src, shapes, invert=True)
+        out_image, out_transform = riomask.mask(src, shapes, invert=True)
         out_meta = src.meta
     out_meta.update(
         {
@@ -131,7 +131,7 @@ def get_osm_tiff(
     """
     file_list = u4files.get_file_list_tiff(source_file_path)
     points = u4spatial.select_points_osm(query, file_list)
-    out_file_list = np.array(file_list)[points.source_index]
+    out_file_list = np.array(file_list)[points.source_ind]
     return np.unique(out_file_list).tolist()
 
 
@@ -161,7 +161,7 @@ def get_region_tiff(
     elif isinstance(region, shapely.Polygon):
         region_gdf = gp.GeoDataFrame(geometry=gp.GeoSeries(region), crs=crs)
         points = u4spatial.select_points_region(region_gdf, file_list, crs=crs)
-    out_file_list = np.array(file_list)[points.source_index]
+    out_file_list = np.array(file_list)[points.source_ind]
     return np.unique(out_file_list).tolist()
 
 
@@ -186,7 +186,7 @@ def get_point_tiff(
 
     file_list = u4files.get_file_list_tiff(source_file_path)
     points = u4spatial.select_points_point(point, radius, file_list)
-    out_file_list = np.array(file_list)[points.source_index]
+    out_file_list = np.array(file_list)[points.source_ind]
     return np.unique(out_file_list).tolist()
 
 
