@@ -1126,10 +1126,103 @@ def area_per_feature(
     :return: A list of all unique features and their area.
     :rtype: Tuple[list[str], list[float]]
     """
+    areas = []
+    fclasses = []
     if len(gdf) > 0:
-        fclasses = list(np.unique(gdf[index_column]))
-        areas = [gdf[gdf[index_column] == lnd].area.sum() for lnd in fclasses]
-    else:
-        fclasses = []
-        areas = []
+        fclass_list = list(np.unique(gdf[index_column]))
+        for lnd in fclass_list:
+            area = round(gdf[gdf[index_column] == lnd].area.sum(), 1)
+            if area >= 1:  # filters negligible areas
+                areas.append(area)
+                fclasses.append(lnd)
     return (fclasses, areas)
+
+
+def vol_added(im_data: np.ndarray) -> np.ndarray:
+    """Calculates the volume added inside the area of the numpy array.
+
+    :param im_data: The input raster dem data.
+    :type im_data: np.ndarray
+    :return: The slope at each pixel in degrees.
+    :rtype: np.ndarray
+    """
+    return np.nansum(im_data[im_data > 0])
+
+
+def vol_removed(im_data: np.ndarray) -> np.ndarray:
+    """Calculates the volume removed inside the area of the numpy array.
+
+    :param im_data: The input raster dem data.
+    :type im_data: np.ndarray
+    :return: The slope at each pixel in degrees.
+    :rtype: np.ndarray
+    """
+    return np.nansum(im_data[im_data < 0])
+
+
+def vol_moved(im_data: np.ndarray) -> np.ndarray:
+    """Calculates the volume moved inside the area of the numpy array.
+
+    :param im_data: The input raster dem data.
+    :type im_data: np.ndarray
+    :return: The slope at each pixel in degrees.
+    :rtype: np.ndarray
+    """
+    return np.nansum(np.abs(im_data))
+
+
+def roundness(shapes: gp.GeoDataFrame) -> list:
+    """Calculates the roundness of all polygons in shapes.
+
+    :param shapes: A geodataframe with polygons.
+    :type shapes: gp.GeoDataFrame
+    :return: The roundness between 0=not round and 1=perfectly round.
+    :rtype: list
+    """
+    peri = shapes.geometry.length
+    area = shapes.area
+    roundness = round((4 * np.pi * area) / (area) ** 2, 3)
+    return roundness.to_list()
+
+
+def flattening(shapes: gp.GeoDataFrame) -> list:
+    """Calculates the ellipticity of all polygons in shapes. Defined as:
+
+    :math:`f=\\frac{a-b}{a}`
+
+    with a and b as the semi-axes of an ellipse fit to the coordinates.
+
+    :param shapes: A geodataframe with polygons.
+    :type shapes: gp.GeoDataFrame
+    :return: The ellipticity.
+    :rtype: list
+    """
+    aa = []
+    bb = []
+    tt = []
+    flattn = []
+    for geom in shapes.geometry.to_list():
+        if isinstance(geom, shapely.Polygon):
+            xx, yy = geom.exterior.coords.xy
+            xy = np.array([(x, y) for x, y in zip(xx.tolist(), yy.tolist())])
+            ellipse = skmeasure.EllipseModel()
+            success = ellipse.estimate(xy)
+            if success:
+                _, _, a, b, theta = ellipse.params
+                aa.append(round(a, 2))
+                bb.append(round(b, 2))
+                tt.append(round(theta, 1))
+                flattn.append(round((a - b) / a, 1))
+        elif isinstance(geom, shapely.MultiPolygon):
+            geom = list(geom.geoms)[0]
+            xx, yy = geom.exterior.coords.xy
+            xy = np.array([(x, y) for x, y in zip(xx.tolist(), yy.tolist())])
+            ellipse = skmeasure.EllipseModel()
+            success = ellipse.estimate(xy)
+            if success:
+                _, _, a, b, theta = ellipse.params
+                aa.append(round(a, 2))
+                bb.append(round(b, 2))
+                tt.append(round(theta, 1))
+                flattn.append(round((a - b) / a, 1))
+    return (aa, bb, tt, flattn)

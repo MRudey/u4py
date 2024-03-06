@@ -380,3 +380,98 @@ def wkt_from_tiff_bounds(fpath: os.PathLike, out_crs: str = "") -> str:
     tile.close()
 
     return wkt
+
+
+def calculate_volume_in_shape(
+    shapes: gp.GeoDataFrame, tiff_folder: os.PathLike
+) -> list:
+    """Calculates the total volume moved for each shape in `shapes` using the data from the DEM found in `tiff_folder`. Also computes some basic statistics for each area.
+
+    :param shapes: The shapes in a geodataframe.
+    :type shapes: gp.GeoDataFrame
+    :param tiff_folder: The folder where to find the DEM data (in `*.tiff` format.)
+    :type tiff_folder: os.PathLike
+    :return: A list of the calculated volume for each shape in shapes.
+    :rtype: gp.GeoDataFrame
+    """
+
+    coverage = get_tiff_coverage(tiff_folder)
+    if shapes.crs != coverage.crs:
+        coverage = coverage.to_crs(shapes.crs)
+    volumes = []
+    volumes_removed = []
+    volumes_added = []
+    volumes_moved = []
+    for geom in tqdm(
+        shapes.geometry,
+        total=len(shapes),
+        desc="Computing Volumes",
+        leave=False,
+    ):
+        part = coverage.clip(geom)
+        if len(part) > 0:
+            vol = 0
+            vol_removed = 0
+            vol_added = 0
+            vol_moved = 0
+            flist = part.path.to_list()
+            for fp in flist:
+                vol += u4spatial.compute_for_raster_in_geom(
+                    fp, geom, np.nansum
+                )
+                vol_removed += u4spatial.compute_for_raster_in_geom(
+                    fp, geom, u4spatial.vol_removed
+                )
+                vol_added += u4spatial.compute_for_raster_in_geom(
+                    fp, geom, u4spatial.vol_added
+                )
+                vol_moved += u4spatial.compute_for_raster_in_geom(
+                    fp, geom, u4spatial.vol_moved
+                )
+        else:
+            vol = np.nan
+            vol_removed = np.nan
+            vol_added = np.nan
+            vol_moved = np.nan
+        volumes.append(vol)
+        volumes_removed.append(vol_removed)
+        volumes_added.append(vol_added)
+        volumes_moved.append(vol_moved)
+    return shapes.assign(
+        volume=volumes,
+        volumes_removed=volumes_removed,
+        volumes_added=volumes_added,
+        volumes_moved=volumes_moved,
+    )
+
+
+def get_tiff_coverage(
+    tiff_folder: os.PathLike, overwrite: bool = False
+) -> gp.GeoDataFrame:
+    """Reads the coverage from all tiff files in the tiff folder and stores them as polygons for easier intersection of geometries.
+
+    :param tiff_folder: The folder where the tiff files are located.
+    :type tiff_folder: os.PathLike
+    :param overwrite: Whether to overwrite the output shapefile, defaults to False
+    :type overwrite: bool, optional
+    :return: The geodataframe with the rectangles, paths to the file are stored as separate column `path`.
+    :rtype: gp.GeoDataFrame
+    """
+    coverage_path = os.path.join(tiff_folder, "tiff_coverage.shp")
+
+    if not os.path.exists(coverage_path) or overwrite:
+        file_list = u4files.get_file_list_tiff(tiff_folder)
+        geometry = []
+        for fp in tqdm(file_list, desc="Getting Coverage", leave=False):
+            with rio.open(fp) as raster:
+                geometry.append(u4spatial.bounds_to_polygon(raster.bounds))
+                crs = raster.crs
+
+        coverage = gp.GeoDataFrame(
+            data={"geometry": geometry, "path": file_list}, crs=crs
+        )
+        coverage.to_file(coverage_path)
+    else:
+        coverage = gp.read_file(coverage_path)
+
+    return coverage

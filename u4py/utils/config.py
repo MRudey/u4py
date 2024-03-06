@@ -1,6 +1,7 @@
 """
 Default configuration for some scripts and modules.
 """
+
 from __future__ import annotations
 
 import logging
@@ -139,7 +140,7 @@ def get_shape_config() -> dict:
         "landuse": 10,
         "construction": 10,
         "railway": 15,
-        "mainroads": 15,
+        "mainroads": 30,
         "minor_roads": 5,
         "water": 10,
         "lakes": 10,

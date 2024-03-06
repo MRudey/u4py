@@ -230,7 +230,7 @@ def get_pegel_locations(
             out_folder = file_path
         os.makedirs(out_folder, exist_ok=True)
 
-        file_path = u4webs.hlnug_map_service_to_shapefile(
+        file_path = u4webs.query_hlnug(
             map_server_suffix="wasser/wasser/MapServer",
             layer_name="Pegel",
             out_folder=out_folder,

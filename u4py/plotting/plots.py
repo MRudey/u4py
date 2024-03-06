@@ -403,3 +403,89 @@ def plot_GroundMotionAnalyzer(
         fig.tight_layout()
         fig.savefig(f"{fpath_woex}.pdf")
         fig.savefig(f"{fpath_woex}.png")
+        plt.close(fig)
+
+
+def plot_site_statistics(
+    res: dict, x_key: str, y_key: str, folder_path: os.PathLike
+):
+    """Plots statistics of a given site that was classified using `u4py.analysis.classify`.
+
+    :param res: The result dictionary.
+    :type res: dict
+    :param x_key: The key for the x-axis (must be in `res.keys()`)
+    :type x_key: str
+    :param y_key: The key for the y-axis (must be in `res.keys()`)
+    :type y_key: str
+    :param folder_path: The output folder.
+    :type folder_path: os.PathLike
+    """
+    if x_key in res.keys() and y_key in res.keys():
+        site_dir = os.path.join(folder_path, f"Site_{res['group']}")
+        os.makedirs(site_dir, exist_ok=True)
+        # Plot landuse statistics
+        fig, ax = default_figure()
+        ax.barh(
+            res[x_key],
+            res[y_key],
+        )
+        fig.tight_layout()
+        fig.savefig(
+            os.path.join(site_dir, f"{x_key}_vs_{y_key}_{res['group']}.png")
+        )
+        plt.close(fig)
+    else:
+        raise KeyError(
+            f"At least one of the keys: {x_key} or {y_key} not found in the results dictionary."
+        )
+
+
+def plot_shape(
+    sub_set: gp.GeoDataFrame,
+    sub_set_hull: gp.GeoDataFrame,
+    roads: gp.GeoDataFrame,
+    slope_str: str,
+    group: int,
+    save_folder: os.PathLike,
+):
+    """Plots the given subset and some additional data.
+
+    :param sub_set: The subset of shapes for a specific group.
+    :type sub_set: gp.GeoDataFrame
+    :param sub_set_hull: The area surrounding the subset.
+    :type sub_set_hull: gp.GeoDataFrame
+    :param roads: The roads loaded from openstreetmap data.
+    :type roads: gp.GeoDataFrame
+    :param slope_str: The average slope in each of the polygons of the subset.
+    :type slope_str: str
+    :param group: The group number.
+    :type group: int
+    :param save_folder: The folder where to store the output figure.
+    :type save_folder: os.PathLike
+    """
+    fig, ax = default_figure()
+    # shp_gdf.plot(ax=ax, column="groups", cmap="tab20")
+    sub_set.plot(
+        ax=ax,
+        column="slope_mean",
+        ec="w",
+        vmin=0,
+        vmax=90,
+        legend=True,
+        legend_kwds={"label": "Slope (deg)"},
+    )
+    sub_set_hull.plot(ax=ax, fc="None", ec="k")
+    roads.plot(ax=ax, column="fclass")
+    ax.axis("equal")
+    u4plotfmt.map_style(ax)
+    ax.annotate(slope_str, (0.025, 0.025), xycoords="axes fraction", zorder=4)
+    fig.tight_layout()
+    u4ax.add_basemap(
+        ax=ax, crs=sub_set.crs, source=contextily.providers.CartoDB.Positron
+    )
+    fig.savefig(os.path.join(save_folder, f"Site_{group}.png"))
+    plt.close(fig)
+
+
+def default_figure():
+    return plt.subplots(figsize=(7, 7), dpi=100)
