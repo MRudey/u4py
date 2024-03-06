@@ -115,7 +115,7 @@ def load_region_as_gdf(
     if data:
         logging.info("Reformatting for new structure")
         time_stamps = [t.strftime("D%Y%m%d") for t in data["time"]]
-        velocity = data["timeseries"][:, -1] / (
+        velocity = data["timeseries"][:, -3] / (  # Last entry might be zero
             (data["time"][-1] - data["time"][0]).days / 365.25
         )
         data_gdf = {
