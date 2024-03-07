@@ -120,14 +120,7 @@ def map_queries(queries: list) -> list:
     """"""
     logging.info("Starting parallel sql extraction.")
     with Pool(u4config.cpu_count) as p:
-        results = list(
-            tqdm(
-                p.map(multi_proc_query, queries),
-                total=len(queries),
-                desc="Processing queries",
-                leave=False,
-            )
-        )
+        results = list(p.map(multi_proc_query, queries))
     return results
 
 
@@ -865,7 +858,7 @@ def ogr_spatial_select(
             f"SELECT * FROM '{table}' WHERE ST_Intersects(ST_GeomFromText('{wkt_bounds}', 0), {geom_col})",
         )
         data = dict()
-        for layer in tqdm(query, desc="Processing Queries", leave=False):
+        for layer in query:
             geom = layer[geom_col]
             if geom:  # Sometimes the geometries are empty...?
                 if not data:

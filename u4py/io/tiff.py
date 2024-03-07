@@ -402,12 +402,7 @@ def calculate_volume_in_shape(
     volumes_removed = []
     volumes_added = []
     volumes_moved = []
-    for geom in tqdm(
-        shapes.geometry,
-        total=len(shapes),
-        desc="Computing Volumes",
-        leave=False,
-    ):
+    for geom in shapes.geometry:
         part = coverage.clip(geom)
         if len(part) > 0:
             vol = 0
@@ -462,7 +457,7 @@ def get_tiff_coverage(
     if not os.path.exists(coverage_path) or overwrite:
         file_list = u4files.get_file_list_tiff(tiff_folder)
         geometry = []
-        for fp in tqdm(file_list, desc="Getting Coverage", leave=False):
+        for fp in file_list:
             with rio.open(fp) as raster:
                 geometry.append(u4spatial.bounds_to_polygon(raster.bounds))
                 crs = raster.crs

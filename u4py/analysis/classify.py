@@ -111,7 +111,7 @@ def classify_shape(
         sub_set_hull = u4spatial.get_subset_hull(shp_gdf, group, buffer_size)
 
         # Classification
-        res = dict()
+        res = preallocate_results()
         res["group"] = group
         res["geometry"] = sub_set_hull.geometry[0]
         res["area"] = round(res["geometry"].area, 1)
@@ -158,6 +158,83 @@ def classify_shape(
         return res
     else:
         logging.info(f"No geometry found for group #{group}")
+        return dict()
+
+
+def preallocate_results() -> dict:
+    """Preallocates all possible results for unified output and easier generation of master geodataframe.
+
+    :return: A dictionary containing all keys but with empty values.
+    :rtype: dict
+    """
+    res = {
+        "group": np.nan,
+        "geometry": gp.GeoDataFrame(),
+        "area": np.nan,
+        "additional_areas": np.nan,
+        "roads_main_area": np.nan,
+        "roads_minor_area": np.nan,
+        "roads_main": np.nan,
+        "roads_minor": np.nan,
+        "roads_has_motorway": np.nan,
+        "buildings": np.nan,
+        "buildings_area": np.nan,
+        "water_area": np.nan,
+        "landuse_names": [],
+        "landuse_area": [],
+        "landuse_percent": [],
+        "slope_polygons_mean": [],
+        "slope_polygons_median": [],
+        "slope_polygons_std": [],
+        "slope_hull_mean": [],
+        "slope_hull_median": [],
+        "slope_hull_std": [],
+        "shape_roundness": [],
+        "shape_ellipse_a": [],
+        "shape_ellipse_b": [],
+        "shape_ellipse_theta": [],
+        "shape_flattening": [],
+        "volumes_total": np.nan,
+        "volumes_removed": np.nan,
+        "volumes_added": np.nan,
+        "volumes_moved": np.nan,
+        "geology_units": [],
+        "geology_area": [],
+        "geology_percent": [],
+        "hydro_units": [],
+        "hydro_area": [],
+        "hydro_percent": [],
+        "landslide_units": [],
+        "landslide_area": [],
+        "landslide_percent": [],
+        "landslides_num_1km": np.nan,
+        "landslides_num_inside": np.nan,
+        "rockfall_num_1km": np.nan,
+        "rockfall_num_inside": np.nan,
+        "subsidence_units": [],
+        "subsidence_area": [],
+        "subsidence_percent": [],
+        "karst_units": [],
+        "karst_area": [],
+        "karst_percent": [],
+        "karst_num_1km": np.nan,
+        "karst_num_inside": np.nan,
+        "topsoil_units": np.nan,
+        "topsoil_area": np.nan,
+        "topsoil_percent": np.nan,
+        "timeseries_num_psi": np.nan,
+        "timeseries_offset": np.nan,
+        "timeseries_linear": np.nan,
+        "timeseries_annual_sine": np.nan,
+        "timeseries_annual_cosine": np.nan,
+        "timeseries_annual_max_amplitude": np.nan,
+        "timeseries_annual_max_time": np.nan,
+        "timeseries_semiannual_sine": np.nan,
+        "timeseries_semiannual_cosine": np.nan,
+        "timeseries_semiannual_max_amplitude": np.nan,
+        "timeseries_semiannual_max_time": np.nan,
+    }
+    return res
 
 
 def roads(
@@ -216,6 +293,7 @@ def roads(
     roads_data = u4gpkg.load_gpkg_data_region_ogr(
         sub_set_hull, osm_path, "gis_osm_roads_free_1"
     )
+
     if len(roads_data) > 0:
         logging.info("Classifying Road Data")
         # Look for motorways
@@ -242,11 +320,7 @@ def roads(
                 res["roads_minor"].unary_union.area, 1
             )
             res["additional_areas"] += res["roads_minor_area"]
-        else:
-            res["roads_minor_area"] = 0
-    else:
-        res["roads_main"] = []
-        res["roads_minor"] = []
+
     return res
 
 
@@ -835,7 +909,7 @@ def psi_data(sub_set_hull: gp.GeoDataFrame, psi_path: os.PathLike) -> dict:
     logging.info("Loading PSI Data")
     data = u4gpkg.load_gpkg_data_region(sub_set_hull, psi_path, "vertikal")
     res = dict()
-    if data["num_points"] > 0:
+    if data:
         res["timeseries_num_psi"] = data["num_points"]
         logging.info("Inverting Data")
         params, _, _, _ = u4invert.invert_time_series(

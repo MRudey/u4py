@@ -7,6 +7,7 @@ Can be the output of ADAfinder, GroundMotionAnalyzer or U4Py-Full Workflows.
 
 import logging
 import os
+from multiprocessing import Pool
 from pathlib import Path
 
 import geopandas as gp
@@ -16,7 +17,6 @@ from tqdm import tqdm
 
 import u4py.analysis.classify as u4class
 import u4py.io.gpkg as u4gpkg
-import u4py.plotting.plots as u4plots
 import u4py.utils.config as u4config
 import u4py.utils.projects as u4proj
 
@@ -39,6 +39,7 @@ def main():
         interactive=False,
     )
     shp_cfg = u4config.get_shape_config()
+    use_parallel = True
 
     # Setting up paths
     shp_file = os.path.join(
@@ -53,19 +54,70 @@ def main():
     shp_gdf = u4gpkg.load_gpkg_data_region_ogr(sub_region, shp_file)
 
     unique_groups = np.unique(shp_gdf.groups)
-    for group in tqdm(unique_groups, desc="Classifying Groups"):
-        res = u4class.classify_shape(
-            shp_gdf=shp_gdf,
-            group=group,
-            buffer_size=100,
-            shp_cfg=shp_cfg,
-            project=project,
-            use_online=True,
-            save_report=True,
-        )
-        # if res:
-        #     print(res)
-        #     u4plots.plot_site_statistics(res, site_stat_path)
+
+    kwargs = [
+        {
+            "shp_gdf": shp_gdf,
+            "group": group,
+            "buffer_size": 100,
+            "shp_cfg": shp_cfg,
+            "project": project,
+            "use_online": False,
+            "save_report": True,
+        }
+        for group in unique_groups[:10]
+    ]
+    if use_parallel:
+        with Pool(u4config.cpu_count) as p:
+            main_list = list(
+                tqdm(
+                    p.map(classifier_wrapper, kwargs),
+                    total=len(kwargs),
+                    desc="Classifying Groups",
+                    leave=False,
+                )
+            )
+    else:
+        main_list = [
+            classifier_wrapper(kwarg)
+            for kwarg in tqdm(
+                kwargs,
+                total=len(kwargs),
+                desc="Classifying Groups",
+                leave=False,
+            )
+        ]
+    main_results = u4class.preallocate_results()
+    for kk in main_results.keys():
+        main_results[kk] = []
+
+    for res in tqdm(main_list, desc="Reformatting Results List"):
+        if res:
+            for kk in res.keys():
+                if isinstance(res[kk], gp.GeoDataFrame):
+                    main_results[kk].append("")
+                elif isinstance(res[kk], list):
+                    main_results[kk].append(str(res[kk]))
+                else:
+                    main_results[kk].append(res[kk])
+    logging.info("Creating final dataframe.")
+    main_gdf = gp.GeoDataFrame(data=main_results, crs=shp_gdf.crs)
+    logging.info("Saving final dataframe")
+    main_gdf.to_file(
+        os.path.join(project["paths"]["output_path"], "Classified_Shapes.gpkg")
+    )
+
+
+def classifier_wrapper(kwargs: dict) -> dict:
+    """Parallel processing wrapper for classify_shape()
+
+    :param args: The arguments
+    :type args: dict
+    :return: The results dictionary.
+    :rtype: dict
+    """
+    res = u4class.classify_shape(**kwargs)
+    return res
 
 
 def create_test_region():

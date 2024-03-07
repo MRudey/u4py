@@ -30,7 +30,7 @@ def start_logger():
     progress of processing or other info.
     """
     logging.basicConfig(
-        format="%(asctime)s [%(levelname)s] %(funcName)s: %(message)s",
+        format="[P%(process)d] %(asctime)s [%(levelname)s] %(funcName)s: %(message)s",
         stream=sys.stdout,
         level=log_level,
     )

@@ -429,21 +429,24 @@ def clipped_data_to_dict(
     :return: Dictionary ready for use with inversion.
     :rtype: dict
     """
-    loaded_data = {
-        "num_points": len(clipped_data),
-        "ps_id": clipped_data.ps_id.to_numpy(),
-        "x": clipped_data.geometry.x.to_numpy(),
-        "xmid": np.mean(clipped_data.geometry.x.to_numpy()),
-        "y": clipped_data.geometry.y.to_numpy(),
-        "ymid": np.mean(clipped_data.geometry.y.to_numpy()),
-        "z": clipped_data.geometry.z.to_numpy(),
-        "zmid": np.mean(clipped_data.geometry.z.to_numpy()),
-        "timeseries": np.vstack(clipped_data.data.to_numpy()),
-        "time": time,
-    }
-    if "mean_vel" in clipped_data.keys():
-        loaded_data["mean_vel"] = clipped_data["mean_vel"]
-        loaded_data["var_mean_vel"] = clipped_data["var_mean_vel"]
+    if len(clipped_data) > 0:
+        loaded_data = {
+            "num_points": len(clipped_data),
+            "ps_id": clipped_data.ps_id.to_numpy(),
+            "x": clipped_data.geometry.x.to_numpy(),
+            "xmid": np.mean(clipped_data.geometry.x.to_numpy()),
+            "y": clipped_data.geometry.y.to_numpy(),
+            "ymid": np.mean(clipped_data.geometry.y.to_numpy()),
+            "z": clipped_data.geometry.z.to_numpy(),
+            "zmid": np.mean(clipped_data.geometry.z.to_numpy()),
+            "timeseries": np.vstack(clipped_data.data.to_numpy()),
+            "time": time,
+        }
+        if "mean_vel" in clipped_data.keys():
+            loaded_data["mean_vel"] = clipped_data["mean_vel"]
+            loaded_data["var_mean_vel"] = clipped_data["var_mean_vel"]
+    else:
+        loaded_data = dict()
     return loaded_data
 
 

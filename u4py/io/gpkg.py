@@ -263,7 +263,8 @@ def load_gpkg_data_region(
     clipped_data = u4spatial.clip_data_points(
         data, region, split_points=split_points, crs=gpkg_crs
     )
-    clipped_data["crs"] = gpkg_crs
+    if clipped_data:
+        clipped_data["crs"] = gpkg_crs
     return clipped_data
 
 
