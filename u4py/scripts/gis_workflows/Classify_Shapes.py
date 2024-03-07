@@ -95,9 +95,12 @@ def main():
         if res:
             for kk in res.keys():
                 if isinstance(res[kk], gp.GeoDataFrame):
-                    main_results[kk].append("")
+                    main_results[kk].append("[]")
                 elif isinstance(res[kk], list):
-                    main_results[kk].append(str(res[kk]))
+                    if len(res[kk]) > 1:
+                        main_results[kk].append(str(res[kk]))
+                    else:
+                        main_results[kk].append(str(res[kk][0]))
                 else:
                     main_results[kk].append(res[kk])
     logging.info("Creating final dataframe.")
