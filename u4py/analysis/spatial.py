@@ -1029,10 +1029,13 @@ def get_subset_hull(
     :rtype: gp.GeoDataFrame
     """
     sub_set = get_subset(shp_gdf, group)
-    sub_set_hull = gp.GeoDataFrame(
-        geometry=[sub_set.unary_union.convex_hull.buffer(buffer_size)],
-        crs=shp_gdf.crs,
-    )
+    try:
+        sub_set_hull = gp.GeoDataFrame(
+            geometry=[sub_set.unary_union.convex_hull.buffer(buffer_size)],
+            crs=shp_gdf.crs,
+        )
+    except AttributeError:
+        sub_set_hull = gp.GeoDataFrame()
     return sub_set_hull
 
 
@@ -1067,11 +1070,7 @@ def calculate_slope_in_shapes(
             slope_data["slope_median"].append(np.median(data))
             slope_data["slope_std"].append(np.std(data))
         elif isinstance(geom, shapely.MultiPolygon):
-            for poly in tqdm(
-                list(geom.geoms),
-                desc="Calculating Slope in Polygons",
-                leave=False,
-            ):
+            for poly in list(geom.geoms):
                 data = []
                 for fp in file_list:
                     data.extend(

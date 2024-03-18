@@ -8,6 +8,7 @@ import os
 
 import geopandas as gp
 import numpy as np
+import shapely as shp
 
 import u4py.addons.web_services as u4web
 import u4py.analysis.inversion as u4invert
@@ -109,7 +110,7 @@ def classify_shape(
     sub_set = u4spatial.get_subset(shp_gdf, group)
     if len(sub_set) > 0:
         sub_set_hull = u4spatial.get_subset_hull(shp_gdf, group, buffer_size)
-
+    if len(sub_set_hull) > 0:
         # Classification
         res = preallocate_results()
         res["group"] = group
@@ -168,71 +169,76 @@ def preallocate_results() -> dict:
     :rtype: dict
     """
     res = {
-        "group": np.nan,
-        "geometry": gp.GeoDataFrame(),
-        "area": np.nan,
         "additional_areas": np.nan,
-        "roads_main_area": np.nan,
-        "roads_minor_area": np.nan,
-        "roads_main": np.nan,
-        "roads_minor": np.nan,
-        "roads_has_motorway": np.nan,
-        "buildings": np.nan,
+        "area": np.nan,
         "buildings_area": np.nan,
-        "water_area": np.nan,
-        "landuse_names": [],
+        "buildings": gp.GeoDataFrame(),
+        "geology_area": [],
+        "geology_percent": [],
+        "geology_units": [],
+        "geometry": gp.GeoDataFrame(),
+        "group": np.nan,
+        "hydro_area": [],
+        "hydro_percent": [],
+        "hydro_units": [],
+        "karst_area": [],
+        "karst_num_1km": np.nan,
+        "karst_num_inside": np.nan,
+        "karst_percent": [],
+        "karst_units": [],
+        "karst_total": np.nan,
+        "landslide_area": [],
+        "landslide_percent": [],
+        "landslide_total": np.nan,
+        "landslide_units": [],
+        "landslides_num_1km": np.nan,
+        "landslides_num_inside": np.nan,
         "landuse_area": [],
+        "landuse_names": [],
         "landuse_percent": [],
-        "slope_polygons_mean": [],
-        "slope_polygons_median": [],
-        "slope_polygons_std": [],
-        "slope_hull_mean": [],
-        "slope_hull_median": [],
-        "slope_hull_std": [],
-        "shape_roundness": [],
+        "landuse_total": np.nan,
+        "landuse_major": "",
+        "roads_has_motorway": np.nan,
+        "roads_main_area": np.nan,
+        "roads_main": gp.GeoDataFrame(),
+        "roads_minor_area": np.nan,
+        "roads_minor": gp.GeoDataFrame(),
+        "rockfall_num_1km": np.nan,
+        "rockfall_num_inside": np.nan,
         "shape_ellipse_a": [],
         "shape_ellipse_b": [],
         "shape_ellipse_theta": [],
         "shape_flattening": [],
-        "volumes_total": np.nan,
-        "volumes_removed": np.nan,
-        "volumes_added": np.nan,
-        "volumes_moved": np.nan,
-        "geology_units": [],
-        "geology_area": [],
-        "geology_percent": [],
-        "hydro_units": [],
-        "hydro_area": [],
-        "hydro_percent": [],
-        "landslide_units": [],
-        "landslide_area": [],
-        "landslide_percent": [],
-        "landslides_num_1km": np.nan,
-        "landslides_num_inside": np.nan,
-        "rockfall_num_1km": np.nan,
-        "rockfall_num_inside": np.nan,
-        "subsidence_units": [],
+        "shape_roundness": [],
+        "slope_hull_mean": [],
+        "slope_hull_median": [],
+        "slope_hull_std": [],
+        "slope_polygons_mean": [],
+        "slope_polygons_median": [],
+        "slope_polygons_std": [],
         "subsidence_area": [],
         "subsidence_percent": [],
-        "karst_units": [],
-        "karst_area": [],
-        "karst_percent": [],
-        "karst_num_1km": np.nan,
-        "karst_num_inside": np.nan,
-        "topsoil_units": np.nan,
-        "topsoil_area": np.nan,
-        "topsoil_percent": np.nan,
-        "timeseries_num_psi": np.nan,
-        "timeseries_offset": np.nan,
-        "timeseries_linear": np.nan,
-        "timeseries_annual_sine": np.nan,
+        "subsidence_total": np.nan,
+        "subsidence_units": [],
         "timeseries_annual_cosine": np.nan,
         "timeseries_annual_max_amplitude": np.nan,
         "timeseries_annual_max_time": np.nan,
-        "timeseries_semiannual_sine": np.nan,
+        "timeseries_annual_sine": np.nan,
+        "timeseries_linear": np.nan,
+        "timeseries_num_psi": np.nan,
+        "timeseries_offset": np.nan,
         "timeseries_semiannual_cosine": np.nan,
         "timeseries_semiannual_max_amplitude": np.nan,
         "timeseries_semiannual_max_time": np.nan,
+        "timeseries_semiannual_sine": np.nan,
+        "topsoil_area": np.nan,
+        "topsoil_percent": np.nan,
+        "topsoil_units": np.nan,
+        "volumes_added": np.nan,
+        "volumes_moved": np.nan,
+        "volumes_removed": np.nan,
+        "volumes_total": np.nan,
+        "water_area": np.nan,
     }
     return res
 
@@ -425,15 +431,18 @@ def landuse(
             if ft in fclasses:
                 landuse_data = landuse_data[landuse_data["fclass"] != ft]
 
+    if len(landuse_data) > 0:
         # Remove areas that are covered by other features, e.g. roads
         if len(res["roads_main"]) > 0:
             landuse_data = landuse_data.overlay(
                 res["roads_main"], how="difference"
             )
+    if len(landuse_data) > 0:
         if len(res["roads_minor"]) > 0:
             landuse_data = landuse_data.overlay(
                 res["roads_minor"], how="difference"
             )
+    if len(landuse_data) > 0:
         if len(res["buildings"]) > 0:
             landuse_data = landuse_data.overlay(
                 res["buildings"], how="difference"
@@ -468,13 +477,16 @@ def landuse(
             res["landuse_area"].append(unclass_area)
             if unclass_area < 0:
                 logging.info(f"Negative landuse for site {res['group']}!")
-    # Sort landuse for better plots
-    sorted = np.argsort(res["landuse_area"])
-    res["landuse_names"] = list(np.array(res["landuse_names"])[sorted])
-    res["landuse_area"] = list(np.round(np.array(res["landuse_area"])[sorted]))
-    res["landuse_percent"] = [
-        round((lnd / res["area"]) * 100, 1) for lnd in res["landuse_area"]
-    ]
+        # Sort landuse for better plots
+        sorted = np.argsort(res["landuse_area"])
+        res["landuse_names"] = list(np.array(res["landuse_names"])[sorted])
+        res["landuse_area"] = list(
+            np.round(np.array(res["landuse_area"])[sorted])
+        )
+        res["landuse_percent"] = [
+            round((lnd / res["area"]) * 100, 1) for lnd in res["landuse_area"]
+        ]
+        res["landuse_major"] = res["landuse_names"][-1]
     res["additional_areas"] = round(res["additional_areas"], 1)
     return res
 
@@ -700,6 +712,7 @@ def landslides(
     res["landslide_percent"] = [
         round((area / res["area"]) * 100, 1) for area in res["landslide_area"]
     ]
+    res["landslide_total"] = sum(res["landslide_percent"])
 
     if len(landslide_points) > 0:
         res["landslides_num_1km"] = len(landslide_points)
@@ -786,12 +799,14 @@ def subsidence(
         raise ValueError("Please supply shapefile or set `use_online=True`.")
 
     logging.info("Classifying subsidence")
-    res["subsidence_units"], res["subsidence_area"] = (
-        u4spatial.area_per_feature(subsidence_data, "GEN_TXT")
-    )
+    (
+        res["subsidence_units"],
+        res["subsidence_area"],
+    ) = u4spatial.area_per_feature(subsidence_data, "GEN_TXT")
     res["subsidence_percent"] = [
         round((area / res["area"]) * 100, 1) for area in res["subsidence_area"]
     ]
+    res["subsidence_total"] = sum(res["subsidence_percent"])
     return res
 
 
@@ -845,6 +860,7 @@ def karst(
     res["karst_percent"] = [
         round((area / res["area"]) * 100, 1) for area in res["karst_area"]
     ]
+    res["karst_total"] = sum(res["karst_percent"])
     if len(karst_points) > 0:
         res["karst_num_1km"] = len(karst_points)
         res["karst_num_inside"] = len(karst_points.clip(sub_set_hull))
