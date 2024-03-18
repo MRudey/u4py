@@ -204,6 +204,7 @@ def plot_timeseries_fit(
     color: str = "C0",
     color_fit: str = "C1",
     annotate: bool = False,
+    direction: str = "U",
 ) -> Tuple[Figure, Axes] | None:
     """Plots the fit data for a simple timeseries analysis.
 
@@ -219,6 +220,10 @@ def plot_timeseries_fit(
     :type color: str, optional
     :param color_fit: The color for the fit, defaults to "C1"
     :type color_fit: str, optional
+    :param annotate: Whether to add fit results as annotation to the plot
+    :type annotate: bool, optional
+    :param direction: The direction of results to use, defaults to "U": vertical
+    :type direction: str, optional
     :return: The figure and axis if there was no axis specified.
     :rtype: Tuple[Figure, Axes] | None
     """
@@ -251,7 +256,9 @@ def plot_timeseries_fit(
                 bbox={"boxstyle": "square", "fc": "white", "linewidth": 1},
             )
     else:
-        quantiles = u4plotprep.get_timeseries_range(results["U"], results["t"])
+        quantiles = u4plotprep.get_timeseries_range(
+            results[direction], results["t"]
+        )
         plot_quantile_timeseries(
             quantiles["t_u"], quantiles, ax=ax, color=color
         )
@@ -261,7 +268,7 @@ def plot_timeseries_fit(
         y_fit = u4plotprep._downsampled_forward_model(
             t_q,
             u4convert.get_floatyear(results[f"t_fit_{fit_num}"]),
-            results["U"][f"y_fit_{fit_num}"],
+            results[direction][f"y_fit_{fit_num}"],
         )
         ax.plot(
             u4convert.get_datetime(t_q),
@@ -273,8 +280,8 @@ def plot_timeseries_fit(
             res_name = ["inversion_results", "ori_inversion_results"]
             ax.annotate(
                 u4invert.print_inversion_results(
-                    results["U"][res_name[fit_num - 1]],
-                    results["U"]["parameters_list"],
+                    results[direction][res_name[fit_num - 1]],
+                    results[direction]["parameters_list"],
                 ),
                 (0.99, 0.01),
                 xycoords="axes fraction",

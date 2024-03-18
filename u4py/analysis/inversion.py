@@ -340,15 +340,15 @@ def _clean_inputs(data: dict):
     :type data: dict
     """
     logging.info("Cleaning inputs.")
-    for k in data.keys():
-        if isinstance(data[k], np.ndarray):
-            ind = np.nonzero(np.isfinite(data[k]))
-            for k in data.keys():
-                if (
-                    isinstance(data[k], np.ndarray)
-                    and k != "inversion_results"
-                ):
-                    data[k] = data[k][ind]
+    ind = np.nonzero(
+        np.isfinite(data["dataN"])
+        | np.isfinite(data["dataE"])
+        | np.isfinite(data["dataU"])
+    )
+
+    for kk in data.keys():
+        if isinstance(data[kk], np.ndarray) and kk != "inversion_results":
+            data[kk] = data[kk][ind]
 
 
 def _invert(
@@ -834,11 +834,20 @@ def remove_outliers(
     return ind
 
 
-def stack_data(dataset: dict) -> dict:
+def stack_data(
+    dataset: dict,
+    data_mapping: dict = {
+        "dataE": "timeseries",
+        "dataN": "timeseries",
+        "dataU": "timeseries",
+    },
+) -> dict:
     """Stacks all datapoints for inversion
 
     :param dataset: The dataset containing the data to stack.
     :type dataset: dict
+    :param data_mapping: A dictionary mapping the three components to the respective keys in `dataset`, defaults mapping all components to `"timeseries"`.
+    :type data_mapping: dict, optional
     :return: A dataset with the all data stacked together.
     :rtype: dict
     """
@@ -865,7 +874,7 @@ def stack_data(dataset: dict) -> dict:
             (dataset["num_points"], 1),
         )
         for k in ["dataE", "dataN", "dataU"]:
-            time_series[k] = dataset["timeseries"]
+            time_series[k] = dataset[data_mapping[k]]
         time_series["station"] = [str(nn) for nn in dataset["ps_id"]]
         time_series["xmid"] = dataset["xmid"]
         time_series["ymid"] = dataset["ymid"]
@@ -903,11 +912,20 @@ def print_inversion_results(matrix: np.ndarray, parameters_list: list[str]):
     return print_string[:-2]
 
 
-def reformat_dict(dataset: dict) -> dict:
+def reformat_dict(
+    dataset: dict,
+    data_mapping: dict = {
+        "dataE": "timeseries",
+        "dataN": "timeseries",
+        "dataU": "timeseries",
+    },
+) -> dict:
     """Reformats a loaded hdf5 dictionary to match with the one for inversion.
 
     :param dataset: The dictionary to reformat.
     :type dataset: dict
+    :param data_mapping: A dictionary mapping the three components to the respective keys in `dataset`, defaults mapping all components to `"timeseries"`.
+    :type data_mapping: dict, optional
     :return: The reformatted dictionary.
     :rtype: dict
     """
@@ -922,12 +940,12 @@ def reformat_dict(dataset: dict) -> dict:
     if is_invert_data:
         data = dataset
     else:
-        data = stack_data(dataset)
+        data = stack_data(dataset, data_mapping)
     if isinstance(data["t"][0], datetime):
         data["t"] = u4convert.get_floatyear(data["t"])
     data["sigmE"] = np.ones_like(data["dataE"])
-    data["sigmN"] = np.ones_like(data["dataE"])
-    data["sigmU"] = np.ones_like(data["dataE"])
+    data["sigmN"] = np.ones_like(data["dataN"])
+    data["sigmU"] = np.ones_like(data["dataU"])
 
     if "inversion_results" in dataset.keys():
         data["inversion_results"] = dataset["inversion_results"]

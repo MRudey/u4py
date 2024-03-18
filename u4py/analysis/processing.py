@@ -27,13 +27,18 @@ import u4py.utils.convert as u4convert
 
 
 def invert_psi_dict(
-    data: dict,
+    data: dict = dict(),
     t_AT: list = [],
     t_EQ: list = [],
     t_EX: list = [],
     num_coeffs: int = 1,
     save_path: os.PathLike = "",
     overwrite: bool = False,
+    data_mapping: dict = {
+        "dataE": "timeseries",
+        "dataN": "timeseries",
+        "dataU": "timeseries",
+    },
 ) -> list:
     """Inverts a dictionary loaded or merged from h5-files
 
@@ -49,11 +54,13 @@ def invert_psi_dict(
     :type save_path: os.PathLike, optional
     :param overwrite: Overwrite existing results if True, defaults to False
     :type overwrite: bool, optional
+    :param data_mapping: A dictionary mapping the three components to the respective keys in `dataset`, defaults mapping all components to `"timeseries"`.
+    :type data_mapping: dict, optional
     :return: The matrix of components.
     :rtype: list
     """
-    if overwrite or not os.path.exists(save_path):
-        prepared_data = u4invert.reformat_dict(data)
+    if (overwrite or not os.path.exists(save_path)) and data:
+        prepared_data = u4invert.reformat_dict(data, data_mapping=data_mapping)
         (
             ori_matrix,
             prepared_data,
@@ -103,7 +110,16 @@ def invert_psi_dict(
     else:
         FileNotFoundError("No Inversion data found")
 
-    ref_data = u4convert.reformat_inversion_results(prepared_data)
+    # Add other components to results dictionary (in case EW or NS data was given.)
+    directions = ["U"]
+    if data_mapping["dataE"] != data_mapping["dataU"]:
+        directions.append("E")
+    elif data_mapping["dataN"] != data_mapping["dataU"]:
+        directions.append("N")
+
+    ref_data = u4convert.reformat_inversion_results(
+        prepared_data, directions=directions
+    )
     return ref_data
 
 

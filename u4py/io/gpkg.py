@@ -223,6 +223,8 @@ def load_gpkg_data_region(
     gpkg_file_path: os.PathLike,
     table: str = "",
     split_points: bool = False,
+    gpkg_crs: str = "",
+    region_crs: str = "EPSG:32632",
 ) -> dict:
     """Selects PSI measurements in the specified region from the given **GPKG** File.
 
@@ -234,6 +236,12 @@ def load_gpkg_data_region(
     :type gpkg_file_path: os.PathLike
     :param table: The table from which to extract the data, defaults to ""
     :type table: str, optional
+    :param split_points: Whether to split the points into individual sets, defaults to False
+    :type split_points: bool, optional
+    :param gpkg_crs: The CRS of the coordinates in the tables of the gpkg, might be different than the CRS of the geometries which is given in the metadata, defaults to "".
+    :type gpkg_crs: str, optional
+    :param region_crs: The CRS of the region used for clipping, defaults to "EPSG:32632". Only has an effect if the region is not a GeoDataFrame.
+    :type region_crs: str, optional
     :return: The points from `psi_file_path` in a `radius` round `point`.
     :rtype: dict
     """
@@ -248,8 +256,9 @@ def load_gpkg_data_region(
                 f"File contains several tables, please specify appropriate table from: {tables}"
             )
 
-    # Get CRS of sql datbase and convert region to it.
-    gpkg_crs = u4sql.get_crs(gpkg_file_path, table)[0]
+    if not gpkg_crs:
+        # Get CRS of sql datbase and convert region to it.
+        gpkg_crs = u4sql.get_crs(gpkg_file_path, table)[0]
     if isinstance(region, gp.GeoDataFrame):
         if region.crs != gpkg_crs:
             region = region.to_crs(gpkg_crs)
@@ -257,7 +266,16 @@ def load_gpkg_data_region(
         UserWarning(
             "Region for selection is a GeoSeries, check input CRS manually!"
         )
-        region = gp.GeoDataFrame(geometry=[region.geometry], crs=gpkg_crs)
+        region = gp.GeoDataFrame(
+            geometry=[region.geometry], crs=region_crs
+        ).to_crs(gpkg_crs)
+    elif isinstance(region, shapely.Polygon):
+        UserWarning(
+            "Region for selection is a GeoSeries, check input CRS manually!"
+        )
+        region = gp.GeoDataFrame(geometry=[region], crs=region_crs).to_crs(
+            gpkg_crs
+        )
     # Extract Data
     data = u4sql.table_to_dict(gpkg_file_path, table, bounds=region.bounds)
     clipped_data = u4spatial.clip_data_points(

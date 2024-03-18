@@ -140,7 +140,7 @@ def reformat_inversion_results(
     :return: The reformatted dictionary.
     :rtype: dict
 
-    The output dictionary contains three arrays with the times for the original data `"t"`, the first fit `"t_fit_1"` and the second fit without outliers `"t_fit_2"`. Additionally, the result for each component is saved with its respective key ["U", "E", "W"]. These nested dictionaries contain the original data `"y"`, the first fit `"y_fit_1"` and the second fit without outliers `"y_fit_2"`, each with their corresponding error denoted by the suffix `"_err"`.
+    The output dictionary contains three arrays with the times for the original data `"t"`, the first fit `"t_fit_1"` and the second fit without outliers `"t_fit_2"`. Additionally, the result for each component is saved with its respective key ["U", "E", "N"]. These nested dictionaries contain the original data `"y"`, the first fit `"y_fit_1"` and the second fit without outliers `"y_fit_2"`, each with their corresponding error denoted by the suffix `"_err"`.
     """
     # Dictionary of key names
     comp_names = ["data", "sigm", "dhat", "dres"]

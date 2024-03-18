@@ -168,7 +168,11 @@ def sql_key_to_time(key: str) -> datetime:
     :return: A datetime object of the string.
     :rtype: datetime
     """
-    return datetime.strptime(key, "date_%Y%m%d")
+    try:
+        dts = datetime.strptime(key, "date_%Y%m%d")
+    except ValueError:
+        dts = datetime.strptime(key, "%Y%m%d")
+    return dts
 
 
 def table_to_dict(
@@ -208,20 +212,32 @@ def table_to_dict(
     info = read_info(cur, table)
     info["num_points"] = num_points
 
+    # Getting column names for coordinates
+    # (BBD: X,Y,Z; EGMS: easting, northing, height)
+
+    if "X" in info["all_keys"]:
+        x_str = "X"
+        y_str = "Y"
+        z_str = "Z"
+    elif "easting" in info["all_keys"]:
+        x_str = "easting"
+        y_str = "northing"
+        z_str = "height"
+
     if len(bounds) > 0:
         if isinstance(bounds, tuple) or isinstance(bounds, list):
             where = (
-                f"X > {bounds[0]} AND "
-                + f"X < {bounds[2]} AND "
-                + f"Y > {bounds[1]} AND "
-                + f"Y < {bounds[3]} "
+                f"{x_str} > {bounds[0]} AND "
+                + f"{x_str} < {bounds[2]} AND "
+                + f"{y_str} > {bounds[1]} AND "
+                + f"{y_str} < {bounds[3]} "
             )
         elif isinstance(bounds, gp.pd.DataFrame):
             where = (
-                f"X > {bounds.minx.values[0]} AND "
-                + f"X < {bounds.maxx.values[0]} AND "
-                + f"Y > {bounds.miny.values[0]} AND "
-                + f"Y < {bounds.maxy.values[0]}"
+                f"{x_str} > {bounds.minx.values[0]} AND "
+                + f"{x_str} < {bounds.maxx.values[0]} AND "
+                + f"{y_str} > {bounds.miny.values[0]} AND "
+                + f"{y_str} < {bounds.maxy.values[0]}"
             )
         else:
             TypeError("Bounds of invalid type.")
@@ -230,7 +246,10 @@ def table_to_dict(
 
     logging.info("Querying coordinates and keys")
     xx, yy, zz, ps_id = multi_col_select(
-        cur, ["X", "Y", "Z", info["id_key"]], table, where=where
+        cur,
+        [f"{x_str}", f"{y_str}", f"{z_str}", info["id_key"]],
+        table,
+        where=where,
     )
 
     if info["has_time"] and get_timeseries:
@@ -416,6 +435,10 @@ def read_info(cur: sqlite3.Cursor, table: str) -> dict:
             "var_mean_velo_east",
         ]
         info["id_key"] = "ID"
+    # If we have no id key yet and the dataset is a EGMS dataset:
+    if not "id_key" in info.keys() and "EGMS" in table:
+        info["id_key"] = "pid"
+        info["non_time_keys"] = info["all_keys"][:13]
 
     return info
 
@@ -441,20 +464,21 @@ def read_timeseries(
         k for k in info["all_keys"] if k not in info["non_time_keys"]
     ]
     time = np.array([sql_key_to_time(k) for k in time_columns])
-    cols = ""
-    for cc in time_columns:
-        cols += cc + ","
-    cols = cols[:-1]
+    # cols = "'"
+    # for cc in time_columns:
+    #     cols += cc + "','"
+    # cols = cols[:-2]
     if where:
-        timeseries = np.array(
-            cur.execute(
-                f"SELECT {cols} FROM '{table}' WHERE {where}"
-            ).fetchall()
-        )
+        timeseries = cur.execute(
+            f"SELECT * FROM '{table}' WHERE {where}"
+        ).fetchall()
     else:
-        timeseries = np.array(
-            cur.execute(f"SELECT {cols} FROM '{table}'").fetchall()
-        )
+        timeseries = cur.execute(f"SELECT * FROM '{table}'").fetchall()
+
+    timeseries = np.array(
+        [r[len(info["non_time_keys"]) :] for r in timeseries]
+    )
+
     timeseries[timeseries == None] = np.nan
 
     return time, timeseries.astype("float64")
@@ -699,6 +723,8 @@ def get_meanvelo_keys(all_keys: list) -> Tuple[str, str]:
         return ("mean_velo_vert", "var_mean_velo_vert")
     elif "mean_velo_east" in all_keys and "var_mean_velo_east" in all_keys:
         return ("mean_velo_east", "var_mean_velo_east")
+    elif "mean_velocity" in all_keys and "mean_velocity_std" in all_keys:
+        return ("mean_velocity", "mean_velocity_std")
     else:
         raise KeyError("No keys for mean velocity found.")
 
@@ -729,9 +755,14 @@ def get_num_entries(
             + f"Y > {region[1]} AND Y < {region[3]} "
         ).fetchone()[0]
     else:
-        num_points = cur.execute(f"SELECT COUNT(*) FROM '{table}'").fetchone()[
-            0
-        ]
+        try:
+            num_points = cur.execute(
+                f"SELECT feature_count FROM gpkg_ogr_contents WHERE table_name='{table}'"
+            ).fetchone()[0]
+        except:
+            num_points = cur.execute(
+                f"SELECT COUNT(*) FROM '{table}'"
+            ).fetchone()[0]
     con.close()
     return num_points
 
@@ -852,13 +883,23 @@ def ogr_spatial_select(
     :return: A dictionary to create a geodataframe with all the geometries.
     :rtype: dict
     """
+    # Get some info from the file
     geom_col = get_geometry_column(gpkg_path, table)[0]
+
+    # Formulate query
+    sql_query = (
+        f"SELECT * FROM '{table}' "
+        + "WHERE ST_Intersects("
+        + f"ST_GeomFromText('{wkt_bounds}', 0), {geom_col}"
+        + ")"
+    )
+
+    # Get the data
     with ogr.Open(gpkg_path) as con:
-        query = con.ExecuteSQL(
-            f"SELECT * FROM '{table}' WHERE ST_Intersects(ST_GeomFromText('{wkt_bounds}', 0), {geom_col})",
-        )
+        logging.info("Querying for features")
+        query = con.ExecuteSQL(sql_query)
         data = dict()
-        for layer in query:
+        for layer in tqdm(query, total=query.GetFeatureCount()):
             geom = layer[geom_col]
             if geom:  # Sometimes the geometries are empty...?
                 if not data:
