@@ -8,7 +8,6 @@ Can be the output of ADAfinder, GroundMotionAnalyzer or U4Py-Full Workflows.
 import logging
 import os
 from multiprocessing import Pool
-from pathlib import Path
 
 import geopandas as gp
 import numpy as np
@@ -16,18 +15,20 @@ import shapely as shp
 from tqdm import tqdm
 
 import u4py.analysis.classify as u4class
-import u4py.io.gpkg as u4gpkg
+
+# import u4py.io.gpkg as u4gpkg
 import u4py.utils.config as u4config
 import u4py.utils.projects as u4proj
 
-u4config.start_logger()
+# from pathlib import Path
+
+
+# u4config.start_logger()
 
 
 def main():
     project = u4proj.get_project(
-        proj_path=Path(
-            r"~\Documents\ArcGIS\U4_projects\Classify_Shapes.u4project"
-        ).expanduser(),
+        proj_path="/home/rudolf/Documents/umwelt4/Classify_Shapes.u4project",
         required=[
             "base_path",
             "psi_path",
@@ -50,11 +51,11 @@ def main():
     os.makedirs(site_stat_path, exist_ok=True)
 
     # Getting Data
-    sub_region = create_test_region()
-    shp_gdf = u4gpkg.load_gpkg_data_region_ogr(sub_region, shp_file)
+    # sub_region = create_test_region()
+    # shp_gdf = u4gpkg.load_gpkg_data_region_ogr(sub_region, shp_file)
+    shp_gdf = gp.read_file(shp_file).to_crs("EPSG:32632")
 
     unique_groups = np.unique(shp_gdf.groups)
-
     kwargs = [
         {
             "shp_gdf": shp_gdf,
@@ -65,10 +66,10 @@ def main():
             "use_online": False,
             "save_report": True,
         }
-        for group in unique_groups[:10]
+        for group in unique_groups
     ]
     if use_parallel:
-        with Pool(u4config.cpu_count) as p:
+        with Pool(32) as p:
             main_list = list(
                 tqdm(
                     p.map(classifier_wrapper, kwargs),
@@ -78,15 +79,14 @@ def main():
                 )
             )
     else:
-        main_list = [
-            classifier_wrapper(kwarg)
-            for kwarg in tqdm(
-                kwargs,
-                total=len(kwargs),
-                desc="Classifying Groups",
-                leave=False,
-            )
-        ]
+        main_list = []
+        for kwarg in tqdm(
+            kwargs,
+            total=len(kwargs),
+            desc="Classifying Groups",
+            leave=False,
+        ):
+            main_list.append(classifier_wrapper(kwarg))
     main_results = u4class.preallocate_results()
     for kk in main_results.keys():
         main_results[kk] = []
@@ -99,8 +99,10 @@ def main():
                 elif isinstance(res[kk], list):
                     if len(res[kk]) > 1:
                         main_results[kk].append(str(res[kk]))
-                    else:
+                    elif len(res[kk]) == 1:
                         main_results[kk].append(str(res[kk][0]))
+                    else:
+                        main_results[kk].append(str(res[kk]))
                 else:
                     main_results[kk].append(res[kk])
     logging.info("Creating final dataframe.")
@@ -119,7 +121,11 @@ def classifier_wrapper(kwargs: dict) -> dict:
     :return: The results dictionary.
     :rtype: dict
     """
-    res = u4class.classify_shape(**kwargs)
+    try:
+        res = u4class.classify_shape(**kwargs)
+    except:
+        print(f"Unable to classify shapes in group {kwargs['group']}.")
+        res = dict()
     return res
 
 
@@ -141,9 +147,9 @@ def create_test_region():
         ],
         crs="EPSG:32632",
     )
-    test_region.to_file(
-        Path(r"~\Documents\ArcGIS\SelectedSites\test_region.shp").expanduser()
-    )
+    # test_region.to_file(
+    #     Path(r"~\Documents\ArcGIS\SelectedSites\test_region.shp").expanduser()
+    # )
     return test_region
 
 
