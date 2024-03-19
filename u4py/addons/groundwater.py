@@ -1,6 +1,7 @@
 """
 Contains functions to work with groundwater data.
 """
+
 from __future__ import annotations
 
 import csv
@@ -9,8 +10,11 @@ import pickle as pkl
 from datetime import datetime
 
 import geopandas as gp
+import numpy as np
 from shapely.geometry import Point
 from tqdm import tqdm
+
+import u4py.utils.convert as u4conv
 
 
 def get_groundwater_data(file_path: os.PathLike) -> dict:
@@ -140,3 +144,30 @@ def _dec2float(string: str) -> float:
     :rtype: float
     """
     return float(string.replace(",", "."))
+
+
+def compare_gw_psi(data_psi: dict, data_gw: dict):
+    tgw_s = data_gw["time"][0]
+    tgw_e = data_gw["time"][-1]
+    tpsi_s = data_psi["time"][0]
+    tpsi_e = data_psi["time"][-1]
+
+    t_s = max([tgw_s, tpsi_s])
+    t_e = min([tgw_e, tpsi_e])
+    n_s_psi = np.argwhere(np.array(data_psi["time"]) >= t_s)[0][0]
+    n_e_psi = np.argwhere(np.array(data_psi["time"]) <= t_e)[-1][0]
+
+    tq = data_psi["time"][n_s_psi : n_e_psi + 1]
+    tq = u4conv.get_floatyear(tq)
+    tgw = u4conv.get_floatyear(data_gw["time"])
+    gw_int = np.interp(tq, tgw, data_gw["height"])
+    psi_med = np.nanmedian(
+        data_psi["timeseries"][:, n_s_psi : n_e_psi + 1], axis=0
+    )
+    data = {
+        "time": u4conv.get_datetime(tq),
+        "psi": psi_med,
+        "gw": gw_int,
+        "psi_ts": data_psi["timeseries"][:, n_s_psi : n_e_psi + 1],
+    }
+    return data

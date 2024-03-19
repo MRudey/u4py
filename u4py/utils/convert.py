@@ -9,6 +9,7 @@ import os
 from datetime import datetime, timedelta
 from typing import Iterable
 
+import geopandas as gp
 import numpy as np
 
 
@@ -215,3 +216,103 @@ def reformat_gpkg(
         "z": z,
     }
     return data
+
+
+def reformat_gdf_to_dict(gdf: gp.GeoDataFrame) -> dict:
+    """Reformats the geodataframe into a default dictionary format for data
+    processing. The output matches the legacy format of sql imported data.
+
+
+    :param gdf: The dataframe to convert
+    :type gdf: gp.GeoDataFrame
+    :return: The reformatted dictionary
+    :rtype: dict
+    """
+    filter_keys = [
+        "OBJECTID",
+        "Shape",
+        "ID",
+        "Input",
+        "X",
+        "Y",
+        "Z",
+        "mean_velo_vert",
+        "var_mean_velo_vert",
+        "mean_velo_east",
+        "var_mean_velo_east",
+        "fid",
+        "geom",
+        "pid",
+        "easting",
+        "northing",
+        "height",
+        "rmse",
+        "mean_velocity",
+        "mean_velocity_std",
+        "acceleration",
+        "acceleration_std",
+        "seasonality",
+        "seasonality_std",
+        "geometry",
+    ]
+
+    if "X" in gdf.keys():
+        x_str = "X"
+        y_str = "Y"
+        z_str = "Z"
+    elif "easting" in gdf.keys():
+        x_str = "easting"
+        y_str = "northing"
+        z_str = "height"
+
+    if "ID" in gdf.keys():
+        id_key = "ID"
+    elif "pid" in gdf.keys():
+        id_key = "pid"
+    if "mean_velo_vert" in gdf.keys():
+        mv_key = "mean_velo_vert"
+        mvs_key = "var_mean_velo_vert"
+    if "mean_velo_east" in gdf.keys():
+        mv_key = "mean_velo_east"
+        mvs_key = "var_mean_velo_east"
+    elif "mean_velocity" in gdf.keys():
+        mv_key = "mean_velocity"
+        mvs_key = "mean_velocity_std"
+
+    output = {
+        "x": gdf[x_str].to_numpy(),
+        "y": gdf[y_str].to_numpy(),
+        "z": gdf[z_str].to_numpy(),
+        "ps_id": gdf[id_key].to_numpy(),
+        "mean_vel": gdf[mv_key],
+        "var_mean_vel": gdf[mvs_key],
+        "num_points": len(gdf),
+    }
+    time = np.array(
+        [sql_key_to_time(kk) for kk in gdf.keys() if kk not in filter_keys]
+    )
+    if len(time) > 0:
+        timeseries = np.array(
+            [gdf[kk].to_numpy() for kk in gdf.keys() if kk not in filter_keys]
+        ).T
+        timeseries[timeseries == None] = np.nan
+
+        output.update(
+            {"time": time, "timeseries": np.array(timeseries, dtype=float)}
+        )
+    return output
+
+
+def sql_key_to_time(key: str) -> datetime:
+    """Returns a datetime object for the given date in sql format.
+
+    :param key: The date as given in the database.
+    :type key: str
+    :return: A datetime object of the string.
+    :rtype: datetime
+    """
+    try:
+        dts = datetime.strptime(key, "date_%Y%m%d")
+    except ValueError:
+        dts = datetime.strptime(key, "%Y%m%d")
+    return dts

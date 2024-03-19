@@ -25,6 +25,7 @@ from tqdm import tqdm
 import u4py.analysis.spatial as u4spatial
 import u4py.plotting.preparation as u4plotprep
 import u4py.utils.config as u4config
+import u4py.utils.convert as u4conv
 
 
 def get_BBD_table_names(file_path: os.PathLike) -> list:
@@ -158,21 +159,6 @@ def single_query(
         return (result, jj)
     else:
         return result
-
-
-def sql_key_to_time(key: str) -> datetime:
-    """Returns a datetime object for the given date in sql format.
-
-    :param key: The date as given in the database.
-    :type key: str
-    :return: A datetime object of the string.
-    :rtype: datetime
-    """
-    try:
-        dts = datetime.strptime(key, "date_%Y%m%d")
-    except ValueError:
-        dts = datetime.strptime(key, "%Y%m%d")
-    return dts
 
 
 def table_to_dict(
@@ -421,7 +407,7 @@ def read_info(cur: sqlite3.Cursor, table: str) -> dict:
         info["non_time_keys"] = ["X", "Y", "Z", "PS_ID", "Shape", "OBJECTID"]
         info["id_key"] = "PS_ID"
     if "Input" in info["all_keys"]:  # L3 Data
-        info["non_time_keys"] = [
+        filter_keys = [
             "OBJECTID",
             "Shape",
             "ID",
@@ -434,12 +420,14 @@ def read_info(cur: sqlite3.Cursor, table: str) -> dict:
             "mean_velo_east",
             "var_mean_velo_east",
         ]
+        info["non_time_keys"] = [
+            kk for kk in filter_keys if kk in info["all_keys"]
+        ]
         info["id_key"] = "ID"
     # If we have no id key yet and the dataset is a EGMS dataset:
     if not "id_key" in info.keys() and "EGMS" in table:
         info["id_key"] = "pid"
         info["non_time_keys"] = info["all_keys"][:13]
-
     return info
 
 
@@ -463,7 +451,7 @@ def read_timeseries(
     time_columns = [
         k for k in info["all_keys"] if k not in info["non_time_keys"]
     ]
-    time = np.array([sql_key_to_time(k) for k in time_columns])
+    time = np.array([u4conv.sql_key_to_time(k) for k in time_columns])
     # cols = "'"
     # for cc in time_columns:
     #     cols += cc + "','"
@@ -502,7 +490,7 @@ def gen_timeseries_queries(
     """
     logging.debug(f"Getting timeseries")
     key_list = [k for k in info["all_keys"] if k not in info["non_time_keys"]]
-    time = np.array([sql_key_to_time(k) for k in key_list])
+    time = np.array([u4conv.sql_key_to_time(k) for k in key_list])
     if where:
         queries = [
             (file_path, f"SELECT {k} FROM '{table}' WHERE {where}", jj)
@@ -899,7 +887,7 @@ def ogr_spatial_select(
         logging.info("Querying for features")
         query = con.ExecuteSQL(sql_query)
         data = dict()
-        for layer in tqdm(query, total=query.GetFeatureCount()):
+        for layer in query:
             geom = layer[geom_col]
             if geom:  # Sometimes the geometries are empty...?
                 if not data:

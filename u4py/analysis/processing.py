@@ -19,9 +19,11 @@ import pickle
 from multiprocessing import Pool
 from typing import Callable, Iterable, Tuple
 
+import geopandas as gp
 from tqdm import tqdm
 
 import u4py.analysis.inversion as u4invert
+import u4py.io.gpkg as u4gpkg
 import u4py.utils.config as u4config
 import u4py.utils.convert as u4convert
 
@@ -220,3 +222,82 @@ def extraction_worker(data: dict, ii: int) -> dict:
         data["Ost_West"]["timeseries"][ii, :],
     )
     return extract
+
+
+def get_results(
+    name: str,
+    dataset: str,
+    roi: gp.GeoDataFrame,
+    processing_path: os.PathLike,
+    direction_paths: list[Tuple[os.PathLike, str]],
+    overwrite: bool,
+    min_psi: int = 0,
+):
+    """Loads the results of a inversion with two directions.
+
+    :param name: The name of the region of interest (for saving the intermediate results.)
+    :type name: str
+    :param dataset: The name of the dataset (e.g. "BBD", "EGMS_1", "EGMS_2)
+    :type dataset: str
+    :param roi: The region of interest.
+    :type roi: gp.GeoDataFrame
+    :param processing_path: The path where to store the intermediate results
+    :type processing_path: os.PathLike
+    :param direction_paths: The path to the psi data and the table name as a list of (path, table_name) Tuples
+    :type direction_paths: List[Tuple[os.PathLike, str]]
+    :param overwrite: Whether to overwrite existing intermediate data.
+    :type overwrite: bool
+    :param min_psi: Minimum number of psi to use, defaults to 0.
+    :type min_psi: int
+    """
+    if "EGMS" in dataset:
+        gpkg_crs = "EPSG:3035"
+    else:
+        gpkg_crs = ""
+    psi_save_path = os.path.join(processing_path, f"{dataset}_{name}.pkl")
+    inv_save_path = os.path.join(
+        processing_path, f"{dataset}_{name}_invres.pkl"
+    )
+    roi_gdf = gp.GeoDataFrame(geometry=[roi], crs="EPSG:32632")
+    results = []
+    if not os.path.exists(psi_save_path) or overwrite:
+        logging.info("Getting vertical results")
+        data_v = u4gpkg.load_gpkg_data_region(
+            roi_gdf,
+            direction_paths[0][0],
+            direction_paths[0][1],
+            gpkg_crs=gpkg_crs,
+        )
+        logging.info("Getting E-W results")
+        data_ew = u4gpkg.load_gpkg_data_region(
+            roi_gdf,
+            direction_paths[1][0],
+            direction_paths[1][1],
+            gpkg_crs=gpkg_crs,
+        )
+        if data_v and data_ew:
+            if (data_v["num_points"] > min_psi) and (
+                data_ew["num_points"] > min_psi
+            ):
+                data_v["timeseries_ew"] = data_ew["timeseries"]
+                logging.info("Inverting both components")
+                results = invert_psi_dict(
+                    data_v,
+                    save_path=psi_save_path,
+                    data_mapping={
+                        "dataE": "timeseries_ew",
+                        "dataN": "timeseries",
+                        "dataU": "timeseries",
+                    },
+                    overwrite=overwrite,
+                )
+    else:
+        results = invert_psi_dict(
+            save_path=psi_save_path,
+            data_mapping={
+                "dataE": "timeseries_ew",
+                "dataN": "timeseries",
+                "dataU": "timeseries",
+            },
+        )
+    return results

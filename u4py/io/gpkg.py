@@ -172,14 +172,15 @@ def load_gpkg_data_point(
     :return: The points from `psi_file_path` in a `radius` round `point` and the region.
     :rtype: Tuple[dict, gp.GeoDataFrame]
     """
-
-    region = u4spatial.region_around_point(point, radius, crs=crs)
+    gpkg_crs = u4sql.get_crs(gpkg_file_path, table)[0]
+    region = u4spatial.region_around_point(point, radius, crs=gpkg_crs)
 
     data = u4sql.table_to_dict(gpkg_file_path, table, region.bounds)
     clipped_data = u4spatial.clip_data_points(
-        data, region, split_points=split_points, crs=crs
+        data, region, split_points=split_points, crs=gpkg_crs
     )
-    clipped_data["crs"] = crs
+    if clipped_data:
+        clipped_data["crs"] = gpkg_crs
     return clipped_data, region
 
 
@@ -214,7 +215,8 @@ def load_gpkg_data_osm(
     clipped_data = u4spatial.clip_data_points(
         data, region, split_points=split_points, crs=crs
     )
-    clipped_data["crs"] = crs
+    if clipped_data:
+        clipped_data["crs"] = crs
     return clipped_data, region
 
 
