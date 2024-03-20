@@ -178,7 +178,7 @@ def make_plot(
             u4pltfmt.map_style(axes[-1], crs=wells_gdf.crs)
             fig.suptitle(k)
             fig.tight_layout()
-            fig.savefig(os.path.join(out_path, f"{k}_psi_vs_gwlvl"))
+            fig.savefig(os.path.join(out_path, f"{k}_psi_vs_gwlvl.png"))
         plt.close(fig)
 
 
