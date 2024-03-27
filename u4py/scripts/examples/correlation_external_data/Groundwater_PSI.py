@@ -5,7 +5,9 @@ from multiprocessing import Pool
 from pathlib import Path
 
 import geopandas as gp
+import matplotlib.gridspec as gs
 import numpy as np
+import scipy.stats as spstats
 from matplotlib import pyplot as plt
 from tqdm import tqdm
 
@@ -20,24 +22,22 @@ import u4py.utils.projects as u4proj
 
 def main():
     project = u4proj.get_project(
-        proj_path=Path(
-            r"~\Documents\ArcGIS\U4_projects\Examples\Groundwater_PSI.u4project"
-        ).expanduser(),
+        proj_path="/home/rudolf/Documents/umwelt4/Groundwater_PSI.u4project",
         required=["psi_path", "ext_path", "processing_path", "output_path"],
         interactive=False,
     )
-    use_parallel = False
+    use_parallel = True
     # Setting up Paths
     bbd_fpath = os.path.join(
-        project["paths"]["base_path"], "Data_2023", "hessen_l3_clipped.gpkg"
+        project["paths"]["psi_path"], "Data_2023", "hessen_l3_clipped.gpkg"
     )
     egms_fpath_vert1 = os.path.join(
-        project["paths"]["base_path"],
+        project["paths"]["psi_path"],
         "Data_EGMS_2015-2021",
         "EGMS_2015_2021_vertikal.gpkg",
     )
     egms_fpath_vert2 = os.path.join(
-        project["paths"]["base_path"],
+        project["paths"]["psi_path"],
         "Data_EGMS_2018-2022",
         "EGMS_2018_2022_vertikal.gpkg",
     )
@@ -72,7 +72,7 @@ def main():
 
     if use_parallel:
         with Pool(u4config.cpu_count - 2) as p:
-            list(
+            corr_data = list(
                 tqdm(
                     p.imap_unordered(parallel_make_plot, args),
                     total=len(args),
@@ -82,12 +82,28 @@ def main():
             )
 
     else:
+        corr_data = []
         for arg in tqdm(args, desc="Generating Plots", leave=False):
-            make_plot(*arg)
+            corr_data.append(make_plot(*arg))
+
+    data = {"geometry": [], "max_pearson": [], "max_spearman": [], "name": []}
+    for geom, per, spr, name in corr_data:
+        if per:
+            data["geometry"].append(geom)
+            data["max_pearson"].append(per)
+            data["max_spearman"].append(spr)
+            data["name"].append(name)
+    res_gdf = gp.GeoDataFrame(data=data, crs=wells_gdf.crs)
+    res_gdf.to_crs("EPSG:32632")
+    res_gdf.to_file(
+        os.path.join(
+            project["paths"]["output_path"], "All_Correlations_GW_PSI.shp"
+        )
+    )
 
 
 def parallel_make_plot(arg):
-    make_plot(*arg)
+    return make_plot(*arg)
 
 
 def make_plot(
@@ -101,14 +117,38 @@ def make_plot(
     len_ts = len(data["time"])
     markers = ["s", "o", "."]
     data_name = ["BBD", "EGMS 2016-2021", "EGMS 2018-2022"]
+    data_found = False
     if len_ts > 100:
-        fig, axes = plt.subplots(ncols=4, figsize=(20, 5), dpi=150)
-        data_found = False
+        fig = plt.figure(figsize=(15, 10), dpi=150)
+        grid = gs.GridSpec(nrows=4, ncols=3)
+        axes = [
+            fig.add_subplot(grid[:2, 0]),  # 0: BBD
+            fig.add_subplot(grid[:2, 1]),  # 1: EGMS 1
+            fig.add_subplot(grid[:2, 2]),  # 2: EGMS 2
+            fig.add_subplot(grid[2, :2]),  # 3: TS PSI
+            fig.add_subplot(grid[3, :2]),  # 4: TS GW
+            fig.add_subplot(grid[2:, 2]),  # 5: Map
+        ]
+        axes[1].sharex(axes[0])
+        axes[1].sharey(axes[0])
+        axes[2].sharex(axes[0])
+        axes[2].sharey(axes[0])
+
+        axes[4].plot(
+            data["time"],
+            data["height"],
+            color="k",
+            marker="s",
+            linewidth=0,
+        )
+
         wells_gdf[wells_gdf["name"] == k].plot(ax=axes[-1], color="k")
         wells_gdf[wells_gdf["name"] == k].buffer(500).plot(
             ax=axes[-1], fc="None", ec="k"
         )
         for ii, (fpath, table) in enumerate(psi_paths):
+            max_spr = 0
+            max_per = 0
             well_psi, pts_gdf = load_data(wells_gdf, fpath, table, k)
             if well_psi:
                 data_found = True
@@ -118,12 +158,42 @@ def make_plot(
                         comp_data["psi"],
                         comp_data["gw"],
                         color=f"C{ii}",
+                        linewidth=0,
                         marker=markers[ii],
                     )
+                    gw = comp_data["gw"]
+                    psi = comp_data["psi"]
+                    psi = psi[np.isfinite(gw)]
+                    gw = gw[np.isfinite(gw)]
+                    gw = gw[np.isfinite(psi)]
+                    psi = psi[np.isfinite(psi)]
+                    per = spstats.pearsonr(psi, gw)
+                    spr = spstats.spearmanr(psi, gw)
+                    if np.abs(per.statistic) > np.abs(max_per):
+                        max_per = per.statistic
+                    if np.abs(spr.statistic) > np.abs(max_spr):
+                        max_spr = spr.statistic
+                    axes[ii].annotate(
+                        f"$r_p$={per.statistic:.2f} (p={per.pvalue:.2f})\n"
+                        + f"$r_s$={spr.statistic:.2f} (p={spr.pvalue:.2f})",
+                        (0.01, 0.01),
+                        xycoords="axes fraction",
+                    )
                     axes[ii].set_xlabel("Vertical displacement (mm)")
+                    axes[3].plot(
+                        well_psi["time"],
+                        np.nanmedian(well_psi["timeseries"], axis=0),
+                        color=f"C{ii}",
+                        marker=markers[ii],
+                        linewidth=0,
+                    )
+
+                    # Add to Map
                     pts_gdf.to_crs(wells_gdf.crs).plot(
                         ax=axes[-1], color=f"C{ii}", marker=markers[ii]
                     )
+
+                    # Save Data
                     csv_dir = os.path.join(out_path, f"{k}_comparison")
                     os.makedirs(csv_dir, exist_ok=True)
                     csv_fpath = os.path.join(
@@ -152,10 +222,6 @@ def make_plot(
 
         if data_found:
             axes[0].set_ylabel("Groundwater level (m.a.s.l.)")
-            axes[1].sharex(axes[0])
-            axes[1].sharey(axes[0])
-            axes[2].sharex(axes[0])
-            axes[2].sharey(axes[0])
             axes[0].annotate(
                 data_name[0],
                 (0.01, 0.99),
@@ -174,12 +240,21 @@ def make_plot(
                 xycoords="axes fraction",
                 verticalalignment="top",
             )
+            axes[4].sharex(axes[3])
+            axes[3].set_ylabel("Vertical displacement (mm)")
+            axes[4].set_ylabel("Groundwater level (m.a.s.l.)")
             u4ax.add_basemap(ax=axes[-1])
             u4pltfmt.map_style(axes[-1], crs=wells_gdf.crs)
             fig.suptitle(k)
             fig.tight_layout()
             fig.savefig(os.path.join(out_path, f"{k}_psi_vs_gwlvl.png"))
         plt.close(fig)
+
+    if data_found:
+        geom = wells_gdf[wells_gdf["name"] == k].geometry.to_list()[0]
+        return geom, max_per, max_spr, k
+    else:
+        return [], 0, 0, ""
 
 
 def load_data(
