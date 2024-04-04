@@ -13,6 +13,7 @@ from typing import Callable, Iterable, List, Tuple
 
 import geopandas as gp
 import mahotas.polygon as mhpoly
+import matplotlib.axes as mplax
 import numpy as np
 import osmnx
 import rasterio as rio
@@ -21,6 +22,9 @@ import rasterio.mask as riomask
 import rasterio.warp as riowarp
 import scipy.spatial as spspatial
 import shapely
+from geopy.extra.rate_limiter import RateLimiter
+from geopy.geocoders import Nominatim
+from geopy.point import Point
 from skimage import measure as skmeasure
 from tqdm import tqdm
 
@@ -481,12 +485,12 @@ def region_around_point(
 
 
 def bounds_to_polygon(
-    bounds: rasterio.coords.BoundingBox | Tuple,
+    bounds: rasterio.coords.BoundingBox | Tuple | mplax.Axes,
 ) -> shapely.Polygon:
-    """Creates a `shapely.Polygon` from the `BoundingBox` of loaded raster.
+    """Creates a `shapely.Polygon` from the `BoundingBox` of loaded raster, `tuple` or `matplotlib.axes.Axes`.
 
-    :param bounds: The `BoundingBox` of a raster or a set of (minx,miny,maxx, maxy) coordinates.
-    :type bounds: rasterio.coords.BoundingBox | Tuple
+    :param bounds: The `BoundingBox` of a raster, a set of (minx,miny,maxx, maxy) coordinates, or a `matplotlib.axes.Axes` object.
+    :type bounds: rasterio.coords.BoundingBox | Tuple  | matplotlib.axes.Axes
     :return: The polygon.
     :rtype: shapely.Polygon
     """
@@ -500,6 +504,10 @@ def bounds_to_polygon(
                 (bounds.left, bounds.bottom),
             )
         )
+    if isinstance(bounds, mplax.Axes):
+        xlim = bounds.get_xlim()
+        ylim = bounds.get_ylim()
+        poly = bounds_to_polygon((xlim[0], ylim[0], xlim[1], ylim[1]))
     else:
         poly = shapely.Polygon(
             shell=(
@@ -1064,7 +1072,8 @@ def calculate_slope_in_shapes(
         if isinstance(geom, shapely.Polygon):
             data = []
             for fp in file_list:
-                data.extend(compute_for_raster_in_geom(fp, geom, dem_slope))
+                slope = compute_for_raster_in_geom(fp, geom, dem_slope)
+                data.extend(slope[np.isfinite(slope)])
             slope_data["geometry"].append(geom)
             slope_data["slope_mean"].append(np.mean(data))
             slope_data["slope_median"].append(np.median(data))
@@ -1073,9 +1082,8 @@ def calculate_slope_in_shapes(
             for poly in list(geom.geoms):
                 data = []
                 for fp in file_list:
-                    data.extend(
-                        compute_for_raster_in_geom(fp, poly, dem_slope)
-                    )
+                    slope = compute_for_raster_in_geom(fp, poly, dem_slope)
+                    data.extend(slope[np.isfinite(slope)])
                 slope_data["geometry"].append(poly)
                 slope_data["slope_mean"].append(np.mean(data))
                 slope_data["slope_median"].append(np.median(data))
@@ -1113,7 +1121,7 @@ def dem_slope(im_data: np.ndarray) -> np.ndarray:
     """
     px, py = np.gradient(im_data)
     slope = np.degrees(np.arctan(np.sqrt(px**2 + py**2)))
-    return slope[np.isfinite(slope)]
+    return slope
 
 
 def area_per_feature(
@@ -1228,3 +1236,19 @@ def flattening(shapes: gp.GeoDataFrame) -> list:
                 tt.append(round(theta, 1))
                 flattn.append(round((a - b) / a, 1))
     return (aa, bb, tt, flattn)
+
+
+def reverse_geolocate(gdf: gp.GeoDataFrame) -> list:
+    locations = []
+    geolocator = Nominatim(user_agent="u4py email=rudolf@geo.tu-darmstadt.de")
+    reverse = RateLimiter(geolocator.reverse, min_delay_seconds=1)
+    centroids = gdf.to_crs("EPSG:4326").geometry.centroid.to_list()
+    for point in tqdm(centroids, "Reverse Geolocation"):
+        try:
+            lon = point.x
+            lat = point.y
+            location = reverse(Point(lat, lon)).raw["display_name"]
+        except:
+            location = ""
+        locations.append(location)
+    return locations

@@ -96,7 +96,10 @@ def classify_shape(
         "Classifier_shapes",
         "classifier_shapes.gpkg",
     )
-    dem_path = os.path.join(
+    dem_path_new = os.path.join(
+        project["paths"]["diff_plan_path"], "DGM1_2021", "raster_2021"
+    )
+    dem_path_old = os.path.join(
         project["paths"]["diff_plan_path"], "DGM1_2021", "raster_2021"
     )
     diffplan_path = os.path.join(
@@ -131,7 +134,9 @@ def classify_shape(
         res.update(landuse(res, sub_set_hull, osm_path))
 
         # Geometry
-        res.update(slope(sub_set_hull, shp_gdf, dem_path, group))
+        res.update(
+            slope(sub_set_hull, shp_gdf, dem_path_new, dem_path_old, group)
+        )
         res.update(shape(sub_set))
         res.update(volume(sub_set_hull, diffplan_path))
 
@@ -210,12 +215,18 @@ def preallocate_results() -> dict:
         "shape_ellipse_theta": [],
         "shape_flattening": [],
         "shape_roundness": [],
-        "slope_hull_mean": [],
-        "slope_hull_median": [],
-        "slope_hull_std": [],
-        "slope_polygons_mean": [],
-        "slope_polygons_median": [],
-        "slope_polygons_std": [],
+        "slope_hull_mean_old": [],
+        "slope_hull_median_old": [],
+        "slope_hull_std_old": [],
+        "slope_polygons_mean_old": [],
+        "slope_polygons_median_old": [],
+        "slope_polygons_std_old": [],
+        "slope_hull_mean_new": [],
+        "slope_hull_median_new": [],
+        "slope_hull_std_new": [],
+        "slope_polygons_mean_new": [],
+        "slope_polygons_median_new": [],
+        "slope_polygons_std_new": [],
         "subsidence_area": [],
         "subsidence_percent": [],
         "subsidence_total": np.nan,
@@ -494,7 +505,8 @@ def landuse(
 def slope(
     sub_set_hull: gp.GeoDataFrame,
     shp_gdf: gp.GeoDataFrame,
-    dem_path: os.PathLike,
+    dem_path_new: os.PathLike,
+    dem_path_old: os.PathLike,
     group: str,
 ) -> dict:
     """Calculates the average slope in the area
@@ -503,29 +515,62 @@ def slope(
     :type sub_set_hull: gp.GeoDataFrame
     :param shp_gdf: The geodataframe including the polygons of the group.
     :type shp_gdf: gp.GeoDataFrame
-    :param dem_path: The path to the dem folder
-    :type dem_path: os.PathLike
+    :param dem_path_new: The path to the dem folder of the new dem, after the events.
+    :type dem_path_new: os.PathLike
+    :param dem_path_old: The path to the dem folder of the old dem, before the events.
+    :type dem_path_old: os.PathLike
     :param group: The group name
     :type group: str
     :return: The results dictionary with the classified data appended.
     :rtype: dict
     """
     logging.info("Calculating slope in all polygons")
-    slope_polygons = u4spatial.calculate_slope_in_shapes(
-        u4spatial.get_subset(shp_gdf, group), dem_path
+    slope_polygons_new = u4spatial.calculate_slope_in_shapes(
+        u4spatial.get_subset(shp_gdf, group), dem_path_new
     )
-    res = dict()
-    res["slope_polygons_mean"] = np.round(slope_polygons.slope_mean).to_list()
-    res["slope_polygons_median"] = np.round(
-        slope_polygons.slope_median
-    ).to_list()
-    res["slope_polygons_std"] = np.round(slope_polygons.slope_std).to_list()
+    slope_polygons_old = u4spatial.calculate_slope_in_shapes(
+        u4spatial.get_subset(shp_gdf, group), dem_path_old
+    )
 
     logging.info("Calculating average slope in hull")
-    slope_hull = u4spatial.calculate_slope_in_shapes(sub_set_hull, dem_path)
-    res["slope_hull_mean"] = np.round(slope_hull.slope_mean).to_list()
-    res["slope_hull_median"] = np.round(slope_hull.slope_median).to_list()
-    res["slope_hull_std"] = np.round(slope_hull.slope_std).to_list()
+    slope_hull_new = u4spatial.calculate_slope_in_shapes(
+        sub_set_hull, dem_path_new
+    )
+    slope_hull_old = u4spatial.calculate_slope_in_shapes(
+        sub_set_hull, dem_path_old
+    )
+
+    res = dict()
+    # Old DEM results (before events)
+    res["slope_polygons_mean_new"] = np.round(
+        slope_polygons_new.slope_mean
+    ).to_list()
+    res["slope_polygons_median_new"] = np.round(
+        slope_polygons_new.slope_median
+    ).to_list()
+    res["slope_polygons_std_new"] = np.round(
+        slope_polygons_new.slope_std
+    ).to_list()
+    res["slope_hull_mean_new"] = np.round(slope_hull_new.slope_mean).to_list()
+    res["slope_hull_median_new"] = np.round(
+        slope_hull_new.slope_median
+    ).to_list()
+    res["slope_hull_std_new"] = np.round(slope_hull_new.slope_std).to_list()
+    # New DEM results (after events)
+    res["slope_polygons_mean_old"] = np.round(
+        slope_polygons_old.slope_mean
+    ).to_list()
+    res["slope_polygons_median_old"] = np.round(
+        slope_polygons_old.slope_median
+    ).to_list()
+    res["slope_polygons_std_old"] = np.round(
+        slope_polygons_old.slope_std
+    ).to_list()
+    res["slope_hull_mean_old"] = np.round(slope_hull_old.slope_mean).to_list()
+    res["slope_hull_median_old"] = np.round(
+        slope_hull_old.slope_median
+    ).to_list()
+    res["slope_hull_std_old"] = np.round(slope_hull_old.slope_std).to_list()
 
     return res
 
@@ -593,7 +638,7 @@ def geology(
         logging.info("Querying HLNUG for geology_data")
         geology_data = u4web.query_hlnug(
             "geologie/gk25/MapServer",
-            "Geologische Einheiten",
+            "Geologie (Kartiereinheiten)",
             region=sub_set_hull,
         ).clip(sub_set_hull)
 

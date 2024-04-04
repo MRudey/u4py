@@ -29,6 +29,7 @@ import rasterio.plot as rioplot
 import scipy.stats as spstats
 import skimage.transform as sktransf
 from matplotlib.axes import Axes
+from matplotlib.colors import LightSource
 from matplotlib.figure import Figure
 from pyproj import CRS
 
@@ -554,6 +555,9 @@ def add_tile(
     show: bool = True,
     cmap: str = "RdYlBu",
     colorbar: dict = dict(),
+    slope: bool = False,
+    hillshade: bool = False,
+    multidir: bool = False,
     **kwargs,
 ) -> Tuple[tuple, str]:
     """Adds a tiff file to the given axis.
@@ -572,6 +576,12 @@ def add_tile(
     :type cmap: str, optional
     :param colorbar: Arguments passed to the colorbar, defaults to empty dict()
     :type colorbar: dict, optional
+    :param slope: Create a slope plot, defaults to False
+    :type slope: bool, optional
+    :param hillshade: Create a hillshade plot, defaults to False
+    :type hillshade: bool, optional
+    :param multidir: Whether to create a multidirectional hillshade, defaults to False
+    :type multidir: bool, optional
     :param kwargs: Additional arguments passed to plt.plot().
     :type kwargs: dict
     :return: The boundaries and crs of the tile (bounds, crs).
@@ -597,20 +607,60 @@ def add_tile(
             elif isinstance(vm, Iterable):
                 vmin = vm[0]
                 vmax = vm[1]
+            elif isinstance(vm, (float, int)):
+                vmin = -vm
+                vmax = vm
+            if not hillshade and not slope:
+                ims = ax.imshow(
+                    tile_resized,
+                    cmap=cmap,
+                    vmin=vmin,
+                    vmax=vmax,
+                    extent=(
+                        tiff_tile.bounds.left,
+                        tiff_tile.bounds.right,
+                        tiff_tile.bounds.bottom,
+                        tiff_tile.bounds.top,
+                    ),
+                    **kwargs,
+                )
+            elif hillshade:
+                if multidir:
+                    ls = LightSource(azdeg=0, altdeg=45)
+                    hs = ls.hillshade(tile_resized, vert_exag=5)
+                    for azdeg in np.linspace(60, 300, 5):
+                        ls = LightSource(azdeg=azdeg, altdeg=45)
+                        hs += ls.hillshade(tile_resized, vert_exag=5)
+                    hs /= 6
+                else:
+                    ls = LightSource(azdeg=315, altdeg=45)
+                    hs = ls.hillshade(tile_resized, vert_exag=3)
 
-            ims = ax.imshow(
-                tile_resized,
-                cmap=cmap,
-                vmin=vmin,
-                vmax=vmax,
-                extent=(
-                    tiff_tile.bounds.left,
-                    tiff_tile.bounds.right,
-                    tiff_tile.bounds.bottom,
-                    tiff_tile.bounds.top,
-                ),
-                **kwargs,
-            )
+                ims = ax.imshow(
+                    hs,
+                    cmap=cmap,
+                    extent=(
+                        tiff_tile.bounds.left,
+                        tiff_tile.bounds.right,
+                        tiff_tile.bounds.bottom,
+                        tiff_tile.bounds.top,
+                    ),
+                    **kwargs,
+                )
+            elif slope:
+                ims = ax.imshow(
+                    u4spatial.dem_slope(tile_resized),
+                    cmap=cmap,
+                    vmin=vmin,
+                    vmax=vmax,
+                    extent=(
+                        tiff_tile.bounds.left,
+                        tiff_tile.bounds.right,
+                        tiff_tile.bounds.bottom,
+                        tiff_tile.bounds.top,
+                    ),
+                    **kwargs,
+                )
             ax.yaxis.set_inverted(False)
             if colorbar:
                 plt.colorbar(ims, ax=ax, **colorbar)

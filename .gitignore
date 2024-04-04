@@ -10,6 +10,10 @@ requirements.txt
 cache/
 images/
 todo.md
+*.aux
+*.out
+*.xmpdata
+*.xmpi
 
 
 # Include images for GitLab Page

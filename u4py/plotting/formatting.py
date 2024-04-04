@@ -83,12 +83,12 @@ def map_style(ax: Axes, divisor: int = 0, grid: bool = True, crs: str = ""):
         ax.yaxis.set_major_locator(ticker.MultipleLocator(divisor))
     ax.xaxis.set_major_formatter(coordinate_formatter)
     ax.yaxis.set_major_formatter(coordinate_formatter)
-    # ax.set_yticks(
-    #     ax.get_yticks(),
-    #     ax.get_yticklabels(),
-    #     verticalalignment="center",
-    #     rotation=90,
-    # )
+    ax.set_yticks(
+        ax.get_yticks(),
+        ax.get_yticklabels(),
+        verticalalignment="center",
+        rotation=90,
+    )
     if crs:
         crs_obj = pyproj.CRS.from_user_input(crs)
         ax.annotate(
