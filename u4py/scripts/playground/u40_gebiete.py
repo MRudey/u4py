@@ -10,7 +10,9 @@ import u4py.plotting.formatting as u4pltfmt
 
 
 def main():
-    bld_path = Path(r"~\Documents\ArcGIS\Places\vg2500_bld.shp").expanduser()
+    bld_path = Path(
+        r"~\Documents\ArcGIS\Places\Verwaltungsgrenzen\vg2500_bld.shp"
+    ).expanduser()
     out_path = Path(r"~\Documents\ArcGIS\INSAR_plots").expanduser()
     bld_shp = gp.read_file(bld_path)
 
@@ -68,7 +70,7 @@ def main():
     )
     ffm_gdf_c.to_crs(bld_shp.crs).plot(ax=in_ax, edgecolor="C0", marker=".")
     crum_gdf_c.to_crs(bld_shp.crs).plot(ax=in_ax, edgecolor="C1", marker=".")
-    in_ax.axis("off")
+    # in_ax.axis("off")
     ax.set_xlim(440000, 502500)
     u4pltfmt.map_style(ax=ax, crs="EPSG:32632")
     fig.tight_layout()

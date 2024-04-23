@@ -172,7 +172,9 @@ def main():
         col2="C3",
     )
     fig.savefig(
-        os.path.join(project["paths"]["output_path"], "Well_vs_Temperature")
+        os.path.join(
+            project["paths"]["output_path"], "Well_vs_Temperature.pdf"
+        )
     )
     plt.close(fig)
 
@@ -192,7 +194,7 @@ def main():
     )
     fig.savefig(
         os.path.join(
-            project["paths"]["output_path"], "Crumstadt_vs_Temperature"
+            project["paths"]["output_path"], "Crumstadt_vs_Temperature.pdf"
         )
     )
     plt.close(fig)
@@ -212,7 +214,7 @@ def main():
         col2="k",
     )
     fig.savefig(
-        os.path.join(project["paths"]["output_path"], "Well_vs_Storage")
+        os.path.join(project["paths"]["output_path"], "Well_vs_Storage.pdf")
     )
     plt.close(fig)
 
@@ -231,7 +233,9 @@ def main():
         col2="k",
     )
     fig.savefig(
-        os.path.join(project["paths"]["output_path"], "Crumstadt_vs_Storage")
+        os.path.join(
+            project["paths"]["output_path"], "Crumstadt_vs_Storage.pdf"
+        )
     )
     plt.close(fig)
 
@@ -248,7 +252,7 @@ def main():
         col2="C0",
     )
     fig.savefig(
-        os.path.join(project["paths"]["output_path"], "Well_vs_Rainfall")
+        os.path.join(project["paths"]["output_path"], "Well_vs_Rainfall.pdf")
     )
     plt.close(fig)
 
@@ -265,7 +269,9 @@ def main():
         col2="C0",
     )
     fig.savefig(
-        os.path.join(project["paths"]["output_path"], "Crumstadt_vs_Rainfall")
+        os.path.join(
+            project["paths"]["output_path"], "Crumstadt_vs_Rainfall.pdf"
+        )
     )
     plt.close(fig)
 
@@ -283,7 +289,7 @@ def main():
             col2="b",
         )
         fig.savefig(
-            os.path.join(project["paths"]["output_path"], f"Well_vs_{stn}")
+            os.path.join(project["paths"]["output_path"], f"Well_vs_{stn}.pdf")
         )
         plt.close(fig)
 
@@ -301,7 +307,7 @@ def main():
         )
         fig.savefig(
             os.path.join(
-                project["paths"]["output_path"], f"Crumstadt_vs_{stn}"
+                project["paths"]["output_path"], f"Crumstadt_vs_{stn}.pdf"
             )
         )
         plt.close(fig)
