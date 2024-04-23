@@ -293,6 +293,7 @@ def load_gpkg_data_region_ogr(
     gpkg_file_path: os.PathLike,
     table: str = "",
     crs: str = "EPSG:32632",
+    clip: bool = True,
 ) -> gp.GeoDataFrame:
     """Uses OGR to read data from a table in a gpkg file within a specific region.
 
@@ -332,7 +333,20 @@ def load_gpkg_data_region_ogr(
         region_wkt = region.geometry.to_wkt().to_list()[0]
     data = u4sql.ogr_spatial_select(gpkg_file_path, table, region_wkt)
     if data:
-        gdf = gp.GeoDataFrame(data, crs=gpkg_crs).clip(region).to_crs(crs)
+        try:
+            if clip:
+                gdf = gp.GeoDataFrame(data, crs=gpkg_crs).clip(region)
+            else:
+                gdf = gp.GeoDataFrame(data, crs=gpkg_crs)
+            gdf = gdf.to_crs(crs)
+        except:
+            input_reg = gp.GeoDataFrame(data, crs=gpkg_crs).buffer(0)
+            data["geometry"] = input_reg
+            if clip:
+                gdf = gp.GeoDataFrame(data, crs=gpkg_crs).clip(region)
+            else:
+                gdf = gp.GeoDataFrame(data, crs=gpkg_crs)
+            gdf = gdf.to_crs(crs)
         return gdf
     else:
         return []
