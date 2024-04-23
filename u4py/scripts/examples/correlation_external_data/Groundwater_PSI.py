@@ -248,6 +248,7 @@ def make_plot(
             fig.suptitle(k)
             fig.tight_layout()
             fig.savefig(os.path.join(out_path, f"{k}_psi_vs_gwlvl.png"))
+            fig.savefig(os.path.join(out_path, f"{k}_psi_vs_gwlvl.pdf"))
         plt.close(fig)
 
     if data_found:
