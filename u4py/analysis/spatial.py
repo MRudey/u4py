@@ -617,7 +617,7 @@ def contour_shapes(
                     pgon = shapely.geometry.Polygon(p_rescaled)
                     if pgon.area > min_area:
                         data["geometry"].append(pgon)
-                        if ii < 9:
+                        if ii < len(levels) - 1:
                             data["polygon_levels"].append(
                                 f"{levels[ii]} - {levels[ii+1]}"
                             )

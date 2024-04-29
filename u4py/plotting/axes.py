@@ -206,6 +206,7 @@ def plot_timeseries_fit(
     color_fit: str = "C1",
     annotate: bool = False,
     direction: str = "U",
+    show_errors: bool = False,
 ) -> Tuple[Figure, Axes] | None:
     """Plots the fit data for a simple timeseries analysis.
 
@@ -277,6 +278,29 @@ def plot_timeseries_fit(
             color=color_fit,
             label="Inversion",
         )
+        if show_errors:
+            # The fit errors are only very roughly estimated from the residuals
+            # Gets fit residuals
+            yea = results["U"][f"y_fit_{fit_num}_err"]
+            ys = np.std(yea)
+            ym = np.median(yea)
+            # Remove outliers in residuals
+            ye = yea[yea > ym - ys]
+            ye = ye[ye < ym + ys]
+            fit_err = 2 * np.std(ye)
+            ax.plot(
+                u4convert.get_datetime(t_q),
+                y_fit - fit_err,
+                color=color_fit,
+                linestyle=":",
+                label="Fit error",
+            )
+            ax.plot(
+                u4convert.get_datetime(t_q),
+                y_fit + fit_err,
+                color=color_fit,
+                linestyle=":",
+            )
         if annotate:
             res_name = ["inversion_results", "ori_inversion_results"]
             ax.annotate(

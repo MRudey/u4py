@@ -134,19 +134,19 @@ def get_shape_config() -> dict:
     }
     # Default buffer size around each feature is 10 meters.
     buffer_dist = {
-        "build": 10,
-        "pois_area": 10,
-        "landfill": 10,
-        "landuse": 10,
-        "construction": 10,
-        "railway": 15,
-        "mainroads": 30,
-        "minor_roads": 5,
-        "water": 10,
-        "lakes": 10,
-        "power": 150,
-        "traffic": 10,
-        "transport": 10,
+        "build": 15,
+        "pois_area": 25,
+        "landfill": 50,
+        "landuse": 50,
+        "construction": 50,
+        "railway": 25,
+        "mainroads": 50,
+        "minor_roads": 10,
+        "water": 15,
+        "lakes": 15,
+        "power": 250,
+        "traffic": 15,
+        "transport": 15,
     }
 
     # Plotting Stuff

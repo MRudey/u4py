@@ -19,12 +19,15 @@ import matplotlib.lines as mlines
 import matplotlib.patches as mpatches
 import matplotlib.pyplot as plt
 import numpy as np
+import uncertainties as unc
 from tqdm import tqdm
 
 import u4py.addons.web_services as u4web
+import u4py.analysis.processing as u4proc
 import u4py.analysis.spatial as u4spatial
 import u4py.io.files as u4files
 import u4py.io.gpkg as u4gpkg
+import u4py.io.psi as u4psi
 import u4py.io.sql as u4sql
 import u4py.io.tiff as u4tiff
 import u4py.plotting.axes as u4ax
@@ -139,7 +142,7 @@ def main():
                 tqdm(
                     p.imap_unordered(wrap_map_worker, args),
                     total=len(args),
-                    desc="Generating Plots",
+                    desc="Generating Reports",
                     leave=False,
                 )
             )
@@ -148,7 +151,7 @@ def main():
         for arg in tqdm(
             args,
             total=len(args),
-            desc="Generating Plots",
+            desc="Generating Reports",
             leave=False,
         ):
             wrap_map_worker(arg)
@@ -163,7 +166,7 @@ def main():
         tex = (
             "\\documentclass[\n"
             + "  ngerman,\n"
-            + "  logofile=/home/rudolf/Documents/umwelt4/SelectedSites/Detailed_Maps/tuda_logo.pdf,\n"
+            + "  logofile=/home/rudolf/Documents/umwelt4/tuda_logo.pdf,\n"
             + "  accentcolor=8c,\n"
             + "]{tudapub}\n"
             + "\\usepackage{graphicx}\n"
@@ -171,7 +174,10 @@ def main():
             + "\\usepackage{enumitem}\n"
             + "\\usepackage{wrapfig}\n"
             + "\\usepackage{float}\n"
+            + "\\usepackage{fontawesome}\n"
             + "\\usepackage[ngerman]{babel}\n"
+            + "\\usepackage{tocloft}"
+            + "\\setlength{\\cftsubsecnumwidth}{4em}"
             # + "\\usepackage[margin=1in]{geometry}\n"
             + "\\begin{document}\n"
             + "\\title{Detektierte Anomalien}\n"
@@ -180,6 +186,8 @@ def main():
             + "\\date{\\today}\n"
             + "\\addTitleBox{Institut für Angewandte Geowissenschaften}\n\n"
             + "\\maketitle\n\n"
+            + "\\tableofcontents\n\n"
+            + "\\clearpage\n"
         )
         include_list.sort()
         for incl in include_list:
@@ -192,9 +200,21 @@ def main():
         ) as tex_file:
             tex_file.write(tex)
 
-        subprocess.run(["pdflatex", f"{report_path}"])
-        subprocess.run(["pdflatex", f"{report_path}"])
-        subprocess.run(["pdflatex", f"{report_path}"])
+        report_out_path = os.path.split(output_path)[0]
+        subprocess.run(["pdflatex", f"{report_path}"], cwd=report_out_path)
+        subprocess.run(["pdflatex", f"{report_path}"], cwd=report_out_path)
+        subprocess.run(["pdflatex", f"{report_path}"], cwd=report_out_path)
+        tex_temps = [
+            "pdfa.xmpi",
+            "Site_Report.aux",
+            "Site_Report.log",
+            "Site_Report.out",
+            "Site_Report.xmpdata",
+        ]
+        for tp in tex_temps:
+            fp = os.path.join(report_out_path, tp)
+            if os.path.exists(fp):
+                os.remove(fp)
 
 
 def wrap_map_worker(args: tuple):
@@ -233,17 +253,15 @@ def map_worker(
     :type contour_path: os.PathLike
     """
 
-    # pass
-    make_tex_report(row, output_path, "tex_includes")
-    xlim, ylim = make_detailed_map(
-        row,
-        crs,
-        output_path,
-        "known_features",
-        hlnug_path,
-        contour_path,
-    )
     if GENERATE_PLOTS:
+        xlim, ylim = make_detailed_map(
+            row,
+            crs,
+            output_path,
+            "known_features",
+            hlnug_path,
+            contour_path,
+        )
         make_sat_map(row, crs, output_path, "known_features", xlim, ylim)
         make_diffplan_map(
             row,
@@ -301,6 +319,17 @@ def map_worker(
             ylim,
             os.path.join(project["paths"]["places_path"], "legend_BFD50.pkl"),
         )
+        if row[1].timeseries_num_psi > 5:
+            make_timeseries_map(
+                row,
+                crs,
+                output_path,
+                "known_features",
+                xlim,
+                ylim,
+                os.path.join(project["paths"]["psi_path"]),
+            )
+    make_tex_report(row, output_path, "tex_includes")
 
 
 def make_geology_map(
@@ -1001,6 +1030,115 @@ def make_detailed_map(
     return (xlim, ylim)
 
 
+def make_timeseries_map(
+    row: tuple,
+    crs: str,
+    output_path: os.PathLike,
+    suffix: str,
+    xlim: tuple,
+    ylim: tuple,
+    psi_path: os.PathLike,
+) -> Tuple[tuple, tuple]:
+    """Makes a detailed overview map of the region including some geological features.
+
+    :param row: The index and data for the area of interest.
+    :type row: tuple
+    :param crs: The coordinate system of the dataset.
+    :type crs: str
+    :param output_path: The folder where to store the output plots.
+    :type output_path: os.PathLike
+    :param suffix: The subfolder to use for saving.
+    :type suffix: str
+    :param hlnug_path: The path where the HLNUG data is found.
+    :type hlnug_path: os.PathLike
+    :param contour_path: The path where the contour dataset is found.
+    :type contour_path: os.PathLike
+    :return: The limits of the x and y axis for consistent plotting with other functions.
+    :rtype: Tuple[tuple, tuple]
+    """
+    # Set paths
+    output_path = (
+        "/home/rudolf/Documents/umwelt4/SelectedSites_April24/Detailed_Maps"
+    )
+    output_path = os.path.join(output_path, suffix)
+    psi_data_path = os.path.join(output_path, "psi_inv_data")
+    os.makedirs(output_path, exist_ok=True)
+    os.makedirs(psi_data_path, exist_ok=True)
+
+    # Load Data and Invert (again?)
+    shp_gdf = gp.GeoDataFrame(geometry=[row[1].geometry], crs=crs)
+    reg_gdf = gp.GeoDataFrame(
+        geometry=[
+            u4spatial.bounds_to_polygon((xlim[0], xlim[1], ylim[0], ylim[1]))
+        ],
+        crs=crs,
+    )
+    psi_local = u4psi.get_region_data(
+        shp_gdf,
+        f"grp_{row[1].group:05}_local",
+        os.path.join(psi_path, "hessen_l3_clipped.gpkg"),
+    )
+    psi_regional = u4psi.get_region_data(
+        reg_gdf,
+        f"grp_{row[1].group:05}_regional",
+        os.path.join(psi_path, "hessen_l3_clipped.gpkg"),
+    )
+    results = u4proc.invert_psi_dict(
+        psi_local,
+        save_path=os.path.join(psi_data_path, f"grp_{row[1].group:05}.pkl"),
+    )
+
+    fig = plt.figure(figsize=(14, 7), dpi=150)
+    gs = fig.add_gridspec(ncols=2, width_ratios=(1, 2))
+    ax_map = fig.add_subplot(gs[0])
+    ax_ts = fig.add_subplot(gs[1])
+
+    # Plot Map
+    shp_gdf.plot(ax=ax_map, fc="None", ec="C0")
+    shp_gdf.buffer(500).plot(ax=ax_map, fc="None", ec="None")
+    u4spatial.xy_data_to_gdf(
+        psi_regional["x"],
+        psi_regional["y"],
+        psi_regional["mean_vel"],
+        crs=psi_regional["crs"],
+    ).plot(
+        ax=ax_map,
+        column="data",
+        cmap="RdYlBu",
+        vmin=-5,
+        vmax=5,
+        zorder=2,
+        markersize=5,
+        legend=True,
+        legend_kwds={
+            "label": "Mean Vertical Velocity (mm/a)",
+            "orientation": "horizontal",
+            "shrink": 0.7,
+            "extend": "both",
+            "pad": 0.1,
+        },
+    )
+    u4pltfmt.map_style(ax=ax_map, divisor=500, crs=crs)
+    fig.tight_layout()
+    ax_map.set_xlim(xlim)
+    ax_map.set_ylim(ylim)
+    u4ax.add_basemap(
+        ax=ax_map, crs=crs, source=contextily.providers.CartoDB.Voyager
+    )
+
+    # Plot Timeseries
+    u4ax.plot_timeseries_fit(
+        ax=ax_ts, results=results, fit_num=1, annotate=True, show_errors=True
+    )
+    ax_ts.set_xlabel("Time")
+    ax_ts.set_ylabel("Displacement (mm)")
+
+    fig.tight_layout()
+    fig.savefig(os.path.join(output_path, f"{row[1].group:05}_psi.png"))
+    # fig.savefig(os.path.join(output_path, f"{row[1].group:05}_psi.pdf"))
+    plt.close(fig)
+
+
 def add_hlnug_data(
     ax: mplax.Axes, hlnug_path: os.PathLike, table: str, **plot_kwargs
 ):
@@ -1024,7 +1162,7 @@ def add_hlnug_data(
         data.plot(ax=ax, **plot_kwargs)
 
 
-def make_tex_report(row: tuple, output_path:os.PathLike, suffix:str):
+def make_tex_report(row: tuple, output_path: os.PathLike, suffix: str):
     """Creates a report for each area of interest using LaTeX. This is later merged together into a larger main document by the `main` function.
 
     :param row: The index and data for the area of interest.
@@ -1034,13 +1172,28 @@ def make_tex_report(row: tuple, output_path:os.PathLike, suffix:str):
     :param suffix: The subfolder to use for the LaTeX files.
     :type suffix: str
     """
+
     output_path_tex = os.path.join(output_path, suffix)
     os.makedirs(output_path_tex, exist_ok=True)
     group = row[1].group
+    wgs_point = gp.GeoDataFrame(
+        geometry=[row[1].geometry.centroid], crs="EPSG:32632"
+    ).to_crs("EPSG:4326")
+    lat = np.round(float(wgs_point.geometry.y), 6)
+    lng = np.round(float(wgs_point.geometry.x), 6)
     img_path = os.path.join(output_path, "known_features", f"{group:05}")
     tex = (
         f"\\section{{Gruppe {group}}}\n\n"
         + f"\\textbf{{Lokalität:}} {row[1].locations}\n\n"
+        + f"\\textbf{{Koordinaten (UTM 32N):}} "
+        + f"{int(row[1].geometry.centroid.y)}\\,N "
+        + f"{int(row[1].geometry.centroid.x)}\\,E\n\n"
+        + f"\\textbf{{Google Maps:}} "
+        + f"\\href{{https://www.google.com/maps/place/{lat},{lng}/@{lat},{lng}/data=!3m1!1e3}}"
+        + f"{{\\faExternalLink {np.round(lat,3)}\\,N, {np.round(lng,3)}\\,E}}\n\n"
+        + f"\\textbf{{OpenStreetMap:}} "
+        + f"\\href{{http://www.openstreetmap.org/?lat={lat}&lon={lng}&zoom=17&layers=M}}"
+        + f"{{\\faExternalLink {np.round(lat,3)}\\,N, {np.round(lng,3)}\\,E}}\n\n"
     )
     if os.path.exists(img_path + "_map.pdf") and os.path.exists(
         img_path + "_satimg.pdf"
@@ -1081,16 +1234,22 @@ def make_tex_report(row: tuple, output_path:os.PathLike, suffix:str):
         )
 
     # Topographie
-    slope = float(row[1].slope_hull_median)
-    slope_std = float(row[1].slope_hull_std)
-    slope_rel = slope_std / slope
+    slope_new = float(row[1].slope_hull_median_new)
+    slope_std_new = float(row[1].slope_hull_std_new)
+    usl_new = unc.ufloat(slope_new, slope_std_new)
+    ustr_new = str(usl_new).replace("+/-", "$\\pm$") + "\\,\\%"
+    slope_old = float(row[1].slope_hull_median_old)
+    slope_std_old = float(row[1].slope_hull_std_old)
+    usl_old = unc.ufloat(slope_old, slope_std_old)
+    ustr_old = str(usl_old).replace("+/-", "$\\pm$") + "\\,\\%"
+    # slope_rel = slope_std_new / slope_new
     landuse = ""
     try:
         landuse = eval(row[1].landuse_names)
     except NameError:
         landuse = row[1].landuse_names
     landuse_perc = eval(row[1].landuse_percent)
-    tex += f"Die Steigung im Gebiet ist {slope_std_str(slope_std)} und {slope_str(slope)}. "
+    tex += f"Die Steigung im Gebiet ist {slope_std_str(slope_std_new)} und {slope_str(slope_new)} ({ustr_new}). Vor dem Ereignis war die Steigung {slope_std_str(slope_std_old)} und {slope_str(slope_old)} ({ustr_old}). "
 
     if landuse:
         tex += (
@@ -1103,6 +1262,17 @@ def make_tex_report(row: tuple, output_path:os.PathLike, suffix:str):
             tex = tex[:-2] + ".\n"
         else:
             tex += f"{landuse_perc:.1f}\\% {landuse_str(landuse)}"
+
+    # PSI Daten
+    if os.path.exists(img_path + "_psi.png"):
+        tex += (
+            "\\subsection*{InSAR Daten}\n\n"
+            + "\\begin{figure}[h!]\n"
+            + "  \\centering\n"
+            + f"  \\includegraphics[width=\\textwidth]{{{img_path+'_psi.png'}}}\n"
+            + "  \\caption{Persistent scatterer und Zeitreihe der Deformation im Gebiet der Gruppe.}\n"
+            + "\\end{figure}\n\n"
+        )
 
     # Geogefahren
     tex += (

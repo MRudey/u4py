@@ -44,7 +44,7 @@ def main():
 
     # Setting up paths
     shp_file = os.path.join(
-        project["paths"]["processing_path"],
+        project["paths"]["output_path"],
         "thresholded_contours_all_shapes.gpkg",
     )
     site_stat_path = os.path.join(project["paths"]["output_path"], "SiteStats")
@@ -69,7 +69,7 @@ def main():
         for group in unique_groups
     ]
     if use_parallel:
-        with Pool(32) as p:
+        with Pool(u4config.cpu_count) as p:
             main_list = list(
                 tqdm(
                     p.map(classifier_wrapper, kwargs),

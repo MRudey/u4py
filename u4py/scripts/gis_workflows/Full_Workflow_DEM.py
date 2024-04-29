@@ -32,10 +32,10 @@ def main():
     min_contour_area = 250
 
     # Levels for contouring
-    contour_levels = u4spatial.plus_minus_levels([0.5, 1, 2, 5, 10])
+    contour_levels = u4spatial.plus_minus_levels([0.5])
 
     # Maximum distance for grouping contours
-    max_contour_dist = 250
+    max_contour_dist = 500
 
     # Options:
     use_parallel_clipping = True
@@ -47,11 +47,7 @@ def main():
         proj_path=Path(
             "~/Documents/umwelt4/Full_Workflow_DEM_Server.u4project"
         ).expanduser(),
-        required=[
-            "base_path",
-            "places_path",
-            "diff_plan_path",
-        ],
+        required=["base_path", "places_path", "diff_plan_path", "output_path"],
         interactive=False,
     )
 
@@ -117,7 +113,7 @@ def main():
     logging.info("Saving thresholded contours to disk")
     gdf.to_file(
         os.path.join(
-            project["paths"]["places_path"],
+            project["paths"]["output_path"],
             "thresholded_contours_all_shapes.gpkg",
         )
     )
