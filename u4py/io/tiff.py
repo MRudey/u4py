@@ -17,7 +17,7 @@ from tqdm import tqdm
 
 import u4py.analysis.spatial as u4spatial
 import u4py.io.files as u4files
-import u4py.io.sql as u4sql
+import u4py.io.gpkg as u4gpkg
 import u4py.utils.config as u4config
 
 
@@ -26,10 +26,10 @@ def batch_clip_tiff(args):
 
     :param args: The arguments
     """
-    clip_tiff(*args)
+    clip_tiff_gpkg(*args)
 
 
-def clip_tiff(
+def clip_tiff_gpkg(
     tiff_path: os.PathLike,
     gpkg_path: os.PathLike,
     ctiff_fol: os.PathLike,
@@ -47,7 +47,9 @@ def clip_tiff(
         folder, fname = os.path.split(tiff_path)
         _, folder = os.path.split(folder)
         shp_cfg = u4config.get_shape_config()
-        shapes = u4sql.load_osm_gpkg(gpkg_path, tiff_path, shp_cfg=shp_cfg)
+        shapes = u4gpkg.load_and_buffer_gpkg(
+            gpkg_path, tiff_path, shp_cfg=shp_cfg
+        )
         if len(shapes) > 0:
             clip_tiff(tiff_path, ctiff_fol, shapes.geometry.to_list())
     except ValueError:

@@ -832,15 +832,16 @@ def get_crs(gpkg_path: os.PathLike, table: str = "") -> list[str]:
     :return: The spatial reference(s).
     :rtype: list[str] | str
     """
-    with ogr.Open(gpkg_path) as con:
-        if table:
-            query = con.ExecuteSQL(
-                f"SELECT srs_id from gpkg_geometry_columns WHERE table_name='{table}'"
-            )
-        else:
-            query = con.ExecuteSQL(f"SELECT srs_id from gpkg_geometry_columns")
-        srs_id = [layer.srs_id for layer in query]
-        return [f"EPSG:{srs}" for srs in srs_id]
+    con = ogr.Open(gpkg_path)
+    if table:
+        query = con.ExecuteSQL(
+            f"SELECT srs_id from gpkg_geometry_columns WHERE table_name='{table}'"
+        )
+    else:
+        query = con.ExecuteSQL(f"SELECT srs_id from gpkg_geometry_columns")
+    srs_id = [layer.srs_id for layer in query]
+    con = None
+    return [f"EPSG:{srs}" for srs in srs_id]
 
 
 def get_tables(gpkg_path: os.PathLike) -> list[str]:
@@ -851,10 +852,11 @@ def get_tables(gpkg_path: os.PathLike) -> list[str]:
     :return: The table name(s).
     :rtype: list[str]
     """
-    with ogr.Open(gpkg_path) as con:
-        query = con.ExecuteSQL(f"SELECT table_name from gpkg_geometry_columns")
-        tables = [layer.table_name for layer in query]
-        return tables
+    con = ogr.Open(gpkg_path)
+    query = con.ExecuteSQL(f"SELECT table_name from gpkg_geometry_columns")
+    tables = [layer.table_name for layer in query]
+    con = None
+    return tables
 
 
 def ogr_spatial_select(
@@ -883,20 +885,21 @@ def ogr_spatial_select(
     )
 
     # Get the data
-    with ogr.Open(gpkg_path) as con:
-        logging.info("Querying for features")
-        query = con.ExecuteSQL(sql_query)
-        data = dict()
-        for layer in query:
-            geom = layer[geom_col]
-            if geom:  # Sometimes the geometries are empty...?
-                if not data:
-                    for field in layer.keys():
-                        data[field] = []
-                    data["geometry"] = []
+    con = ogr.Open(gpkg_path)
+    logging.info("Querying for features")
+    query = con.ExecuteSQL(sql_query)
+    data = dict()
+    for layer in query:
+        geom = layer[geom_col]
+        if geom:  # Sometimes the geometries are empty...?
+            if not data:
                 for field in layer.keys():
-                    data[field].append(layer[field])
-                data["geometry"].append(shapely.from_wkt(geom.ExportToWkt()))
+                    data[field] = []
+                data["geometry"] = []
+            for field in layer.keys():
+                data[field].append(layer[field])
+            data["geometry"].append(shapely.from_wkt(geom.ExportToWkt()))
+    con = None
     return data
 
 
@@ -910,14 +913,15 @@ def get_geometry_column(gpkg_path: os.PathLike, table: str = "") -> list[str]:
     :return: The column name for the geometry.
     :rtype: str
     """
-    with ogr.Open(gpkg_path) as con:
-        if table:
-            query = con.ExecuteSQL(
-                f"SELECT column_name FROM gpkg_geometry_columns WHERE table_name='{table}'"
-            )
-        else:
-            query = con.ExecuteSQL(
-                f"SELECT column_name FROM gpkg_geometry_columns"
-            )
-        column_name = [layer.column_name for layer in query]
-        return column_name
+    con = ogr.Open(gpkg_path)
+    if table:
+        query = con.ExecuteSQL(
+            f"SELECT column_name FROM gpkg_geometry_columns WHERE table_name='{table}'"
+        )
+    else:
+        query = con.ExecuteSQL(
+            f"SELECT column_name FROM gpkg_geometry_columns"
+        )
+    column_name = [layer.column_name for layer in query]
+    con = None
+    return column_name

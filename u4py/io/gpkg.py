@@ -63,6 +63,7 @@ def load_and_buffer_gpkg(
     buffer_dists = []
 
     # Loop over all tables
+    con = ogr.Open(gpkg_path)
     for ii, table in enumerate(tables):
         # See if we need to filter specific fclasses and set buffer distance
         if shp_cfg:
@@ -74,56 +75,54 @@ def load_and_buffer_gpkg(
         # Cache for geometries, depending on CRS we need to reproject them.
         geometries_table = []
 
-        with ogr.Open(gpkg_path) as con:
-            # Getting spatial reference of geometries in table and calculate
-            # boundaries accordingly
-            srs_query = con.ExecuteSQL(
-                f"SELECT srs_id from gpkg_geometry_columns WHERE table_name == '{table}'"
-            )
-            srs_id = srs_query[0].srs_id
-            wkt_bounds = u4tiff.wkt_from_tiff_bounds(
-                tiff_path, f"EPSG:{srs_id}"
-            )
+        # Getting spatial reference of geometries in table and calculate
+        # boundaries accordingly
+        srs_query = con.ExecuteSQL(
+            f"SELECT srs_id from gpkg_geometry_columns WHERE table_name == '{table}'"
+        )
+        srs_id = srs_query[0].srs_id
+        wkt_bounds = u4tiff.wkt_from_tiff_bounds(tiff_path, f"EPSG:{srs_id}")
 
-            # Load geometries within bounds
-            layer = con.ExecuteSQL(
-                f"SELECT * FROM '{table}' WHERE ST_Intersects(geom, ST_GeomFromText('{wkt_bounds}', 0))",
-            )
+        # Load geometries within bounds
+        layer = con.ExecuteSQL(
+            f"SELECT * FROM '{table}' WHERE ST_Intersects(geom, ST_GeomFromText('{wkt_bounds}', 0))",
+        )
 
-            # Set fclass type
-            for feature in layer:
-                if hasattr(feature, "fclass"):
-                    fclass = feature.fclass
-                elif hasattr(feature, "generator_"):
-                    fclass = "power"
-                elif hasattr(feature, "man_made"):
-                    fclass = feature.man_made
-                elif table == "lan-con":
-                    fclass = "construction"
-                elif table == "par-sur":
-                    fclass = "parking"
+        # Set fclass type
+        for feature in layer:
+            if hasattr(feature, "fclass"):
+                fclass = feature.fclass
+            elif hasattr(feature, "generator_"):
+                fclass = "power"
+            elif hasattr(feature, "man_made"):
+                fclass = feature.man_made
+            elif table == "lan-con":
+                fclass = "construction"
+            elif table == "par-sur":
+                fclass = "parking"
 
-                # Collect features in list
-                if not fclass_filter or fclass in fclass_filter:
-                    fclasses.append(fclass)
-                    if buffer_dist:
-                        buffer_dists.append(buffer_dist)
-                    geometries_table.append(
-                        shapely.from_wkt(feature.geom.ExportToWkt())
+            # Collect features in list
+            if not fclass_filter or fclass in fclass_filter:
+                fclasses.append(fclass)
+                if buffer_dist:
+                    buffer_dists.append(buffer_dist)
+                geometries_table.append(
+                    shapely.from_wkt(feature.geom.ExportToWkt())
+                )
+
+        # If CRS/SRS of current table does not match with WGS84,
+        # reproject the geometries.
+        if geometries_table:
+            if srs_id != 4326:
+                geometries_table = (
+                    gp.GeoDataFrame(
+                        geometry=geometries_table, crs=f"EPSG:{srs_id}"
                     )
-
-            # If CRS/SRS of current table does not match with WGS84,
-            # reproject the geometries.
-            if geometries_table:
-                if srs_id != 4326:
-                    geometries_table = (
-                        gp.GeoDataFrame(
-                            geometry=geometries_table, crs=f"EPSG:{srs_id}"
-                        )
-                        .to_crs("EPSG:4326")
-                        .geometry
-                    )
-            geometries.extend(geometries_table)
+                    .to_crs("EPSG:4326")
+                    .geometry
+                )
+        geometries.extend(geometries_table)
+    con = None  # Closing dataset for GDAL<3.8
 
     logging.debug("Creating new geodataframe from extracted geometries")
     gdf = gp.GeoDataFrame(
