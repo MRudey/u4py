@@ -112,8 +112,8 @@ def main():
             desc="Generating tex files",
             total=len(gdf_filtered),
         ):
-            u4rep.make_tex_report(row, output_path, "tex_includes")
-        u4rep.create_report(output_path)
+            u4rep.site_report(row, output_path, "tex_includes")
+        u4rep.main_report(output_path)
 
 
 def filter_shapes(

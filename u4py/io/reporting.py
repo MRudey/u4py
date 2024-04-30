@@ -10,7 +10,7 @@ import numpy as np
 import uncertainties as unc
 
 
-def create_report(output_path: os.PathLike):
+def main_report(output_path: os.PathLike):
     tex_folder = os.path.join(output_path, "tex_includes")
     include_list = [
         os.path.join(tex_folder, fp)
@@ -72,7 +72,7 @@ def clean_aux_files(report_out_path: os.PathLike):
             os.remove(fp)
 
 
-def make_tex_report(row: tuple, output_path: os.PathLike, suffix: str):
+def site_report(row: tuple, output_path: os.PathLike, suffix: str):
     """Creates a report for each area of interest using LaTeX. This is later merged together into a larger main document by the `main` function.
 
     :param row: The index and data for the area of interest.
@@ -83,207 +83,54 @@ def make_tex_report(row: tuple, output_path: os.PathLike, suffix: str):
     :type suffix: str
     """
 
+    # Setting Paths
+    group = row[1].group
     output_path_tex = os.path.join(output_path, suffix)
     os.makedirs(output_path_tex, exist_ok=True)
-    group = row[1].group
-    wgs_point = gp.GeoDataFrame(
-        geometry=[row[1].geometry.centroid], crs="EPSG:32632"
-    ).to_crs("EPSG:4326")
-    lat = np.round(float(wgs_point.geometry.y), 6)
-    lng = np.round(float(wgs_point.geometry.x), 6)
     img_path = os.path.join(output_path, "known_features", f"{group:05}")
-    tex = (
-        f"\\section{{Gruppe {group}}}\n\n"
-        + f"\\textbf{{Lokalität:}} {row[1].locations}\n\n"
-        + f"\\textbf{{Koordinaten (UTM 32N):}} "
-        + f"{int(row[1].geometry.centroid.y)}\\,N "
-        + f"{int(row[1].geometry.centroid.x)}\\,E\n\n"
-        + f"\\textbf{{Google Maps:}} "
-        + f"\\href{{https://www.google.com/maps/place/{lat},{lng}/@{lat},{lng}/data=!3m1!1e3}}"
-        + f"{{\\faExternalLink {np.round(lat,3)}\\,N, {np.round(lng,3)}\\,E}}\n\n"
-        + f"\\textbf{{OpenStreetMap:}} "
-        + f"\\href{{http://www.openstreetmap.org/?lat={lat}&lon={lng}&zoom=17&layers=M}}"
-        + f"{{\\faExternalLink {np.round(lat,3)}\\,N, {np.round(lng,3)}\\,E}}\n\n"
-    )
+
+    # Create TeX code
+    tex = f"\\section{{Gruppe {group}}}\n\n"
+
+    tex += location(row[1])
+
+    # Overview plot and satellite image
     if os.path.exists(img_path + "_map.pdf") and os.path.exists(
         img_path + "_satimg.pdf"
     ):
-        tex += (
-            "\\begin{figure}[h!]\n"
-            + "  \\centering\n"
-            + "  \\begin{subfigure}[][][t]{.45\\textwidth}\n"
-            + f"    \\includegraphics[width=\\textwidth]{{{img_path+'_map.pdf'}}}\n"
-            + "    \\caption{Übersicht über das Gebiet der Gruppe inklusive verschiedener Geogefahren und der detektierten Anomalien (Kartengrundlage OpenStreetMap).}\n"
-            + "  \\end{subfigure}\n\hfill\n"
-            + "  \\begin{subfigure}[][][t]{.45\\textwidth}\n"
-            + f"    \\includegraphics[width=\\textwidth]{{{img_path+'_satimg.pdf'}}}\n"
-            + "    \\caption{Luftbild basierend auf ESRI Imagery.}\n"
-            + "  \\end{subfigure}\n"
-            + "  \\caption{Lokalität der Anomalie.}"
-            + "\\end{figure}\n\n"
-        )
+        tex += details_and_satellite(img_path)
 
-    # Differenzenplan
-    tex += f"Im Gebiet um die detektierte Anomalie wurde insgesamt {row[1].volumes_moved}\\,m$^3$ Material bewegt, wovon {row[1].volumes_added}\\,m$^3$ hinzugefügt und {abs(row[1].volumes_removed)}\\,m$^3$ abgetragen wurde. Dies ergibt eine Gesamtbilanz von {row[1].volumes_total}\\,m$^3$, in Summe wurde also {vol_str(row[1].volumes_total)}.\n\n"
+    # Volumina
+    tex += moved_volumes(row[1])
+
+    # Difference maps
     if os.path.exists(img_path + "_diffplan.pdf") and os.path.exists(
         img_path + "_slope.pdf"
     ):
-        tex += (
-            "\\begin{figure}[!ht]\n"
-            + "  \\begin{subfigure}[][][t]{.45\\textwidth}\n"
-            + f"  \\includegraphics[width=\\textwidth]{{{img_path+'_diffplan.pdf'}}}\n"
-            + "  \\caption{Differenzenplan im Gebiet.}\n"
-            + "  \\end{subfigure}\n\hfill\n"
-            + "  \\begin{subfigure}[][][t]{.45\\textwidth}\n"
-            + "\\centering\n"
-            + f"  \\includegraphics[width=\\textwidth]{{{img_path+'_slope.pdf'}}}\n"
-            + "  \\caption{Böschungswinkel im Gebiet der Gruppe.}\n"
-            + "  \\end{subfigure}\n\hfill\n"
-            + "  \\caption{Topographie im Gebiet.}"
-            + "\\end{figure}\n\n"
-        )
+        tex += difference(img_path)
 
     # Topographie
-    slope_new = float(row[1].slope_hull_median_new)
-    slope_std_new = float(row[1].slope_hull_std_new)
-    usl_new = unc.ufloat(slope_new, slope_std_new)
-    ustr_new = str(usl_new).replace("+/-", "$\\pm$") + "\\,\\%"
-    slope_old = float(row[1].slope_hull_median_old)
-    slope_std_old = float(row[1].slope_hull_std_old)
-    usl_old = unc.ufloat(slope_old, slope_std_old)
-    ustr_old = str(usl_old).replace("+/-", "$\\pm$") + "\\,\\%"
-    # slope_rel = slope_std_new / slope_new
-    landuse = ""
-    try:
-        landuse = eval(row[1].landuse_names)
-    except NameError:
-        landuse = row[1].landuse_names
-    landuse_perc = eval(row[1].landuse_percent)
-    tex += f"Die Steigung im Gebiet ist {slope_std_str(slope_std_new)} und {slope_str(slope_new)} ({ustr_new}). Vor dem Ereignis war die Steigung {slope_std_str(slope_std_old)} und {slope_str(slope_old)} ({ustr_old}). "
+    tex += topography(row[1])
 
-    if landuse:
-        tex += (
-            f"Der überwiegende Teil wird durch {landuse_str(row[1].landuse_major)} bedeckt. "
-            + f"Die Anteile der Landnutzung sind: \n\n"
-        )
-        if isinstance(landuse, list):
-            for ii in range(1, len(landuse) + 1):
-                tex += f" {landuse_perc[-ii]:.1f}\\% {landuse_str(landuse[-ii])}, "
-            tex = tex[:-2] + ".\n"
-        else:
-            tex += f"{landuse_perc:.1f}\\% {landuse_str(landuse)}"
+    # Landuse
+    tex += landuse(row[1])
 
-    # PSI Daten
+    # PSI Data
     if os.path.exists(img_path + "_psi.png"):
-        tex += (
-            "\\subsection*{InSAR Daten}\n\n"
-            + "\\begin{figure}[h!]\n"
-            + "  \\centering\n"
-            + f"  \\includegraphics[width=\\textwidth]{{{img_path+'_psi.png'}}}\n"
-            + "  \\caption{Persistent scatterer und Zeitreihe der Deformation im Gebiet der Gruppe.}\n"
-            + "\\end{figure}\n\n"
-        )
+        tex += psi_map(img_path)
 
-    # Geogefahren
-    tex += (
-        "\\subsection*{Geogefahren}\n\n"
-        + "\\begin{table}[H]\n"
-        + "  \\centering"
-        + "  \\caption{Bekannte Geogefahren}\n"
-        + "  \\begin{tabular}{r|ll}\n"
-        + "    Typ & Innerhalb des Areals & Im Umkreis von 1 km\\\\\\hline\n"
-        + f"    Hangrutschungen & {row[1].landslides_num_inside} & {row[1].landslides_num_1km}\\\\\n"
-        + f"    Karsterscheinungen & {row[1].karst_num_inside} & {row[1].karst_num_1km}\\\\\n"
-        + f"    Steinschläge & {row[1].rockfall_num_inside} & {row[1].rockfall_num_1km}\n"
-        + "  \\end{tabular}\n"
-        + "\\end{table}\n\n"
-    )
-
-    lsar = row[1].landslide_total
-    tex += "\\paragraph*{Rutschungsgefährdung}\n\n"
-    if lsar > 0:
-        tex += f"Das Gebiet liegt {part_str(lsar)} ({lsar:.0f}\%) in einem gefährdeten Bereich mit rutschungsanfälligen Schichten. "
-        try:
-            landslide_units = eval(row[1].landslide_units)
-        except (NameError, SyntaxError):
-            landslide_units = row[1].landslide_units
-        if isinstance(landslide_units, list):
-            tex += f"Die Einheiten sind: "
-            for unit in landslide_units:
-                tex += f"{unit}, "
-            tex = tex[:-2] + ".\n\n"
-        else:
-            tex += f"Wichtigste Einheiten sind {landslide_units}.\n\n"
-    else:
-        tex += (
-            "Es liegen keine Informationen zur Rutschungsgefährdung vor.\n\n"
-        )
-
-    ksar = row[1].karst_total
-    tex += "\\paragraph*{Karstgefährdung}\n\n"
-    if ksar > 0:
-        tex += f"Das Gebiet liegt {part_str(ksar)} ({ksar:.0f}\%) in einem Bereich bekannter verkarsteter Schichten. "
-        try:
-            karst_units = eval(row[1].karst_units)
-        except (NameError, SyntaxError):
-            karst_units = row[1].karst_units
-        if isinstance(karst_units, list):
-            tex += f"Die Einheiten sind: "
-            for unit in karst_units:
-                tex += f"{unit}, "
-            tex = tex[:-2] + ".\n\n"
-        else:
-            tex += f"Wichtigste Einheiten sind {karst_units}.\n\n"
-    else:
-        tex += "Es liegen keine Informationen zur Karstgefährdung vor.\n\n"
-
-    subsar = row[1].subsidence_total
-    tex += "\\paragraph*{Setzungsgefährdung}\n\n"
-    if subsar > 0:
-        tex += f"Das Gebiet liegt {part_str(subsar)} ({subsar:.0f}\%) in einem Bereich bekannter setzungsgefährdeter Schichten. "
-        try:
-            subsidence_units = eval(row[1].subsidence_units)
-        except (NameError, SyntaxError):
-            subsidence_units = row[1].subsidence_units
-        if isinstance(subsidence_units, list):
-            tex += f"Die Einheiten sind: "
-            for unit in subsidence_units:
-                tex += f"{unit}, "
-            tex = tex[:-2] + ".\n\n"
-        else:
-            tex += f"Wichtigste Einheiten sind {subsidence_units}.\n\n"
-    else:
-        tex += "Es liegen keine Informationen zur Setzungsgefährdung vor.\n\n"
+    # Geohazard
+    tex += geohazard(row[1])
 
     # Geologie etc...
-    tex += "\\subsection*{Geologie}\n\n"
     if os.path.exists(img_path + "_GK25.pdf"):
-        tex += (
-            "\\begin{figure}[H]\n"
-            + "\\centering\n"
-            + f"  \\includegraphics[width=.9\\textwidth]{{{img_path+'_GK25.pdf'}}}\n"
-            + "  \\caption{Geologie im Gebiet basierend auf GK25 (Quelle: HLNUG).}\n"
-            + "\\end{figure}\n\n"
-            + "\\subsection*{Hydrogeologie}\n\n"
-        )
+        tex += geology(img_path)
     if os.path.exists(img_path + "_HUEK200.pdf"):
-        tex += (
-            "\\begin{figure}[H]\n"
-            + "\\centering\n"
-            + f"  \\includegraphics[width=.9\\textwidth]{{{img_path+'_HUEK200.pdf'}}}\n"
-            + "  \\caption{Hydrogeologische Einheiten im Gebiet basierend auf HÜK200 (Quelle: HLNUG).}\n"
-            + "\\end{figure}\n\n"
-            + "\\subsection*{Bodengruppen}\n\n"
-        )
+        tex += hydrogeology(img_path)
     if os.path.exists(img_path + "_BFD50.pdf"):
-        tex += (
-            "\\begin{figure}[H]\n"
-            + "\\centering\n"
-            + f"  \\includegraphics[width=.9\\textwidth]{{{img_path+'_BFD50.pdf'}}}\n"
-            + "  \\caption{Bodenhauptgruppen im Gebiet basierend auf der BFD50 (Quelle: HLNUG).}\n"
-            + "\\end{figure}\n\n"
-        )
+        tex += soils(img_path)
 
+    # Save to tex file
     with open(
         os.path.join(output_path_tex, f"{group:05}_info.tex"),
         "wt",
@@ -291,6 +138,80 @@ def make_tex_report(row: tuple, output_path: os.PathLike, suffix: str):
         newline="\n",
     ) as tex_file:
         tex_file.write(tex)
+
+
+def location(series: gp.GeoSeries) -> str:
+    """Adds location information to the document
+
+    :param series: The GeoSeries object extracted from the row.
+    :type series: gp.GeoSeries
+    :return: The tex code.
+    :rtype: str
+    """
+
+    wgs_point = gp.GeoDataFrame(
+        geometry=[series.geometry.centroid], crs="EPSG:32632"
+    ).to_crs("EPSG:4326")
+    lat = np.round(float(wgs_point.geometry.y), 6)
+    lng = np.round(float(wgs_point.geometry.x), 6)
+
+    tex = (
+        +f"\\textbf{{Lokalität:}} {series.locations}\n\n"
+        + f"\\textbf{{Koordinaten (UTM 32N):}} "
+        + f"{int(series.geometry.centroid.y)}\\,N "
+        + f"{int(series.geometry.centroid.x)}\\,E\n\n"
+        + f"\\textbf{{Google Maps:}} "
+        + f"\\href{{https://www.google.com/maps/place/{lat},{lng}/@{lat},{lng}/data=!3m1!1e3}}"
+        + f"{{\\faExternalLink {np.round(lat,3)}\\,N, {np.round(lng,3)}\\,E}}\n\n"
+        + f"\\textbf{{OpenStreetMap:}} "
+        + f"\\href{{http://www.openstreetmap.org/?lat={lat}&lon={lng}&zoom=17&layers=M}}"
+        + f"{{\\faExternalLink {np.round(lat,3)}\\,N, {np.round(lng,3)}\\,E}}\n\n"
+    )
+    return tex
+
+
+def details_and_satellite(img_path: os.PathLike) -> str:
+    """Adds the detailed map and the satellite image map.
+
+    :param img_path: The path to the image folder including group name.
+    :type img_path: os.PathLike
+    :return: The tex code.
+    :rtype: str
+    """
+    tex = (
+        "\\begin{figure}[h!]\n"
+        + "  \\centering\n"
+        + "  \\begin{subfigure}[][][t]{.45\\textwidth}\n"
+        + f"    \\includegraphics[width=\\textwidth]{{{img_path+'_map.pdf'}}}\n"
+        + "    \\caption{Übersicht über das Gebiet der Gruppe inklusive verschiedener Geogefahren und der detektierten Anomalien (Kartengrundlage OpenStreetMap).}\n"
+        + "  \\end{subfigure}\n\hfill\n"
+        + "  \\begin{subfigure}[][][t]{.45\\textwidth}\n"
+        + f"    \\includegraphics[width=\\textwidth]{{{img_path+'_satimg.pdf'}}}\n"
+        + "    \\caption{Luftbild basierend auf ESRI Imagery.}\n"
+        + "  \\end{subfigure}\n"
+        + "  \\caption{Lokalität der Anomalie.}"
+        + "\\end{figure}\n\n"
+    )
+    return tex
+
+
+def moved_volumes(series: gp.GeoSeries) -> str:
+    """Adds description of moved volumes to the document.
+
+    :param series: The GeoSeries object extracted from the row.
+    :type series: gp.GeoSeries
+    :return: The tex code.
+    :rtype: str
+    """
+    tex = (
+        "Im Gebiet um die detektierte Anomalie wurde insgesamt "
+        + f"{series.volumes_moved}\\,m$^3$ Material bewegt, "
+        + f"wovon {series.volumes_added}\\,m$^3$ hinzugefügt und "
+        + f"{abs(series.volumes_removed)}\\,m$^3$ abgetragen wurde. "
+        + f"Dies ergibt eine Gesamtbilanz von {series.volumes_total}\\,m$^3$,"
+        + f" in Summe wurde also {vol_str(series.volumes_total)}.\n\n"
+    )
+    return tex
 
 
 def vol_str(val: float) -> str:
@@ -307,6 +228,121 @@ def vol_str(val: float) -> str:
         return "Material abgetragen"
     else:
         return "das Gesamtvolumen nur wenig verändert"
+
+
+def difference(img_path: os.PathLike) -> str:
+    """Adds the difference maps.
+
+    :param img_path: The path to the image folder including group name.
+    :type img_path: os.PathLike
+    :return: The tex code.
+    :rtype: str
+    """
+    tex = (
+        "\\begin{figure}[!ht]\n"
+        + "  \\begin{subfigure}[][][t]{.45\\textwidth}\n"
+        + f"  \\includegraphics[width=\\textwidth]{{{img_path+'_diffplan.pdf'}}}\n"
+        + "  \\caption{Differenzenplan im Gebiet.}\n"
+        + "  \\end{subfigure}\n\hfill\n"
+        + "  \\begin{subfigure}[][][t]{.45\\textwidth}\n"
+        + "\\centering\n"
+        + f"  \\includegraphics[width=\\textwidth]{{{img_path+'_slope.pdf'}}}\n"
+        + "  \\caption{Böschungswinkel im Gebiet der Gruppe.}\n"
+        + "  \\end{subfigure}\n\hfill\n"
+        + "  \\caption{Topographie im Gebiet.}"
+        + "\\end{figure}\n\n"
+    )
+    return tex
+
+
+def topography(series: gp.GeoSeries) -> str:
+    """Converts the slope into a descriptive text.
+
+    :param series: The GeoSeries object extracted from the row.
+    :type series: gp.GeoSeries
+    :return: The tex code.
+    :rtype: str
+    """
+    # Post event data
+    slope_new = float(series.slope_hull_median_new)
+    slope_std_new = float(series.slope_hull_std_new)
+    usl_new = unc.ufloat(slope_new, slope_std_new)
+    ustr_new = str(usl_new).replace("+/-", "$\\pm$") + "\\,\\%"
+    # Pre event data
+    slope_old = float(series.slope_hull_median_old)
+    slope_std_old = float(series.slope_hull_std_old)
+    usl_old = unc.ufloat(slope_old, slope_std_old)
+    ustr_old = str(usl_old).replace("+/-", "$\\pm$") + "\\,\\%"
+
+    tex = (
+        f"Die Steigung im Gebiet ist {slope_std_str(slope_std_new)} und "
+        + f"{slope_str(slope_new)} ({ustr_new}). "
+        + f"Vor dem Ereignis war die Steigung {slope_std_str(slope_std_old)} "
+        + f"und {slope_str(slope_old)} ({ustr_old}).\n"
+    )
+    return tex
+
+
+def slope_str(val: float) -> str:
+    """Converts a slope estimate into a descriptive text.
+
+    :param val: The value.
+    :type val: float
+    :return: The descriptive text.
+    :rtype: str
+    """
+    if val < 5:
+        return "überwiegend flach"
+    elif val < 10:
+        return "leicht abschüssig"
+    elif val < 30:
+        return "steil"
+    else:
+        return "sehr steil"
+
+
+def slope_std_str(val: float) -> str:
+    """Converts a standard deviation of data into a descriptive text.
+
+    :param val: The value.
+    :type val: float
+    :return: The descriptive text.
+    :rtype: str
+    """
+    if val < 0.1:
+        return "gleichmäßig"
+    elif val < 0.5:
+        return "etwas unregelmäßig"
+    else:
+        return "sehr variabel"
+
+
+def landuse(series: gp.GeoSeries) -> str:
+    """Converts the landuse into a descriptive text.
+
+    :param series: The GeoSeries object extracted from the row.
+    :type series: gp.GeoSeries
+    :return: The tex code.
+    :rtype: str
+    """
+    landuse = ""
+    try:
+        landuse = eval(series.landuse_names)
+    except NameError:
+        landuse = series.landuse_names
+    landuse_perc = eval(series.landuse_percent)
+    if landuse:
+        tex = (
+            "Der überwiegende Teil wird durch "
+            + f"{landuse_str(series.landuse_major)} bedeckt. "
+            + f"Die Anteile der Landnutzung sind: \n\n"
+        )
+        if isinstance(landuse, list):
+            for ii in range(1, len(landuse) + 1):
+                tex += f" {landuse_perc[-ii]:.1f}\\% {landuse_str(landuse[-ii])}, "
+            tex = tex[:-2] + ".\n"
+        else:
+            tex += f"{landuse_perc:.1f}\\% {landuse_str(landuse)}"
 
 
 def landuse_str(in_str: str) -> str:
@@ -346,40 +382,6 @@ def landuse_str(in_str: str) -> str:
     return convert[in_str]
 
 
-def slope_str(val: float) -> str:
-    """Converts a slope estimate into a descriptive text.
-
-    :param val: The value.
-    :type val: float
-    :return: The descriptive text.
-    :rtype: str
-    """
-    if val < 5:
-        return "überwiegend flach"
-    elif val < 10:
-        return "leicht abschüssig"
-    elif val < 30:
-        return "steil"
-    else:
-        return "sehr steil"
-
-
-def slope_std_str(val: float) -> str:
-    """Converts a standard deviation of data into a descriptive text.
-
-    :param val: The value.
-    :type val: float
-    :return: The descriptive text.
-    :rtype: str
-    """
-    if val < 0.1:
-        return "gleichmäßig"
-    elif val < 0.5:
-        return "etwas unregelmäßig"
-    else:
-        return "sehr variabel"
-
-
 def part_str(val: float) -> str:
     """Gets a qualitative descriptor for the area.
 
@@ -398,3 +400,175 @@ def part_str(val: float) -> str:
         return "zu einem überwiegenden Teil"
     else:
         return "quasi vollständig"
+
+
+def psi_map(img_path: os.PathLike) -> str:
+    """Adds the psi map with timeseries.
+
+    :param img_path: The path to the image folder including group name.
+    :type img_path: os.PathLike
+    :return: The tex code.
+    :rtype: str
+    """
+    tex = (
+        "\\subsection*{InSAR Daten}\n\n"
+        + "\\begin{figure}[h!]\n"
+        + "  \\centering\n"
+        + f"  \\includegraphics[width=\\textwidth]{{{img_path+'_psi.png'}}}\n"
+        + "  \\caption{Persistent scatterer und Zeitreihe der Deformation "
+        + "im Gebiet der Gruppe.}\n"
+        + "\\end{figure}\n\n"
+    )
+    return tex
+
+
+def geohazard(series: gp.GeoSeries) -> str:
+    """Converts the known geohazards into a descriptive text.
+
+    :param series: The GeoSeries object extracted from the row.
+    :type series: gp.GeoSeries
+    :return: The tex code.
+    :rtype: str
+    """
+    tex = (
+        "\\subsection*{Geogefahren}\n\n"
+        + "\\begin{table}[H]\n"
+        + "  \\centering"
+        + "  \\caption{Bekannte Geogefahren}\n"
+        + "  \\begin{tabular}{r|ll}\n"
+        + "    Typ & Innerhalb des Areals & Im Umkreis von 1 km\\\\\\hline\n"
+        + f"    Hangrutschungen & {series.landslides_num_inside} & "
+        + f"{series.landslides_num_1km}\\\\\n"
+        + f"    Karsterscheinungen & {series.karst_num_inside} & "
+        + f"{series.karst_num_1km}\\\\\n"
+        + f"    Steinschläge & {series.rockfall_num_inside} & "
+        + f"{series.rockfall_num_1km}\n"
+        + "  \\end{tabular}\n"
+        + "\\end{table}\n\n"
+    )
+    tex += landslide_risk(series)
+    tex += karst_risk(series)
+    tex += subsidence_risk(series)
+    return tex
+
+
+def landslide_risk(series: gp.GeoSeries) -> str:
+    """Converts the known landslides into a descriptive text.
+
+    :param series: The GeoSeries object extracted from the row.
+    :type series: gp.GeoSeries
+    :return: The tex code.
+    :rtype: str
+    """
+    lsar = series.landslide_total
+    tex = "\\paragraph*{Rutschungsgefährdung}\n\n"
+    if lsar > 0:
+        tex += f"Das Gebiet liegt {part_str(lsar)} ({lsar:.0f}\%) in einem gefährdeten Bereich mit rutschungsanfälligen Schichten. "
+        try:
+            landslide_units = eval(series.landslide_units)
+        except (NameError, SyntaxError):
+            landslide_units = series.landslide_units
+        if isinstance(landslide_units, list):
+            tex += f"Die Einheiten sind: "
+            for unit in landslide_units:
+                tex += f"{unit}, "
+            tex = tex[:-2] + ".\n\n"
+        else:
+            tex += f"Wichtigste Einheiten sind {landslide_units}.\n\n"
+    else:
+        tex += (
+            "Es liegen keine Informationen zur Rutschungsgefährdung vor.\n\n"
+        )
+    return tex
+
+
+def karst_risk(series: gp.GeoSeries) -> str:
+    """Converts the known karst phenomena into a descriptive text.
+
+    :param series: The GeoSeries object extracted from the row.
+    :type series: gp.GeoSeries
+    :return: The tex code.
+    :rtype: str
+    """
+    ksar = series.karst_total
+    tex = "\\paragraph*{Karstgefährdung}\n\n"
+    if ksar > 0:
+        tex += f"Das Gebiet liegt {part_str(ksar)} ({ksar:.0f}\%) in einem Bereich bekannter verkarsteter Schichten. "
+        try:
+            karst_units = eval(series.karst_units)
+        except (NameError, SyntaxError):
+            karst_units = series.karst_units
+        if isinstance(karst_units, list):
+            tex += f"Die Einheiten sind: "
+            for unit in karst_units:
+                tex += f"{unit}, "
+            tex = tex[:-2] + ".\n\n"
+        else:
+            tex += f"Wichtigste Einheiten sind {karst_units}.\n\n"
+    else:
+        tex += "Es liegen keine Informationen zur Karstgefährdung vor.\n\n"
+    return tex
+
+
+def subsidence_risk(series: gp.GeoSeries) -> str:
+    """Converts the area of known subsidence into a descriptive text.
+
+    :param series: The GeoSeries object extracted from the row.
+    :type series: gp.GeoSeries
+    :return: The tex code.
+    :rtype: str
+    """
+    subsar = series.subsidence_total
+    tex = "\\paragraph*{Setzungsgefährdung}\n\n"
+    if subsar > 0:
+        tex += f"Das Gebiet liegt {part_str(subsar)} ({subsar:.0f}\%) in einem Bereich bekannter setzungsgefährdeter Schichten. "
+        try:
+            subsidence_units = eval(series.subsidence_units)
+        except (NameError, SyntaxError):
+            subsidence_units = series.subsidence_units
+        if isinstance(subsidence_units, list):
+            tex += f"Die Einheiten sind: "
+            for unit in subsidence_units:
+                tex += f"{unit}, "
+            tex = tex[:-2] + ".\n\n"
+        else:
+            tex += f"Wichtigste Einheiten sind {subsidence_units}.\n\n"
+    else:
+        tex += "Es liegen keine Informationen zur Setzungsgefährdung vor.\n\n"
+    return tex
+
+
+def geology(img_path) -> str:
+    tex = (
+        "\\subsection*{Geologie}\n\n"
+        + "\\begin{figure}[H]\n"
+        + "\\centering\n"
+        + f"  \\includegraphics[width=.9\\textwidth]{{{img_path+'_GK25.pdf'}}}\n"
+        + "  \\caption{Geologie im Gebiet basierend auf GK25 (Quelle: HLNUG).}\n"
+        + "\\end{figure}\n\n"
+    )
+    return tex
+
+
+def hydrogeology(img_path: os.PathLike) -> str:
+    tex = (
+        "\\subsection*{Hydrogeologie}\n\n"
+        + "\\begin{figure}[H]\n"
+        + "\\centering\n"
+        + f"  \\includegraphics[width=.9\\textwidth]{{{img_path+'_HUEK200.pdf'}}}\n"
+        + "  \\caption{Hydrogeologische Einheiten im Gebiet basierend auf HÜK200 (Quelle: HLNUG).}\n"
+        + "\\end{figure}\n\n"
+    )
+    return tex
+
+
+def soils(img_path: os.PathLike) -> str:
+    tex = (
+        "\\subsection*{Bodengruppen}\n\n"
+        + "\\begin{figure}[H]\n"
+        + "\\centering\n"
+        + f"  \\includegraphics[width=.9\\textwidth]{{{img_path+'_BFD50.pdf'}}}\n"
+        + "  \\caption{Bodenhauptgruppen im Gebiet basierend auf der BFD50 (Quelle: HLNUG).}\n"
+        + "\\end{figure}\n\n"
+    )
+    return tex
