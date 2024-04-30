@@ -36,6 +36,10 @@ from pyproj import CRS
 import u4py.analysis.inversion as u4invert
 import u4py.analysis.other as u4other
 import u4py.analysis.spatial as u4spatial
+import u4py.io.files as u4files
+import u4py.io.gpkg as u4gpkg
+import u4py.io.sql as u4sql
+import u4py.io.tiff as u4tiff
 import u4py.plotting.preparation as u4plotprep
 import u4py.utils.convert as u4convert
 
@@ -689,3 +693,111 @@ def add_tile(
             if colorbar:
                 plt.colorbar(ims, ax=ax, **colorbar)
         return tiff_tile.bounds, tiff_tile.crs
+
+
+def add_diff_plan(ax: Axes, region: gp.GeoDataFrame, tiff_folder: os.PathLike):
+    """Adds a differential motion plot to the axis.
+
+    :param ax: The axis to plot into.
+    :type ax: Axes
+    :param region: The region where to extract the data.
+    :type region: gp.GeoDataFrame
+    :param tiff_folder: The folder where the data is found.
+    :type tiff_folder: os.PathLike
+    """
+    coverage = u4tiff.get_tiff_coverage(tiff_folder)
+    if region.crs != coverage.crs:
+        coverage = coverage.to_crs(region.crs)
+    geom = region.geometry
+    part = coverage.clip(geom)
+    if len(part) > 0:
+        for ii, fpath in enumerate(part.path.to_list()):
+            if ii == 0:
+                add_tile(
+                    fpath,
+                    ax=ax,
+                    vm=2,
+                    cmap="RdBu",
+                    colorbar={
+                        "label": "Vertikaler Versatz (m)",
+                        "shrink": 0.7,
+                        "extend": "both",
+                        # "pad": 0.05,
+                    },
+                )
+            else:
+                add_tile(fpath, ax=ax, vm=2, cmap="RdBu")
+
+
+def add_dem(ax: Axes, region: gp.GeoDataFrame, tiff_folder: os.PathLike):
+    """Adds a digital elevation model dataset to the axis.
+
+    :param ax: The axis to plot into.
+    :type ax: Axes
+    :param region: The region where to extract the data.
+    :type region: gp.GeoDataFrame
+    :param tiff_folder: The folder where the data is found.
+    :type tiff_folder: os.PathLike
+    """
+    file_list = u4files.get_file_list_adf(tiff_folder)
+    points = u4spatial.select_points_region(region, file_list)
+    file_list = [file_list[ii] for ii in points.source_ind]
+    if len(file_list) > 0:
+        for fpath in file_list:
+            add_tile(fpath, ax=ax, cmap="bone", hillshade=True, multidir=True)
+
+
+def add_slope(ax: Axes, region: gp.GeoDataFrame, tiff_folder: os.PathLike):
+    """Adds a slope map to the axis.
+
+    :param ax: The axis to plot into.
+    :type ax: Axes
+    :param region: The region where to extract the data.
+    :type region: gp.GeoDataFrame
+    :param tiff_folder: The folder where the data is found.
+    :type tiff_folder: os.PathLike
+    """
+    file_list = u4files.get_file_list_adf(tiff_folder)
+    points = u4spatial.select_points_region(region, file_list)
+    file_list = [file_list[ii] for ii in points.source_ind]
+    if len(file_list) > 0:
+        for ii, fpath in enumerate(file_list):
+            if ii > 0:
+                add_tile(fpath, ax=ax, cmap="inferno", slope=True, vm=(0, 45))
+            else:
+                add_tile(
+                    fpath,
+                    ax=ax,
+                    cmap="inferno",
+                    vm=(0, 45),
+                    slope=True,
+                    colorbar={
+                        "label": "Hangneigung (°)",
+                        "shrink": 0.7,
+                        "extend": "both",
+                        # "pad": 0.05,
+                    },
+                )
+
+
+def add_hlnug_data(
+    ax: Axes, hlnug_path: os.PathLike, table: str, **plot_kwargs
+):
+    """Adds data from the HLNUG database to the plot.
+
+    :param ax: The axis to plot into.
+    :type ax: Axes
+    :param hlnug_path: The path to the geodatabase with HLNUG data.
+    :type hlnug_path: os.PathLike
+    :param table: The sql table name to use.
+    :type table: str
+    """
+    crs = u4sql.get_crs(hlnug_path, table)[0]
+    region = gp.GeoDataFrame(
+        geometry=[u4spatial.bounds_to_polygon(ax)], crs=crs
+    )
+    data = u4gpkg.load_gpkg_data_region_ogr(
+        region, hlnug_path, table, clip=False
+    )
+    if len(data) > 0:
+        data.plot(ax=ax, **plot_kwargs)

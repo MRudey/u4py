@@ -5,14 +5,22 @@ Contains functions with ready made plots. This module uses axis functions define
 from __future__ import annotations
 
 import os
-from typing import Iterable
+import pickle as pkl
+import textwrap
+from typing import Iterable, Tuple
 
 import contextily
 import geopandas as gp
+import matplotlib.lines as mlines
+import matplotlib.patches as mpatches
 import matplotlib.pyplot as plt
 import numpy as np
 
 import u4py.addons.gma as u4gma
+import u4py.addons.web_services as u4web
+import u4py.analysis.processing as u4proc
+import u4py.analysis.spatial as u4spatial
+import u4py.io.psi as u4psi
 import u4py.io.tiff as u4tiff
 import u4py.plotting.axes as u4ax
 import u4py.plotting.formatting as u4plotfmt
@@ -489,3 +497,717 @@ def plot_shape(
 
 def default_figure():
     return plt.subplots(figsize=(7, 7), dpi=100)
+
+
+def geology_map(
+    row: tuple,
+    crs: str,
+    output_path: os.PathLike,
+    suffix: str,
+    xlim: tuple,
+    ylim: tuple,
+    legend_path: os.PathLike,
+):
+    """Creates a map of the geological features around the area of interest.
+
+    :param row: The index and data of the area of interest.
+    :type row: tuple
+    :param crs: The coordinate system of the dataset.
+    :type crs: str
+    :param output_path: The path where to store the output plots.
+    :type output_path: os.PathLike
+    :param suffix: The subfolder to use for plots.
+    :type suffix: str
+    :param xlim: The extend of the xaxis for consistent plotting.
+    :type xlim: tuple
+    :param ylim: The extend of the yaxis for consistent plotting.
+    :type ylim: tuple
+    :param legend_path: The path where the legend is found.
+    :type legend_path: os.PathLike
+    """
+    output_path = os.path.join(output_path, suffix)
+    shp_path = os.path.join(output_path, "HLNUG_queries")
+
+    os.makedirs(output_path, exist_ok=True)
+    os.makedirs(shp_path, exist_ok=True)
+
+    shp_gdf = gp.GeoDataFrame(geometry=[row[1].geometry], crs=crs)
+    fig = plt.figure(figsize=(10, 7), dpi=150)
+    gs = fig.add_gridspec(ncols=2, width_ratios=(2, 1))
+    ax = fig.add_subplot(gs[0])
+    axl = fig.add_subplot(gs[1])
+    axl.axis("off")
+
+    shp_gdf.plot(ax=ax, fc="None", ec="C0", zorder=5)
+    shp_gdf.buffer(500).plot(ax=ax, fc="None", ec="None")
+
+    with open(legend_path, "rb") as leg_file:
+        uuid, label, _, facecolor, _, _ = pkl.load(leg_file)
+
+    u4plotfmt.map_style(ax=ax, divisor=500, crs=crs)
+    fig.tight_layout()
+    ax.set_xlim(xlim)
+    ax.set_ylim(ylim)
+    region = gp.GeoDataFrame(
+        geometry=[u4spatial.bounds_to_polygon(ax)], crs=crs
+    )
+    geology_data = u4web.query_hlnug(
+        "geologie/gk25/MapServer",
+        "Geologie (Kartiereinheiten)",
+        region=region,
+        suffix=f"_{row[1].group:05}",
+        out_folder=shp_path,
+    )
+    if len(geology_data) > 0:
+        fc = [
+            (facecolor[uuid.index(tkeh)] if tkeh in uuid else (0.5, 0.5, 0.5))
+            for tkeh in geology_data["TKEH"].to_list()
+        ]
+        untkeh = np.unique(geology_data["TKEH"].to_numpy())
+        untkeh.sort()
+        leg_handles = []
+        leg_handles.append(
+            mlines.Line2D([], [], color="C0", label="Bereich der Anomalie")
+        )
+        for tkeh in untkeh:
+            try:
+                ii = uuid.index(tkeh)
+                facec = facecolor[ii]
+            except ValueError:
+                facec = (0.5, 0.5, 0.5)
+            leg_handles.append(
+                mpatches.Patch(fc=facec, label=textwrap.fill(label[ii], 50))
+            )
+        geology_data.plot(ax=ax, fc=fc, ec="k", linewidth=0.25, alpha=0.5)
+        fault_data = u4web.query_hlnug(
+            "geologie/gk25/MapServer",
+            "Tektonik (Liniendaten)",
+            region=region,
+            suffix=f"_{row[1].group:05}",
+            out_folder=shp_path,
+        )
+        leg_handles.append(
+            mlines.Line2D([], [], color="k", label="Störungen, inkl. vermutet")
+        )
+        fault_data.plot(ax=ax, color="k")
+        axl.legend(
+            handles=leg_handles,
+            fontsize="small",
+            markerscale=0.75,
+        )
+        u4ax.add_basemap(
+            ax=ax,
+            crs=geology_data.crs,
+            source=contextily.providers.CartoDB.Voyager,
+        )
+        #     bbox_to_anchor=(1.5, 1),
+        #     loc="upper right",
+        #     borderaxespad=0.0,
+        # )
+
+        fig.tight_layout()
+        fig.savefig(os.path.join(output_path, f"{row[1].group:05}_GK25.png"))
+        fig.savefig(os.path.join(output_path, f"{row[1].group:05}_GK25.pdf"))
+    plt.close(fig)
+
+
+def hydrogeology_map(
+    row: tuple,
+    crs: str,
+    output_path: os.PathLike,
+    suffix: str,
+    xlim: tuple,
+    ylim: tuple,
+    legend_path: os.PathLike,
+):
+    """Creates a map of hydrogeological units in the area of interest.
+
+    :param row: The index and data of the area of interest.
+    :type row: tuple
+    :param crs: The coordinate system of the dataset.
+    :type crs: str
+    :param output_path: The path where to store the output plots.
+    :type output_path: os.PathLike
+    :param suffix: The subfolder to use for plots.
+    :type suffix: str
+    :param xlim: The extend of the xaxis for consistent plotting.
+    :type xlim: tuple
+    :param ylim: The extend of the yaxis for consistent plotting.
+    :type ylim: tuple
+    :param legend_path: The path where the legend is found.
+    :type legend_path: os.PathLike
+    """
+    output_path = os.path.join(output_path, suffix)
+    shp_path = os.path.join(output_path, "HLNUG_queries")
+
+    os.makedirs(output_path, exist_ok=True)
+    os.makedirs(shp_path, exist_ok=True)
+
+    shp_gdf = gp.GeoDataFrame(geometry=[row[1].geometry], crs=crs)
+    fig = plt.figure(figsize=(10, 7), dpi=150)
+    gs = fig.add_gridspec(ncols=2, width_ratios=(2, 1))
+    ax = fig.add_subplot(gs[0])
+    axl = fig.add_subplot(gs[1])
+    axl.axis("off")
+    shp_gdf.plot(ax=ax, fc="None", ec="C0", zorder=5)
+    shp_gdf.buffer(500).plot(ax=ax, fc="None", ec="None")
+
+    with open(legend_path, "rb") as leg_file:
+        uuid, label, style, facecolor, edgecolor, linewidth = pkl.load(
+            leg_file
+        )
+
+    u4plotfmt.map_style(ax=ax, divisor=500, crs=crs)
+    fig.tight_layout()
+    ax.set_xlim(xlim)
+    ax.set_ylim(ylim)
+    region = gp.GeoDataFrame(
+        geometry=[u4spatial.bounds_to_polygon(ax)], crs=crs
+    )
+    hydro_units_data = u4web.query_hlnug(
+        "geologie/huek200/MapServer",
+        "Hydrogeologische Einheiten",
+        region=region,
+        suffix=f"_{row[1].group:05}",
+        out_folder=shp_path,
+    )
+    if len(hydro_units_data) > 0:
+        fc = [
+            (facecolor[uuid.index(ugrp)] if ugrp in uuid else (0.5, 0.5, 0.5))
+            for ugrp in hydro_units_data["L_HE_B_KUE"].to_list()
+        ]
+        unugrp = np.unique(hydro_units_data["L_HE_B_KUE"].to_numpy())
+        unugrp.sort()
+        leg_handles = []
+        leg_handles.append(
+            mlines.Line2D([], [], color="C0", label="Bereich der Anomalie")
+        )
+        for ugrp in unugrp:
+            try:
+                ii = uuid.index(ugrp)
+                facec = facecolor[ii]
+            except ValueError:
+                facec = (0.5, 0.5, 0.5)
+            leg_handles.append(
+                mpatches.Patch(fc=facec, label=textwrap.fill(label[ii], 50))
+            )
+        hydro_units_data.plot(ax=ax, fc=fc, ec="k", linewidth=0.25, alpha=0.5)
+        axl.legend(
+            handles=leg_handles,
+            fontsize="small",
+            markerscale=0.75,
+        )
+        u4ax.add_basemap(
+            ax=ax,
+            crs=hydro_units_data.crs,
+            source=contextily.providers.CartoDB.Voyager,
+        )
+        fig.tight_layout()
+        fig.savefig(
+            os.path.join(output_path, f"{row[1].group:05}_HUEK200.png")
+        )
+        fig.savefig(
+            os.path.join(output_path, f"{row[1].group:05}_HUEK200.pdf")
+        )
+    plt.close(fig)
+
+
+def topsoil_map(
+    row: tuple,
+    crs: str,
+    output_path: os.PathLike,
+    suffix: str,
+    xlim: tuple,
+    ylim: tuple,
+    legend_path: os.PathLike,
+):
+    """Creates a map of topsoil units in the area of interest.
+
+    :param row: The index and data of the area of interest.
+    :type row: tuple
+    :param crs: The coordinate system of the dataset.
+    :type crs: str
+    :param output_path: The path where to store the output plots.
+    :type output_path: os.PathLike
+    :param suffix: The subfolder to use for plots.
+    :type suffix: str
+    :param xlim: The extend of the xaxis for consistent plotting.
+    :type xlim: tuple
+    :param ylim: The extend of the yaxis for consistent plotting.
+    :type ylim: tuple
+    :param legend_path: The path where the legend is found.
+    :type legend_path: os.PathLike
+    """
+    output_path = os.path.join(output_path, suffix)
+    shp_path = os.path.join(output_path, "HLNUG_queries")
+
+    os.makedirs(output_path, exist_ok=True)
+    os.makedirs(shp_path, exist_ok=True)
+
+    shp_gdf = gp.GeoDataFrame(geometry=[row[1].geometry], crs=crs)
+    fig = plt.figure(figsize=(10, 7), dpi=150)
+    gs = fig.add_gridspec(ncols=2, width_ratios=(2, 1))
+    ax = fig.add_subplot(gs[0])
+    axl = fig.add_subplot(gs[1])
+    axl.axis("off")
+    shp_gdf.plot(ax=ax, fc="None", ec="C0", zorder=5)
+    shp_gdf.buffer(500).plot(ax=ax, fc="None", ec="None")
+
+    with open(legend_path, "rb") as leg_file:
+        uuid, label, style, facecolor, edgecolor, linewidth = pkl.load(
+            leg_file
+        )
+
+    u4plotfmt.map_style(ax=ax, divisor=500, crs=crs)
+    fig.tight_layout()
+    ax.set_xlim(xlim)
+    ax.set_ylim(ylim)
+    region = gp.GeoDataFrame(
+        geometry=[u4spatial.bounds_to_polygon(ax)], crs=crs
+    )
+    soil_data = u4web.query_hlnug(
+        "boden/bfd50/MapServer",
+        "BFD50_Bodenhauptgruppen",
+        region=region,
+        suffix=f"_{row[1].group:05}",
+        out_folder=shp_path,
+    )
+    if len(soil_data) > 0:
+        if "UNTERGRUPPE" in soil_data.keys():  # SHP files have less chars...
+            column = "UNTERGRUPPE"
+        else:
+            column = "UNTERGRUPP"
+        fc = [
+            (facecolor[uuid.index(ugrp)] if ugrp in uuid else (0.5, 0.5, 0.5))
+            for ugrp in soil_data[column].to_list()
+        ]
+        unugrp = np.unique(soil_data[column].to_numpy())
+        unugrp.sort()
+        leg_handles = []
+        leg_handles.append(
+            mlines.Line2D([], [], color="C0", label="Bereich der Anomalie")
+        )
+        for ugrp in unugrp:
+            try:
+                ii = uuid.index(ugrp)
+                facec = facecolor[ii]
+            except ValueError:
+                facec = (0.5, 0.5, 0.5)
+            leg_handles.append(
+                mpatches.Patch(fc=facec, label=textwrap.fill(label[ii], 50))
+            )
+        soil_data.plot(ax=ax, fc=fc, ec="k", linewidth=0.25, alpha=0.5)
+        axl.legend(
+            handles=leg_handles,
+            fontsize="small",
+            markerscale=0.75,
+        )
+        u4ax.add_basemap(
+            ax=ax,
+            crs=soil_data.crs,
+            source=contextily.providers.CartoDB.Voyager,
+        )
+        fig.tight_layout()
+        fig.savefig(os.path.join(output_path, f"{row[1].group:05}_BFD50.png"))
+        fig.savefig(os.path.join(output_path, f"{row[1].group:05}_BFD50.pdf"))
+    plt.close(fig)
+
+
+def satimg_map(
+    row: tuple,
+    crs: str,
+    output_path: os.PathLike,
+    suffix: str,
+    xlim: tuple,
+    ylim: tuple,
+):
+    """Creates a satellite overview of the area of interest.
+
+    :param row: The index and data of the area of interest.
+    :type row: tuple
+    :param crs: The coordinate system of the dataset.
+    :type crs: str
+    :param output_path: The path where to store the output plots.
+    :type output_path: os.PathLike
+    :param suffix: The subfolder to use for plots.
+    :type suffix: str
+    :param xlim: The extend of the xaxis for consistent plotting.
+    :type xlim: tuple
+    :param ylim: The extend of the yaxis for consistent plotting.
+    :type ylim: tuple
+    """
+    output_path = os.path.join(output_path, suffix)
+    os.makedirs(output_path, exist_ok=True)
+
+    shp_gdf = gp.GeoDataFrame(geometry=[row[1].geometry], crs=crs)
+    fig, ax = plt.subplots(dpi=150, figsize=(7, 7))
+    shp_gdf.plot(ax=ax, fc="None", ec="C0")
+    shp_gdf.buffer(500).plot(ax=ax, fc="None", ec="None")
+
+    u4plotfmt.map_style(ax=ax, divisor=500, crs=crs)
+    fig.tight_layout()
+    ax.set_xlim(xlim)
+    ax.set_ylim(ylim)
+    u4ax.add_basemap(
+        ax=ax, crs=crs, source=contextily.providers.Esri.WorldImagery
+    )
+    fig.tight_layout()
+    fig.savefig(os.path.join(output_path, f"{row[1].group:05}_satimg.png"))
+    fig.savefig(os.path.join(output_path, f"{row[1].group:05}_satimg.pdf"))
+    plt.close(fig)
+
+
+def dem_map(
+    row: tuple,
+    crs: str,
+    output_path: os.PathLike,
+    suffix: str,
+    dem_path: os.PathLike,
+    xlim: tuple,
+    ylim: tuple,
+):
+    """Creates a hillshade map of the digital elevation model in the area of interest.
+
+    :param row: The index and data of the area of interest.
+    :type row: tuple
+    :param crs: The coordinate system of the dataset.
+    :type crs: str
+    :param output_path: The path where to store the output plots.
+    :type output_path: os.PathLike
+    :param suffix: The subfolder to use for plots.
+    :type suffix: str
+    :param dem_path: The path where the dem data is found.
+    :type dem_path: os.PathLike
+    :param xlim: The extend of the xaxis for consistent plotting.
+    :type xlim: tuple
+    :param ylim: The extend of the yaxis for consistent plotting.
+    :type ylim: tuple
+    """
+    output_path = os.path.join(output_path, suffix)
+    os.makedirs(output_path, exist_ok=True)
+
+    shp_gdf = gp.GeoDataFrame(geometry=[row[1].geometry], crs=crs)
+    fig, ax = plt.subplots(dpi=150, figsize=(7, 7))
+    shp_gdf.plot(ax=ax, fc="None", ec="C0")
+    shp_gdf.buffer(500).plot(ax=ax, fc="None", ec="None")
+    u4plotfmt.map_style(ax=ax, divisor=500, crs=crs)
+    fig.tight_layout()
+    region = gp.GeoDataFrame(
+        geometry=[u4spatial.bounds_to_polygon(ax)], crs=crs
+    )
+    u4ax.add_dem(ax, region, dem_path)
+    ax.set_xlim(xlim)
+    ax.set_ylim(ylim)
+
+    fig.tight_layout()
+    fig.savefig(os.path.join(output_path, f"{row[1].group:05}_dem.png"))
+    fig.savefig(os.path.join(output_path, f"{row[1].group:05}_dem.pdf"))
+    plt.close(fig)
+
+
+def slope_map(
+    row: tuple,
+    crs: str,
+    output_path: os.PathLike,
+    suffix: str,
+    dem_path: os.PathLike,
+    xlim: tuple,
+    ylim: tuple,
+):
+    """Creates a slope map of the digital elevation model in the area of interest.
+
+    :param row: The index and data of the area of interest.
+    :type row: tuple
+    :param crs: The coordinate system of the dataset.
+    :type crs: str
+    :param output_path: The path where to store the output plots.
+    :type output_path: os.PathLike
+    :param suffix: The subfolder to use for plots.
+    :type suffix: str
+    :param dem_path: The path where the dem data is found.
+    :type dem_path: os.PathLike
+    :param xlim: The extend of the xaxis for consistent plotting.
+    :type xlim: tuple
+    :param ylim: The extend of the yaxis for consistent plotting.
+    :type ylim: tuple
+    """
+    output_path = os.path.join(output_path, suffix)
+    os.makedirs(output_path, exist_ok=True)
+
+    shp_gdf = gp.GeoDataFrame(geometry=[row[1].geometry], crs=crs)
+    fig, ax = plt.subplots(dpi=150, figsize=(7, 7))
+    shp_gdf.plot(ax=ax, fc="None", ec="C0")
+    shp_gdf.buffer(500).plot(ax=ax, fc="None", ec="None")
+    u4plotfmt.map_style(ax=ax, divisor=500, crs=crs)
+    fig.tight_layout()
+    region = gp.GeoDataFrame(
+        geometry=[u4spatial.bounds_to_polygon(ax)], crs=crs
+    )
+    u4ax.add_slope(ax, region, dem_path)
+    ax.set_xlim(xlim)
+    ax.set_ylim(ylim)
+
+    fig.tight_layout()
+    fig.savefig(os.path.join(output_path, f"{row[1].group:05}_slope.png"))
+    fig.savefig(os.path.join(output_path, f"{row[1].group:05}_slope.pdf"))
+    plt.close(fig)
+
+
+def diffplan_map(
+    row: tuple,
+    crs: str,
+    output_path: os.PathLike,
+    suffix: str,
+    diff_plan_path: os.PathLike,
+    xlim: tuple,
+    ylim: tuple,
+):
+    """Creates a map of the differences in surface elevation in the area of interest.
+
+    :param row: The index and data of the area of interest.
+    :type row: tuple
+    :param crs: The coordinate system of the dataset.
+    :type crs: str
+    :param output_path: The path where to store the output plots.
+    :type output_path: os.PathLike
+    :param suffix: The subfolder to use for plots.
+    :type suffix: str
+    :param diff_plan_path: The path where the differential data is found.
+    :type diff_plan_path: os.PathLike
+    :param xlim: The extend of the xaxis for consistent plotting.
+    :type xlim: tuple
+    :param ylim: The extend of the yaxis for consistent plotting.
+    :type ylim: tuple
+    """
+    output_path = os.path.join(output_path, suffix)
+    os.makedirs(output_path, exist_ok=True)
+
+    shp_gdf = gp.GeoDataFrame(geometry=[row[1].geometry], crs=crs)
+    fig, ax = plt.subplots(dpi=150, figsize=(7, 7))
+    shp_gdf.plot(ax=ax, fc="None", ec="C0")
+    shp_gdf.buffer(500).plot(ax=ax, fc="None", ec="None")
+    u4plotfmt.map_style(ax=ax, divisor=500, crs=crs)
+    fig.tight_layout()
+    region = gp.GeoDataFrame(
+        geometry=[u4spatial.bounds_to_polygon(ax)], crs=crs
+    )
+    u4ax.add_diff_plan(ax, region, diff_plan_path)
+    ax.set_xlim(xlim)
+    ax.set_ylim(ylim)
+
+    fig.tight_layout()
+    fig.savefig(os.path.join(output_path, f"{row[1].group:05}_diffplan.png"))
+    fig.savefig(os.path.join(output_path, f"{row[1].group:05}_diffplan.pdf"))
+    plt.close(fig)
+
+
+def detailed_map(
+    row: tuple,
+    crs: str,
+    output_path: os.PathLike,
+    suffix: str,
+    hlnug_path: os.PathLike,
+    contour_path: os.PathLike,
+) -> Tuple[tuple, tuple]:
+    """Makes a detailed overview map of the region including some geological features.
+
+    :param row: The index and data for the area of interest.
+    :type row: tuple
+    :param crs: The coordinate system of the dataset.
+    :type crs: str
+    :param output_path: The folder where to store the output plots.
+    :type output_path: os.PathLike
+    :param suffix: The subfolder to use for saving.
+    :type suffix: str
+    :param hlnug_path: The path where the HLNUG data is found.
+    :type hlnug_path: os.PathLike
+    :param contour_path: The path where the contour dataset is found.
+    :type contour_path: os.PathLike
+    :return: The limits of the x and y axis for consistent plotting with other functions.
+    :rtype: Tuple[tuple, tuple]
+    """
+    output_path = os.path.join(output_path, suffix)
+    os.makedirs(output_path, exist_ok=True)
+
+    shp_gdf = gp.GeoDataFrame(geometry=[row[1].geometry], crs=crs)
+    fig, ax = plt.subplots(dpi=150, figsize=(7, 7))
+    shp_gdf.plot(ax=ax, fc="None", ec="C0")
+    shp_gdf.buffer(500).plot(ax=ax, fc="None", ec="None")
+
+    u4plotfmt.map_style(ax=ax, divisor=500, crs=crs)
+    fig.tight_layout()
+    xlim = ax.get_xlim()
+    ylim = ax.get_ylim()
+    u4ax.add_hlnug_data(
+        ax,
+        hlnug_path,
+        "rutschungen_mittelpunkte_2021_06_21",
+        color="k",
+        marker="$\Swarrow$",
+        markersize=30,
+        label="Rutschungen, Mittelpunkte",
+    )
+    u4ax.add_hlnug_data(
+        ax,
+        hlnug_path,
+        "steinschlag_punkte",
+        color="k",
+        marker="$\therefore$",
+        markersize=30,
+        label="Steinschläge",
+    )
+    u4ax.add_hlnug_data(
+        ax,
+        hlnug_path,
+        "Erdfaelle_merged",
+        color="k",
+        marker="$\odot$",
+        markersize=30,
+        label="Erdfälle",
+    )
+    u4ax.add_hlnug_data(
+        ax,
+        hlnug_path,
+        "senkungsmulden",
+        facecolor="None",
+        edgecolor="k",
+        linestyle=":",
+        label="Senkungsmulden",
+    )
+    u4ax.add_hlnug_data(
+        ax,
+        contour_path,
+        "thresholded_contours_all_shapes",
+        fc="None",
+        column="color_levels",
+    )
+    ax.annotate(
+        row[1].locations.replace(", ", "\n")[:-1],
+        (0.99, 0.01),
+        xycoords="axes fraction",
+        horizontalalignment="right",
+        verticalalignment="bottom",
+        zorder=10,
+    )
+    ax.legend(
+        loc="upper right",
+    )
+    ax.set_xlim(xlim)
+    ax.set_ylim(ylim)
+    u4ax.add_basemap(
+        ax=ax, crs=crs, source=contextily.providers.CartoDB.Voyager
+    )
+    fig.tight_layout()
+    fig.savefig(os.path.join(output_path, f"{row[1].group:05}_map.png"))
+    fig.savefig(os.path.join(output_path, f"{row[1].group:05}_map.pdf"))
+    plt.close(fig)
+    return (xlim, ylim)
+
+
+def timeseries_map(
+    row: tuple,
+    crs: str,
+    output_path: os.PathLike,
+    suffix: str,
+    xlim: tuple,
+    ylim: tuple,
+    psi_path: os.PathLike,
+) -> Tuple[tuple, tuple]:
+    """Makes a detailed overview map of the region including some geological features.
+
+    :param row: The index and data for the area of interest.
+    :type row: tuple
+    :param crs: The coordinate system of the dataset.
+    :type crs: str
+    :param output_path: The folder where to store the output plots.
+    :type output_path: os.PathLike
+    :param suffix: The subfolder to use for saving.
+    :type suffix: str
+    :param hlnug_path: The path where the HLNUG data is found.
+    :type hlnug_path: os.PathLike
+    :param contour_path: The path where the contour dataset is found.
+    :type contour_path: os.PathLike
+    :return: The limits of the x and y axis for consistent plotting with other functions.
+    :rtype: Tuple[tuple, tuple]
+    """
+    # Set paths
+    output_path = (
+        "/home/rudolf/Documents/umwelt4/SelectedSites_April24/Detailed_Maps"
+    )
+    output_path = os.path.join(output_path, suffix)
+    psi_data_path = os.path.join(output_path, "psi_inv_data")
+    os.makedirs(output_path, exist_ok=True)
+    os.makedirs(psi_data_path, exist_ok=True)
+
+    # Load Data and Invert (again?)
+    shp_gdf = gp.GeoDataFrame(geometry=[row[1].geometry], crs=crs)
+    reg_gdf = gp.GeoDataFrame(
+        geometry=[
+            u4spatial.bounds_to_polygon((xlim[0], xlim[1], ylim[0], ylim[1]))
+        ],
+        crs=crs,
+    )
+    psi_local = u4psi.get_region_data(
+        shp_gdf,
+        f"grp_{row[1].group:05}_local",
+        os.path.join(psi_path, "hessen_l3_clipped.gpkg"),
+    )
+    psi_regional = u4psi.get_region_data(
+        reg_gdf,
+        f"grp_{row[1].group:05}_regional",
+        os.path.join(psi_path, "hessen_l3_clipped.gpkg"),
+    )
+    results = u4proc.invert_psi_dict(
+        psi_local,
+        save_path=os.path.join(psi_data_path, f"grp_{row[1].group:05}.pkl"),
+    )
+
+    fig = plt.figure(figsize=(14, 7), dpi=150)
+    gs = fig.add_gridspec(ncols=2, width_ratios=(1, 2))
+    ax_map = fig.add_subplot(gs[0])
+    ax_ts = fig.add_subplot(gs[1])
+
+    # Plot Map
+    shp_gdf.plot(ax=ax_map, fc="None", ec="C0")
+    shp_gdf.buffer(500).plot(ax=ax_map, fc="None", ec="None")
+    u4spatial.xy_data_to_gdf(
+        psi_regional["x"],
+        psi_regional["y"],
+        psi_regional["mean_vel"],
+        crs=psi_regional["crs"],
+    ).plot(
+        ax=ax_map,
+        column="data",
+        cmap="RdYlBu",
+        vmin=-5,
+        vmax=5,
+        zorder=2,
+        markersize=5,
+        legend=True,
+        legend_kwds={
+            "label": "Mean Vertical Velocity (mm/a)",
+            "orientation": "horizontal",
+            "shrink": 0.7,
+            "extend": "both",
+            "pad": 0.1,
+        },
+    )
+    u4plotfmt.map_style(ax=ax_map, divisor=500, crs=crs)
+    fig.tight_layout()
+    ax_map.set_xlim(xlim)
+    ax_map.set_ylim(ylim)
+    u4ax.add_basemap(
+        ax=ax_map, crs=crs, source=contextily.providers.CartoDB.Voyager
+    )
+
+    # Plot Timeseries
+    u4ax.plot_timeseries_fit(
+        ax=ax_ts, results=results, fit_num=1, annotate=True, show_errors=True
+    )
+    ax_ts.set_xlabel("Time")
+    ax_ts.set_ylabel("Displacement (mm)")
+
+    fig.tight_layout()
+    fig.savefig(os.path.join(output_path, f"{row[1].group:05}_psi.png"))
+    # fig.savefig(os.path.join(output_path, f"{row[1].group:05}_psi.pdf"))
+    plt.close(fig)
