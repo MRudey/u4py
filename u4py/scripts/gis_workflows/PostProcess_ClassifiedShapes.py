@@ -20,8 +20,6 @@ import u4py.utils.projects as u4proj
 
 warnings.filterwarnings("ignore")
 
-GENERATE_PLOTS = True
-
 
 def main():
     project = u4proj.get_project(
@@ -36,8 +34,10 @@ def main():
         interactive=False,
     )
     use_parallel = True
+    generate_plots = False
     generate_pdf = True
 
+    # Setting up paths
     output_path = os.path.join(
         project["paths"]["output_path"], "Detailed_Maps"
     )
@@ -65,82 +65,102 @@ def main():
 
     # Read Data
     if not os.path.exists(cls_shp_fp_filtered):
-        class_shp_gdf = gp.read_file(class_shp_fp)
-
-        lands_f = class_shp_gdf.landslides_num_inside > 0
-        karst_f = class_shp_gdf.karst_num_inside > 0
-        rockf_f = class_shp_gdf.rockfall_num_inside > 0
-        motor_f = class_shp_gdf.roads_has_motorway == "1"
-
-        filter_all = np.logical_or(np.logical_or(lands_f, karst_f), rockf_f)
-
-        filter_all_w_mw = np.logical_and(
-            np.logical_or(filter_all, motor_f), np.logical_not(filter_all)
+        gdf_filtered = filter_shapes(
+            class_shp_fp, cls_shp_fp_filtered, project
         )
-
-        gdf_filtered = class_shp_gdf[filter_all]
-
-        cached_locations = os.path.join(
-            project["paths"]["results_path"], "cached_locations.txt"
-        )
-        if not os.path.exists(cached_locations):
-            locations = u4spatial.reverse_geolocate(gdf_filtered)
-            with open(cached_locations, "wt", encoding="utf-8") as cache:
-                for loc in locations:
-                    cache.write(loc + "\n")
-        else:
-            with open(
-                cached_locations, "rt", encoding="utf-8", newline="\n"
-            ) as cache:
-                locations = cache.readlines()
-        if len(locations) != len(gdf_filtered):
-            locations = u4spatial.reverse_geolocate(gdf_filtered)
-            with open(cached_locations, "wt", encoding="utf-8") as cache:
-                for loc in locations:
-                    cache.write(loc + "\n")
-
-        gdf_filtered = gdf_filtered.assign(locations=locations)
-        gdf_filtered.to_file(cls_shp_fp_filtered)
     else:
         gdf_filtered = gp.read_file(cls_shp_fp_filtered)
 
-    # gdf_mw = class_shp_gdf[filter_all_w_mw]
-
-    args = [
-        (
-            row,
-            gdf_filtered.crs,
-            output_path,
-            hlnug_path,
-            project,
-            dem_path,
-            contour_path,
-        )
-        for row in gdf_filtered.iterrows()
-    ]
-
-    if use_parallel:
-        with Pool(u4config.cpu_count - 2) as p:
-            list(
-                tqdm(
-                    p.imap_unordered(wrap_map_worker, args),
-                    total=len(args),
-                    desc="Generating Reports",
-                    leave=False,
-                )
+    # Generating Plots
+    if generate_plots:
+        # Assembling arguments for processing
+        args = [
+            (
+                row,
+                gdf_filtered.crs,
+                output_path,
+                hlnug_path,
+                project,
+                dem_path,
+                contour_path,
             )
+            for row in gdf_filtered.iterrows()
+        ]
+        if use_parallel:
+            with Pool(u4config.cpu_count - 2) as p:
+                list(
+                    tqdm(
+                        p.imap_unordered(wrap_map_worker, args),
+                        total=len(args),
+                        desc="Generating Plots",
+                        leave=False,
+                    )
+                )
+        else:
+            for arg in tqdm(
+                args,
+                total=len(args),
+                desc="Generating Plots",
+                leave=False,
+            ):
+                wrap_map_worker(arg)
 
-    else:
-        for arg in tqdm(
-            args,
-            total=len(args),
-            desc="Generating Reports",
-            leave=False,
-        ):
-            wrap_map_worker(arg)
-
+    # Generating TeX and final PDF
     if generate_pdf:
+        for row in tqdm(
+            gdf_filtered.iterrows(),
+            desc="Generating tex files",
+            total=len(gdf_filtered),
+        ):
+            u4rep.make_tex_report(row, output_path, "tex_includes")
         u4rep.create_report(output_path)
+
+
+def filter_shapes(
+    input_path: os.PathLike,
+    output_path: os.PathLike,
+    project: configparser.ConfigParser,
+):
+    """Filters the classified shapes by known geohazards
+
+    :param input_path: The path to the file where all classified shapes are located.
+    :type input_path: os.PathLike
+    :param output_path: Path where to save the filtered shapes as shapefile.
+    :type output_path: os.PathLike
+    :param project: The project config for paths etc...
+    :type project: configparser.ConfigParser
+    """
+    class_shp_gdf = gp.read_file(input_path)
+
+    lands_f = class_shp_gdf.landslides_num_inside > 0
+    karst_f = class_shp_gdf.karst_num_inside > 0
+    rockf_f = class_shp_gdf.rockfall_num_inside > 0
+    filter_all = np.logical_or(np.logical_or(lands_f, karst_f), rockf_f)
+    gdf_filtered = class_shp_gdf[filter_all]
+
+    # Do a reverse geocoding to get the address of the locations.
+    cached_locations = os.path.join(
+        project["paths"]["results_path"], "cached_locations.txt"
+    )
+    if not os.path.exists(cached_locations):
+        locations = u4spatial.reverse_geolocate(gdf_filtered)
+        with open(cached_locations, "wt", encoding="utf-8") as cache:
+            for loc in locations:
+                cache.write(loc + "\n")
+    else:
+        with open(
+            cached_locations, "rt", encoding="utf-8", newline="\n"
+        ) as cache:
+            locations = cache.readlines()
+    if len(locations) != len(gdf_filtered):
+        locations = u4spatial.reverse_geolocate(gdf_filtered)
+        with open(cached_locations, "wt", encoding="utf-8") as cache:
+            for loc in locations:
+                cache.write(loc + "\n")
+    gdf_filtered = gdf_filtered.assign(locations=locations)
+
+    gdf_filtered.to_file(output_path)
+    return gdf_filtered
 
 
 def wrap_map_worker(args: tuple):
@@ -179,83 +199,79 @@ def map_worker(
     :type contour_path: os.PathLike
     """
 
-    if GENERATE_PLOTS:
-        xlim, ylim = u4plots.detailed_map(
+    xlim, ylim = u4plots.detailed_map(
+        row,
+        crs,
+        output_path,
+        "known_features",
+        hlnug_path,
+        contour_path,
+    )
+    u4plots.satimg_map(row, crs, output_path, "known_features", xlim, ylim)
+    u4plots.diffplan_map(
+        row,
+        crs,
+        output_path,
+        "known_features",
+        project["paths"]["diff_plan_path"],
+        xlim,
+        ylim,
+    )
+    u4plots.dem_map(
+        row,
+        crs,
+        output_path,
+        "known_features",
+        dem_path,
+        xlim,
+        ylim,
+    )
+    u4plots.slope_map(
+        row,
+        crs,
+        output_path,
+        "known_features",
+        dem_path,
+        xlim,
+        ylim,
+    )
+    u4plots.geology_map(
+        row,
+        crs,
+        output_path,
+        "known_features",
+        xlim,
+        ylim,
+        os.path.join(project["paths"]["places_path"], "legend_GK25.pkl"),
+    )
+    u4plots.hydrogeology_map(
+        row,
+        crs,
+        output_path,
+        "known_features",
+        xlim,
+        ylim,
+        os.path.join(project["paths"]["places_path"], "legend_HUEK200.pkl"),
+    )
+    u4plots.topsoil_map(
+        row,
+        crs,
+        output_path,
+        "known_features",
+        xlim,
+        ylim,
+        os.path.join(project["paths"]["places_path"], "legend_BFD50.pkl"),
+    )
+    if row[1].timeseries_num_psi > 5:
+        u4plots.timeseries_map(
             row,
             crs,
             output_path,
             "known_features",
-            hlnug_path,
-            contour_path,
-        )
-        u4plots.satimg_map(row, crs, output_path, "known_features", xlim, ylim)
-        u4plots.diffplan_map(
-            row,
-            crs,
-            output_path,
-            "known_features",
-            project["paths"]["diff_plan_path"],
             xlim,
             ylim,
+            os.path.join(project["paths"]["psi_path"]),
         )
-        u4plots.dem_map(
-            row,
-            crs,
-            output_path,
-            "known_features",
-            dem_path,
-            xlim,
-            ylim,
-        )
-        u4plots.slope_map(
-            row,
-            crs,
-            output_path,
-            "known_features",
-            dem_path,
-            xlim,
-            ylim,
-        )
-        u4plots.geology_map(
-            row,
-            crs,
-            output_path,
-            "known_features",
-            xlim,
-            ylim,
-            os.path.join(project["paths"]["places_path"], "legend_GK25.pkl"),
-        )
-        u4plots.hydrogeology_map(
-            row,
-            crs,
-            output_path,
-            "known_features",
-            xlim,
-            ylim,
-            os.path.join(
-                project["paths"]["places_path"], "legend_HUEK200.pkl"
-            ),
-        )
-        u4plots.topsoil_map(
-            row,
-            crs,
-            output_path,
-            "known_features",
-            xlim,
-            ylim,
-            os.path.join(project["paths"]["places_path"], "legend_BFD50.pkl"),
-        )
-        if row[1].timeseries_num_psi > 5:
-            u4plots.timeseries_map(
-                row,
-                crs,
-                output_path,
-                "known_features",
-                xlim,
-                ylim,
-                os.path.join(project["paths"]["psi_path"]),
-            )
-    u4rep.make_tex_report(row, output_path, "tex_includes")
 
 
 if __name__ == "__main__":
