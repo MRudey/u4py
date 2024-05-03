@@ -56,6 +56,7 @@ def main_report(output_path: os.PathLike):
     subprocess.run(["pdflatex", f"{report_path}"], cwd=report_out_path)
     subprocess.run(["pdflatex", f"{report_path}"], cwd=report_out_path)
     subprocess.run(["pdflatex", f"{report_path}"], cwd=report_out_path)
+    clean_aux_files(report_out_path)
 
 
 def clean_aux_files(report_out_path: os.PathLike):
@@ -156,12 +157,15 @@ def location(series: gp.GeoSeries) -> str:
     lng = np.round(float(wgs_point.geometry.x), 6)
 
     tex = (
-        +f"\\textbf{{Lokalität:}} {series.locations}\n\n"
+        f"\\textbf{{Lokalität:}} {series.locations}\n\n"
         + f"\\textbf{{Koordinaten (UTM 32N):}} "
         + f"{int(series.geometry.centroid.y)}\\,N "
         + f"{int(series.geometry.centroid.x)}\\,E\n\n"
         + f"\\textbf{{Google Maps:}} "
         + f"\\href{{https://www.google.com/maps/place/{lat},{lng}/@{lat},{lng}/data=!3m1!1e3}}"
+        + f"{{\\faExternalLink {np.round(lat,3)}\\,N, {np.round(lng,3)}\\,E}}\n\n"
+        + f"\\textbf{{Bing Maps:}} "
+        + f"\\href{{https://bing.com/maps/default.aspx?cp={lat}~{lng}&style=h&lvl=15}}"
         + f"{{\\faExternalLink {np.round(lat,3)}\\,N, {np.round(lng,3)}\\,E}}\n\n"
         + f"\\textbf{{OpenStreetMap:}} "
         + f"\\href{{http://www.openstreetmap.org/?lat={lat}&lon={lng}&zoom=17&layers=M}}"
@@ -231,7 +235,7 @@ def vol_str(val: float) -> str:
 
 
 def difference(img_path: os.PathLike) -> str:
-    """Adds the difference maps.
+    """Adds the difference and slope maps.
 
     :param img_path: The path to the image folder including group name.
     :type img_path: os.PathLike
@@ -246,8 +250,25 @@ def difference(img_path: os.PathLike) -> str:
         + "  \\end{subfigure}\n\hfill\n"
         + "  \\begin{subfigure}[][][t]{.45\\textwidth}\n"
         + "\\centering\n"
+        + f"  \\includegraphics[width=\\textwidth]{{{img_path+'_dem.pdf'}}}\n"
+        + "  \\caption{Digitales Höhenmodell (Schummerung).}\n"
+        + "  \\end{subfigure}\n\hfill\n"
+        + "  \\caption{Höhenmodell und dessen Veränderung im Gebiet.}"
+        + "\\end{figure}\n\n"
+        + "\\begin{figure}[!ht]\n"
+        + "  \\begin{subfigure}[][][t]{.3\\textwidth}\n"
         + f"  \\includegraphics[width=\\textwidth]{{{img_path+'_slope.pdf'}}}\n"
-        + "  \\caption{Böschungswinkel im Gebiet der Gruppe.}\n"
+        + "  \\caption{Steigung}\n"
+        + "  \\end{subfigure}\n\hfill\n"
+        + "  \\begin{subfigure}[][][t]{.3\\textwidth}\n"
+        + "\\centering\n"
+        + f"  \\includegraphics[width=\\textwidth]{{{img_path+'_aspect.pdf'}}}\n"
+        + "  \\caption{Exposition.}\n"
+        + "  \\end{subfigure}\n\hfill\n"
+        + "  \\begin{subfigure}[][][t]{.3\\textwidth}\n"
+        + "\\centering\n"
+        + f"  \\includegraphics[width=\\textwidth]{{{img_path+'_aspect_slope.pdf'}}}\n"
+        + "  \\caption{Steigung und Exposition}\n"
         + "  \\end{subfigure}\n\hfill\n"
         + "  \\caption{Topographie im Gebiet.}"
         + "\\end{figure}\n\n"
@@ -291,11 +312,21 @@ def slope_str(val: float) -> str:
     :return: The descriptive text.
     :rtype: str
     """
-    if val < 5:
-        return "überwiegend flach"
-    elif val < 10:
-        return "leicht abschüssig"
-    elif val < 30:
+    if val < 1.1:
+        return "nahezu eben"
+    if val < 3.0:
+        return "sehr leicht fallend"
+    if val < 5.0:
+        return "sanft geneigt"
+    if val < 8.5:
+        return "mäßig geneigt"
+    if val < 16.5:
+        return "stark ansteigend"
+    if val < 24.0:
+        return "sehr stark ansteigend"
+    if val < 35.0:
+        return "extrem ansteigend"
+    if val < 45.0:
         return "steil"
     else:
         return "sehr steil"
@@ -309,10 +340,12 @@ def slope_std_str(val: float) -> str:
     :return: The descriptive text.
     :rtype: str
     """
-    if val < 0.1:
+    if val < 5:
         return "gleichmäßig"
-    elif val < 0.5:
+    elif val < 10:
         return "etwas unregelmäßig"
+    elif val < 15:
+        return "unregelmäßig"
     else:
         return "sehr variabel"
 
@@ -326,13 +359,14 @@ def landuse(series: gp.GeoSeries) -> str:
     :rtype: str
     """
     landuse = ""
+    tex = ""
     try:
         landuse = eval(series.landuse_names)
     except NameError:
         landuse = series.landuse_names
     landuse_perc = eval(series.landuse_percent)
     if landuse:
-        tex = (
+        tex += (
             "Der überwiegende Teil wird durch "
             + f"{landuse_str(series.landuse_major)} bedeckt. "
             + f"Die Anteile der Landnutzung sind: \n\n"
@@ -343,6 +377,7 @@ def landuse(series: gp.GeoSeries) -> str:
             tex = tex[:-2] + ".\n"
         else:
             tex += f"{landuse_perc:.1f}\\% {landuse_str(landuse)}"
+    return tex
 
 
 def landuse_str(in_str: str) -> str:

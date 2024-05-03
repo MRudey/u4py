@@ -15,6 +15,7 @@ All functions should follow the following template::
 
 from __future__ import annotations
 
+import logging
 import os
 from datetime import datetime
 from functools import wraps
@@ -29,7 +30,7 @@ import rasterio.plot as rioplot
 import scipy.stats as spstats
 import skimage.transform as sktransf
 from matplotlib.axes import Axes
-from matplotlib.colors import LightSource
+from matplotlib.colors import hsv_to_rgb
 from matplotlib.figure import Figure
 from pyproj import CRS
 
@@ -583,9 +584,6 @@ def add_tile(
     show: bool = True,
     cmap: str = "RdYlBu",
     colorbar: dict = dict(),
-    slope: bool = False,
-    hillshade: bool = False,
-    multidir: bool = False,
     **kwargs,
 ) -> Tuple[tuple, str]:
     """Adds a tiff file to the given axis.
@@ -604,12 +602,6 @@ def add_tile(
     :type cmap: str, optional
     :param colorbar: Arguments passed to the colorbar, defaults to empty dict()
     :type colorbar: dict, optional
-    :param slope: Create a slope plot, defaults to False
-    :type slope: bool, optional
-    :param hillshade: Create a hillshade plot, defaults to False
-    :type hillshade: bool, optional
-    :param multidir: Whether to create a multidirectional hillshade, defaults to False
-    :type multidir: bool, optional
     :param kwargs: Additional arguments passed to plt.plot().
     :type kwargs: dict
     :return: The boundaries and crs of the tile (bounds, crs).
@@ -638,57 +630,21 @@ def add_tile(
             elif isinstance(vm, (float, int)):
                 vmin = -vm
                 vmax = vm
-            if not hillshade and not slope:
-                ims = ax.imshow(
-                    tile_resized,
-                    cmap=cmap,
-                    vmin=vmin,
-                    vmax=vmax,
-                    extent=(
-                        tiff_tile.bounds.left,
-                        tiff_tile.bounds.right,
-                        tiff_tile.bounds.bottom,
-                        tiff_tile.bounds.top,
-                    ),
-                    **kwargs,
-                )
-            elif hillshade:
-                if multidir:
-                    ls = LightSource(azdeg=0, altdeg=45)
-                    hs = ls.hillshade(tile_resized, vert_exag=5)
-                    for azdeg in np.linspace(60, 300, 5):
-                        ls = LightSource(azdeg=azdeg, altdeg=45)
-                        hs += ls.hillshade(tile_resized, vert_exag=5)
-                    hs /= 6
-                else:
-                    ls = LightSource(azdeg=315, altdeg=45)
-                    hs = ls.hillshade(tile_resized, vert_exag=3)
 
-                ims = ax.imshow(
-                    hs,
-                    cmap=cmap,
-                    extent=(
-                        tiff_tile.bounds.left,
-                        tiff_tile.bounds.right,
-                        tiff_tile.bounds.bottom,
-                        tiff_tile.bounds.top,
-                    ),
-                    **kwargs,
-                )
-            elif slope:
-                ims = ax.imshow(
-                    u4spatial.dem_slope(tile_resized),
-                    cmap=cmap,
-                    vmin=vmin,
-                    vmax=vmax,
-                    extent=(
-                        tiff_tile.bounds.left,
-                        tiff_tile.bounds.right,
-                        tiff_tile.bounds.bottom,
-                        tiff_tile.bounds.top,
-                    ),
-                    **kwargs,
-                )
+            ims = ax.imshow(
+                tile_resized,
+                cmap=cmap,
+                vmin=vmin,
+                vmax=vmax,
+                extent=(
+                    tiff_tile.bounds.left,
+                    tiff_tile.bounds.right,
+                    tiff_tile.bounds.bottom,
+                    tiff_tile.bounds.top,
+                ),
+                **kwargs,
+            )
+
             ax.yaxis.set_inverted(False)
             if colorbar:
                 plt.colorbar(ims, ax=ax, **colorbar)
@@ -727,6 +683,8 @@ def add_diff_plan(ax: Axes, region: gp.GeoDataFrame, tiff_folder: os.PathLike):
                 )
             else:
                 add_tile(fpath, ax=ax, vm=2, cmap="RdBu")
+    else:
+        logging.info("No diff plan tiles in region found.")
 
 
 def add_dem(ax: Axes, region: gp.GeoDataFrame, tiff_folder: os.PathLike):
@@ -744,7 +702,10 @@ def add_dem(ax: Axes, region: gp.GeoDataFrame, tiff_folder: os.PathLike):
     file_list = [file_list[ii] for ii in points.source_ind]
     if len(file_list) > 0:
         for fpath in file_list:
-            add_tile(fpath, ax=ax, cmap="bone", hillshade=True, multidir=True)
+            hs_fpath = u4tiff.get_terrain(fpath, terrain_feature="hillshade")
+            add_tile(hs_fpath, ax=ax, cmap="bone")
+    else:
+        logging.info("No dem tiles in region found.")
 
 
 def add_slope(ax: Axes, region: gp.GeoDataFrame, tiff_folder: os.PathLike):
@@ -762,15 +723,15 @@ def add_slope(ax: Axes, region: gp.GeoDataFrame, tiff_folder: os.PathLike):
     file_list = [file_list[ii] for ii in points.source_ind]
     if len(file_list) > 0:
         for ii, fpath in enumerate(file_list):
+            sl_fpath = u4tiff.get_terrain(fpath, terrain_feature="slope")
             if ii > 0:
-                add_tile(fpath, ax=ax, cmap="inferno", slope=True, vm=(0, 45))
+                add_tile(sl_fpath, ax=ax, cmap="inferno", vm=(0, 45))
             else:
                 add_tile(
-                    fpath,
+                    sl_fpath,
                     ax=ax,
                     cmap="inferno",
                     vm=(0, 45),
-                    slope=True,
                     colorbar={
                         "label": "Hangneigung (°)",
                         "shrink": 0.7,
@@ -778,26 +739,154 @@ def add_slope(ax: Axes, region: gp.GeoDataFrame, tiff_folder: os.PathLike):
                         # "pad": 0.05,
                     },
                 )
+    else:
+        logging.info("No tiff tiles in region found.")
 
 
-def add_hlnug_data(
-    ax: Axes, hlnug_path: os.PathLike, table: str, **plot_kwargs
-):
-    """Adds data from the HLNUG database to the plot.
+def add_aspect(ax: Axes, region: gp.GeoDataFrame, tiff_folder: os.PathLike):
+    """Adds an aspect map to the axis.
 
     :param ax: The axis to plot into.
     :type ax: Axes
-    :param hlnug_path: The path to the geodatabase with HLNUG data.
-    :type hlnug_path: os.PathLike
+    :param region: The region where to extract the data.
+    :type region: gp.GeoDataFrame
+    :param tiff_folder: The folder where the data is found.
+    :type tiff_folder: os.PathLike
+    """
+    file_list = u4files.get_file_list_adf(tiff_folder)
+    points = u4spatial.select_points_region(region, file_list)
+    file_list = [file_list[ii] for ii in points.source_ind]
+    if len(file_list) > 0:
+        for ii, fpath in enumerate(file_list):
+            as_fpath = u4tiff.get_terrain(fpath, terrain_feature="aspect")
+            if ii > 0:
+                add_tile(as_fpath, ax=ax, cmap="hsv", vm=(0, 360))
+            else:
+                add_tile(
+                    as_fpath,
+                    ax=ax,
+                    cmap="hsv",
+                    vm=(0, 360),
+                    colorbar={
+                        "label": "Exposition (°)",
+                        "shrink": 0.7,
+                        "ticks": [0, 90, 180, 270, 360],
+                        # "pad": 0.05,
+                    },
+                )
+    else:
+        logging.info("No tiff tiles in region found.")
+
+
+def add_aspect_slope(
+    ax: Axes, region: gp.GeoDataFrame, tiff_folder: os.PathLike
+):
+    """Adds an aspect-slope map to the axis.
+
+    :param ax: The axis to plot into.
+    :type ax: Axes
+    :param region: The region where to extract the data.
+    :type region: gp.GeoDataFrame
+    :param tiff_folder: The folder where the data is found.
+    :type tiff_folder: os.PathLike
+    """
+    file_list = u4files.get_file_list_adf(tiff_folder)
+    points = u4spatial.select_points_region(region, file_list)
+    file_list = [file_list[ii] for ii in points.source_ind]
+    if len(file_list) > 0:
+        for ii, fpath in enumerate(file_list):
+            as_fpath = u4tiff.get_terrain(fpath, terrain_feature="aspect")
+            sl_fpath = u4tiff.get_terrain(fpath, terrain_feature="slope")
+            with rasterio.open(as_fpath) as tiff_tile:
+                as_val = tiff_tile.read(1) / 360
+                if ii == 0:
+                    add_tile(
+                        as_fpath,
+                        ax=ax,
+                        cmap="hsv",
+                        vm=(0, 360),
+                        colorbar={
+                            "label": "Exposition (°)",
+                            "shrink": 0.7,
+                            "ticks": [0, 90, 180, 270, 360],
+                            # "pad": 0.05,
+                        },
+                    )
+            with rasterio.open(sl_fpath) as tiff_tile:
+                sl_val = tiff_tile.read(1) / 45
+                sl_val[sl_val > 0.999] = 0.999
+                rgb = hsv_to_rgb(
+                    np.stack((as_val, sl_val, np.ones_like(sl_val)), axis=2)
+                )
+                ax.imshow(
+                    rgb,
+                    extent=(
+                        tiff_tile.bounds.left,
+                        tiff_tile.bounds.right,
+                        tiff_tile.bounds.bottom,
+                        tiff_tile.bounds.top,
+                    ),
+                )
+    else:
+        logging.info("No tiff tiles in region found.")
+
+
+def add_gpkg_data_in_axis(
+    ax: Axes, gpkg_path: os.PathLike, table: str, **plot_kwargs
+):
+    """Adds data from a gpkg file to the plot using the boundaries of the axis as the extend of the geometry
+
+    :param ax: The axis to plot into.
+    :type ax: Axes
+    :param gpkg_path: The path to the geodatabase with HLNUG data.
+    :type gpkg_path: os.PathLike
     :param table: The sql table name to use.
     :type table: str
+    :param **plot_kwargs: Keyword arguments passed to the `GeoDataFrame.plot()` function.
+    :type **plot_kwargs: dict
     """
-    crs = u4sql.get_crs(hlnug_path, table)[0]
+    crs = u4sql.get_crs(gpkg_path, table)[0]
     region = gp.GeoDataFrame(
         geometry=[u4spatial.bounds_to_polygon(ax)], crs=crs
     )
     data = u4gpkg.load_gpkg_data_region_ogr(
-        region, hlnug_path, table, clip=False
+        region, gpkg_path, table, clip=False
     )
     if len(data) > 0:
         data.plot(ax=ax, **plot_kwargs)
+    else:
+        logging.info("No data inside axis found.")
+
+
+def add_gpkg_data_where(
+    ax: Axes,
+    gpkg_path: os.PathLike,
+    table: str,
+    where: str,
+    buffer: float = 0,
+    **plot_kwargs,
+):
+    """Adds data from a gpkg file using a where clause, e.g., to only plot geometries in a certain group.
+
+    :param ax: The axis to plot into.
+    :type ax: Axes
+    :param gpkg_path: The path to the geodatabase.
+    :type gpkg_path: os.PathLike
+    :param table: The sql table to use.
+    :type table: str
+    :param where: The where clause used for filtering (in OGRSQL).
+    :type where: str
+    :param buffer: A buffer distance used to improve the visibility of underlying features, defaults to 0.
+    :type buffer: float
+    :param **plot_kwargs: Keyword arguments passed to the `GeoDataFrame.plot()` function.
+    :type **plot_kwargs: dict
+    """
+    data = u4gpkg.load_gpkg_data_where_ogr(gpkg_path, table, where)
+    if len(data) > 0:
+        if buffer:
+            data.buffer(buffer).plot(ax=ax, **plot_kwargs)
+        else:
+            data.plot(ax=ax, **plot_kwargs)
+
+    else:
+        logging.info(f"No data found where: {where}")

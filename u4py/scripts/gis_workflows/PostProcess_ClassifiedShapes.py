@@ -19,6 +19,7 @@ import u4py.utils.config as u4config
 import u4py.utils.projects as u4proj
 
 warnings.filterwarnings("ignore")
+# u4config.start_logger()
 
 
 def main():
@@ -34,7 +35,7 @@ def main():
         interactive=False,
     )
     use_parallel = True
-    generate_plots = False
+    generate_plots = True
     generate_pdf = True
 
     # Setting up paths
@@ -59,7 +60,7 @@ def main():
         "raster_2021",
     )
     contour_path = os.path.join(
-        project["paths"]["diff_plan_path"],
+        project["paths"]["results_path"],
         "thresholded_contours_all_shapes.gpkg",
     )
 
@@ -207,7 +208,9 @@ def map_worker(
         hlnug_path,
         contour_path,
     )
-    u4plots.satimg_map(row, crs, output_path, "known_features", xlim, ylim)
+    u4plots.satimg_map(
+        row, crs, output_path, "known_features", contour_path, xlim, ylim
+    )
     u4plots.diffplan_map(
         row,
         crs,
@@ -223,6 +226,7 @@ def map_worker(
         output_path,
         "known_features",
         dem_path,
+        contour_path,
         xlim,
         ylim,
     )
@@ -232,6 +236,27 @@ def map_worker(
         output_path,
         "known_features",
         dem_path,
+        contour_path,
+        xlim,
+        ylim,
+    )
+    u4plots.aspect_map(
+        row,
+        crs,
+        output_path,
+        "known_features",
+        dem_path,
+        contour_path,
+        xlim,
+        ylim,
+    )
+    u4plots.aspect_slope_map(
+        row,
+        crs,
+        output_path,
+        "known_features",
+        dem_path,
+        contour_path,
         xlim,
         ylim,
     )
@@ -240,6 +265,7 @@ def map_worker(
         crs,
         output_path,
         "known_features",
+        contour_path,
         xlim,
         ylim,
         os.path.join(project["paths"]["places_path"], "legend_GK25.pkl"),
@@ -249,6 +275,7 @@ def map_worker(
         crs,
         output_path,
         "known_features",
+        contour_path,
         xlim,
         ylim,
         os.path.join(project["paths"]["places_path"], "legend_HUEK200.pkl"),
@@ -258,6 +285,7 @@ def map_worker(
         crs,
         output_path,
         "known_features",
+        contour_path,
         xlim,
         ylim,
         os.path.join(project["paths"]["places_path"], "legend_BFD50.pkl"),
@@ -268,6 +296,7 @@ def map_worker(
             crs,
             output_path,
             "known_features",
+            contour_path,
             xlim,
             ylim,
             os.path.join(project["paths"]["psi_path"]),
