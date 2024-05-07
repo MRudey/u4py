@@ -349,3 +349,43 @@ def load_gpkg_data_region_ogr(
         return gdf
     else:
         return []
+
+
+def load_gpkg_data_where_ogr(
+    gpkg_file_path: os.PathLike,
+    table: str = "",
+    where: str = "",
+    crs: str = "EPSG:32632",
+) -> gp.GeoDataFrame:
+    """Uses OGR to read data from a table in a gpkg file with a specific where clause.
+
+    :param gpkg_file_path: The path to the gpkg database.
+    :type gpkg_file_path: os.PathLike
+    :param table: The table where to find the data, defaults to ""
+    :type table: str, optional
+    :param where: The where clause for selection
+    :type where: str
+    :return: The shapes where the `where` clause is true.
+    :rtype: gp.GeoDataFrame
+    """
+
+    # Check tables
+    if not table:
+        tables = u4sql.get_tables(gpkg_file_path)
+        if len(tables) < 1:
+            raise ValueError("File does not contain any tables")
+        elif len(tables) == 1:
+            table = tables[0]
+        else:
+            raise ValueError(
+                f"File contains several tables, please specify appropriate table from: {tables}"
+            )
+
+    data = u4sql.ogr_where_select(gpkg_file_path, table, where)
+    if data:
+        gpkg_crs = u4sql.get_crs(gpkg_file_path, table)[0]
+        gdf = gp.GeoDataFrame(data, crs=gpkg_crs)
+        gdf = gdf.to_crs(crs)
+        return gdf
+    else:
+        return []

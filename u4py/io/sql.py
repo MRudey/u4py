@@ -925,3 +925,41 @@ def get_geometry_column(gpkg_path: os.PathLike, table: str = "") -> list[str]:
     column_name = [layer.column_name for layer in query]
     con = None
     return column_name
+
+
+def ogr_where_select(gpkg_path: os.PathLike, table: str, where: str) -> dict:
+    """Selects all features from the given gpkg file in the table where `where` clause is True.
+
+    :param gpkg_path: The path to the gpkg file.
+    :type gpkg_path: os.PathLike
+    :param table: The table where to extract the data.
+    :type table: str
+    :param where: The where clause for selection
+    :type where: str
+    :return: A dictionary to create a geodataframe with all the geometries.
+    :rtype: dict
+    """
+
+    # Get some info from the file
+    geom_col = get_geometry_column(gpkg_path, table)[0]
+
+    # Formulate query
+    sql_query = f"SELECT * FROM '{table}' WHERE {where}"
+
+    # Get the data
+    con = ogr.Open(gpkg_path)
+    logging.info("Querying for features")
+    query = con.ExecuteSQL(sql_query)
+    data = dict()
+    for layer in query:
+        geom = layer[geom_col]
+        if geom:  # Sometimes the geometries are empty...?
+            if not data:
+                for field in layer.keys():
+                    data[field] = []
+                data["geometry"] = []
+            for field in layer.keys():
+                data[field].append(layer[field])
+            data["geometry"].append(shapely.from_wkt(geom.ExportToWkt()))
+    con = None
+    return data

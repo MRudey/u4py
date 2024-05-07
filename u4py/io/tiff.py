@@ -5,7 +5,7 @@ Functions for handling tiff files.
 import logging
 import os
 from multiprocessing import Pool
-from typing import Callable, Tuple
+from typing import Tuple
 
 import geopandas as gp
 import numpy as np
@@ -13,6 +13,7 @@ import pandas as pd
 import rasterio as rio
 import rasterio.mask as riomask
 import shapely
+from osgeo import gdal
 from tqdm import tqdm
 
 import u4py.analysis.spatial as u4spatial
@@ -472,3 +473,54 @@ def get_tiff_coverage(
         coverage = gp.read_file(coverage_path)
 
     return coverage
+
+
+def get_terrain(
+    file_path: os.PathLike,
+    terrain_feature: str = "slope",
+    overwrite: bool = False,
+) -> os.PathLike:
+    """Uses GDAL to calculate the specified terrain feature of a geotiff file, e.g. the `slope`, `aspect`, `hillshade`, `multi_hillshade`. Stores the results in a separate folder in the input directory for faster access.
+
+    :param file_path: The path to the tiff file.
+    :type file_path: os.PathLike
+    :param terrain_feature: The terrain feature, defaults to "slope"
+    :type terrain_feature: str, optional
+    :param overwrite: Whether to overwrite the existing slope files, defaults to False
+    :type overwrite: bool, optional
+    :return: The file_path to the file where the terrain data is stored.
+    :rtype: os.PathLike
+    """
+
+    processing_keywords = {
+        "slope": {"slopeFormat": "percent"},
+        "aspect": {"zeroForFlat": True},
+        "hillshade": {"zFactor": 3},
+        "multi_hillshade": {"zFactor": 3, "multiDirectional": True},
+    }
+    processing = {
+        "slope": "slope",
+        "aspect": "aspect",
+        "hillshade": "hillshade",
+        "multi_hillshade": "hillshade",
+    }
+
+    source_path, file_name = os.path.split(file_path)
+    base_path = os.path.split(source_path)[0]
+    out_folder = os.path.join(base_path, terrain_feature)
+    os.makedirs(out_folder, exist_ok=True)
+    if not file_name.endswith(".tiff"):
+        out_path = os.path.join(out_folder, file_name + ".tiff")
+    else:
+        out_path = os.path.join(out_folder, file_name)
+
+    if not os.path.exists(out_path) or overwrite:
+        logging.debug(f"Creating slope for {file_name}.")
+        gdal_opts = gdal.DEMProcessingOptions(
+            **processing_keywords[terrain_feature]
+        )  # For now the Options seem not to work properly, DEMProcessing does
+        # not accept further kwargs, even though its mentioned in the
+        # documentation.
+        gdal.DEMProcessing(out_path, file_path, processing[terrain_feature])
+
+    return out_path
