@@ -49,7 +49,7 @@ def get_project(
      - First: "ext_path", "places_path", "output_path", "psi_path", "processing_path", "diff_plan_path", "u4projects_path"
      - Places: "tektonik_path", "bld_path", "piloten_path", "base_map_path", "subsubregions_path"
      - PSI: "psivert_path", "psiew_path"
-     - Results: "results_path"
+     - Results: "results_path", "sites_path"
 
     When a script that uses one of the paths below is run:
 
@@ -174,6 +174,7 @@ def _generate_default() -> configparser.ConfigParser:
         "psiew_path": "%(psi_path)s/BBD_EW",
         # Results paths:
         "results_path": "%(processing_path)s/inversion_results_2023_data.pkl",
+        "sites_path": "%(base_path)s/SelectedSites",
     }
     return project
 

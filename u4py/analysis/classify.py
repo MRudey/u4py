@@ -121,6 +121,9 @@ def classify_shape(
         res["area"] = round(res["geometry"].area, 1)
         res["additional_areas"] = 0
 
+        # Manual Classification
+        res.update(manual_classification(res, sub_set_hull, group, project))
+
         # Roads
         res.update(roads(res, sub_set_hull, osm_path, shp_cfg))
 
@@ -203,6 +206,16 @@ def preallocate_results() -> dict:
         "landuse_percent": [],
         "landuse_total": np.nan,
         "landuse_major": "",
+        "manual_group": np.nan,
+        "manual_known": False,
+        "manual_research": False,
+        "manual_class_1": "",
+        "manual_unclear_1": False,
+        "manual_class_2": "",
+        "manual_unclear_2": False,
+        "manual_class_3": "",
+        "manual_unclear_3": False,
+        "manual_comment": "",
         "roads_has_motorway": np.nan,
         "roads_main_area": np.nan,
         "roads_main": gp.GeoDataFrame(),
@@ -1079,3 +1092,50 @@ def write_fig(
         group,
         save_folder=save_folder,
     )
+
+
+def manual_classification(
+    res: dict,
+    sub_set_hull: shp.Polygon,
+    group: str,
+    project: configparser.ConfigParser,
+) -> dict:
+    """
+    Loads the manually defined classification from a shape-file and checks if
+    the hull overlaps with any of the points. This is necessary because in
+    many cases the number of the group changes and only the spatial
+    association is persisting.
+
+    :param res: The results dictionary.
+    :type res: dict
+    :param sub_set_hull: The hull of the region.
+    :type sub_set_hull: shp.Polygon
+    :param group: The name of the group.
+    :type group: str
+    :param project: The project containing paths.
+    :type project: configparser.ConfigParser
+    :return: The results dictionary with the results appended.
+    :rtype: dict
+    """
+
+    man_path = os.path.join(
+        project["paths"]["sites_path"], "manual_classification.shp"
+    )
+
+    man_gdf = gp.read_file(man_path)
+    interscts = man_gdf.intersects(sub_set_hull)
+    if interscts.any():
+        candidates = man_gdf[interscts]
+        if len(candidates) > 1:
+            logging.info(
+                f"Multiple classifications found for group {group:05}"
+            )
+            for k in candidates:
+                res[f"manual_{k}"] = candidates[k].to_list()
+        else:
+            for k in candidates:
+                res[f"manual_{k}"] = candidates[k]
+    else:
+        logging.info(f"No manual classification found for group {group:05}")
+
+    return res
