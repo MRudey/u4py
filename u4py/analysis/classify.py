@@ -96,10 +96,13 @@ def classify_shape(
         "Classifier_shapes",
         "classifier_shapes.gpkg",
     )
-    dem_path_new = os.path.join(
-        project["paths"]["diff_plan_path"], "DGM1_2021", "raster_2021"
+    dem_path_14 = os.path.join(
+        project["paths"]["diff_plan_path"], "DGM1_2014", "raster_2014"
     )
-    dem_path_old = os.path.join(
+    dem_path_19 = os.path.join(
+        project["paths"]["diff_plan_path"], "DGM1_2019", "raster_2019"
+    )
+    dem_path_21 = os.path.join(
         project["paths"]["diff_plan_path"], "DGM1_2021", "raster_2021"
     )
     diffplan_path = os.path.join(
@@ -138,7 +141,13 @@ def classify_shape(
 
         # Geometry
         res.update(
-            slope(sub_set_hull, shp_gdf, dem_path_new, dem_path_old, group)
+            slope(
+                sub_set_hull,
+                sub_set,
+                dem_path_14,
+                dem_path_19,
+                dem_path_21,
+            )
         )
         res.update(shape(sub_set))
         res.update(volume(sub_set_hull, diffplan_path))
@@ -228,18 +237,24 @@ def preallocate_results() -> dict:
         "shape_ellipse_theta": [],
         "shape_flattening": [],
         "shape_roundness": [],
-        "slope_hull_mean_old": [],
-        "slope_hull_median_old": [],
-        "slope_hull_std_old": [],
-        "slope_polygons_mean_old": [],
-        "slope_polygons_median_old": [],
-        "slope_polygons_std_old": [],
-        "slope_hull_mean_new": [],
-        "slope_hull_median_new": [],
-        "slope_hull_std_new": [],
-        "slope_polygons_mean_new": [],
-        "slope_polygons_median_new": [],
-        "slope_polygons_std_new": [],
+        "slope_hull_mean_14": [],
+        "slope_hull_median_14": [],
+        "slope_hull_std_14": [],
+        "slope_polygons_mean_14": [],
+        "slope_polygons_median_14": [],
+        "slope_polygons_std_14": [],
+        "slope_hull_mean_19": [],
+        "slope_hull_median_19": [],
+        "slope_hull_std_19": [],
+        "slope_polygons_mean_19": [],
+        "slope_polygons_median_19": [],
+        "slope_polygons_std_19": [],
+        "slope_hull_mean_21": [],
+        "slope_hull_median_21": [],
+        "slope_hull_std_21": [],
+        "slope_polygons_mean_21": [],
+        "slope_polygons_median_21": [],
+        "slope_polygons_std_21": [],
         "subsidence_area": [],
         "subsidence_percent": [],
         "subsidence_total": np.nan,
@@ -458,19 +473,13 @@ def landuse(
     if len(landuse_data) > 0:
         # Remove areas that are covered by other features, e.g. roads
         if len(res["roads_main"]) > 0:
-            landuse_data = landuse_data.overlay(
-                res["roads_main"], how="difference"
-            )
+            landuse_data = landuse_data.clip(res["roads_main"])
     if len(landuse_data) > 0:
         if len(res["roads_minor"]) > 0:
-            landuse_data = landuse_data.overlay(
-                res["roads_minor"], how="difference"
-            )
+            landuse_data = landuse_data.clip(res["roads_minor"])
     if len(landuse_data) > 0:
         if len(res["buildings"]) > 0:
-            landuse_data = landuse_data.overlay(
-                res["buildings"], how="difference"
-            )
+            landuse_data = landuse_data.clip(res["buildings"])
 
         # Calculate area
         res["landuse_names"], res["landuse_area"] = u4spatial.area_per_feature(
@@ -517,73 +526,45 @@ def landuse(
 
 def slope(
     sub_set_hull: gp.GeoDataFrame,
-    shp_gdf: gp.GeoDataFrame,
-    dem_path_new: os.PathLike,
-    dem_path_old: os.PathLike,
-    group: str,
+    polygons: gp.GeoDataFrame,
+    dem_path_14: os.PathLike,
+    dem_path_19: os.PathLike,
+    dem_path_21: os.PathLike,
 ) -> dict:
     """Calculates the average slope in the area
 
     :param sub_set_hull: The hull of the area.
     :type sub_set_hull: gp.GeoDataFrame
-    :param shp_gdf: The geodataframe including the polygons of the group.
-    :type shp_gdf: gp.GeoDataFrame
-    :param dem_path_new: The path to the dem folder of the new dem, after the events.
-    :type dem_path_new: os.PathLike
-    :param dem_path_old: The path to the dem folder of the old dem, before the events.
-    :type dem_path_old: os.PathLike
-    :param group: The group name
+    :param polygons: The geodataframe including the polygons of the group.
+    :type polygons: gp.GeoDataFrame
+    :param dem_path_14: The path to the dem folder of the 2014 DEM.
+    :type dem_path_14: os.PathLike
+    :param dem_path_19: The path to the dem folder of the 2019 DEM.
+    :type dem_path_19: os.PathLike
+    :param dem_path_21: The path to the dem folder of the 2021 DEM.
     :type group: str
     :return: The results dictionary with the classified data appended.
     :rtype: dict
     """
-    logging.info("Calculating slope in all polygons")
-    slope_polygons_new = u4spatial.calculate_slope_in_shapes(
-        u4spatial.get_subset(shp_gdf, group), dem_path_new
-    )
-    slope_polygons_old = u4spatial.calculate_slope_in_shapes(
-        u4spatial.get_subset(shp_gdf, group), dem_path_old
-    )
 
-    logging.info("Calculating average slope in hull")
-    slope_hull_new = u4spatial.calculate_slope_in_shapes(
-        sub_set_hull, dem_path_new
-    )
-    slope_hull_old = u4spatial.calculate_slope_in_shapes(
-        sub_set_hull, dem_path_old
-    )
-
+    dems = {
+        14: dem_path_14,
+        19: dem_path_19,
+        21: dem_path_21,
+    }
     res = dict()
-    # Old DEM results (before events)
-    res["slope_polygons_mean_new"] = np.round(
-        slope_polygons_new.slope_mean
-    ).to_list()
-    res["slope_polygons_median_new"] = np.round(
-        slope_polygons_new.slope_median
-    ).to_list()
-    res["slope_polygons_std_new"] = np.round(
-        slope_polygons_new.slope_std
-    ).to_list()
-    res["slope_hull_mean_new"] = np.round(slope_hull_new.slope_mean).to_list()
-    res["slope_hull_median_new"] = np.round(
-        slope_hull_new.slope_median
-    ).to_list()
-    res["slope_hull_std_new"] = np.round(slope_hull_new.slope_std).to_list()
-    # New DEM results (after events)
-    res["slope_polygons_mean_old"] = np.round(
-        slope_polygons_old.slope_mean
-    ).to_list()
-    res["slope_polygons_median_old"] = np.round(
-        slope_polygons_old.slope_median
-    ).to_list()
-    res["slope_polygons_std_old"] = np.round(
-        slope_polygons_old.slope_std
-    ).to_list()
-    res["slope_hull_mean_old"] = np.round(slope_hull_old.slope_mean).to_list()
-    res["slope_hull_median_old"] = np.round(
-        slope_hull_old.slope_median
-    ).to_list()
-    res["slope_hull_std_old"] = np.round(slope_hull_old.slope_std).to_list()
+
+    for year, dem_path in dems.items():
+        logging.debug("Calculating slope in all polygons")
+        slope_polygons = u4tiff.calculate_slope_in_shapes(polygons, dem_path)
+        for kk, val in slope_polygons.items():
+            if val:
+                res[f"slope_polygons_{kk}_{year}"] = np.round(val, 1).tolist()
+        logging.debug("Calculating average slope in hull")
+        slope_hull = u4tiff.calculate_slope_in_shapes(sub_set_hull, dem_path)
+        for kk, val in slope_hull.items():
+            if val:
+                res[f"slope_hull_{kk}_{year}"] = np.round(val, 1).tolist()
 
     return res
 
@@ -608,18 +589,18 @@ def shape(sub_set: gp.GeoDataFrame) -> dict:
     return res
 
 
-def volume(sub_set_hull: gp.GeoDataFrame, diffplan_path: os.PathLike) -> dict:
-    """Calculates the some volumetric quantities for the hull geometry.
+def volume(geometry: gp.GeoDataFrame, diffplan_path: os.PathLike) -> dict:
+    """Calculates the some volumetric quantities for the input geometry.
 
-    :param sub_set_hull: The hull of the area.
-    :type sub_set_hull: gp.GeoDataFrame
+    :param geometry: The geometry where to calculate the volume.
+    :type geometry: gp.GeoDataFrame
     :param diffplan_path: The path to the folder where the diff plan tiffs are located.
     :type diffplan_path: os.PathLike
     :return: The results dictionary with the classified data appended.
     :rtype: dict
     """
     logging.info("Computing volumes in shapes")
-    volumes = u4tiff.calculate_volume_in_shape(sub_set_hull, diffplan_path)
+    volumes = u4tiff.calculate_volume_in_shape(geometry, diffplan_path)
     res = dict()
     res["volumes_total"] = round(volumes.volume[0], 1)
     res["volumes_removed"] = round(volumes.volumes_removed[0], 1)
@@ -991,7 +972,8 @@ def psi_data(sub_set_hull: gp.GeoDataFrame, psi_path: os.PathLike) -> dict:
         )
 
         logging.info("Parsing results")
-        res["timeseries_offset"] = round(params[0], 2)
+        # ts_off = params[0]  # Sometimes the result is np.inf... investigate!
+        # res["timeseries_offset"] =
         res["timeseries_linear"] = round(params[1], 2)
 
         res["timeseries_annual_sine"] = round(params[2], 2)
@@ -1028,7 +1010,7 @@ def write_shape(
     :type project: configparser.ConfigParser
     """
     logging.info("Creating folders")
-    save_folder = os.path.join(project["paths"]["output_path"], "SiteShapes")
+    save_folder = os.path.join(project["paths"]["sites_path"], "SiteShapes")
     os.makedirs(save_folder, exist_ok=True)
     shape_folder = os.path.join(save_folder, f"Site_{group}")
     os.makedirs(shape_folder, exist_ok=True)
@@ -1050,7 +1032,7 @@ def write_report(res: dict, group: str, project: configparser.ConfigParser):
     :type project: dict
     """
     logging.info("Writing report")
-    report_folder = os.path.join(project["paths"]["output_path"], "Reports")
+    report_folder = os.path.join(project["paths"]["sites_path"], "Reports")
     os.makedirs(report_folder, exist_ok=True)
     with open(
         os.path.join(report_folder, f"Site_{group}.txt"),
@@ -1082,7 +1064,7 @@ def write_fig(
     :type project: configparser.ConfigParser
     """
     logging.info("Creating Figures")
-    save_folder = os.path.join(project["paths"]["output_path"], "SitePlots")
+    save_folder = os.path.join(project["paths"]["sites_path"], "SitePlots")
     os.makedirs(save_folder, exist_ok=True)
     u4plots.plot_shape(
         res["slope_polygons"],
@@ -1096,7 +1078,7 @@ def write_fig(
 
 def manual_classification(
     res: dict,
-    sub_set_hull: shp.Polygon,
+    sub_set_hull: gp.GeoDataFrame,
     group: str,
     project: configparser.ConfigParser,
 ) -> dict:
@@ -1109,7 +1091,7 @@ def manual_classification(
     :param res: The results dictionary.
     :type res: dict
     :param sub_set_hull: The hull of the region.
-    :type sub_set_hull: shp.Polygon
+    :type sub_set_hull: gp.GeoDataFrame
     :param group: The name of the group.
     :type group: str
     :param project: The project containing paths.
@@ -1123,7 +1105,7 @@ def manual_classification(
     )
 
     man_gdf = gp.read_file(man_path)
-    interscts = man_gdf.intersects(sub_set_hull)
+    interscts = man_gdf.intersects(sub_set_hull.geometry[0])
     if interscts.any():
         candidates = man_gdf[interscts]
         if len(candidates) > 1:
@@ -1131,10 +1113,12 @@ def manual_classification(
                 f"Multiple classifications found for group {group:05}"
             )
             for k in candidates:
-                res[f"manual_{k}"] = candidates[k].to_list()
+                if k not in ["geometry"]:
+                    res[f"manual_{k}"] = candidates[k].to_list()
         else:
             for k in candidates:
-                res[f"manual_{k}"] = candidates[k]
+                if k not in ["geometry"]:
+                    res[f"manual_{k}"] = candidates[k].to_list()[0]
     else:
         logging.info(f"No manual classification found for group {group:05}")
 

@@ -355,8 +355,9 @@ def get_thresholded_contours(
         logging.debug("Generating new results")
         coords, zz, crs = extract_xyz_tiff(tiff_file_path)
         gdf = u4spatial.contour_shapes(coords, zz, levels, threshold, crs)
-        if save_intermediate:
-            gdf.to_file(out_path)
+        if len(gdf) > 0:
+            if save_intermediate:
+                gdf.to_file(out_path)
     return gdf
 
 
@@ -414,18 +415,26 @@ def calculate_volume_in_shape(
             vol_moved = 0
             flist = part.path.to_list()
             for fp in flist:
-                vol += u4spatial.compute_for_raster_in_geom(
-                    fp, geom, np.nansum
+                v = u4spatial.compute_for_raster_in_geom(
+                    fp, geom, np.nansum, shapes.crs
                 )
-                vol_removed += u4spatial.compute_for_raster_in_geom(
-                    fp, geom, u4spatial.vol_removed
+                if not v is None:
+                    vol += v
+                v = u4spatial.compute_for_raster_in_geom(
+                    fp, geom, u4spatial.vol_removed, shapes.crs
                 )
-                vol_added += u4spatial.compute_for_raster_in_geom(
-                    fp, geom, u4spatial.vol_added
+                if not v is None:
+                    vol_removed += v
+                v = u4spatial.compute_for_raster_in_geom(
+                    fp, geom, u4spatial.vol_added, shapes.crs
                 )
-                vol_moved += u4spatial.compute_for_raster_in_geom(
-                    fp, geom, u4spatial.vol_moved
+                if not v is None:
+                    vol_added += v
+                v = u4spatial.compute_for_raster_in_geom(
+                    fp, geom, u4spatial.vol_moved, shapes.crs
                 )
+                if not v is None:
+                    vol_moved += v
         else:
             vol = np.nan
             vol_removed = np.nan
@@ -522,5 +531,48 @@ def get_terrain(
         # not accept further kwargs, even though its mentioned in the
         # documentation.
         gdal.DEMProcessing(out_path, file_path, processing[terrain_feature])
+    else:
+        logging.debug(f"Slope file found at {out_path}.")
 
     return out_path
+
+
+def calculate_slope_in_shapes(
+    shapes: gp.GeoDataFrame, tiff_folder: os.PathLike
+) -> gp.GeoDataFrame:
+    """Calculates the slope for each shape in `shapes` using the data from the DEM found in `tiff_folder`. Also computes some basic statistics for each area.
+
+    :param shapes: The shapes in a geodataframe.
+    :type shapes: gp.GeoDataFrame
+    :param tiff_folder: The folder where to find the DEM data (in `*.adf` format.)
+    :type tiff_folder: os.PathLike
+    :return: A set of Polygons including mean and median slope, and standard deviation.
+    :rtype: gp.GeoDataFrame
+    """
+    file_list = u4files.get_file_list_adf(tiff_folder)
+    points = u4spatial.select_points_region(shapes, file_list)
+    file_list = [file_list[ii] for ii in points.source_ind]
+    slope_data = {
+        "mean": [],
+        "median": [],
+        "std": [],
+    }
+
+    if len(file_list) > 0 and len(shapes) > 0:
+        for shape in shapes.geometry.to_list():
+            # Loop over all tiff files because a shape may overlap boundaries
+            data = []
+            for fp in file_list:
+                fp_slope = get_terrain(
+                    fp, terrain_feature="slope", overwrite=False
+                )
+                slope = u4spatial.compute_for_raster_in_geom(
+                    fp_slope, shape, u4spatial.get_values, shapes.crs
+                )
+                if not slope is None:
+                    data.extend(slope)
+            if len(data) > 0:
+                slope_data["mean"].append(np.mean(data))
+                slope_data["median"].append(np.median(data))
+                slope_data["std"].append(np.std(data))
+    return slope_data

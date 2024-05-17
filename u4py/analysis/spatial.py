@@ -9,10 +9,9 @@ import logging
 import os
 import pickle as pkl
 import re
-from typing import Callable, Iterable, List, Tuple
+from typing import Callable, List, Tuple
 
 import geopandas as gp
-import mahotas.polygon as mhpoly
 import matplotlib.axes as mplax
 import numpy as np
 import osmnx
@@ -25,10 +24,9 @@ import shapely
 from geopy.extra.rate_limiter import RateLimiter
 from geopy.geocoders import Nominatim
 from geopy.point import Point
+from shapely.errors import GEOSException
 from skimage import measure as skmeasure
 from tqdm import tqdm
-
-import u4py.io.files as u4files
 
 
 def reproject_raster(
@@ -157,8 +155,11 @@ def _file_list_to_coords(
             else:
                 fname, _ = os.path.splitext(os.path.split(fpath)[-1])
                 if fname.startswith("g_"):
-                    x = int(fname[2:5]) * 1000
-                    y = int(fname[6:]) * 1000
+                    coord_str = re.findall("g_(\d*)_(\d*)", fname)[0]
+                    if len(coord_str) < 1:
+                        raise NameError("Unkown tiff naming scheme.")
+                    x = int(coord_str[0]) * 1000
+                    y = int(coord_str[1]) * 1000
                     coords.append(
                         shapely.Polygon(
                             [
@@ -590,17 +591,6 @@ def contour_shapes(
         "polygon_levels": [],  # The levels of the polygon
         "color_levels": [],  # The midpoint of the levels for easy plotting
         "areas": [],  # The area of the polygon
-        "sums": [],  # Sum of all displacements (total volume balance)
-        "vol_removed": [],  # Sum of all negative displacements (material removed)
-        "vol_added": [],  # Sum of all positive displacements (material added)
-        "vol_moved": [],  # Absolute sum of all displacements (volume moved)
-        "avg_displ": [],  # Average displacement over whole area.
-        "min": [],  # min displacement
-        "max": [],  # max displacement
-        "prc95": [],  # 95 percentile displacement
-        "prc5": [],  # 5 percentile displacement
-        "prc68": [],  # 68 percentile displacement
-        "prc32": [],  # 32 percentile displacement
     }
     for ii, segs in enumerate(contours):
         if len(segs) > 0:
@@ -625,74 +615,15 @@ def contour_shapes(
                             data["polygon_levels"].append(f">{levels[ii]}")
                         data["color_levels"].append(levels[ii])
                         data["areas"].append(pgon.area)
-                        data["sums"].append(
-                            calculate_in_contour(zz, p, np.nansum)
-                        )
-                        data["min"].append(
-                            calculate_in_contour(zz, p, np.nanmin)
-                        )
-                        data["max"].append(
-                            calculate_in_contour(zz, p, np.nanmax)
-                        )
-                        data["prc95"].append(
-                            calculate_in_contour(zz, p, np.nanpercentile, q=95)
-                        )
-                        data["prc5"].append(
-                            calculate_in_contour(zz, p, np.nanpercentile, q=5)
-                        )
-                        data["prc68"].append(
-                            calculate_in_contour(zz, p, np.nanpercentile, q=68)
-                        )
-                        data["prc32"].append(
-                            calculate_in_contour(zz, p, np.nanpercentile, q=32)
-                        )
-                        data["vol_removed"].append(
-                            calculate_in_contour(zz, p, vol_removed)
-                        )
-                        data["vol_added"].append(
-                            calculate_in_contour(zz, p, vol_added)
-                        )
-                        data["vol_moved"].append(
-                            data["vol_added"][-1] + data["vol_removed"][-1]
-                        )
-                        data["avg_displ"].append(
-                            data["sums"][-1] / data["areas"][-1]
-                        )
-
-    logging.debug("Generating GeoDataFrame")
-    gdf = gp.GeoDataFrame(
-        data=data,
-        crs=crs,
-    )
-    return gdf
-
-
-def calculate_in_contour(
-    zz: np.ndarray, polygon: Iterable, fnc: Callable, **kwargs
-) -> float:
-    """Extracts the values within the polygon from the image in `zz`and applies the function to it.
-
-    :param zz: The numpy array from where to extract the data
-    :type zz: np.ndarray
-    :param polygon: The polygon used for slicing as a list of (x,y) tuples
-    :type polygon: Iterable
-    :param fnc: The function to be used for the data.
-    :type polygon: Callable
-    :param **kwargs: Additional keyword arguments passed to the function.
-    :return: The result of the function.
-    :rtype: float
-    """
-    contour_int = [(int(np.round(y)), int(np.round(x))) for x, y in polygon]
-    mask = np.zeros_like(zz)
-    mhpoly.fill_polygon(contour_int, mask)
-    mask = mask.astype(bool)
-    if np.isfinite(zz[mask]).any():  # prevents all nans
-        if kwargs:
-            return fnc(zz[mask], **kwargs)
-        else:
-            return fnc(zz[mask])
+    if len(data["geometry"]) > 0:
+        logging.debug("Generating GeoDataFrame")
+        gdf = gp.GeoDataFrame(
+            data=data,
+            crs=crs,
+        )
+        return gdf
     else:
-        return 0
+        return gp.GeoDataFrame()
 
 
 def vol_removed(values: np.ndarray) -> float:
@@ -900,105 +831,92 @@ def join_groups_with_level(gdf: gp.GeoDataFrame) -> gp.GeoDataFrame:
     :return: A newly created geodatabase with the joined geometries
     :rtype: gp.GeoDataFrame
     """
-
     if not ("color_levels" in gdf.keys() and "groups" in gdf.keys()):
         raise KeyError(
             "The GDF is missing the required keys for merging: 'color_levels' and/or 'groups'."
         )
 
     groups = gdf.groups.to_numpy()
-    collev = gdf.color_levels.to_numpy()
-
-    un_groups = np.unique(groups)
 
     data = dict()
     for k in gdf.keys():
         data[k] = []
 
-    for grp in tqdm(un_groups, desc="Joining by group", leave=False):
-        slc = np.squeeze(np.argwhere(groups == grp))
-        if slc.shape:
-            subset = np.squeeze(collev[slc])
-            un_subset = np.unique(subset)
-            if len(un_subset) < len(subset):
-                to_merge = [
-                    np.squeeze(slc[np.argwhere(ii == subset)])
-                    for ii in un_subset
-                ]
-                for mrg in to_merge:
-                    if mrg.shape:
-                        data["geometry"].append(
-                            shapely.MultiPolygon(
-                                merge_geometries(
-                                    gdf["geometry"][mrg]
-                                ).geometry.to_list()
-                            )
-                        )
-                        data["polygon_levels"].append(
-                            gdf["polygon_levels"][mrg[0]]
-                        )
-                        data["color_levels"].append(
-                            gdf["color_levels"][mrg[0]]
-                        )
-                        data["areas"].append(np.sum(gdf["areas"][mrg]))
-                        data["sums"].append(np.sum(gdf["sums"][mrg]))
-                        data["vol_removed"].append(
-                            np.sum(gdf["vol_removed"][mrg])
-                        )
-                        data["vol_added"].append(np.sum(gdf["vol_added"][mrg]))
-                        data["vol_moved"].append(np.sum(gdf["vol_moved"][mrg]))
-                        data["avg_displ"].append(
-                            data["sums"][-1] / data["areas"][-1]
-                        )
-                        data["min"].append(np.nanmin(gdf["min"][mrg]))
-                        data["max"].append(np.nanmax(gdf["max"][mrg]))
-                        data["prc95"].append(np.nanmean(gdf["prc95"][mrg]))
-                        data["prc5"].append(np.nanmean(gdf["prc5"][mrg]))
-                        data["prc68"].append(np.nanmean(gdf["prc68"][mrg]))
-                        data["prc32"].append(np.nanmean(gdf["prc32"][mrg]))
-                        data["groups"].append(gdf["groups"][mrg[0]])
+    for grp in tqdm(np.unique(groups), desc="Joining by group", leave=False):
+        grp_slc = np.argwhere(groups == grp)
+        grp_slc = grp_slc.reshape(len(grp_slc))
 
-                    else:
-                        for k in gdf.keys():
-                            data[k].append(gdf[k][mrg])
+        # If there is more than one contour of the same group
+        if len(grp_slc) > 1:
+            sub_group = gdf.iloc[grp_slc]
+            colors_in_sub_group = sub_group.color_levels.to_numpy()
+            for col in np.unique(colors_in_sub_group):
+                col_slc = np.argwhere(colors_in_sub_group == col)
+                col_slc = col_slc.reshape(len(col_slc))
 
-            else:
-                for ii in slc:
-                    for k in gdf.keys():
-                        data[k].append(gdf[k][ii])
+                # If there is more than one contour per color level
+                if len(col_slc) > 1:
+                    merged_gs = merge_geometries(sub_group.iloc[col_slc])
+                    for k in merged_gs.keys():
+                        data[k].extend(merged_gs[k])
 
+                # Only for single color level contours
+                else:
+                    for k in sub_group.keys():
+                        data[k].append(sub_group[k].to_numpy()[col_slc][0])
+
+        # Only for single contour groups
         else:
             for k in gdf.keys():
-                data[k].append(gdf[k][slc])
+                data[k].append(gdf[k].to_numpy()[grp_slc][0])
+
     return gp.GeoDataFrame(data=data, crs=gdf.crs)
 
 
-def merge_geometries(geometries: gp.GeoSeries) -> gp.GeoSeries:
+def merge_geometries(geometries: gp.GeoSeries) -> dict:
     """Merges the geometries when they overlap in a buffer radius of 10 cm.
 
     :param geometries: The input geometries
     :type geometries: gp.GeoSeries
-    :return: The merged geometries
+    :return: A dictionary of merged geometries
     :rtype: gp.GeoSeries
     """
+    polygon_level = geometries.polygon_levels.iloc[0]
+    color_level = geometries.color_levels.iloc[0]
+    group = geometries.groups.iloc[0]
+    logging.debug(f"Merging geometries of group {group}")
     merged_geometries = []
+
     geom_buf = geometries.buffer(0.1).to_list()
     current_geom = geom_buf.pop(0)
     while len(geom_buf) > 0:
-        overlapping = current_geom.overlaps(geom_buf)
+        overlapping = current_geom.overlaps(geom_buf)  # 1
         if np.any(overlapping):
+            # Get geometries to join
             join_idx = [ii for ii, ovlp in enumerate(overlapping) if ovlp]
             to_join = [geom_buf[ii] for ii in join_idx]
+            # Remove them from list
             for ii in sorted(join_idx, reverse=True):
                 del geom_buf[ii]
+            # Add current geometry to joining list
             to_join.append(current_geom)
+            # Join Geometries
             current_geom = gp.GeoSeries(to_join).unary_union
-        else:
-            if isinstance(current_geom, shapely.MultiPolygon):
-                current_geom = current_geom.geoms[0]
-            merged_geometries.append(current_geom)
-            current_geom = geom_buf.pop(0)
-    return gp.GeoSeries(merged_geometries)
+            # Start again looking for more geometries in the vicinity at #1
+
+        else:  # No overlapping geometries found
+            merged_geometries.append(current_geom)  # Add geometry to list
+            current_geom = geom_buf.pop(0)  # Take next geometry
+    merged_geometries.append(current_geom)
+
+    data = {
+        "geometry": merged_geometries,
+        "polygon_levels": [polygon_level] * len(merged_geometries),
+        "color_levels": [color_level] * len(merged_geometries),
+        "groups": [group] * len(merged_geometries),
+        "areas": [geom.area for geom in merged_geometries],
+    }
+    return data
 
 
 def get_subset(
@@ -1015,7 +933,7 @@ def get_subset(
     :return: The selected subset from the main geodataframe.
     :rtype: gp.GeoDataFrame
     """
-
+    logging.debug(f"Getting subset of group {group}")
     slc = (shp_gdf.groups == group) & (
         (shp_gdf.color_levels == -level) | (shp_gdf.color_levels == level)
     )
@@ -1036,66 +954,35 @@ def get_subset_hull(
     :return: The buffered hull of the subset.
     :rtype: gp.GeoDataFrame
     """
+    logging.debug(f"Getting subset hull of group {group}")
     sub_set = get_subset(shp_gdf, group)
     try:
-        sub_set_hull = gp.GeoDataFrame(
-            geometry=[sub_set.unary_union.convex_hull.buffer(buffer_size)],
-            crs=shp_gdf.crs,
-        )
+        if len(sub_set) > 0:
+            sub_set_hull = gp.GeoDataFrame(
+                geometry=[sub_set.unary_union.convex_hull.buffer(buffer_size)],
+                crs=shp_gdf.crs,
+            )
     except AttributeError:
+        logging.info(
+            f"Could not create hull for group {group}: AttributeError."
+        )
+        sub_set_hull = gp.GeoDataFrame()
+    except GEOSException:
+        logging.info(
+            f"Could not create hull for group {group}: GEOS Exeption, "
+            + "probably a topology error."
+        )
         sub_set_hull = gp.GeoDataFrame()
     return sub_set_hull
 
 
-def calculate_slope_in_shapes(
-    shapes: gp.GeoDataFrame, tiff_folder: os.PathLike
-) -> gp.GeoDataFrame:
-    """Calculates the slope for each shape in `shapes` using the data from the DEM found in `tiff_folder`. Also computes some basic statistics for each area.
-
-    :param shapes: The shapes in a geodataframe.
-    :type shapes: gp.GeoDataFrame
-    :param tiff_folder: The folder where to find the DEM data (in `*.adf` format.)
-    :type tiff_folder: os.PathLike
-    :return: A set of Polygons including mean and median slope, and standard deviation.
-    :rtype: gp.GeoDataFrame
-    """
-    file_list = u4files.get_file_list_adf(tiff_folder)
-    points = select_points_region(shapes, file_list)
-    file_list = [file_list[ii] for ii in points.source_ind]
-    slope_data = {
-        "geometry": [],
-        "slope_mean": [],
-        "slope_median": [],
-        "slope_std": [],
-    }
-    for geom in shapes.geometry.to_list():
-        if isinstance(geom, shapely.Polygon):
-            data = []
-            for fp in file_list:
-                slope = compute_for_raster_in_geom(fp, geom, dem_slope)
-                data.extend(slope[np.isfinite(slope)])
-            slope_data["geometry"].append(geom)
-            slope_data["slope_mean"].append(np.mean(data))
-            slope_data["slope_median"].append(np.median(data))
-            slope_data["slope_std"].append(np.std(data))
-        elif isinstance(geom, shapely.MultiPolygon):
-            for poly in list(geom.geoms):
-                data = []
-                for fp in file_list:
-                    slope = compute_for_raster_in_geom(fp, poly, dem_slope)
-                    data.extend(slope[np.isfinite(slope)])
-                slope_data["geometry"].append(poly)
-                slope_data["slope_mean"].append(np.mean(data))
-                slope_data["slope_median"].append(np.median(data))
-                slope_data["slope_std"].append(np.std(data))
-    slopes = gp.GeoDataFrame(data=slope_data, crs=shapes.crs)
-    return slopes
-
-
 def compute_for_raster_in_geom(
-    fpath: os.PathLike, geom: shapely.Polygon, func: Callable
-) -> np.ndarray:
-    """Applies the function `func` to the data in the raster file, masked by `geom`.
+    fpath: os.PathLike, geom: shapely.Polygon, func: Callable, geom_crs: str
+) -> np.ndarray | int:
+    """
+    Applies the function `func` to the data in the raster file, masked by
+    `geom`. Checks if the shape is actually within the raster file to avoid
+    warnings and returns `None` if the shape is outside.
 
     :param fpath: The path to the raster file
     :type fpath: os.PathLike
@@ -1103,12 +990,39 @@ def compute_for_raster_in_geom(
     :type geom: shapely.Polygon
     :param func: The function to apply to the data.
     :type func: Callable
-    :return: The results of the function call.
+    :param geom_crs: The coordinate system of the input geometries.
+    :type geom_crs: str
+    :return: The results of the function call, returns 0 when the geometry lies outside the raster bounds.
+    :rtype: np.ndarray | int
+    """
+
+    with rio.open(fpath, "r") as src:
+        # In some cases the input crs of the raster dataset is not correct, so
+        # we have to adjust our input geometries.
+        crs_epsg = src.crs.to_epsg()
+        if not crs_epsg or crs_epsg != geom_crs:
+            geom_gdf = gp.GeoDataFrame(geometry=[geom], crs=geom_crs).to_crs(
+                src.crs
+            )
+            geom = geom_gdf.geometry[0]
+        if shape_in_tiff(geom, src):
+            data, _ = riomask.mask(src, [geom], nodata=np.nan)
+            return func(data[0])
+        else:
+            return None
+
+
+def get_values(im_data: np.ndarray) -> np.ndarray:
+    """
+    Returns all numeric values within the image. This just extracts the values
+    that are not nan from a masked raster using `compute_for_raster_in_geom`.
+
+    :param im_data: The input raster dem data.
+    :type im_data: np.ndarray
+    :return: The masked values.
     :rtype: np.ndarray
     """
-    with rio.open(fpath, "r") as src:
-        data, _ = riomask.mask(src, [geom], nodata=np.nan)
-    return func(data[0])
+    return im_data[np.isfinite(im_data)]
 
 
 def dem_slope(im_data: np.ndarray) -> np.ndarray:
@@ -1252,3 +1166,28 @@ def reverse_geolocate(gdf: gp.GeoDataFrame) -> list:
             location = ""
         locations.append(location)
     return locations
+
+
+def shape_in_tiff(shp: shapely.Polygon, src: rasterio.DatasetReader) -> bool:
+    """Checks if the shape is within the bounds of the raster file.
+
+    :param shp: The shape.
+    :type shp: gp.Polygon
+    :param src: The loaded raster dataset.
+    :type src: rasterio.DatasetReader
+    :return: True if the shape is within.
+    :rtype: bool
+    """
+
+    rst_bnd = src.bounds
+    shp_bnd = shp.bounds
+    result = (
+        # lies in x range
+        (shp_bnd[0] >= rst_bnd.left and shp_bnd[0] <= rst_bnd.right)
+        or (shp_bnd[2] >= rst_bnd.left and shp_bnd[2] <= rst_bnd.right)
+    ) and (
+        # lies in y range
+        (shp_bnd[1] >= rst_bnd.bottom and shp_bnd[1] <= rst_bnd.top)
+        or (shp_bnd[3] >= rst_bnd.bottom and shp_bnd[3] <= rst_bnd.top)
+    )
+    return result

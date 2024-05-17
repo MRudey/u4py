@@ -11,17 +11,11 @@ from multiprocessing import Pool
 
 import geopandas as gp
 import numpy as np
-import shapely as shp
 from tqdm import tqdm
 
 import u4py.analysis.classify as u4class
-
-# import u4py.io.gpkg as u4gpkg
 import u4py.utils.config as u4config
 import u4py.utils.projects as u4proj
-
-# from pathlib import Path
-
 
 # u4config.start_logger()
 
@@ -35,7 +29,7 @@ def main():
             "processing_path",
             "places_path",
             "diff_plan_path",
-            "output_path",
+            "sites_path",
         ],
         interactive=False,
     )
@@ -44,17 +38,16 @@ def main():
 
     # Setting up paths
     shp_file = os.path.join(
-        project["paths"]["output_path"],
+        project["paths"]["sites_path"],
         "thresholded_contours_all_shapes.gpkg",
     )
-    site_stat_path = os.path.join(project["paths"]["output_path"], "SiteStats")
+    site_stat_path = os.path.join(project["paths"]["sites_path"], "SiteStats")
     os.makedirs(site_stat_path, exist_ok=True)
 
     # Getting Data
     # sub_region = create_test_region()
     # shp_gdf = u4gpkg.load_gpkg_data_region_ogr(sub_region, shp_file)
     shp_gdf = gp.read_file(shp_file).to_crs("EPSG:32632")
-
     unique_groups = np.unique(shp_gdf.groups)
     kwargs = [
         {
@@ -72,7 +65,7 @@ def main():
         with Pool(u4config.cpu_count) as p:
             main_list = list(
                 tqdm(
-                    p.map(classifier_wrapper, kwargs),
+                    p.imap_unordered(classifier_wrapper, kwargs),
                     total=len(kwargs),
                     desc="Classifying Groups",
                     leave=False,
@@ -109,7 +102,7 @@ def main():
     main_gdf = gp.GeoDataFrame(data=main_results, crs=shp_gdf.crs)
     logging.info("Saving final dataframe")
     main_gdf.to_file(
-        os.path.join(project["paths"]["output_path"], "Classified_Shapes.gpkg")
+        os.path.join(project["paths"]["sites_path"], "Classified_Shapes.gpkg")
     )
 
 
@@ -121,36 +114,8 @@ def classifier_wrapper(kwargs: dict) -> dict:
     :return: The results dictionary.
     :rtype: dict
     """
-    try:
-        res = u4class.classify_shape(**kwargs)
-    except:
-        print(f"Unable to classify shapes in group {kwargs['group']}.")
-        res = dict()
+    res = u4class.classify_shape(**kwargs)
     return res
-
-
-def create_test_region():
-    """
-    Gets example region to clip dataset.
-    """
-    test_region = gp.GeoDataFrame(
-        geometry=[
-            shp.Polygon(
-                [
-                    (553000, 5686000),
-                    (573000, 5686000),
-                    (573000, 5667000),
-                    (553000, 5667000),
-                    (553000, 5686000),
-                ]
-            )
-        ],
-        crs="EPSG:32632",
-    )
-    # test_region.to_file(
-    #     Path(r"~\Documents\ArcGIS\SelectedSites\test_region.shp").expanduser()
-    # )
-    return test_region
 
 
 if __name__ == "__main__":

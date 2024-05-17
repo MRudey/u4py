@@ -39,8 +39,9 @@ def main():
 
     # Options:
     use_parallel_clipping = True
-    overwrite_clipping = True
+    overwrite_clipping = False
     use_parallel_contouring = True
+    overwrite_contours = False
 
     # Loading Project
     project = u4proj.get_project(
@@ -51,56 +52,78 @@ def main():
         interactive=False,
     )
 
-    # Processing
-    logging.info("Loading tiff files and clipping")
-    tiff_file_list = u4files.get_file_list_tiff(
-        project["paths"]["diff_plan_path"]
-    )
+    # Setting Paths
     gpkg_path = os.path.join(
         project["paths"]["places_path"], "OSM_shapes", "all_shapes.gpkg"
     )
-    clipped_tiff_list = u4tiff.get_clipped_tiff_list(
-        tiff_file_list,
-        gpkg_path,
-        overwrite=overwrite_clipping,
-        use_parallel=use_parallel_clipping,
+    contour_path = os.path.join(
+        project["paths"]["output_path"],
+        "contours.gpkg",
     )
 
-    logging.info("Starting Contour extraction.")
-    args = [
-        (ctp, contour_levels, min_contour_area) for ctp in clipped_tiff_list
-    ]
-    if use_parallel_contouring:
-        with Pool(u4config.cpu_count) as p:
-            logging.info("Starting Parallel Contouring")
-            clgdf_list = list(
-                tqdm(
-                    p.imap_unordered(
-                        u4tiff.batch_get_thresholded_contours, args
-                    ),
-                    total=len(tiff_file_list),
-                    desc="Getting contours",
-                    leave=False,
-                )
-            )
-    else:
-        logging.info("Starting Single-threaded Contouring")
-        clgdf_list = [
-            u4tiff.batch_get_thresholded_contours(arg)
-            for arg in tqdm(args, desc="Getting contours", leave=False)
+    # Processing
+    if not os.path.exists(contour_path) or overwrite_contours:
+        logging.info("Loading tiff files and clipping")
+        tiff_file_list = u4files.get_file_list_tiff(
+            project["paths"]["diff_plan_path"]
+        )
+        clipped_tiff_list = u4tiff.get_clipped_tiff_list(
+            tiff_file_list,
+            gpkg_path,
+            overwrite=overwrite_clipping,
+            use_parallel=use_parallel_clipping,
+        )
+        logging.info("Starting Contour extraction.")
+        args = [
+            (ctp, contour_levels, min_contour_area)
+            for ctp in clipped_tiff_list
         ]
+        if use_parallel_contouring:
+            with Pool(u4config.cpu_count) as p:
+                logging.info("Starting Parallel Contouring")
+                clgdf_list = list(
+                    tqdm(
+                        p.imap_unordered(
+                            u4tiff.batch_get_thresholded_contours, args
+                        ),
+                        total=len(tiff_file_list),
+                        desc="Getting contours",
+                        leave=False,
+                    )
+                )
+        else:
+            logging.info("Starting Single-threaded Contouring")
+            clgdf_list = [
+                u4tiff.batch_get_thresholded_contours(arg)
+                for arg in tqdm(args, desc="Getting contours", leave=False)
+            ]
 
-    logging.info("Merging contours for geodataframe")
-    data = create_empty_dict(clgdf_list[0])
-    for clgdf in tqdm(clgdf_list, desc="Merging GDF", leave=False):
-        for k in clgdf.keys():
-            data[k].extend(clgdf[k])
+        logging.info("Merging contours for geodataframe")
+        data = {
+            "geometry": [],
+            "polygon_levels": [],
+            "color_levels": [],
+            "areas": [],
+        }
+        for clgdf in tqdm(
+            clgdf_list,
+            desc="Merging GDF",
+            leave=False,
+            total=len(clgdf_list),
+        ):
+            if len(clgdf) > 0:
+                for k in clgdf.keys():
+                    data[k].extend(clgdf[k])
 
-    logging.info("Creating Geodataframe from results")
-    gdf = gp.GeoDataFrame(
-        data=data,
-        crs=clgdf.crs,
-    )
+        logging.info("Creating Geodataframe from results")
+        gdf = gp.GeoDataFrame(
+            data=data,
+            crs=clgdf.crs,
+        )
+        gdf.to_file(contour_path)
+    else:
+        logging.info("Reading from Contour file")
+        gdf = gp.read_file(contour_path)
 
     logging.info("Grouping results")
     x = gdf.centroid.x.to_numpy()
@@ -117,13 +140,6 @@ def main():
             "thresholded_contours_all_shapes.gpkg",
         )
     )
-
-
-def create_empty_dict(gdf):
-    data = dict()
-    for k in gdf.keys():
-        data[k] = []
-    return data
 
 
 if __name__ == "__main__":
