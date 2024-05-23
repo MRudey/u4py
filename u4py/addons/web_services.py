@@ -1,14 +1,19 @@
 """
 Functions to query webservices, especially the arcgis rest api
-    """
+"""
 
+import io
+import logging
 import os
 import tempfile
 
 import geopandas as gp
 import numpy as np
+import PIL
+import PIL.PngImagePlugin
 import restapi
 import shapely
+from owslib.wms import WebMapService, wms111, wms130
 
 HLNUG_URL = "https://geodienste-umwelt.hessen.de/arcgis/rest/services"
 
@@ -143,3 +148,116 @@ def polygon_to_restapi(polygon: shapely.Polygon, crs: str) -> dict:
     }
 
     return geometry
+
+
+def wms_in_gdf_boundary(
+    bound_gdf: gp.GeoDataFrame,
+    wms_url: str,
+    wms_version: str,
+    layer: str,
+    size: tuple,
+) -> PIL.Image.Image:
+    """Gets a WMS image within the region of a geodataframe.
+
+    :param bound_gdf: The geodataframe to use for the region selection.
+    :type bound_gdf: gp.GeoDataFrame
+    :param wms_url: The URL of the WMS server
+    :type wms_url: str
+    :param wms_version: The version of the WMS server.
+    :type wms_version: str
+    :param layer: The layer to take from the WMS server
+    :type layer: str
+    :param size: The size of the image (maximum 3000x3000)
+    :type size: tuple
+    :raises ValueError: Raises a Value error if the layer is not available.
+    :return: The image as a pillow image object for easy plotting with matplotlib.
+    :rtype: PIL.Image.Image
+    """
+    wms = WebMapService(wms_url, version=wms_version)
+    layers = list(wms.contents)
+
+    # Check if the requested layer is there
+    if layer in layers:
+        lyr = wms[layer]
+        # Get info from layer
+        lyr_crsopts = [
+            v[-1] for v in lyr.crs_list if v[-1].startswith("EPSG:")
+        ]  # use only a reduced set where the bounds are supplied
+
+        # Check if the input crs is supported
+        if not str(bound_gdf.crs) in lyr_crsopts:
+            # if not supported use default crs from layer
+            bound_gdf = bound_gdf.to_crs(lyr_crsopts[0])
+
+        # Check if the gdf lies within the supported range of the WMS
+        if gdf_in_wms_bounds(lyr, bound_gdf):
+            img = wms.getmap(
+                layers=[layer],
+                styles=["default"],
+                srs=str(bound_gdf.crs),
+                bbox=(
+                    bound_gdf.bounds.minx[0],
+                    bound_gdf.bounds.miny[0],
+                    bound_gdf.bounds.maxx[0],
+                    bound_gdf.bounds.maxy[0],
+                ),
+                size=size,
+                format="image/png",
+            )
+            logging.info(img._response.url)
+            img_dat = PIL.Image.open(io.BytesIO(img.read()))
+        return img_dat
+
+    else:
+        raise ValueError(
+            f"Layer {layer} not available for server. Valid layers are: {layers}."
+        )
+
+
+def gdf_in_wms_bounds(
+    lyr: wms130.ContentMetadata | wms111.ContentMetadata,
+    bound_gdf: gp.GeoDataFrame,
+) -> bool:
+    """Checks if the given geodataframe lies within the boundaries of the wms layer.
+
+    :param lyr: The wms layer's meta data
+    :type lyr: wms130.ContentMetadata | wms111.ContentMetadata
+    :param bound_gdf: The geodataframe to use for wms queries.
+    :type bound_gdf: gp.GeoDataFrame
+    :raises ValueError: If boundaries are outside.
+    :return: True when at least part of the data lies within WMS coverage.
+    :rtype: bool
+    """
+    # Look for crs in respective lists and select boundary tuple
+    crs_idx_list = [v[-1] for v in lyr.crs_list]
+    crs_idx = crs_idx_list.index(str(bound_gdf.crs))
+    lyr_bnd_box = lyr.crs_list[crs_idx]
+    bnd_bnd_box = bound_gdf.bounds
+
+    result = (
+        # lies in x range
+        (
+            bnd_bnd_box.minx[0] >= lyr_bnd_box[0]
+            and bnd_bnd_box.minx[0] <= lyr_bnd_box[2]
+        )
+        or (
+            bnd_bnd_box.maxx[0] >= lyr_bnd_box[0]
+            and bnd_bnd_box.maxx[0] <= lyr_bnd_box[2]
+        )
+    ) and (
+        # lies in y range
+        (
+            bnd_bnd_box.miny[0] >= lyr_bnd_box[1]
+            and bnd_bnd_box.miny[0] <= lyr_bnd_box[3]
+        )
+        or (
+            bnd_bnd_box.maxy[0] >= lyr_bnd_box[1]
+            and bnd_bnd_box.maxy[0] <= lyr_bnd_box[3]
+        )
+    )
+    if result:
+        return result
+    else:
+        raise ValueError(
+            f"GeoDataFrame outside WMS boundaries. Please stay within {lyr_bnd_box}."
+        )

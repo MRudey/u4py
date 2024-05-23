@@ -262,3 +262,146 @@ def _svg_parse(svg_code: str) -> Tuple[np.ndarray, np.ndarray]:
         codes.extend(commands[cmd.upper()])
         vertices.append(points)
     return np.array(codes), np.concatenate(vertices)
+
+
+def add_scalebar(
+    ax: Axes,
+    width: float = 1000,
+    unit: str = "m",
+    div: int = 2,
+    loc: str = "bottom left",
+):
+    """Adds a scalebar to the given axis.
+
+    :param ax: The axis to add the data to.
+    :type ax: Axes
+    :param width: The full scale width, defaults to 1000
+    :type width: float, optional
+    :param unit: The unit of the width, defaults to "m"
+    :type unit: str, optional
+    :param div: The number of subdivisions to create (always halves the first division `|---|---|------|`), defaults to 2
+    :type div: int, optional
+    :param loc: Location of the scale bar, same syntax as the matplotlib legend placement, defaults to "bottom left"
+    :type loc: str, optional
+    """
+
+    if (
+        (not "left" in loc)
+        and (not "right" in loc)
+        and (not "top" in loc)
+        and (not "bottom" in loc)
+    ):
+        raise ValueError(
+            "Invalid location string, allowed values are: 'top', 'bottom', "
+            + "'left', 'right', and combinations thereof."
+        )
+
+    if "right" in loc:
+        xf = 0.95
+    elif "left" in loc:
+        xf = 0.05
+    else:
+        xf = 0.5
+
+    if "top" in loc:
+        yf = 0.95
+    elif "bottom" in loc:
+        yf = 0.05
+    else:
+        yf = 0.5
+
+    xlim = ax.get_xlim()
+    ylim = ax.get_ylim()
+
+    x = xlim[0] + (xlim[1] - xlim[0]) * xf
+    y = ylim[0] + (ylim[1] - ylim[0]) * yf
+    height = (xlim[1] - xlim[0]) * 0.025
+    if not width:
+        axw = (xlim[1] - xlim[0]) * 0.5
+        widths = [
+            10000,
+            7500,
+            5000,
+            2500,
+            1000,
+            750,
+            500,
+            250,
+            100,
+            75,
+            50,
+            25,
+            10,
+        ]
+        for w in widths:
+            if axw >= w:
+                width = w
+                break
+            else:
+                width = 10
+
+    ax.annotate(
+        unit,
+        (x + width + (0.01 * width), y - (height * 0.2)),
+        horizontalalignment="left",
+        verticalalignment="bottom",
+        # fontsize="large",
+        fontweight="bold",
+        color="w",
+        path_effects=[path_effects.withStroke(linewidth=2, foreground="k")],
+    )
+
+    for ii in range(div):
+        ax.add_patch(
+            mpatches.Rectangle(
+                (x, y), width, height, facecolor="w", edgecolor="k", zorder=10
+            )
+        )
+        _label_scalebar(ax, x, y, width, height)
+        ax.add_patch(
+            mpatches.Rectangle(
+                (x, y),
+                width / 2,
+                height,
+                facecolor="k",
+                edgecolor="k",
+                zorder=10,
+            )
+        )
+        if ii < div - 1:
+            _label_scalebar(ax, x, y, width / 2, height)
+        else:
+            _label_scalebar(ax, x, y, 0, height)
+
+        width /= 4
+
+
+def _label_scalebar(ax: Axes, x: float, y: float, width: float, height: float):
+    """Adds a label to the scalebar at the given position.
+
+    :param ax: The axis for plotting.
+    :type ax: Axes
+    :param x: The left edge of the scalebar
+    :type x: float
+    :param y: The bottom edge of the scalebar
+    :type y: float
+    :param width: The width where to put the label.
+    :type width: float
+    :param height: The height of the scalebar for positioning.
+    :type height: float
+    """
+    if width % 1 > 0:
+        w_str = str(width)
+    else:
+        w_str = str(int(width))
+    ax.annotate(
+        w_str,
+        (x + width, y + height * 1.15),
+        horizontalalignment="center",
+        verticalalignment="bottom",
+        # fontsize="large",
+        fontweight="bold",
+        color="w",
+        path_effects=[path_effects.withStroke(linewidth=2, foreground="k")],
+        zorder=10,
+    )

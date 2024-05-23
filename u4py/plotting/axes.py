@@ -34,6 +34,7 @@ from matplotlib.colors import hsv_to_rgb
 from matplotlib.figure import Figure
 from pyproj import CRS
 
+import u4py.addons.web_services as u4web
 import u4py.analysis.inversion as u4invert
 import u4py.analysis.other as u4other
 import u4py.analysis.spatial as u4spatial
@@ -448,6 +449,7 @@ def add_basemap(
     crs: str = "EPSG:23032",
     zoom: str | int = "auto",
     source=contextily.providers.OpenStreetMap.DE,
+    attribution=None,
     **kwargs,
 ) -> Tuple[Figure, Axes] | None:
     """Creates a plot with the basemap as the lowest layer. If no basemap is given it is automatically loaded from osm.
@@ -476,6 +478,7 @@ def add_basemap(
                 source=contextily.providers.CartoDB.VoyagerNoLabels,
                 zoom=zoom,
                 zorder=0,
+                attribution=attribution,
             )
             contextily.add_basemap(
                 ax=ax,
@@ -483,6 +486,7 @@ def add_basemap(
                 source=contextily.providers.CartoDB.VoyagerOnlyLabels,
                 zoom=zoom,
                 zorder=20,
+                attribution=attribution,
             )
         else:
             contextily.add_basemap(
@@ -491,7 +495,59 @@ def add_basemap(
                 source=source,
                 zoom=zoom,
                 zorder=0,
+                attribution=attribution,
             )
+
+
+@_add_or_create
+def add_web_map_service(
+    ax: Axes,
+    crs: str,
+    wms_url: str = "https://www.gds-srv.hessen.de/cgi-bin/lika-services/ogc-free-maps.ows",
+    wms_version: str = "1.3.0",
+    layer: str = "he_dtk50",
+):
+    """Adds a WMS layer as basemap.
+
+    :param ax: The axis to add the plot to.
+    :type ax: Axes
+    :param crs: The coordinate system of the axis.
+    :type crs: str
+    :param wms_url: The URL to the wms server, defaults to "https://www.gds-srv.hessen.de/cgi-bin/lika-services/ogc-free-maps.ows"
+    :type wms_url: str, optional
+    :param wms_version: The version of the wms server, defaults to "1.3.0"
+    :type wms_version: str, optional
+    :param layer: The layer to use, defaults to "he_dtk50"
+    :type layer: str, optional
+
+    Currently, the HVBG Webserver does not deliver any valid data. Other WMS
+    servers work.
+    """
+    # "Hack" to make axis scale correctly ??
+    add_basemap(ax=ax, attribution=" ")
+
+    bound_gdf = gp.GeoDataFrame(
+        geometry=[u4spatial.bounds_to_polygon(ax)], crs=crs
+    )
+
+    # Get resolution and resize to maximum size of tile for HVBG tiles.
+    size = np.array(ax.figure.get_size_inches() * ax.figure.dpi, dtype=int)
+    if np.any(size > 3000):
+        size = (size / np.max(size)) * 3000
+
+    # Get image data and show it
+    img = u4web.wms_in_gdf_boundary(
+        bound_gdf, wms_url, wms_version, layer, size
+    )
+    ax.imshow(
+        img,
+        extent=(
+            bound_gdf.bounds.minx[0],
+            bound_gdf.bounds.maxx[0],
+            bound_gdf.bounds.miny[0],
+            bound_gdf.bounds.maxy[0],
+        ),
+    )
 
 
 @_add_or_create
