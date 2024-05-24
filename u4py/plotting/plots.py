@@ -553,9 +553,6 @@ def geology_map(
     shp_gdf.plot(ax=ax, fc="None", ec="C0", zorder=5)
     shp_gdf.buffer(500).plot(ax=ax, fc="None", ec="None")
 
-    with open(legend_path, "rb") as leg_file:
-        uuid, label, _, facecolor, _, _ = pkl.load(leg_file)
-
     u4plotfmt.map_style(ax=ax, divisor=500, crs=crs)
     fig.tight_layout()
     ax.set_xlim(xlim)
@@ -570,27 +567,18 @@ def geology_map(
         suffix=f"_{row[1].group:05}",
         out_folder=shp_path,
     )
+
     if len(geology_data) > 0:
-        fc = [
-            (facecolor[uuid.index(tkeh)] if tkeh in uuid else (0.5, 0.5, 0.5))
-            for tkeh in geology_data["TKEH"].to_list()
-        ]
-        untkeh = np.unique(geology_data["TKEH"].to_numpy())
-        untkeh.sort()
         leg_handles = []
         leg_handles.append(
             mlines.Line2D([], [], color="C0", label="Bereich der Anomalie")
         )
-        for tkeh in untkeh:
-            try:
-                ii = uuid.index(tkeh)
-                facec = facecolor[ii]
-            except ValueError:
-                facec = (0.5, 0.5, 0.5)
-            leg_handles.append(
-                mpatches.Patch(fc=facec, label=textwrap.fill(label[ii], 50))
-            )
-        geology_data.plot(ax=ax, fc=fc, ec="k", linewidth=0.25, alpha=0.5)
+        leg_dict, lgh_from_file = u4plotfmt.get_style_from_legend(
+            geology_data["TKEH"].to_list(), legend_path
+        )
+        leg_handles.extend(lgh_from_file)
+
+        geology_data.plot(ax=ax, **leg_dict)
         u4ax.add_gpkg_data_where(
             ax,
             contour_path,

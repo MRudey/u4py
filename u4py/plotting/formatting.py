@@ -4,8 +4,11 @@ Contains functions for consistent figure and axis formatting.
 
 from __future__ import annotations
 
+import os
+import pickle as pkl
 import re
 import string
+import textwrap
 from typing import Tuple
 
 import matplotlib.patches as mpatches
@@ -405,3 +408,76 @@ def _label_scalebar(ax: Axes, x: float, y: float, width: float, height: float):
         path_effects=[path_effects.withStroke(linewidth=2, foreground="k")],
         zorder=10,
     )
+
+
+def get_style_from_legend(
+    map_uuids: list, legend_path: os.PathLike
+) -> Tuple[dict, list]:
+    """
+    Creates a dictionary with plot format arguments and a list of legend
+    handles to plot the geodataframe according to a pickled legend converted
+    from the json information of HLNUG.
+
+    :param map_uuids: The unique identifiers of the feature geometries.
+    :type map_uuids: list
+    :param legend_path: The path to the legend file
+    :type legend_path: os.PathLike
+    :return: A dictionary with the plotting arguments and a list of legend handles.
+    :rtype: Tuple[dict, list]
+    """
+    with open(legend_path, "rb") as leg_file:
+        (
+            uuids,
+            labels,
+            styles,
+            fills,
+            facecolors,
+            edgecolors,
+            alphas,
+            linewidths,
+        ) = pkl.load(leg_file)
+
+    # Get color and style for all map uuids
+    idx = [(uuids.index(uuid) if uuid in uuids else -1) for uuid in map_uuids]
+    leg_dict = {
+        # "lb": [(labels[ii] if ii >= 0 else "unknown") for ii in idx],
+        "hatch": [(styles[ii] if ii >= 0 else "") for ii in idx],
+        "fill": [(fills[ii] if ii >= 0 else True) for ii in idx],
+        "fc": [(facecolors[ii] if ii >= 0 else (0.5, 0.5, 0.5)) for ii in idx],
+        "ec": [(edgecolors[ii] if ii >= 0 else (0.5, 0.5, 0.5)) for ii in idx],
+        "alpha": [(alphas[ii] if ii >= 0 else 0.5) for ii in idx],
+        "linewidth": [(linewidths[ii] if ii >= 0 else 1) for ii in idx],
+    }
+
+    # Create legend entries
+    un_uuid = np.unique(map_uuids)
+    un_uuid.sort()
+    leg_handles = []
+    for uuid in un_uuid:
+        try:
+            ii = uuids.index(uuid)
+            leg_handles.append(
+                mpatches.Patch(
+                    facecolor=facecolors[ii],
+                    edgecolor=edgecolors[ii],
+                    alpha=alphas[ii],
+                    fill=fills[ii],
+                    hatch=styles[ii],
+                    linewidth=linewidths[ii],
+                    label=textwrap.fill(labels[ii], 50),
+                )
+            )
+        except ValueError:
+            leg_handles.append(
+                mpatches.Patch(
+                    facecolor=(0.5, 0.5, 0.5),
+                    edgecolor=(0.5, 0.5, 0.5),
+                    alpha=0.5,
+                    fill=True,
+                    hatch="",
+                    linewidth=1,
+                    label="unkown",
+                )
+            )
+
+    return leg_dict, leg_handles
