@@ -28,11 +28,13 @@ import numpy as np
 import rasterio
 import rasterio.plot as rioplot
 import scipy.stats as spstats
+import shapely as shp
 import skimage.transform as sktransf
 from matplotlib.axes import Axes
 from matplotlib.colors import hsv_to_rgb
 from matplotlib.figure import Figure
 from pyproj import CRS
+from shapely import plotting as shplt
 
 import u4py.addons.web_services as u4web
 import u4py.analysis.inversion as u4invert
@@ -46,7 +48,7 @@ import u4py.plotting.preparation as u4plotprep
 import u4py.utils.convert as u4convert
 
 
-def _add_or_create(internal_plot: Callable) -> Tuple[Figure, Axes] | None:
+def _add_or_create(internal_plot):
     """Decorator for all functions in this module
 
     Functions decorated can either add their plot to the axis (if `ax` is set).
@@ -54,8 +56,6 @@ def _add_or_create(internal_plot: Callable) -> Tuple[Figure, Axes] | None:
 
     :param internal_plot: The function creating the plot.
     :type internal_plot: Callable
-    :return: The outputs of the plotting function.
-    :rtype: Tuple[Figure, Axes] | None
     """
 
     @wraps(internal_plot)
@@ -703,19 +703,24 @@ def add_tile(
 
             ax.yaxis.set_inverted(False)
             if colorbar:
-                plt.colorbar(ims, ax=ax, **colorbar)
+                cbax = ax.inset_axes((0.7, 0, 0.2, 1))
+                cbax.axis("off")
+                plt.colorbar(ims, ax=cbax, **colorbar)
+                ax.set_position([0, 0, 0.85, 1])
+
         return tiff_tile.bounds, tiff_tile.crs
 
 
-def add_diff_plan(ax: Axes, region: gp.GeoDataFrame, tiff_folder: os.PathLike):
+@_add_or_create
+def add_diff_plan(region: gp.GeoDataFrame, tiff_folder: os.PathLike, ax: Axes):
     """Adds a differential motion plot to the axis.
 
-    :param ax: The axis to plot into.
-    :type ax: Axes
     :param region: The region where to extract the data.
     :type region: gp.GeoDataFrame
     :param tiff_folder: The folder where the data is found.
     :type tiff_folder: os.PathLike
+    :param ax: The axis to plot into.
+    :type ax: Axes
     """
     coverage = u4tiff.get_tiff_coverage(tiff_folder)
     if region.crs != coverage.crs:
@@ -743,15 +748,16 @@ def add_diff_plan(ax: Axes, region: gp.GeoDataFrame, tiff_folder: os.PathLike):
         logging.info("No diff plan tiles in region found.")
 
 
-def add_dem(ax: Axes, region: gp.GeoDataFrame, tiff_folder: os.PathLike):
+@_add_or_create
+def add_dem(region: gp.GeoDataFrame, tiff_folder: os.PathLike, ax: Axes):
     """Adds a digital elevation model dataset to the axis.
 
-    :param ax: The axis to plot into.
-    :type ax: Axes
     :param region: The region where to extract the data.
     :type region: gp.GeoDataFrame
     :param tiff_folder: The folder where the data is found.
     :type tiff_folder: os.PathLike
+    :param ax: The axis to plot into.
+    :type ax: Axes
     """
     file_list = u4files.get_file_list_adf(tiff_folder)
     points = u4spatial.select_points_region(region, file_list)
@@ -764,15 +770,16 @@ def add_dem(ax: Axes, region: gp.GeoDataFrame, tiff_folder: os.PathLike):
         logging.info("No dem tiles in region found.")
 
 
-def add_slope(ax: Axes, region: gp.GeoDataFrame, tiff_folder: os.PathLike):
+@_add_or_create
+def add_slope(region: gp.GeoDataFrame, tiff_folder: os.PathLike, ax: Axes):
     """Adds a slope map to the axis.
 
-    :param ax: The axis to plot into.
-    :type ax: Axes
     :param region: The region where to extract the data.
     :type region: gp.GeoDataFrame
     :param tiff_folder: The folder where the data is found.
     :type tiff_folder: os.PathLike
+    :param ax: The axis to plot into.
+    :type ax: Axes
     """
     file_list = u4files.get_file_list_adf(tiff_folder)
     points = u4spatial.select_points_region(region, file_list)
@@ -799,15 +806,16 @@ def add_slope(ax: Axes, region: gp.GeoDataFrame, tiff_folder: os.PathLike):
         logging.info("No tiff tiles in region found.")
 
 
-def add_aspect(ax: Axes, region: gp.GeoDataFrame, tiff_folder: os.PathLike):
+@_add_or_create
+def add_aspect(region: gp.GeoDataFrame, tiff_folder: os.PathLike, ax: Axes):
     """Adds an aspect map to the axis.
 
-    :param ax: The axis to plot into.
-    :type ax: Axes
     :param region: The region where to extract the data.
     :type region: gp.GeoDataFrame
     :param tiff_folder: The folder where the data is found.
     :type tiff_folder: os.PathLike
+    :param ax: The axis to plot into.
+    :type ax: Axes
     """
     file_list = u4files.get_file_list_adf(tiff_folder)
     points = u4spatial.select_points_region(region, file_list)
@@ -834,17 +842,18 @@ def add_aspect(ax: Axes, region: gp.GeoDataFrame, tiff_folder: os.PathLike):
         logging.info("No tiff tiles in region found.")
 
 
+@_add_or_create
 def add_aspect_slope(
-    ax: Axes, region: gp.GeoDataFrame, tiff_folder: os.PathLike
+    region: gp.GeoDataFrame, tiff_folder: os.PathLike, ax: Axes
 ):
     """Adds an aspect-slope map to the axis.
 
-    :param ax: The axis to plot into.
-    :type ax: Axes
     :param region: The region where to extract the data.
     :type region: gp.GeoDataFrame
     :param tiff_folder: The folder where the data is found.
     :type tiff_folder: os.PathLike
+    :param ax: The axis to plot into.
+    :type ax: Axes
     """
     file_list = u4files.get_file_list_adf(tiff_folder)
     points = u4spatial.select_points_region(region, file_list)
@@ -887,17 +896,18 @@ def add_aspect_slope(
         logging.info("No tiff tiles in region found.")
 
 
+@_add_or_create
 def add_gpkg_data_in_axis(
-    ax: Axes, gpkg_path: os.PathLike, table: str, **plot_kwargs
+    gpkg_path: os.PathLike, table: str, ax: Axes, **plot_kwargs
 ):
     """Adds data from a gpkg file to the plot using the boundaries of the axis as the extend of the geometry
 
-    :param ax: The axis to plot into.
-    :type ax: Axes
     :param gpkg_path: The path to the geodatabase with HLNUG data.
     :type gpkg_path: os.PathLike
     :param table: The sql table name to use.
     :type table: str
+    :param ax: The axis to plot into.
+    :type ax: Axes
     :param **plot_kwargs: Keyword arguments passed to the `GeoDataFrame.plot()` function.
     :type **plot_kwargs: dict
     """
@@ -914,24 +924,25 @@ def add_gpkg_data_in_axis(
         logging.info("No data inside axis found.")
 
 
+@_add_or_create
 def add_gpkg_data_where(
-    ax: Axes,
     gpkg_path: os.PathLike,
     table: str,
     where: str,
+    ax: Axes,
     buffer: float = 0,
     **plot_kwargs,
 ):
     """Adds data from a gpkg file using a where clause, e.g., to only plot geometries in a certain group.
 
-    :param ax: The axis to plot into.
-    :type ax: Axes
     :param gpkg_path: The path to the geodatabase.
     :type gpkg_path: os.PathLike
     :param table: The sql table to use.
     :type table: str
     :param where: The where clause used for filtering (in OGRSQL).
     :type where: str
+    :param ax: The axis to plot into.
+    :type ax: Axes
     :param buffer: A buffer distance used to improve the visibility of underlying features, defaults to 0.
     :type buffer: float
     :param **plot_kwargs: Keyword arguments passed to the `GeoDataFrame.plot()` function.
@@ -946,3 +957,59 @@ def add_gpkg_data_where(
 
     else:
         logging.info(f"No data found where: {where}")
+
+
+@_add_or_create
+def add_hlnug_shapes(
+    geometries: list[shp.Polygon | shp.Point | shp.LineString],
+    leg_dict: dict,
+    ax: Axes,
+):
+    """Adds shapes loaded from a hlnug server to the axis using the symbology loaded from a legend file.
+
+    :param geometries: A list of shapely geometries.
+    :type geometries: list[shp.Polygon  |  shp.Point  |  shp.LineString]
+    :param leg_dict: A dictionary with formatting options for each geometry in `geometries` with the same index.
+    :type leg_dict: dict
+    :param ax: The axis to add the data to.
+    :type ax: Axes
+    """
+    for ii, poly in enumerate(geometries):
+        if isinstance(leg_dict["hatch"][ii], str):
+            shplt.plot_polygon(
+                poly,
+                ax=ax,
+                fc=leg_dict["fc"][ii],
+                ec=leg_dict["ec"][ii],
+                fill=leg_dict["fill"][ii],
+                hatch=leg_dict["hatch"][ii],
+                alpha=leg_dict["alpha"][ii],
+                linewidth=leg_dict["linewidth"][ii],
+                add_points=False,
+            )
+        elif isinstance(leg_dict["hatch"][ii], dict):
+            shplt.plot_polygon(
+                poly,
+                ax=ax,
+                fc=leg_dict["fc"][ii],
+                ec=leg_dict["ec"][ii],
+                fill=leg_dict["fill"][ii],
+                alpha=leg_dict["alpha"][ii],
+                linewidth=leg_dict["linewidth"][ii],
+                add_points=False,
+            )
+            for hii in range(len(leg_dict["hatch"][ii]["hatch"])):
+                ht = leg_dict["hatch"][ii]["hatch"][hii]
+                hc = leg_dict["hatch"][ii]["hatch_color"][0]
+                hca = leg_dict["hatch"][ii]["hatch_alpha"][0]
+                shplt.plot_polygon(
+                    poly,
+                    ax=ax,
+                    fc="None",
+                    ec=hc,
+                    hatch=ht,
+                    fill=leg_dict["fill"][ii],
+                    alpha=hca,
+                    linewidth=leg_dict["linewidth"][ii],
+                    add_points=False,
+                )

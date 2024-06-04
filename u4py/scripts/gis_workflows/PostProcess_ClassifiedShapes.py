@@ -19,7 +19,7 @@ import u4py.utils.config as u4config
 import u4py.utils.projects as u4proj
 
 warnings.filterwarnings("ignore")
-# u4config.start_logger()
+u4config.cpu_count = 32
 
 
 def main():
@@ -35,7 +35,7 @@ def main():
         interactive=False,
     )
     use_parallel = True
-    generate_plots = True
+    generate_plots = False
     generate_pdf = True
 
     # Setting up paths
@@ -200,16 +200,17 @@ def map_worker(
     :type contour_path: os.PathLike
     """
 
-    xlim, ylim = u4plots.detailed_map(
+    u4plots.detailed_map(
         row,
         crs,
         output_path,
         "known_features",
         hlnug_path,
         contour_path,
+        plot_buffer=250,
     )
     u4plots.satimg_map(
-        row, crs, output_path, "known_features", contour_path, xlim, ylim
+        row, crs, output_path, "known_features", contour_path, plot_buffer=100
     )
     u4plots.diffplan_map(
         row,
@@ -217,8 +218,7 @@ def map_worker(
         output_path,
         "known_features",
         project["paths"]["diff_plan_path"],
-        xlim,
-        ylim,
+        plot_buffer=100,
     )
     u4plots.dem_map(
         row,
@@ -227,8 +227,7 @@ def map_worker(
         "known_features",
         dem_path,
         contour_path,
-        xlim,
-        ylim,
+        plot_buffer=100,
     )
     u4plots.slope_map(
         row,
@@ -237,8 +236,7 @@ def map_worker(
         "known_features",
         dem_path,
         contour_path,
-        xlim,
-        ylim,
+        plot_buffer=100,
     )
     u4plots.aspect_map(
         row,
@@ -247,8 +245,7 @@ def map_worker(
         "known_features",
         dem_path,
         contour_path,
-        xlim,
-        ylim,
+        plot_buffer=100,
     )
     u4plots.aspect_slope_map(
         row,
@@ -257,8 +254,7 @@ def map_worker(
         "known_features",
         dem_path,
         contour_path,
-        xlim,
-        ylim,
+        plot_buffer=100,
     )
     u4plots.geology_map(
         row,
@@ -266,9 +262,10 @@ def map_worker(
         output_path,
         "known_features",
         contour_path,
-        xlim,
-        ylim,
-        os.path.join(project["paths"]["places_path"], "legend_GK25.pkl"),
+        os.path.join(
+            project["paths"]["places_path"], "Geologie (Kartiereinheiten).pkl"
+        ),
+        plot_buffer=100,
     )
     u4plots.hydrogeology_map(
         row,
@@ -276,9 +273,10 @@ def map_worker(
         output_path,
         "known_features",
         contour_path,
-        xlim,
-        ylim,
-        os.path.join(project["paths"]["places_path"], "legend_HUEK200.pkl"),
+        os.path.join(
+            project["paths"]["places_path"], "Hydrogeologische Einheiten.pkl"
+        ),
+        plot_buffer=100,
     )
     u4plots.topsoil_map(
         row,
@@ -286,9 +284,8 @@ def map_worker(
         output_path,
         "known_features",
         contour_path,
-        xlim,
-        ylim,
         os.path.join(project["paths"]["places_path"], "legend_BFD50.pkl"),
+        plot_buffer=100,
     )
     if row[1].timeseries_num_psi > 5:
         u4plots.timeseries_map(
@@ -297,9 +294,8 @@ def map_worker(
             output_path,
             "known_features",
             contour_path,
-            xlim,
-            ylim,
             os.path.join(project["paths"]["psi_path"]),
+            plot_buffer=100,
         )
 
 

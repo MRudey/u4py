@@ -8,6 +8,7 @@ import subprocess
 import geopandas as gp
 import numpy as np
 import uncertainties as unc
+from uncertainties import unumpy as unp
 
 
 def main_report(output_path: os.PathLike):
@@ -31,7 +32,7 @@ def main_report(output_path: os.PathLike):
         + "\\usepackage{fontawesome}\n"
         + "\\usepackage[ngerman]{babel}\n"
         + "\\usepackage{tocloft}"
-        + "\\setlength{\\cftsubsecnumwidth}{4em}"
+        + "\\addtolength{\\cftsecnumwidth}{10pt}"
         # + "\\usepackage[margin=1in]{geometry}\n"
         + "\\begin{document}\n"
         + "\\title{Detektierte Anomalien}\n"
@@ -93,28 +94,29 @@ def site_report(row: tuple, output_path: os.PathLike, suffix: str):
     # Create TeX code
     tex = f"\\section{{Gruppe {group}}}\n\n"
 
-    tex += location(row[1])
-
     # Overview plot and satellite image
+    tex += location(row[1])
     if os.path.exists(img_path + "_map.pdf") and os.path.exists(
         img_path + "_satimg.pdf"
     ):
         tex += details_and_satellite(img_path)
 
+    # Manual Classification
+    tex += manual_description(row[1])
+
+    # Landuse
+    tex += landuse(row[1])
+
     # Volumina
     tex += moved_volumes(row[1])
 
     # Difference maps
-    if os.path.exists(img_path + "_diffplan.pdf") and os.path.exists(
-        img_path + "_slope.pdf"
-    ):
+    if os.path.exists(img_path + "_diffplan.pdf"):
         tex += difference(img_path)
 
     # Topographie
-    tex += topography(row[1])
-
-    # Landuse
-    tex += landuse(row[1])
+    if os.path.exists(img_path + "_slope.pdf"):
+        tex += topography(row[1], img_path)
 
     # PSI Data
     if os.path.exists(img_path + "_psi.png"):
@@ -157,7 +159,8 @@ def location(series: gp.GeoSeries) -> str:
     lng = np.round(float(wgs_point.geometry.x), 6)
 
     tex = (
-        f"\\textbf{{Lokalität:}} {series.locations}\n\n"
+        "\\subsection*{{Lokalität:}}\n"
+        + f"{series.locations}\n\n"
         + f"\\textbf{{Koordinaten (UTM 32N):}} "
         + f"{int(series.geometry.centroid.y)}\\,N "
         + f"{int(series.geometry.centroid.x)}\\,E\n\n"
@@ -174,6 +177,66 @@ def location(series: gp.GeoSeries) -> str:
     return tex
 
 
+def manual_description(series: gp.GeoSeries) -> str:
+    tex = "\\subsection*{Manuelle Klassifizierung}\n\n"
+    if int(series.manual_known):
+        tex += (
+            "Die Anomalie ist bereits in den Datenbanken des HLNUG vorhanden. "
+        )
+    else:
+        tex += "Die Anomalie ist noch nicht in den Datenbanken des HLNUG vorhanden. "
+    ncls = len(
+        [
+            series[f"manual_class_{ii}"]
+            for ii in range(1, 4)
+            if series[f"manual_class_{ii}"]
+        ]
+    )
+    prob_txt = ["wahrscheinlich", "möglicherweise"]
+    if ncls == 1:
+        tex += (
+            f"Es handelt sich {prob_txt[int(series['manual_unclear_1'])]} "
+            + f"um ein/e {series['manual_class_1']}: \n"
+            + "\\begin{itemize}\n"
+            + f"\\item[$\\rightarrow$] {series['manual_comment']}\n"
+            + "\\end{itemize}\n"
+        )
+    elif ncls == 2:
+        tex += (
+            "Mehrere Ursachen kommen in Frage. "
+            + f"Es handelt sich {prob_txt[int(series['manual_unclear_1'])]} "
+            + f"um ein/e {series['manual_class_1']} oder "
+            + f"{prob_txt[int(series['manual_unclear_2'])]} "
+            + f"um ein/e {series['manual_class_2']}: \n"
+            + "\\begin{itemize}\n"
+            + f"\\item[$\\rightarrow$] {series['manual_comment']}\n"
+            + "\\end{itemize}\n"
+        )
+    elif ncls == 3:
+        tex += (
+            "Mehrere Ursachen kommen in Frage. "
+            + f"Es handelt sich {prob_txt[int(series['manual_unclear_1'])]} "
+            + f"um ein/e {series['manual_class_1']}, "
+            + f"{prob_txt[int(series['manual_unclear_2'])]} "
+            + f"um ein/e {series['manual_class_2']} oder "
+            + f"{prob_txt[int(series['manual_unclear_3'])]} "
+            + f"um ein/e {series['manual_class_3']}: \n"
+            + "\\begin{itemize}\n"
+            + f"\\item[$\\rightarrow$] {series['manual_comment']}\n"
+            + "\\end{itemize}\n"
+        )
+    else:
+        tex += "Eine manuelle Klassifikation ist noch nicht erfolgt. "
+    if int(series["manual_research"]):
+        tex += (
+            "Aufgrund der Nähe zu Infrastruktur oder der unklaren Lage "
+            + "sollte die Anomalie einer genaueren Untersuchung unterzogen "
+            + "werden. "
+        )
+    tex += "\n\n"
+    return tex
+
+
 def details_and_satellite(img_path: os.PathLike) -> str:
     """Adds the detailed map and the satellite image map.
 
@@ -185,11 +248,11 @@ def details_and_satellite(img_path: os.PathLike) -> str:
     tex = (
         "\\begin{figure}[h!]\n"
         + "  \\centering\n"
-        + "  \\begin{subfigure}[][][t]{.45\\textwidth}\n"
+        + "  \\begin{subfigure}[][][t]{.49\\textwidth}\n"
         + f"    \\includegraphics[width=\\textwidth]{{{img_path+'_map.pdf'}}}\n"
         + "    \\caption{Übersicht über das Gebiet der Gruppe inklusive verschiedener Geogefahren und der detektierten Anomalien (Kartengrundlage OpenStreetMap).}\n"
         + "  \\end{subfigure}\n\hfill\n"
-        + "  \\begin{subfigure}[][][t]{.45\\textwidth}\n"
+        + "  \\begin{subfigure}[][][t]{.49\\textwidth}\n"
         + f"    \\includegraphics[width=\\textwidth]{{{img_path+'_satimg.pdf'}}}\n"
         + "    \\caption{Luftbild basierend auf ESRI Imagery.}\n"
         + "  \\end{subfigure}\n"
@@ -208,7 +271,8 @@ def moved_volumes(series: gp.GeoSeries) -> str:
     :rtype: str
     """
     tex = (
-        "Im Gebiet um die detektierte Anomalie wurde insgesamt "
+        "\\clearpage\n\\subsection*{Höhenveränderungen}\n"
+        + "Im Gebiet um die detektierte Anomalie wurde insgesamt "
         + f"{series.volumes_moved}\\,m$^3$ Material bewegt, "
         + f"wovon {series.volumes_added}\\,m$^3$ hinzugefügt und "
         + f"{abs(series.volumes_removed)}\\,m$^3$ abgetragen wurde. "
@@ -244,39 +308,20 @@ def difference(img_path: os.PathLike) -> str:
     """
     tex = (
         "\\begin{figure}[!ht]\n"
-        + "  \\begin{subfigure}[][][t]{.45\\textwidth}\n"
-        + f"  \\includegraphics[width=\\textwidth]{{{img_path+'_diffplan.pdf'}}}\n"
+        + "  \\centering"
+        + f"  \\includegraphics[width=.9\\textwidth]{{{img_path+'_diffplan.pdf'}}}\n"
         + "  \\caption{Differenzenplan im Gebiet.}\n"
-        + "  \\end{subfigure}\n\hfill\n"
-        + "  \\begin{subfigure}[][][t]{.45\\textwidth}\n"
-        + "\\centering\n"
-        + f"  \\includegraphics[width=\\textwidth]{{{img_path+'_dem.pdf'}}}\n"
-        + "  \\caption{Digitales Höhenmodell (Schummerung).}\n"
-        + "  \\end{subfigure}\n\hfill\n"
-        + "  \\caption{Höhenmodell und dessen Veränderung im Gebiet.}"
-        + "\\end{figure}\n\n"
+        + "\\end{figure}\n"
         + "\\begin{figure}[!ht]\n"
-        + "  \\begin{subfigure}[][][t]{.3\\textwidth}\n"
-        + f"  \\includegraphics[width=\\textwidth]{{{img_path+'_slope.pdf'}}}\n"
-        + "  \\caption{Steigung}\n"
-        + "  \\end{subfigure}\n\hfill\n"
-        + "  \\begin{subfigure}[][][t]{.3\\textwidth}\n"
-        + "\\centering\n"
-        + f"  \\includegraphics[width=\\textwidth]{{{img_path+'_aspect.pdf'}}}\n"
-        + "  \\caption{Exposition.}\n"
-        + "  \\end{subfigure}\n\hfill\n"
-        + "  \\begin{subfigure}[][][t]{.3\\textwidth}\n"
-        + "\\centering\n"
-        + f"  \\includegraphics[width=\\textwidth]{{{img_path+'_aspect_slope.pdf'}}}\n"
-        + "  \\caption{Steigung und Exposition}\n"
-        + "  \\end{subfigure}\n\hfill\n"
-        + "  \\caption{Topographie im Gebiet.}"
+        + "  \\centering"
+        + f"  \\includegraphics[width=.9\\textwidth]{{{img_path+'_dem.pdf'}}}\n"
+        + "  \\caption{Digitales Höhenmodell (Schummerung).}\n"
         + "\\end{figure}\n\n"
     )
     return tex
 
 
-def topography(series: gp.GeoSeries) -> str:
+def topography(series: gp.GeoSeries, img_path: os.PathLike) -> str:
     """Converts the slope into a descriptive text.
 
     :param series: The GeoSeries object extracted from the row.
@@ -284,23 +329,81 @@ def topography(series: gp.GeoSeries) -> str:
     :return: The tex code.
     :rtype: str
     """
-    # Post event data
-    slope_new = float(series.slope_hull_median_new)
-    slope_std_new = float(series.slope_hull_std_new)
-    usl_new = unc.ufloat(slope_new, slope_std_new)
-    ustr_new = str(usl_new).replace("+/-", "$\\pm$") + "\\,\\%"
-    # Pre event data
-    slope_old = float(series.slope_hull_median_old)
-    slope_std_old = float(series.slope_hull_std_old)
-    usl_old = unc.ufloat(slope_old, slope_std_old)
-    ustr_old = str(usl_old).replace("+/-", "$\\pm$") + "\\,\\%"
+    tex = "\\clearpage\n\\subsection*{Topographie}\n\n"
+    noval_yrs = []
+    for yy in ["14", "19", "21"]:
+        year = f"20{yy}"
 
-    tex = (
-        f"Die Steigung im Gebiet ist {slope_std_str(slope_std_new)} und "
-        + f"{slope_str(slope_new)} ({ustr_new}). "
-        + f"Vor dem Ereignis war die Steigung {slope_std_str(slope_std_old)} "
-        + f"und {slope_str(slope_old)} ({ustr_old}).\n"
+        if series[f"slope_hull_mean_{yy}"] == "[]":
+            noval_yrs.append(year)
+        else:
+            # Values for the individual polygons (can be empty)
+            means = eval(series[f"slope_polygons_mean_{yy}"])
+            std = eval(series[f"slope_polygons_std_{yy}"])
+            if isinstance(means, list):
+                if len(means) > 0:
+                    slope_unp = unp.uarray(
+                        means,
+                        std,
+                    )
+                    usl = np.mean(slope_unp)
+                    slope = usl.n
+                    slope_std = usl.s
+                    ustr = str(usl).replace("+/-", "$\\pm$") + "\\,\\%"
+                    tex += (
+                        f"Im Jahr {year} war die Steigung im Bereich der "
+                        + f"Anomalie {slope_std_str(slope_std)} und "
+                        + f"{slope_str(slope)} ({ustr}). "
+                    )
+            elif isinstance(means, float):
+                slope = means
+                slope_std = std
+                usl = unc.ufloat(slope, slope_std)
+                ustr = str(usl).replace("+/-", "$\\pm$") + "\\,\\%"
+                tex += (
+                    f"Im Jahr {year} war die Steigung im Bereich der "
+                    + f"Anomalie {slope_std_str(slope_std)} und "
+                    + f"{slope_str(slope)} ({ustr}). "
+                )
+            else:
+                tex += f"Im Jahr {year} liegt für den Bereich der Anomalie keine Daten vor (außerhalb DEM). "
+
+            # Values for the hull around all anomalies
+            slope = float(series[f"slope_hull_mean_{yy}"])
+            slope_std = float(series[f"slope_hull_std_{yy}"])
+            usl = unc.ufloat(slope, slope_std)
+            ustr = str(usl).replace("+/-", "$\\pm$") + "\\,\\%"
+            tex += (
+                f"Im näheren Umfeld ist das Gelände {slope_std_str(slope_std)}"
+                + f" und {slope_str(slope)} ({ustr}). "
+            )
+
+    if len(noval_yrs) == 1:
+        tex += f"Für das Jahr {noval_yrs[0]} liegen keine Daten vor. "
+    elif len(noval_yrs) == 2:
+        tex += f"Für die Jahre {noval_yrs[0]} und {noval_yrs[1]} liegen keine Daten vor. "
+    elif len(noval_yrs) == 3:
+        tex += f"Es sind keine DEM Daten im Untersuchungszeitraum für das Gebiet vorhanden. "
+    tex += (
+        "\n\\begin{figure}[!ht]\n"
+        + "  \\begin{subfigure}[][][t]{.49\\textwidth}\n"
+        + f"  \\includegraphics[width=\\textwidth]{{{img_path+'_slope.pdf'}}}\n"
+        + "  \\caption{Steigung}\n"
+        + "  \\end{subfigure}\n\hfill\n"
+        + "  \\begin{subfigure}[][][t]{.49\\textwidth}\n"
+        + "\\centering\n"
+        + f"  \\includegraphics[width=\\textwidth]{{{img_path+'_aspect.pdf'}}}\n"
+        + "  \\caption{Exposition.}\n"
+        + "  \\end{subfigure}\n\hfill\n"
+        + "  \\caption{Topographie im Gebiet.}"
+        + "\\end{figure}\n\n"
+        + "\\begin{figure}[!ht]\n"
+        + "  \\centering\n"
+        + f"  \\includegraphics[width=\\textwidth]{{{img_path+'_aspect_slope.pdf'}}}\n"
+        + "  \\caption{Steigung und Exposition}\n"
+        + "\\end{figure}\n"
     )
+    tex += "\n\n"
     return tex
 
 
@@ -359,7 +462,7 @@ def landuse(series: gp.GeoSeries) -> str:
     :rtype: str
     """
     landuse = ""
-    tex = ""
+    tex = "\\paragraph{Landnutzung}\n\n"
     try:
         landuse = eval(series.landuse_names)
     except NameError:
@@ -496,7 +599,7 @@ def landslide_risk(series: gp.GeoSeries) -> str:
     :rtype: str
     """
     lsar = series.landslide_total
-    tex = "\\paragraph*{Rutschungsgefährdung}\n\n"
+    tex = "\\subsection*{Rutschungsgefährdung}\n\n"
     if lsar > 0:
         tex += f"Das Gebiet liegt {part_str(lsar)} ({lsar:.0f}\%) in einem gefährdeten Bereich mit rutschungsanfälligen Schichten. "
         try:
@@ -526,7 +629,7 @@ def karst_risk(series: gp.GeoSeries) -> str:
     :rtype: str
     """
     ksar = series.karst_total
-    tex = "\\paragraph*{Karstgefährdung}\n\n"
+    tex = "\\subsection*{Karstgefährdung}\n\n"
     if ksar > 0:
         tex += f"Das Gebiet liegt {part_str(ksar)} ({ksar:.0f}\%) in einem Bereich bekannter verkarsteter Schichten. "
         try:
@@ -554,7 +657,7 @@ def subsidence_risk(series: gp.GeoSeries) -> str:
     :rtype: str
     """
     subsar = series.subsidence_total
-    tex = "\\paragraph*{Setzungsgefährdung}\n\n"
+    tex = "\\subsection*{Setzungsgefährdung}\n\n"
     if subsar > 0:
         tex += f"Das Gebiet liegt {part_str(subsar)} ({subsar:.0f}\%) in einem Bereich bekannter setzungsgefährdeter Schichten. "
         try:
@@ -575,10 +678,15 @@ def subsidence_risk(series: gp.GeoSeries) -> str:
 
 def geology(img_path) -> str:
     tex = (
-        "\\subsection*{Geologie}\n\n"
+        "\\clearpage\n\\subsection*{Geologie}\n\n"
         + "\\begin{figure}[H]\n"
         + "\\centering\n"
-        + f"  \\includegraphics[width=.9\\textwidth]{{{img_path+'_GK25.pdf'}}}\n"
+        + f"  \\includegraphics[width=\\textwidth]{{{img_path+'_GK25.pdf'}}}\n"
+        + "\\end{figure}\n"
+        + "\\vspace{-2ex}\n"
+        + "\\begin{figure}[H]\n"
+        + "\\centering\n"
+        + f"  \\includegraphics[width=.75\\textwidth]{{{img_path+'_GK25_leg.pdf'}}}\n"
         + "  \\caption{Geologie im Gebiet basierend auf GK25 (Quelle: HLNUG).}\n"
         + "\\end{figure}\n\n"
     )
@@ -587,10 +695,15 @@ def geology(img_path) -> str:
 
 def hydrogeology(img_path: os.PathLike) -> str:
     tex = (
-        "\\subsection*{Hydrogeologie}\n\n"
+        "\\clearpage\n\\subsection*{Hydrogeologie}\n\n"
         + "\\begin{figure}[H]\n"
         + "\\centering\n"
-        + f"  \\includegraphics[width=.9\\textwidth]{{{img_path+'_HUEK200.pdf'}}}\n"
+        + f"  \\includegraphics[width=\\textwidth]{{{img_path+'_HUEK200.pdf'}}}\n"
+        + "\\end{figure}\n"
+        + "\\vspace{-2ex}\n"
+        + "\\begin{figure}[H]\n"
+        + "\\centering\n"
+        + f"  \\includegraphics[width=.75\\textwidth]{{{img_path+'_HUEK200_leg.pdf'}}}\n"
         + "  \\caption{Hydrogeologische Einheiten im Gebiet basierend auf HÜK200 (Quelle: HLNUG).}\n"
         + "\\end{figure}\n\n"
     )
@@ -599,10 +712,15 @@ def hydrogeology(img_path: os.PathLike) -> str:
 
 def soils(img_path: os.PathLike) -> str:
     tex = (
-        "\\subsection*{Bodengruppen}\n\n"
+        "\\clearpage\n\\subsection*{Bodengruppen}\n\n"
         + "\\begin{figure}[H]\n"
         + "\\centering\n"
-        + f"  \\includegraphics[width=.9\\textwidth]{{{img_path+'_BFD50.pdf'}}}\n"
+        + f"  \\includegraphics[width=\\textwidth]{{{img_path+'_BFD50.pdf'}}}\n"
+        + "\\end{figure}\n"
+        + "\\vspace{-2ex}\n"
+        + "\\begin{figure}[H]\n"
+        + "\\centering\n"
+        + f"  \\includegraphics[width=.75\\textwidth]{{{img_path+'_BFD50_leg.pdf'}}}\n"
         + "  \\caption{Bodenhauptgruppen im Gebiet basierend auf der BFD50 (Quelle: HLNUG).}\n"
         + "\\end{figure}\n\n"
     )

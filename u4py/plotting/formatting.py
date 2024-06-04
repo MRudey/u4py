@@ -14,6 +14,7 @@ from typing import Tuple
 import matplotlib.patches as mpatches
 import matplotlib.path as mpath
 import matplotlib.patheffects as path_effects
+import matplotlib.pyplot as plt
 import matplotlib.ticker as ticker
 import matplotlib.transforms as mptransf
 import numpy as np
@@ -273,8 +274,13 @@ def add_scalebar(
     unit: str = "m",
     div: int = 2,
     loc: str = "bottom left",
+    limit_width: float = 0.5,
 ):
     """Adds a scalebar to the given axis.
+
+    If `limit_width` is set (default behaviour) the width of the scalebar is
+    automatically set to occupy a maximum of `limit_width` axes units. To
+    override this behaviour set `limit_width=0`.
 
     :param ax: The axis to add the data to.
     :type ax: Axes
@@ -286,6 +292,9 @@ def add_scalebar(
     :type div: int, optional
     :param loc: Location of the scale bar, same syntax as the matplotlib legend placement, defaults to "bottom left"
     :type loc: str, optional
+    :param limit_width: Maximum width of the scale bar in axes units (0..1), defaults to 0.5
+    :type limit_width: float, optional
+
     """
 
     if (
@@ -316,11 +325,12 @@ def add_scalebar(
     xlim = ax.get_xlim()
     ylim = ax.get_ylim()
 
-    x = xlim[0] + (xlim[1] - xlim[0]) * xf
+    cur_width = xlim[1] - xlim[0]
+    x = xlim[0] + cur_width * xf
     y = ylim[0] + (ylim[1] - ylim[0]) * yf
-    height = (xlim[1] - xlim[0]) * 0.025
-    if not width:
-        axw = (xlim[1] - xlim[0]) * 0.5
+    height = cur_width * 0.025
+    if not width or (limit_width and cur_width / width > limit_width):
+        axw = cur_width * limit_width
         widths = [
             10000,
             7500,
@@ -453,31 +463,112 @@ def get_style_from_legend(
     un_uuid = np.unique(map_uuids)
     un_uuid.sort()
     leg_handles = []
+    leg_labels = []
+    jj = 0
     for uuid in un_uuid:
         try:
             ii = uuids.index(uuid)
-            leg_handles.append(
-                mpatches.Patch(
-                    facecolor=facecolors[ii],
-                    edgecolor=edgecolors[ii],
-                    alpha=alphas[ii],
-                    fill=fills[ii],
-                    hatch=styles[ii],
-                    linewidth=linewidths[ii],
-                    label=textwrap.fill(labels[ii], 50),
+            if isinstance(styles[ii], str):
+                leg_handles.append(
+                    mpatches.Rectangle(
+                        (0, jj),
+                        width=0.05,
+                        height=0.75,
+                        facecolor=facecolors[ii],
+                        edgecolor=edgecolors[ii],
+                        alpha=alphas[ii],
+                        fill=fills[ii],
+                        hatch=styles[ii],
+                        linewidth=linewidths[ii],
+                    )
                 )
-            )
+            elif isinstance(styles[ii], dict):
+                if not styles[ii]["hatch"]:
+                    leg_handles.append(
+                        mpatches.Rectangle(
+                            (0, jj),
+                            width=0.05,
+                            height=0.75,
+                            facecolor=facecolors[ii],
+                            edgecolor=edgecolors[ii],
+                            alpha=alphas[ii],
+                            fill=fills[ii],
+                            linewidth=linewidths[ii],
+                        )
+                    )
+                else:
+                    leg_handles.append(
+                        mpatches.Rectangle(
+                            (0, jj),
+                            width=0.05,
+                            height=0.75,
+                            facecolor=facecolors[ii],
+                            edgecolor=edgecolors[ii],
+                            alpha=alphas[ii],
+                            fill=fills[ii],
+                            linewidth=linewidths[ii],
+                        )
+                    )
+                    for hii in range(len(styles[ii]["hatch"])):
+                        ht = styles[ii]["hatch"][hii]
+                        hc = styles[ii]["hatch_color"][0]
+                        hca = styles[ii]["hatch_alpha"][0]
+                        leg_handles.append(
+                            mpatches.Rectangle(
+                                (0, jj),
+                                width=0.05,
+                                height=0.75,
+                                facecolor="None",
+                                edgecolor=hc,
+                                alpha=hca,
+                                hatch=ht,
+                                linewidth=linewidths[ii],
+                            )
+                        )
+            txt_width = 80
+            wrapped_text = textwrap.wrap(labels[ii], txt_width)
+            leg_labels.append(textwrap.fill(labels[ii], txt_width))
+            for ii in range(len(wrapped_text)):
+                if ii > 0:
+                    leg_labels.append("")
+                    jj += 0.75
+
         except ValueError:
             leg_handles.append(
-                mpatches.Patch(
+                mpatches.Rectangle(
+                    (0, jj),
+                    width=0.05,
+                    height=0.75,
                     facecolor=(0.5, 0.5, 0.5),
                     edgecolor=(0.5, 0.5, 0.5),
                     alpha=0.5,
                     fill=True,
                     hatch="",
                     linewidth=1,
-                    label="unkown",
                 )
             )
+            leg_labels.append("unknown")
+        jj += 1
 
-    return leg_dict, leg_handles
+    return leg_dict, leg_handles, leg_labels
+
+
+def full_screen_map(ax: Axes, fix_axes: bool = True):
+    """Makes the axis fill the whole figure and fixes the current extent.
+
+    :param ax: The axis to make full screen.
+    :type ax: Axes
+    :param fix_axes: Whether to fix the axis limits as is, defaults to True
+    :type fix_axes: bool, optional
+    """
+
+    ax.set_position([0, 0, 1, 1])
+    ax.axis("off")
+    plt.axis("equal")
+    plt.draw()
+
+    if fix_axes:
+        xlim = ax.get_xlim()
+        ylim = ax.get_ylim()
+        ax.set_xlim(xlim)
+        ax.set_ylim(ylim)

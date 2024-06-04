@@ -6,12 +6,11 @@ from __future__ import annotations
 
 import logging
 import os
-import pickle as pkl
-import textwrap
 from typing import Iterable, Tuple
 
 import contextily
 import geopandas as gp
+import matplotlib.artist as martist
 import matplotlib.lines as mlines
 import matplotlib.patches as mpatches
 import matplotlib.pyplot as plt
@@ -26,7 +25,7 @@ import u4py.io.tiff as u4tiff
 import u4py.plotting.axes as u4ax
 import u4py.plotting.formatting as u4plotfmt
 
-GLOBAL_DPI = 72
+GLOBAL_DPI = 150
 
 
 def plot_inversion_results(
@@ -513,9 +512,8 @@ def geology_map(
     output_path: os.PathLike,
     suffix: str,
     contour_path: os.PathLike,
-    xlim: tuple,
-    ylim: tuple,
     legend_path: os.PathLike,
+    plot_buffer: float,
 ):
     """Creates a map of the geological features around the area of interest.
 
@@ -529,34 +527,29 @@ def geology_map(
     :type suffix: str
     :param contour_path: The path where the contour dataset is found.
     :type contour_path: os.PathLike
-    :param xlim: The extend of the xaxis for consistent plotting.
-    :type xlim: tuple
-    :param ylim: The extend of the yaxis for consistent plotting.
-    :type ylim: tuple
     :param legend_path: The path where the legend is found.
     :type legend_path: os.PathLike
+    :param plot_buffer: The buffer width around the area of interest.
+    :type plot_buffer: float
     """
     logging.info(f"Plotting geological map of group {row[1].group:05}.")
+
+    # Setup Paths
     output_path = os.path.join(output_path, suffix)
     shp_path = os.path.join(output_path, "HLNUG_queries")
-
     os.makedirs(output_path, exist_ok=True)
     os.makedirs(shp_path, exist_ok=True)
 
+    # Make geodataframe and add to plot
     shp_gdf = gp.GeoDataFrame(geometry=[row[1].geometry], crs=crs)
-    fig = plt.figure(figsize=(10, 7), dpi=GLOBAL_DPI)
-    gs = fig.add_gridspec(ncols=2, width_ratios=(2, 1))
-    ax = fig.add_subplot(gs[0])
-    axl = fig.add_subplot(gs[1])
-    axl.axis("off")
+    fig, ax = plt.subplots(figsize=(16 / 2.54, 11.3 / 2.54), dpi=GLOBAL_DPI)
+    shp_gdf.plot(ax=ax, fc="None", ec="C0", zorder=5, linewidth=3)
+    shp_gdf.buffer(plot_buffer).plot(ax=ax, fc="None", ec="None")
 
-    shp_gdf.plot(ax=ax, fc="None", ec="C0", zorder=5)
-    shp_gdf.buffer(500).plot(ax=ax, fc="None", ec="None")
+    # Make plot full image size and fix axis to current extent
+    u4plotfmt.full_screen_map(ax=ax)
 
-    u4plotfmt.map_style(ax=ax, divisor=500, crs=crs)
-    fig.tight_layout()
-    ax.set_xlim(xlim)
-    ax.set_ylim(ylim)
+    # Plot data
     region = gp.GeoDataFrame(
         geometry=[u4spatial.bounds_to_polygon(ax)], crs=crs
     )
@@ -569,25 +562,58 @@ def geology_map(
     )
 
     if len(geology_data) > 0:
+        # Get symbology and fill legend entry lists
+        leg_dict, lgh_from_file, lglb_from_file = (
+            u4plotfmt.get_style_from_legend(
+                geology_data["TKEH"].to_list(), legend_path
+            )
+        )
         leg_handles = []
+        leg_labels = []
         leg_handles.append(
-            mlines.Line2D([], [], color="C0", label="Bereich der Anomalie")
+            mpatches.Rectangle(
+                (0, -1),
+                width=0.05,
+                height=0.75,
+                facecolor="None",
+                edgecolor="C0",
+                linewidth=3,
+            )
         )
-        leg_dict, lgh_from_file = u4plotfmt.get_style_from_legend(
-            geology_data["TKEH"].to_list(), legend_path
-        )
+        leg_labels.append("Bereich der Anomalie")
         leg_handles.extend(lgh_from_file)
+        leg_labels.extend(lglb_from_file)
+        last_row = sum([1 if ll else 0.75 for ll in leg_labels]) + 1
+        leg_handles.append(
+            mlines.Line2D(
+                [0.005, 0.045],
+                [last_row - 1.9, last_row - 1.5],
+                color="k",
+                linewidth=2,
+                zorder=5,
+            )
+        )
+        leg_labels.append("Störungen, inkl. vermutet")
 
-        geology_data.plot(ax=ax, **leg_dict)
+        # Plot geological map
+        u4ax.add_hlnug_shapes(
+            ax=ax,
+            geometries=geology_data.geometry.to_list(),
+            leg_dict=leg_dict,
+        )
+
+        # Plot other anomalies
         u4ax.add_gpkg_data_where(
-            ax,
             contour_path,
+            ax=ax,
             table="thresholded_contours_all_shapes",
             where=f"groups=={row[1].group}",
             edgecolor="C0",
             facecolor="None",
             linewidth=1,
         )
+
+        # Load tectonic data
         fault_data = u4web.query_hlnug(
             "geologie/gk25/MapServer",
             "Tektonik (Liniendaten)",
@@ -595,28 +621,20 @@ def geology_map(
             suffix=f"_{row[1].group:05}",
             out_folder=shp_path,
         )
-        leg_handles.append(
-            mlines.Line2D([], [], color="k", label="Störungen, inkl. vermutet")
-        )
         fault_data.plot(ax=ax, color="k")
-        axl.legend(
-            handles=leg_handles,
-            fontsize="small",
-            markerscale=0.75,
-        )
+
+        # Formatting and other stuff
+        u4plotfmt.add_scalebar(ax=ax, width=plot_buffer * 4)
         u4ax.add_basemap(
             ax=ax,
             crs=geology_data.crs,
-            source=contextily.providers.CartoDB.Voyager,
+            source=contextily.providers.BaseMapDE.Grey,
         )
-        #     bbox_to_anchor=(1.5, 1),
-        #     loc="upper right",
-        #     borderaxespad=0.0,
-        # )
-
-        fig.tight_layout()
         fig.savefig(os.path.join(output_path, f"{row[1].group:05}_GK25.png"))
         fig.savefig(os.path.join(output_path, f"{row[1].group:05}_GK25.pdf"))
+
+        # Create legend
+        plot_legend(leg_handles, leg_labels, output_path, row[1].group, "GK25")
     plt.close(fig)
 
 
@@ -626,9 +644,8 @@ def hydrogeology_map(
     output_path: os.PathLike,
     suffix: str,
     contour_path: os.PathLike,
-    xlim: tuple,
-    ylim: tuple,
     legend_path: os.PathLike,
+    plot_buffer: float,
 ):
     """Creates a map of hydrogeological units in the area of interest.
 
@@ -642,38 +659,29 @@ def hydrogeology_map(
     :type suffix: str
     :param contour_path: The path where the contour dataset is found.
     :type contour_path: os.PathLike
-    :param xlim: The extend of the xaxis for consistent plotting.
-    :type xlim: tuple
-    :param ylim: The extend of the yaxis for consistent plotting.
-    :type ylim: tuple
     :param legend_path: The path where the legend is found.
     :type legend_path: os.PathLike
+    :param plot_buffer: The buffer width around the area of interest.
+    :type plot_buffer: float
     """
     logging.info(f"Plotting hydrogeological map of group {row[1].group:05}.")
+
+    # Setup Paths
     output_path = os.path.join(output_path, suffix)
     shp_path = os.path.join(output_path, "HLNUG_queries")
-
     os.makedirs(output_path, exist_ok=True)
     os.makedirs(shp_path, exist_ok=True)
 
+    # Make geodataframe and add to plot
     shp_gdf = gp.GeoDataFrame(geometry=[row[1].geometry], crs=crs)
-    fig = plt.figure(figsize=(10, 7), dpi=GLOBAL_DPI)
-    gs = fig.add_gridspec(ncols=2, width_ratios=(2, 1))
-    ax = fig.add_subplot(gs[0])
-    axl = fig.add_subplot(gs[1])
-    axl.axis("off")
-    shp_gdf.plot(ax=ax, fc="None", ec="C0", zorder=5)
-    shp_gdf.buffer(500).plot(ax=ax, fc="None", ec="None")
+    fig, ax = plt.subplots(figsize=(16 / 2.54, 11.3 / 2.54), dpi=GLOBAL_DPI)
+    shp_gdf.plot(ax=ax, fc="None", ec="C0", zorder=5, linewidth=3)
+    shp_gdf.buffer(plot_buffer).plot(ax=ax, fc="None", ec="None")
 
-    with open(legend_path, "rb") as leg_file:
-        uuid, label, style, facecolor, edgecolor, linewidth = pkl.load(
-            leg_file
-        )
+    # Make plot full image size and fix axis to current extent
+    u4plotfmt.full_screen_map(ax=ax)
 
-    u4plotfmt.map_style(ax=ax, divisor=500, crs=crs)
-    fig.tight_layout()
-    ax.set_xlim(xlim)
-    ax.set_ylim(ylim)
+    # Plot data
     region = gp.GeoDataFrame(
         geometry=[u4spatial.bounds_to_polygon(ax)], crs=crs
     )
@@ -684,52 +692,63 @@ def hydrogeology_map(
         suffix=f"_{row[1].group:05}",
         out_folder=shp_path,
     )
+
     if len(hydro_units_data) > 0:
-        fc = [
-            (facecolor[uuid.index(ugrp)] if ugrp in uuid else (0.5, 0.5, 0.5))
-            for ugrp in hydro_units_data["L_HE_B_KUE"].to_list()
-        ]
-        unugrp = np.unique(hydro_units_data["L_HE_B_KUE"].to_numpy())
-        unugrp.sort()
-        leg_handles = []
-        leg_handles.append(
-            mlines.Line2D([], [], color="C0", label="Bereich der Anomalie")
-        )
-        for ugrp in unugrp:
-            try:
-                ii = uuid.index(ugrp)
-                facec = facecolor[ii]
-            except ValueError:
-                facec = (0.5, 0.5, 0.5)
-            leg_handles.append(
-                mpatches.Patch(fc=facec, label=textwrap.fill(label[ii], 50))
+        # Get symbology and fill legend entry lists
+        leg_dict, lgh_from_file, lglb_from_file = (
+            u4plotfmt.get_style_from_legend(
+                hydro_units_data["L_HE_B_KUE"].to_list(), legend_path
             )
-        hydro_units_data.plot(ax=ax, fc=fc, ec="k", linewidth=0.25, alpha=0.5)
+        )
+        leg_handles = []
+        leg_labels = []
+        leg_handles.append(
+            mpatches.Rectangle(
+                (0, -1),
+                width=0.05,
+                height=0.75,
+                facecolor="None",
+                edgecolor="C0",
+                linewidth=3,
+            )
+        )
+        leg_labels.append("Bereich der Anomalie")
+        leg_handles.extend(lgh_from_file)
+        leg_labels.extend(lglb_from_file)
+
+        # Plot hydrogeological map
+        u4ax.add_hlnug_shapes(
+            hydro_units_data.geometry.to_list(), leg_dict=leg_dict, ax=ax
+        )
+
+        # Plot other anomalies
         u4ax.add_gpkg_data_where(
-            ax,
             contour_path,
             table="thresholded_contours_all_shapes",
             where=f"groups=={row[1].group}",
+            ax=ax,
             edgecolor="C0",
             facecolor="None",
             linewidth=1,
         )
-        axl.legend(
-            handles=leg_handles,
-            fontsize="small",
-            markerscale=0.75,
-        )
+
+        # Formatting and other stuff
+        u4plotfmt.add_scalebar(ax=ax, width=plot_buffer * 4)
         u4ax.add_basemap(
             ax=ax,
             crs=hydro_units_data.crs,
-            source=contextily.providers.CartoDB.Voyager,
+            source=contextily.providers.BaseMapDE.Grey,
         )
-        fig.tight_layout()
         fig.savefig(
             os.path.join(output_path, f"{row[1].group:05}_HUEK200.png")
         )
         fig.savefig(
             os.path.join(output_path, f"{row[1].group:05}_HUEK200.pdf")
+        )
+
+        # Create legend
+        plot_legend(
+            leg_handles, leg_labels, output_path, row[1].group, "HUEK200"
         )
     plt.close(fig)
 
@@ -740,9 +759,8 @@ def topsoil_map(
     output_path: os.PathLike,
     suffix: str,
     contour_path: os.PathLike,
-    xlim: tuple,
-    ylim: tuple,
     legend_path: os.PathLike,
+    plot_buffer: float,
 ):
     """Creates a map of topsoil units in the area of interest.
 
@@ -756,38 +774,29 @@ def topsoil_map(
     :type suffix: str
     :param contour_path: The path where the contour dataset is found.
     :type contour_path: os.PathLike
-    :param xlim: The extend of the xaxis for consistent plotting.
-    :type xlim: tuple
-    :param ylim: The extend of the yaxis for consistent plotting.
-    :type ylim: tuple
     :param legend_path: The path where the legend is found.
     :type legend_path: os.PathLike
+    :param plot_buffer: The buffer width around the area of interest.
+    :type plot_buffer: float
     """
     logging.info(f"Plotting topsoil map of group {row[1].group:05}.")
+
+    # Setup Paths
     output_path = os.path.join(output_path, suffix)
     shp_path = os.path.join(output_path, "HLNUG_queries")
-
     os.makedirs(output_path, exist_ok=True)
     os.makedirs(shp_path, exist_ok=True)
 
+    # Make geodataframe and add to plot
     shp_gdf = gp.GeoDataFrame(geometry=[row[1].geometry], crs=crs)
-    fig = plt.figure(figsize=(10, 7), dpi=GLOBAL_DPI)
-    gs = fig.add_gridspec(ncols=2, width_ratios=(2, 1))
-    ax = fig.add_subplot(gs[0])
-    axl = fig.add_subplot(gs[1])
-    axl.axis("off")
-    shp_gdf.plot(ax=ax, fc="None", ec="C0", zorder=5)
-    shp_gdf.buffer(500).plot(ax=ax, fc="None", ec="None")
+    fig, ax = plt.subplots(figsize=(16 / 2.54, 11.3 / 2.54), dpi=GLOBAL_DPI)
+    shp_gdf.plot(ax=ax, fc="None", ec="C0", zorder=5, linewidth=3)
+    shp_gdf.buffer(plot_buffer).plot(ax=ax, fc="None", ec="None")
 
-    with open(legend_path, "rb") as leg_file:
-        uuid, label, style, facecolor, edgecolor, linewidth = pkl.load(
-            leg_file
-        )
+    # Make plot full image size and fix axis to current extent
+    u4plotfmt.full_screen_map(ax=ax)
 
-    u4plotfmt.map_style(ax=ax, divisor=500, crs=crs)
-    fig.tight_layout()
-    ax.set_xlim(xlim)
-    ax.set_ylim(ylim)
+    # Plot data
     region = gp.GeoDataFrame(
         geometry=[u4spatial.bounds_to_polygon(ax)], crs=crs
     )
@@ -798,53 +807,64 @@ def topsoil_map(
         suffix=f"_{row[1].group:05}",
         out_folder=shp_path,
     )
+
     if len(soil_data) > 0:
         if "UNTERGRUPPE" in soil_data.keys():  # SHP files have less chars...
             column = "UNTERGRUPPE"
         else:
             column = "UNTERGRUPP"
-        fc = [
-            (facecolor[uuid.index(ugrp)] if ugrp in uuid else (0.5, 0.5, 0.5))
-            for ugrp in soil_data[column].to_list()
-        ]
-        unugrp = np.unique(soil_data[column].to_numpy())
-        unugrp.sort()
-        leg_handles = []
-        leg_handles.append(
-            mlines.Line2D([], [], color="C0", label="Bereich der Anomalie")
-        )
-        for ugrp in unugrp:
-            try:
-                ii = uuid.index(ugrp)
-                facec = facecolor[ii]
-            except ValueError:
-                facec = (0.5, 0.5, 0.5)
-            leg_handles.append(
-                mpatches.Patch(fc=facec, label=textwrap.fill(label[ii], 50))
+        leg_dict, lgh_from_file, lglb_from_file = (
+            u4plotfmt.get_style_from_legend(
+                soil_data[column].to_list(), legend_path
             )
-        soil_data.plot(ax=ax, fc=fc, ec="k", linewidth=0.25, alpha=0.5)
+        )
+        leg_dict["alpha"] = [0.4 * a for a in leg_dict["alpha"]]
+        leg_handles = []
+        leg_labels = []
+        leg_handles.append(
+            mpatches.Rectangle(
+                (0, -1),
+                width=0.05,
+                height=0.75,
+                facecolor="None",
+                edgecolor="C0",
+                linewidth=3,
+            )
+        )
+        leg_labels.append("Bereich der Anomalie")
+        leg_handles.extend(lgh_from_file)
+        leg_labels.extend(lglb_from_file)
+
+        # Plot soil map
+        u4ax.add_hlnug_shapes(
+            soil_data.geometry.to_list(), leg_dict=leg_dict, ax=ax
+        )
+
+        # Plot other anomalies
         u4ax.add_gpkg_data_where(
-            ax,
             contour_path,
             table="thresholded_contours_all_shapes",
             where=f"groups=={row[1].group}",
+            ax=ax,
             edgecolor="C0",
             facecolor="None",
             linewidth=1,
         )
-        axl.legend(
-            handles=leg_handles,
-            fontsize="small",
-            markerscale=0.75,
-        )
+
+        # Formatting and other stuff
+        u4plotfmt.add_scalebar(ax=ax, width=plot_buffer * 4)
         u4ax.add_basemap(
             ax=ax,
             crs=soil_data.crs,
-            source=contextily.providers.CartoDB.Voyager,
+            source=contextily.providers.BaseMapDE.Grey,
         )
-        fig.tight_layout()
         fig.savefig(os.path.join(output_path, f"{row[1].group:05}_BFD50.png"))
         fig.savefig(os.path.join(output_path, f"{row[1].group:05}_BFD50.pdf"))
+
+        # Create legend
+        plot_legend(
+            leg_handles, leg_labels, output_path, row[1].group, "BFD50"
+        )
     plt.close(fig)
 
 
@@ -854,8 +874,7 @@ def satimg_map(
     output_path: os.PathLike,
     suffix: str,
     contour_path: os.PathLike,
-    xlim: tuple,
-    ylim: tuple,
+    plot_buffer: float,
 ):
     """Creates a satellite overview of the area of interest.
 
@@ -869,38 +888,42 @@ def satimg_map(
     :type suffix: str
     :param contour_path: The path where the contour dataset is found.
     :type contour_path: os.PathLike
-    :param xlim: The extend of the xaxis for consistent plotting.
-    :type xlim: tuple
-    :param ylim: The extend of the yaxis for consistent plotting.
-    :type ylim: tuple
+    :param plot_buffer: The buffer width around the area of interest.
+    :type plot_buffer: float
     """
     logging.info(f"Plotting satellite image of group {row[1].group:05}.")
+
+    # Setup Paths
     output_path = os.path.join(output_path, suffix)
     os.makedirs(output_path, exist_ok=True)
 
+    # Make gdf and plot data
     shp_gdf = gp.GeoDataFrame(geometry=[row[1].geometry], crs=crs)
-    fig, ax = plt.subplots(dpi=GLOBAL_DPI, figsize=(7, 7))
+    fig, ax = plt.subplots(figsize=(16 / 2.54, 11.3 / 2.54), dpi=GLOBAL_DPI)
     shp_gdf.plot(ax=ax, fc="None", ec="C0")
-    shp_gdf.buffer(500).plot(ax=ax, fc="None", ec="None")
+    shp_gdf.buffer(plot_buffer).plot(ax=ax, fc="None", ec="None")
 
-    u4plotfmt.map_style(ax=ax, divisor=500, crs=crs)
-    fig.tight_layout()
-    ax.set_xlim(xlim)
-    ax.set_ylim(ylim)
+    # Make plot full image size and fix axis to current extent
+    u4plotfmt.full_screen_map(ax=ax)
+
+    # Plot data
     u4ax.add_basemap(
         ax=ax, crs=crs, source=contextily.providers.Esri.WorldImagery
     )
     u4ax.add_gpkg_data_where(
-        ax,
         contour_path,
         table="thresholded_contours_all_shapes",
         where=f"groups=={row[1].group}",
+        ax=ax,
         edgecolor="C1",
         facecolor="None",
         alpha=0.75,
         linewidth=1,
     )
-    fig.tight_layout()
+
+    # Formatting and save
+    u4plotfmt.add_scalebar(ax=ax, width=plot_buffer * 4)
+
     fig.savefig(os.path.join(output_path, f"{row[1].group:05}_satimg.png"))
     fig.savefig(os.path.join(output_path, f"{row[1].group:05}_satimg.pdf"))
     plt.close(fig)
@@ -913,8 +936,7 @@ def dem_map(
     suffix: str,
     dem_path: os.PathLike,
     contour_path: os.PathLike,
-    xlim: tuple,
-    ylim: tuple,
+    plot_buffer: float,
 ):
     """Creates a hillshade map of the digital elevation model in the area of interest.
 
@@ -930,42 +952,47 @@ def dem_map(
     :type dem_path: os.PathLike
     :param contour_path: The path where the contour dataset is found.
     :type contour_path: os.PathLike
-    :param xlim: The extend of the xaxis for consistent plotting.
-    :type xlim: tuple
-    :param ylim: The extend of the yaxis for consistent plotting.
-    :type ylim: tuple
+    :param plot_buffer: The buffer width around the area of interest.
+    :type plot_buffer: float
     """
     logging.info(
         f"Plotting digital elevation model of group {row[1].group:05}."
     )
+
+    # Setting paths
     output_path = os.path.join(output_path, suffix)
     os.makedirs(output_path, exist_ok=True)
 
+    # Loading data and plot it
     shp_gdf = gp.GeoDataFrame(geometry=[row[1].geometry], crs=crs)
-    fig, ax = plt.subplots(dpi=GLOBAL_DPI, figsize=(7, 7))
+    fig, ax = plt.subplots(figsize=(16 / 2.54, 11.3 / 2.54), dpi=GLOBAL_DPI)
     shp_gdf.plot(ax=ax, fc="None", ec="C0")
-    shp_gdf.buffer(500).plot(ax=ax, fc="None", ec="None")
-    u4plotfmt.map_style(ax=ax, divisor=500, crs=crs)
-    fig.tight_layout()
+    shp_gdf.buffer(plot_buffer).plot(ax=ax, fc="None", ec="None")
+
+    # Make plot full image size and fix axis to current extent
+    u4plotfmt.full_screen_map(ax=ax)
+
+    # Add DEM in region
     region = gp.GeoDataFrame(
         geometry=[u4spatial.bounds_to_polygon(ax)], crs=crs
     )
-    u4ax.add_dem(ax, region, dem_path)
+    u4ax.add_dem(region, dem_path, ax=ax)
+
+    # Add contours of individual anomalies
     u4ax.add_gpkg_data_where(
-        ax,
         contour_path,
         table="thresholded_contours_all_shapes",
         where=f"groups=={row[1].group}",
+        ax=ax,
         buffer=5,
         edgecolor="C1",
         facecolor="None",
         alpha=0.5,
         linewidth=1,
     )
-    ax.set_xlim(xlim)
-    ax.set_ylim(ylim)
 
-    fig.tight_layout()
+    # Formatting and other stuff
+    u4plotfmt.add_scalebar(ax=ax, width=plot_buffer * 4)
     fig.savefig(os.path.join(output_path, f"{row[1].group:05}_dem.png"))
     fig.savefig(os.path.join(output_path, f"{row[1].group:05}_dem.pdf"))
     plt.close(fig)
@@ -978,8 +1005,7 @@ def slope_map(
     suffix: str,
     dem_path: os.PathLike,
     contour_path: os.PathLike,
-    xlim: tuple,
-    ylim: tuple,
+    plot_buffer: float,
 ):
     """Creates a slope map of the digital elevation model in the area of interest.
 
@@ -995,40 +1021,43 @@ def slope_map(
     :type dem_path: os.PathLike
     :param contour_path: The path where the contour dataset is found.
     :type contour_path: os.PathLike
-    :param xlim: The extend of the xaxis for consistent plotting.
-    :type xlim: tuple
-    :param ylim: The extend of the yaxis for consistent plotting.
-    :type ylim: tuple
+    :param plot_buffer: The buffer width around the area of interest.
+    :type plot_buffer: float
     """
     logging.info(f"Plotting slope map of group {row[1].group:05}.")
+
+    # Setup Paths
     output_path = os.path.join(output_path, suffix)
     os.makedirs(output_path, exist_ok=True)
 
+    # Make geodataframe and add to plot
     shp_gdf = gp.GeoDataFrame(geometry=[row[1].geometry], crs=crs)
-    fig, ax = plt.subplots(dpi=GLOBAL_DPI, figsize=(7, 7))
+    fig, ax = plt.subplots(figsize=(16 / 2.54, 11.3 / 2.54), dpi=GLOBAL_DPI)
     shp_gdf.plot(ax=ax, fc="None", ec="C0")
-    shp_gdf.buffer(500).plot(ax=ax, fc="None", ec="None")
-    u4plotfmt.map_style(ax=ax, divisor=500, crs=crs)
-    fig.tight_layout()
+    shp_gdf.buffer(plot_buffer).plot(ax=ax, fc="None", ec="None")
+
+    # Make plot full image size and fix axis to current extent
+    u4plotfmt.full_screen_map(ax=ax)
+
+    # Plot data
     region = gp.GeoDataFrame(
         geometry=[u4spatial.bounds_to_polygon(ax)], crs=crs
     )
-    u4ax.add_slope(ax, region, dem_path)
+    u4ax.add_slope(region, dem_path, ax=ax)
     u4ax.add_gpkg_data_where(
-        ax,
         contour_path,
         table="thresholded_contours_all_shapes",
         where=f"groups=={row[1].group}",
+        ax=ax,
         buffer=5,
         edgecolor="w",
         facecolor="None",
         alpha=0.75,
         linewidth=1,
     )
-    ax.set_xlim(xlim)
-    ax.set_ylim(ylim)
 
-    fig.tight_layout()
+    # Formatting and other stuff
+    u4plotfmt.add_scalebar(ax=ax, width=plot_buffer * 4)
     fig.savefig(os.path.join(output_path, f"{row[1].group:05}_slope.png"))
     fig.savefig(os.path.join(output_path, f"{row[1].group:05}_slope.pdf"))
     plt.close(fig)
@@ -1041,8 +1070,7 @@ def aspect_map(
     suffix: str,
     dem_path: os.PathLike,
     contour_path: os.PathLike,
-    xlim: tuple,
-    ylim: tuple,
+    plot_buffer: float,
 ):
     """Creates an aspect map of the digital elevation model in the area of interest.
 
@@ -1062,35 +1090,39 @@ def aspect_map(
     :type xlim: tuple
     :param ylim: The extend of the yaxis for consistent plotting.
     :type ylim: tuple
+    :param plot_buffer: The buffer width around the area of interest.
+    :type plot_buffer: float
     """
     logging.info(f"Plotting aspect map of group {row[1].group:05}.")
+
+    # Setup Paths
     output_path = os.path.join(output_path, suffix)
     os.makedirs(output_path, exist_ok=True)
 
+    # Make geodataframe and add to plot
     shp_gdf = gp.GeoDataFrame(geometry=[row[1].geometry], crs=crs)
-    fig, ax = plt.subplots(dpi=GLOBAL_DPI, figsize=(7, 7))
+    fig, ax = plt.subplots(figsize=(16 / 2.54, 11.3 / 2.54), dpi=GLOBAL_DPI)
     shp_gdf.plot(ax=ax, fc="None", ec="k")
-    shp_gdf.buffer(500).plot(ax=ax, fc="None", ec="None")
-    u4plotfmt.map_style(ax=ax, divisor=500, crs=crs)
-    fig.tight_layout()
+    shp_gdf.buffer(plot_buffer).plot(ax=ax, fc="None", ec="None")
+
+    # Make plot full image size and fix axis to current extent
+    u4plotfmt.full_screen_map(ax=ax)
     region = gp.GeoDataFrame(
         geometry=[u4spatial.bounds_to_polygon(ax)], crs=crs
     )
-    u4ax.add_aspect(ax, region, dem_path)
+    u4ax.add_aspect(region, dem_path, ax=ax)
     u4ax.add_gpkg_data_where(
-        ax,
         contour_path,
         table="thresholded_contours_all_shapes",
         where=f"groups=={row[1].group}",
+        ax=ax,
         buffer=5,
         edgecolor="k",
         facecolor="None",
         linewidth=0.5,
     )
-    ax.set_xlim(xlim)
-    ax.set_ylim(ylim)
-
-    fig.tight_layout()
+    # Formatting and other stuff
+    u4plotfmt.add_scalebar(ax=ax, width=plot_buffer * 4)
     fig.savefig(os.path.join(output_path, f"{row[1].group:05}_aspect.png"))
     fig.savefig(os.path.join(output_path, f"{row[1].group:05}_aspect.pdf"))
     plt.close(fig)
@@ -1103,8 +1135,7 @@ def aspect_slope_map(
     suffix: str,
     dem_path: os.PathLike,
     contour_path: os.PathLike,
-    xlim: tuple,
-    ylim: tuple,
+    plot_buffer: float,
 ):
     """Creates an aspect map of the digital elevation model in the area of interest.
 
@@ -1120,39 +1151,39 @@ def aspect_slope_map(
     :type dem_path: os.PathLike
     :param contour_path: The path where the contour dataset is found.
     :type contour_path: os.PathLike
-    :param xlim: The extend of the xaxis for consistent plotting.
-    :type xlim: tuple
-    :param ylim: The extend of the yaxis for consistent plotting.
-    :type ylim: tuple
+    :param plot_buffer: The buffer width around the area of interest.
+    :type plot_buffer: float
     """
     logging.info(f"Plotting aspect-slope map of group {row[1].group:05}.")
+
     output_path = os.path.join(output_path, suffix)
     os.makedirs(output_path, exist_ok=True)
 
     shp_gdf = gp.GeoDataFrame(geometry=[row[1].geometry], crs=crs)
-    fig, ax = plt.subplots(dpi=GLOBAL_DPI, figsize=(7, 7))
+    fig, ax = plt.subplots(figsize=(16 / 2.54, 11.3 / 2.54), dpi=GLOBAL_DPI)
     shp_gdf.plot(ax=ax, fc="None", ec="k")
-    shp_gdf.buffer(500).plot(ax=ax, fc="None", ec="None")
-    u4plotfmt.map_style(ax=ax, divisor=500, crs=crs)
-    fig.tight_layout()
+    shp_gdf.buffer(plot_buffer).plot(ax=ax, fc="None", ec="None")
+
+    # Make plot full image size and fix axis to current extent
+    u4plotfmt.full_screen_map(ax=ax)
     region = gp.GeoDataFrame(
         geometry=[u4spatial.bounds_to_polygon(ax)], crs=crs
     )
-    u4ax.add_aspect_slope(ax, region, dem_path)
+    u4ax.add_aspect_slope(region, dem_path, ax=ax)
     u4ax.add_gpkg_data_where(
-        ax,
         contour_path,
         table="thresholded_contours_all_shapes",
         where=f"groups=={row[1].group}",
+        ax=ax,
         buffer=5,
         edgecolor="k",
         facecolor="None",
         linewidth=0.5,
+        zorder=5,
     )
-    ax.set_xlim(xlim)
-    ax.set_ylim(ylim)
 
-    fig.tight_layout()
+    # Formatting and other stuff
+    u4plotfmt.add_scalebar(ax=ax, width=plot_buffer * 4)
     fig.savefig(
         os.path.join(output_path, f"{row[1].group:05}_aspect_slope.png")
     )
@@ -1168,8 +1199,7 @@ def diffplan_map(
     output_path: os.PathLike,
     suffix: str,
     diff_plan_path: os.PathLike,
-    xlim: tuple,
-    ylim: tuple,
+    plot_buffer: float,
 ):
     """Creates a map of the differences in surface elevation in the area of interest.
 
@@ -1185,10 +1215,8 @@ def diffplan_map(
     :type diff_plan_path: os.PathLike
     :param contour_path: The path where the contour dataset is found.
     :type contour_path: os.PathLike
-    :param xlim: The extend of the xaxis for consistent plotting.
-    :type xlim: tuple
-    :param ylim: The extend of the yaxis for consistent plotting.
-    :type ylim: tuple
+    :param plot_buffer: The buffer width around the area of interest.
+    :type plot_buffer: float
     """
     logging.info(f"Plotting difference map of group {row[1].group:05}.")
     # Setting Paths
@@ -1199,20 +1227,21 @@ def diffplan_map(
     shp_gdf = gp.GeoDataFrame(geometry=[row[1].geometry], crs=crs)
 
     # Plotting
-    fig, ax = plt.subplots(dpi=GLOBAL_DPI, figsize=(7, 7))
+    fig, ax = plt.subplots(figsize=(16 / 2.54, 11.3 / 2.54), dpi=GLOBAL_DPI)
     shp_gdf.plot(ax=ax, fc="None", ec="C0")
-    shp_gdf.buffer(500).plot(ax=ax, fc="None", ec="None")
-    u4plotfmt.map_style(ax=ax, divisor=500, crs=crs)
-    fig.tight_layout()
+    shp_gdf.buffer(plot_buffer).plot(ax=ax, fc="None", ec="None")
+
+    # Make plot full image size and fix axis to current extent
+    u4plotfmt.full_screen_map(ax=ax)
+
+    # Add diff plan in region
     region = gp.GeoDataFrame(
         geometry=[u4spatial.bounds_to_polygon(ax)], crs=crs
     )
-    u4ax.add_diff_plan(ax, region, diff_plan_path)
+    u4ax.add_diff_plan(region, diff_plan_path, ax=ax)
 
     # Format and save
-    ax.set_xlim(xlim)
-    ax.set_ylim(ylim)
-    fig.tight_layout()
+    u4plotfmt.add_scalebar(ax=ax, width=2 * plot_buffer)
     fig.savefig(os.path.join(output_path, f"{row[1].group:05}_diffplan.png"))
     fig.savefig(os.path.join(output_path, f"{row[1].group:05}_diffplan.pdf"))
     plt.close(fig)
@@ -1225,6 +1254,7 @@ def detailed_map(
     suffix: str,
     hlnug_path: os.PathLike,
     contour_path: os.PathLike,
+    plot_buffer: float,
 ) -> Tuple[tuple, tuple]:
     """Makes a detailed overview map of the region including some geological features.
 
@@ -1240,68 +1270,71 @@ def detailed_map(
     :type hlnug_path: os.PathLike
     :param contour_path: The path where the contour dataset is found.
     :type contour_path: os.PathLike
-    :return: The limits of the x and y axis for consistent plotting with other functions.
-    :rtype: Tuple[tuple, tuple]
+    :param plot_buffer: The buffer width around the area of interest.
+    :type plot_buffer: float
     """
     logging.info(f"Plotting detailed map of group {row[1].group:05}.")
+
+    # Setup Paths
     output_path = os.path.join(output_path, suffix)
     os.makedirs(output_path, exist_ok=True)
 
+    # Make geodataframe and add to plot
     shp_gdf = gp.GeoDataFrame(geometry=[row[1].geometry], crs=crs)
-    fig, ax = plt.subplots(dpi=GLOBAL_DPI, figsize=(7, 7))
+    fig, ax = plt.subplots(figsize=(16 / 2.54, 11.3 / 2.54), dpi=GLOBAL_DPI)
     shp_gdf.plot(ax=ax, fc="None", ec="C0")
-    shp_gdf.buffer(500).plot(ax=ax, fc="None", ec="None")
+    shp_gdf.buffer(plot_buffer).plot(ax=ax, fc="None", ec="None")
 
-    u4plotfmt.map_style(ax=ax, divisor=500, crs=crs)
-    fig.tight_layout()
-    xlim = ax.get_xlim()
-    ylim = ax.get_ylim()
+    # Make plot full image size and fix axis to current extent
+    u4plotfmt.full_screen_map(ax=ax)
+
+    # Add additional geological data to plot.
     u4ax.add_gpkg_data_in_axis(
-        ax,
         hlnug_path,
         "rutschungen_mittelpunkte_2021_06_21",
+        ax=ax,
         color="k",
         marker="$\Swarrow$",
         markersize=30,
         label="Rutschungen, Mittelpunkte",
     )
     u4ax.add_gpkg_data_in_axis(
-        ax,
         hlnug_path,
         "steinschlag_punkte",
+        ax=ax,
         color="k",
         marker="$\therefore$",
         markersize=30,
         label="Steinschläge",
     )
     u4ax.add_gpkg_data_in_axis(
-        ax,
         hlnug_path,
         "Erdfaelle_merged",
+        ax=ax,
         color="k",
         marker="$\odot$",
         markersize=30,
         label="Erdfälle",
     )
     u4ax.add_gpkg_data_in_axis(
-        ax,
         hlnug_path,
         "senkungsmulden",
+        ax=ax,
         facecolor="None",
         edgecolor="k",
         linestyle=":",
         label="Senkungsmulden",
     )
     u4ax.add_gpkg_data_in_axis(
-        ax,
         contour_path,
         "thresholded_contours_all_shapes",
+        ax=ax,
         fc="None",
         column="color_levels",
-        cmap="seismic",
+        cmap="RdBu",
     )
     ax.annotate(
-        row[1].locations.replace(", ", "\n")[:-1],
+        row[1].locations.replace(", ", "\n"),
         (0.99, 0.01),
         xycoords="axes fraction",
         horizontalalignment="right",
@@ -1311,16 +1344,15 @@ def detailed_map(
     ax.legend(
         loc="upper right",
     )
-    ax.set_xlim(xlim)
-    ax.set_ylim(ylim)
+
+    # Formatting and saving
     u4ax.add_basemap(
         ax=ax, crs=crs, source=contextily.providers.CartoDB.Voyager
     )
-    fig.tight_layout()
+    u4plotfmt.add_scalebar(ax=ax, width=plot_buffer * 4)
     fig.savefig(os.path.join(output_path, f"{row[1].group:05}_map.png"))
     fig.savefig(os.path.join(output_path, f"{row[1].group:05}_map.pdf"))
     plt.close(fig)
-    return (xlim, ylim)
 
 
 def timeseries_map(
@@ -1329,9 +1361,8 @@ def timeseries_map(
     output_path: os.PathLike,
     suffix: str,
     contour_path: os.PathLike,
-    xlim: tuple,
-    ylim: tuple,
     psi_path: os.PathLike,
+    plot_buffer: float,
 ) -> Tuple[tuple, tuple]:
     """Makes a detailed overview map of the region including some geological features.
 
@@ -1345,8 +1376,8 @@ def timeseries_map(
     :type suffix: str
     :param contour_path: The path where the contour dataset is found.
     :type contour_path: os.PathLike
-    :return: The limits of the x and y axis for consistent plotting with other functions.
-    :rtype: Tuple[tuple, tuple]
+    :param plot_buffer: The buffer width around the area of interest.
+    :type plot_buffer: float
     """
     logging.info(
         f"Plotting timeseries and psi map of group {row[1].group:05}."
@@ -1360,12 +1391,22 @@ def timeseries_map(
     os.makedirs(output_path, exist_ok=True)
     os.makedirs(psi_data_path, exist_ok=True)
 
-    # Load Data and Invert (again?)
+    # Load data for plotting
     shp_gdf = gp.GeoDataFrame(geometry=[row[1].geometry], crs=crs)
+
+    # Create figure and axes
+    fig = plt.figure(figsize=(16 / 2.54, 11.3 / 2.54), dpi=GLOBAL_DPI)
+    gs = fig.add_gridspec(ncols=2, width_ratios=(1, 2))
+    ax_map = fig.add_subplot(gs[0])
+    ax_ts = fig.add_subplot(gs[1])
+
+    # Plot Map
+    shp_gdf.plot(ax=ax_map, fc="None", ec="C0")
+    shp_gdf.buffer(plot_buffer).plot(ax=ax_map, fc="None", ec="None")
+
+    # Load PSI data
     reg_gdf = gp.GeoDataFrame(
-        geometry=[
-            u4spatial.bounds_to_polygon((xlim[0], xlim[1], ylim[0], ylim[1]))
-        ],
+        geometry=[u4spatial.bounds_to_polygon(ax_map)],
         crs=crs,
     )
     psi_local = u4psi.get_region_data(
@@ -1383,14 +1424,7 @@ def timeseries_map(
         save_path=os.path.join(psi_data_path, f"grp_{row[1].group:05}.pkl"),
     )
 
-    fig = plt.figure(figsize=(14, 7), dpi=GLOBAL_DPI)
-    gs = fig.add_gridspec(ncols=2, width_ratios=(1, 2))
-    ax_map = fig.add_subplot(gs[0])
-    ax_ts = fig.add_subplot(gs[1])
-
-    # Plot Map
-    shp_gdf.plot(ax=ax_map, fc="None", ec="C0")
-    shp_gdf.buffer(500).plot(ax=ax_map, fc="None", ec="None")
+    # Convert PSI data for plotting
     u4spatial.xy_data_to_gdf(
         psi_regional["x"],
         psi_regional["y"],
@@ -1415,19 +1449,20 @@ def timeseries_map(
         },
     )
     u4ax.add_gpkg_data_where(
-        ax_map,
         contour_path,
         table="thresholded_contours_all_shapes",
         where=f"groups=={row[1].group}",
+        ax=ax_map,
         edgecolor="k",
         facecolor="None",
         alpha=0.75,
         linewidth=1,
     )
-    u4plotfmt.map_style(ax=ax_map, divisor=500, crs=crs)
+    u4plotfmt.add_scalebar(ax=ax_map, width=plot_buffer * 4)
+    ax_map.axis("off")
     fig.tight_layout()
-    ax_map.set_xlim(xlim)
-    ax_map.set_ylim(ylim)
+    plt.axis("equal")
+    plt.draw()
     u4ax.add_basemap(
         ax=ax_map, crs=crs, source=contextily.providers.CartoDB.Voyager
     )
@@ -1443,3 +1478,61 @@ def timeseries_map(
     fig.savefig(os.path.join(output_path, f"{row[1].group:05}_psi.png"))
     fig.savefig(os.path.join(output_path, f"{row[1].group:05}_psi.pdf"))
     plt.close(fig)
+
+
+def plot_legend(
+    leg_handles: list[martist.Artist],
+    leg_labels: list[str],
+    output_path: os.PathLike,
+    group: int | str,
+    suffix: str,
+):
+    """Creates a plot of a legend using a list of legend handles and labels.
+
+    :param leg_handles: A list of matplotlib artists containing the symbology.
+    :type leg_handles: list
+    :param leg_labels: A list of labels for the artists
+    :type leg_labels: list
+    :param output_path: The folder where the legend is to be stored.
+    :type output_path: os.PathLike
+    :param group: The group number or name for the file name.
+    :type group: int | str
+    :param suffix: The suffix for the filename, e.g. `GK25`.
+    :type suffix: str
+
+    The size of the legend is mainly defined by the number of labels. The
+    labels should be already containing newlines to fit to the width of the
+    plot.
+
+    The legend handles may overlap, for better plotting of complex map
+    symbologies.
+    """
+
+    figl, axl = plt.subplots(
+        figsize=(16 / 2.54, len(leg_labels) * 0.25), dpi=GLOBAL_DPI
+    )
+
+    ii = 0
+    for lbl in leg_labels:
+        axl.annotate(lbl, (0.06, -0.9 + ii), verticalalignment="top")
+        if lbl:
+            ii += 1
+        else:
+            ii += 0.75
+
+    for lgh in leg_handles:
+        axl.add_artist(lgh)
+
+    axl.axis("off")
+    axl.set_ylim(-1.5, ii - 0.5)
+    axl.set_xlim(0, 1)
+    axl.set_position([0, 0, 1, 1])
+    axl.invert_yaxis()
+
+    if isinstance(group, str):
+        grp = group
+    else:
+        grp = f"{group:05}"
+    figl.savefig(os.path.join(output_path, f"{grp}_{suffix}_leg.png"))
+    figl.savefig(os.path.join(output_path, f"{grp}_{suffix}_leg.pdf"))
+    plt.close(figl)
