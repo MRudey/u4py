@@ -4,8 +4,10 @@ Functions for creating a TeX-based report of the classified anomalies.
 
 import os
 import subprocess
+from typing import Tuple
 
 import geopandas as gp
+import humanize
 import numpy as np
 import uncertainties as unc
 from uncertainties import unumpy as unp
@@ -54,9 +56,18 @@ def main_report(output_path: os.PathLike):
         tex_file.write(tex)
 
     report_out_path = os.path.split(output_path)[0]
-    subprocess.run(["pdflatex", f"{report_path}"], cwd=report_out_path)
-    subprocess.run(["pdflatex", f"{report_path}"], cwd=report_out_path)
-    subprocess.run(["pdflatex", f"{report_path}"], cwd=report_out_path)
+    subprocess.run(
+        ["pdflatex", "-draftmode", f"{report_path}"],
+        cwd=report_out_path,
+    )
+    subprocess.run(
+        ["pdflatex", "-draftmode", f"{report_path}"],
+        cwd=report_out_path,
+    )
+    subprocess.run(
+        ["pdflatex", f"{report_path}"],
+        cwd=report_out_path,
+    )
     clean_aux_files(report_out_path)
 
 
@@ -92,7 +103,13 @@ def site_report(row: tuple, output_path: os.PathLike, suffix: str):
     img_path = os.path.join(output_path, "known_features", f"{group:05}")
 
     # Create TeX code
-    tex = f"\\section{{Gruppe {group}}}\n\n"
+
+    tex = (
+        "\\section{"
+        + ",".join(row[1].locations.split(",")[:-4])
+        + f" ({group})"
+        + "}\n\n"
+    )
 
     # Overview plot and satellite image
     tex += location(row[1])
@@ -100,12 +117,11 @@ def site_report(row: tuple, output_path: os.PathLike, suffix: str):
         img_path + "_satimg.pdf"
     ):
         tex += details_and_satellite(img_path)
+    tex += shape(row[1])
+    tex += landuse(row[1])
 
     # Manual Classification
     tex += manual_description(row[1])
-
-    # Landuse
-    tex += landuse(row[1])
 
     # Volumina
     tex += moved_volumes(row[1])
@@ -160,6 +176,7 @@ def location(series: gp.GeoSeries) -> str:
 
     tex = (
         "\\subsection*{{Lokalität:}}\n"
+        + "\\textbf{Adresse:} "
         + f"{series.locations}\n\n"
         + f"\\textbf{{Koordinaten (UTM 32N):}} "
         + f"{int(series.geometry.centroid.y)}\\,N "
@@ -174,6 +191,54 @@ def location(series: gp.GeoSeries) -> str:
         + f"\\href{{http://www.openstreetmap.org/?lat={lat}&lon={lng}&zoom=17&layers=M}}"
         + f"{{\\faExternalLink {np.round(lat,3)}\\,N, {np.round(lng,3)}\\,E}}\n\n"
     )
+    return tex
+
+
+def shape(series: gp.GeoSeries) -> str:
+    """Adds shape information to the document
+
+    :param series: The GeoSeries object extracted from the row.
+    :type series: gp.GeoSeries
+    :return: The tex code.
+    :rtype: str
+    """
+    humanize.activate("de")
+    tex = "\\paragraph{Größe und Form}\n"
+
+    long_ax = eval(series["shape_ellipse_a"])
+    short_ax = eval(series["shape_ellipse_b"])
+    if isinstance(long_ax, list):
+        areas = [np.pi * a * b for a, b in zip(long_ax, short_ax)]
+        imax = np.argmax(areas)
+        imin = np.argmin(areas)
+        if len(long_ax) > 2:
+            lax = str(
+                unc.ufloat(np.mean(long_ax), 2 * np.std(long_ax))
+            ).replace("+/-", "$\\pm$")
+            sax = str(
+                unc.ufloat(np.mean(short_ax), 2 * np.std(short_ax))
+            ).replace("+/-", "$\\pm$")
+        else:
+            lax = f"{round(long_ax[0])} und {round(long_ax[1])}"
+            sax = f"{round(short_ax[0])} und {round(short_ax[1])}"
+
+        tex += (
+            f"Es handelt sich um {humanize.apnumber(len(long_ax))} Anomalien. "
+            + f"Die Anomalien sind ca. {lax}\\,m lang und ca. {sax}\\,m breit. "
+        )
+        if len(long_ax) > 2:
+            tex += (
+                "Die flächenmäßig kleinste Anomalie ist hierbei ca. "
+                + f"{round(long_ax[imin])}\\,m lang und "
+                + f"{round(short_ax[imin])}\\,m breit, die größte ca. "
+                + f"{round(long_ax[imax])}\\,m lang und "
+                + f"{round(short_ax[imax])}\\,m breit. "
+            )
+    if isinstance(long_ax, float):
+        lax = f"{round(long_ax)}"
+        sax = f"{round(short_ax)}"
+        tex += f"Die Anomalie ist ca. {lax}\\,m lang und ca. {sax}\\,m breit. "
+
     return tex
 
 
@@ -330,60 +395,57 @@ def topography(series: gp.GeoSeries, img_path: os.PathLike) -> str:
     :rtype: str
     """
     tex = "\\clearpage\n\\subsection*{Topographie}\n\n"
-    noval_yrs = []
+
     for yy in ["14", "19", "21"]:
         year = f"20{yy}"
+        tex += f"\\paragraph*{{{year}}}\n"
 
-        if series[f"slope_hull_mean_{yy}"] == "[]":
-            noval_yrs.append(year)
-        else:
+        if not series[f"slope_polygons_mean_{yy}"] == "[]":
             # Values for the individual polygons (can be empty)
-            means = eval(series[f"slope_polygons_mean_{yy}"])
-            std = eval(series[f"slope_polygons_std_{yy}"])
-            if isinstance(means, list):
-                if len(means) > 0:
-                    slope_unp = unp.uarray(
-                        means,
-                        std,
-                    )
-                    usl = np.mean(slope_unp)
-                    slope = usl.n
-                    slope_std = usl.s
-                    ustr = str(usl).replace("+/-", "$\\pm$") + "\\,\\%"
-                    tex += (
-                        f"Im Jahr {year} war die Steigung im Bereich der "
-                        + f"Anomalie {slope_std_str(slope_std)} und "
-                        + f"{slope_str(slope)} ({ustr}). "
-                    )
-            elif isinstance(means, float):
-                slope = means
-                slope_std = std
-                usl = unc.ufloat(slope, slope_std)
-                ustr = str(usl).replace("+/-", "$\\pm$") + "\\,\\%"
+            sl_m = eval(series[f"slope_polygons_mean_{yy}"])
+            sl_s = eval(series[f"slope_polygons_std_{yy}"])
+            as_m = eval(series[f"aspect_polygons_mean_{yy}"])
+            as_s = eval(series[f"aspect_polygons_std_{yy}"])
+            if isinstance(sl_m, list) or isinstance(sl_m, float):
+                usl, usl_str = topo_text(sl_m, sl_s, "\\%")
                 tex += (
-                    f"Im Jahr {year} war die Steigung im Bereich der "
-                    + f"Anomalie {slope_std_str(slope_std)} und "
-                    + f"{slope_str(slope)} ({ustr}). "
+                    f"Im Bereich der Anomalie {slope_std_str(usl.s)} und "
+                    + f"{slope_str(usl.n)} ({usl_str}). "
                 )
+                if as_m:
+                    uas, uas_str = topo_text(as_m, as_s, "°")
+                    tex += (
+                        "Die Anomalien fallen nach "
+                        + f"{direction_to_text(uas.n)} ({uas_str}) ein. "
+                    )
             else:
-                tex += f"Im Jahr {year} liegt für den Bereich der Anomalie keine Daten vor (außerhalb DEM). "
+                tex += "Es liegen für den inneren Bereich der Anomalie keine Daten vor (außerhalb DEM). "
 
             # Values for the hull around all anomalies
-            slope = float(series[f"slope_hull_mean_{yy}"])
-            slope_std = float(series[f"slope_hull_std_{yy}"])
-            usl = unc.ufloat(slope, slope_std)
-            ustr = str(usl).replace("+/-", "$\\pm$") + "\\,\\%"
-            tex += (
-                f"Im näheren Umfeld ist das Gelände {slope_std_str(slope_std)}"
-                + f" und {slope_str(slope)} ({ustr}). "
+            usl, usl_str = topo_text(
+                eval(series[f"slope_hull_mean_{yy}"]),
+                eval(series[f"slope_hull_std_{yy}"]),
+                "\\%",
             )
+            if isinstance(usl, unc.UFloat):
+                tex += (
+                    f"Im näheren Umfeld ist das Gelände {slope_std_str(usl.s)}"
+                    + f" und {slope_str(usl.n)} ({usl_str}). "
+                )
+                uas, uas_str = topo_text(
+                    eval(series[f"aspect_hull_mean_{yy}"]),
+                    eval(series[f"aspect_hull_std_{yy}"]),
+                    "°",
+                )
+                if isinstance(uas, unc.UFloat):
+                    tex += (
+                        "Der Bereich fällt im Mittel nach "
+                        + f"{direction_to_text(uas.n)} ({uas_str}) ein. "
+                    )
+            else:
+                tex += "Es liegen für das nähere Umfeld der Anomalien keine Werte für die Steigung vor. "
+            tex += "\n\n"
 
-    if len(noval_yrs) == 1:
-        tex += f"Für das Jahr {noval_yrs[0]} liegen keine Daten vor. "
-    elif len(noval_yrs) == 2:
-        tex += f"Für die Jahre {noval_yrs[0]} und {noval_yrs[1]} liegen keine Daten vor. "
-    elif len(noval_yrs) == 3:
-        tex += f"Es sind keine DEM Daten im Untersuchungszeitraum für das Gebiet vorhanden. "
     tex += (
         "\n\\begin{figure}[!ht]\n"
         + "  \\begin{subfigure}[][][t]{.49\\textwidth}\n"
@@ -399,7 +461,7 @@ def topography(series: gp.GeoSeries, img_path: os.PathLike) -> str:
         + "\\end{figure}\n\n"
         + "\\begin{figure}[!ht]\n"
         + "  \\centering\n"
-        + f"  \\includegraphics[width=\\textwidth]{{{img_path+'_aspect_slope.pdf'}}}\n"
+        + f"  \\includegraphics[width=.95\\textwidth]{{{img_path+'_aspect_slope.pdf'}}}\n"
         + "  \\caption{Steigung und Exposition}\n"
         + "\\end{figure}\n"
     )
@@ -599,7 +661,7 @@ def landslide_risk(series: gp.GeoSeries) -> str:
     :rtype: str
     """
     lsar = series.landslide_total
-    tex = "\\subsection*{Rutschungsgefährdung}\n\n"
+    tex = "\\paragraph*{Rutschungsgefährdung}\n\n"
     if lsar > 0:
         tex += f"Das Gebiet liegt {part_str(lsar)} ({lsar:.0f}\%) in einem gefährdeten Bereich mit rutschungsanfälligen Schichten. "
         try:
@@ -629,7 +691,7 @@ def karst_risk(series: gp.GeoSeries) -> str:
     :rtype: str
     """
     ksar = series.karst_total
-    tex = "\\subsection*{Karstgefährdung}\n\n"
+    tex = "\\paragraph*{Karstgefährdung}\n\n"
     if ksar > 0:
         tex += f"Das Gebiet liegt {part_str(ksar)} ({ksar:.0f}\%) in einem Bereich bekannter verkarsteter Schichten. "
         try:
@@ -657,7 +719,7 @@ def subsidence_risk(series: gp.GeoSeries) -> str:
     :rtype: str
     """
     subsar = series.subsidence_total
-    tex = "\\subsection*{Setzungsgefährdung}\n\n"
+    tex = "\\paragraph*{Setzungsgefährdung}\n\n"
     if subsar > 0:
         tex += f"Das Gebiet liegt {part_str(subsar)} ({subsar:.0f}\%) in einem Bereich bekannter setzungsgefährdeter Schichten. "
         try:
@@ -725,3 +787,106 @@ def soils(img_path: os.PathLike) -> str:
         + "\\end{figure}\n\n"
     )
     return tex
+
+
+def direction_to_text(direction: float, lang: str = "de") -> str:
+    """Converts an azimut between 0 and 360 to ordinal directions.
+
+    :param direction: The direction with 0 = North and 180 = South
+    :type direction: float
+    :param lang: The language of the text (supported values: "en", "de", "abbrev"), defaults to "de"
+    :type lang: str, optional
+    :return: The ordinal direction as a string
+    :rtype: str
+    """
+
+    limits = np.arange(11.25, 360 + 22.25, 22.5)
+    abbrevs = [
+        "N",
+        "NNE",
+        "NE",
+        "ENE",
+        "E",
+        "ESE",
+        "SE",
+        "SSE",
+        "S",
+        "SSW",
+        "SW",
+        "WSW",
+        "W",
+        "WNW",
+        "NW",
+        "NNW",
+        "N",
+    ]
+    translate_abbrev = {
+        "de": {
+            "N": "Norden",
+            "NNE": "Nordnordosten",
+            "NE": "Nordosten",
+            "ENE": "Ostnordosten",
+            "E": "Osten",
+            "ESE": "Ostsüdosten",
+            "SE": "Südosten",
+            "SSE": "Südsüdosten",
+            "S": "Süden",
+            "SSW": "Südsüdwesten",
+            "SW": "Südwesten",
+            "WSW": "Westsüdwesten",
+            "W": "Westen",
+            "WNW": "Westnordwesten",
+            "NW": "Nordwesten",
+            "NNW": "Nordnordwesten",
+        },
+        "en": {
+            "N": "North",
+            "NNE": "North-northeast",
+            "NE": "Northeast",
+            "ENE": "East-northeast",
+            "E": "East",
+            "ESE": "East-southeast",
+            "SE": "Southeast",
+            "SSE": "South-southeast",
+            "S": "South",
+            "SSW": "South-southwest",
+            "SW": "Southwest",
+            "WSW": "West-southwest",
+            "W": "West",
+            "WNW": "West-northwest",
+            "NW": "Northwest",
+            "NNW": "North-northwest",
+        },
+    }
+    for ii in range(len(limits)):
+        desc = abbrevs[ii]
+        if direction <= limits[ii]:
+            break
+    if lang != "abbrev":
+        desc = translate_abbrev[lang][desc]
+    return desc
+
+
+def topo_text(
+    means: float | list, std: float | list, unit: str
+) -> Tuple[unc.ufloat, str]:
+    """Converts the measured topography index, such as slope or aspect to a descriptive text.
+
+    :param means: The mean of the value
+    :type means: float | list
+    :param std: The standard deviation of the value
+    :type std: float | list
+    """
+    if isinstance(means, list):
+        slope_unp = unp.uarray(
+            means,
+            std,
+        )
+        usl = np.mean(slope_unp)
+    elif isinstance(means, float):
+        usl = unc.ufloat(means, std)
+
+    ustr = str(usl).replace("+/-", "$\\pm$") + f"\\,{unit}"
+    if "e" in ustr:
+        ustr = f"{usl:.0f}\\,{unit}".replace("+/-", "$\\pm$")
+    return usl, ustr

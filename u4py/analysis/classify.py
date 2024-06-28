@@ -8,7 +8,6 @@ import os
 
 import geopandas as gp
 import numpy as np
-import shapely as shp
 
 import u4py.addons.web_services as u4web
 import u4py.analysis.inversion as u4invert
@@ -151,6 +150,9 @@ def classify_shape(
         )
         res.update(shape(sub_set))
         res.update(volume(sub_set_hull, diffplan_path))
+        poly_vols = volume(sub_set, diffplan_path)
+        for kk in poly_vols.keys():
+            res[kk.replace("volume_", "volume_polygons_")] = poly_vols[kk]
 
         # Geology
         if use_online:
@@ -188,6 +190,24 @@ def preallocate_results() -> dict:
     res = {
         "additional_areas": np.nan,
         "area": np.nan,
+        "aspect_hull_mean_14": [],
+        "aspect_hull_mean_19": [],
+        "aspect_hull_mean_21": [],
+        "aspect_hull_median_14": [],
+        "aspect_hull_median_19": [],
+        "aspect_hull_median_21": [],
+        "aspect_hull_std_14": [],
+        "aspect_hull_std_19": [],
+        "aspect_hull_std_21": [],
+        "aspect_polygons_mean_14": [],
+        "aspect_polygons_mean_19": [],
+        "aspect_polygons_mean_21": [],
+        "aspect_polygons_median_14": [],
+        "aspect_polygons_median_19": [],
+        "aspect_polygons_median_21": [],
+        "aspect_polygons_std_14": [],
+        "aspect_polygons_std_19": [],
+        "aspect_polygons_std_21": [],
         "buildings_area": np.nan,
         "buildings": gp.GeoDataFrame(),
         "geology_area": [],
@@ -202,8 +222,8 @@ def preallocate_results() -> dict:
         "karst_num_1km": np.nan,
         "karst_num_inside": np.nan,
         "karst_percent": [],
-        "karst_units": [],
         "karst_total": np.nan,
+        "karst_units": [],
         "landslide_area": [],
         "landslide_percent": [],
         "landslide_total": np.nan,
@@ -211,20 +231,20 @@ def preallocate_results() -> dict:
         "landslides_num_1km": np.nan,
         "landslides_num_inside": np.nan,
         "landuse_area": [],
+        "landuse_major": "",
         "landuse_names": [],
         "landuse_percent": [],
         "landuse_total": np.nan,
-        "landuse_major": "",
+        "manual_class_1": "",
+        "manual_class_2": "",
+        "manual_class_3": "",
+        "manual_comment": "",
         "manual_group": np.nan,
         "manual_known": False,
         "manual_research": False,
-        "manual_class_1": "",
         "manual_unclear_1": False,
-        "manual_class_2": "",
         "manual_unclear_2": False,
-        "manual_class_3": "",
         "manual_unclear_3": False,
-        "manual_comment": "",
         "roads_has_motorway": np.nan,
         "roads_main_area": np.nan,
         "roads_main": gp.GeoDataFrame(),
@@ -238,22 +258,22 @@ def preallocate_results() -> dict:
         "shape_flattening": [],
         "shape_roundness": [],
         "slope_hull_mean_14": [],
-        "slope_hull_median_14": [],
-        "slope_hull_std_14": [],
-        "slope_polygons_mean_14": [],
-        "slope_polygons_median_14": [],
-        "slope_polygons_std_14": [],
         "slope_hull_mean_19": [],
-        "slope_hull_median_19": [],
-        "slope_hull_std_19": [],
-        "slope_polygons_mean_19": [],
-        "slope_polygons_median_19": [],
-        "slope_polygons_std_19": [],
         "slope_hull_mean_21": [],
+        "slope_hull_median_14": [],
+        "slope_hull_median_19": [],
         "slope_hull_median_21": [],
+        "slope_hull_std_14": [],
+        "slope_hull_std_19": [],
         "slope_hull_std_21": [],
+        "slope_polygons_mean_14": [],
+        "slope_polygons_mean_19": [],
         "slope_polygons_mean_21": [],
+        "slope_polygons_median_14": [],
+        "slope_polygons_median_19": [],
         "slope_polygons_median_21": [],
+        "slope_polygons_std_14": [],
+        "slope_polygons_std_19": [],
         "slope_polygons_std_21": [],
         "subsidence_area": [],
         "subsidence_percent": [],
@@ -277,6 +297,10 @@ def preallocate_results() -> dict:
         "volumes_moved": np.nan,
         "volumes_removed": np.nan,
         "volumes_total": np.nan,
+        "volumes_polygons_added": np.nan,
+        "volumes_polygons_moved": np.nan,
+        "volumes_polygons_removed": np.nan,
+        "volumes_polygons_total": np.nan,
         "water_area": np.nan,
     }
     return res
@@ -556,15 +580,36 @@ def slope(
 
     for year, dem_path in dems.items():
         logging.debug("Calculating slope in all polygons")
-        slope_polygons = u4tiff.calculate_slope_in_shapes(polygons, dem_path)
+        slope_polygons = u4tiff.calculate_terrain_in_shapes(
+            polygons, dem_path, terrain_feature="slope"
+        )
         for kk, val in slope_polygons.items():
             if val:
                 res[f"slope_polygons_{kk}_{year}"] = np.round(val, 1).tolist()
+
+        logging.debug("Calculating aspect in all polygons")
+        aspect_polygons = u4tiff.calculate_terrain_in_shapes(
+            polygons, dem_path, terrain_feature="aspect"
+        )
+        for kk, val in aspect_polygons.items():
+            if val:
+                res[f"aspect_polygons_{kk}_{year}"] = np.round(val, 1).tolist()
+
         logging.debug("Calculating average slope in hull")
-        slope_hull = u4tiff.calculate_slope_in_shapes(sub_set_hull, dem_path)
+        slope_hull = u4tiff.calculate_terrain_in_shapes(
+            sub_set_hull, dem_path, terrain_feature="slope"
+        )
         for kk, val in slope_hull.items():
             if val:
                 res[f"slope_hull_{kk}_{year}"] = np.round(val, 1).tolist()
+
+        logging.debug("Calculating average aspect in all polygons")
+        aspect_hull = u4tiff.calculate_terrain_in_shapes(
+            sub_set_hull, dem_path, terrain_feature="aspect"
+        )
+        for kk, val in aspect_hull.items():
+            if val:
+                res[f"aspect_hull_{kk}_{year}"] = np.round(val, 1).tolist()
 
     return res
 
@@ -602,10 +647,12 @@ def volume(geometry: gp.GeoDataFrame, diffplan_path: os.PathLike) -> dict:
     logging.info("Computing volumes in shapes")
     volumes = u4tiff.calculate_volume_in_shape(geometry, diffplan_path)
     res = dict()
-    res["volumes_total"] = round(volumes.volume[0], 1)
-    res["volumes_removed"] = round(volumes.volumes_removed[0], 1)
-    res["volumes_added"] = round(volumes.volumes_added[0], 1)
-    res["volumes_moved"] = round(volumes.volumes_moved[0], 1)
+    res["volumes_total"] = int(np.round(np.sum(volumes["volumes"]), -2))
+    res["volumes_removed"] = int(
+        np.round(np.sum(volumes["volumes_removed"]), -2)
+    )
+    res["volumes_added"] = int(np.round(np.sum(volumes["volumes_added"]), -2))
+    res["volumes_moved"] = int(np.round(np.sum(volumes["volumes_moved"]), -2))
     return res
 
 
@@ -1103,12 +1150,46 @@ def manual_classification(
     man_path = os.path.join(
         project["paths"]["sites_path"], "manual_classification.shp"
     )
+    man_path_mk = os.path.join(
+        project["paths"]["sites_path"], "koubik_merged.shp"
+    )
 
     man_gdf = gp.read_file(man_path)
+    man_gdf_mk = gp.read_file(man_path_mk)
+
     interscts = man_gdf.intersects(sub_set_hull.geometry[0])
-    if interscts.any():
-        candidates = man_gdf[interscts]
-        if len(candidates) > 1:
+    interscts_mk = man_gdf_mk.intersects(sub_set_hull.geometry[0])
+
+    if interscts.any() or interscts_mk.any():
+        if interscts.any() and not interscts_mk.any():
+            candidates = man_gdf[interscts]
+        elif interscts_mk.any() and not interscts.any():
+            candidates = man_gdf_mk[interscts_mk]
+        else:
+            candidates = gp.pd.concat(
+                [man_gdf[interscts], man_gdf_mk[interscts_mk]]
+            )
+        if len(candidates) > 3:
+            logging.info(
+                f"Too many classifications {group:05}. Getting most common three unique entries."
+            )
+            # Gets all entries and removes None
+            all_classes = candidates["class_1"].to_list()
+            all_classes.extend(candidates["class_2"].to_list())
+            all_classes.extend(candidates["class_3"].to_list())
+            all_classes = [cla for cla in all_classes if cla]
+
+            # Count number of unique entries and sort them in descending order
+            unique_classes = np.unique(all_classes)
+            counts = [all_classes.count(uq) for uq in unique_classes]
+            srt = np.argsort(counts)[::-1]
+            unique_classes = unique_classes[srt]
+
+            # Extract three most common classes
+            for ii, cla in enumerate(unique_classes):
+                if ii < 3:
+                    res[f"manual_{ii+1}"] = cla
+        elif len(candidates) > 1:
             logging.info(
                 f"Multiple classifications found for group {group:05}"
             )

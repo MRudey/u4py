@@ -62,6 +62,7 @@ def main():
         for group in unique_groups
     ]
     if use_parallel:
+        print(f"Using {u4config.cpu_count} cores.")
         with Pool(u4config.cpu_count) as p:
             main_list = list(
                 tqdm(

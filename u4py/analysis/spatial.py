@@ -155,23 +155,41 @@ def _file_list_to_coords(
             else:
                 fname, _ = os.path.splitext(os.path.split(fpath)[-1])
                 if fname.startswith("g_"):
-                    coord_str = re.findall("g_(\d*)_(\d*)", fname)[0]
-                    if len(coord_str) < 1:
-                        raise NameError("Unkown tiff naming scheme.")
-                    x = int(coord_str[0]) * 1000
-                    y = int(coord_str[1]) * 1000
-                    coords.append(
-                        shapely.Polygon(
+                    if (  # Check if folder contains adf files
+                        len(
                             [
-                                (x, y),
-                                (x + 5000, y),
-                                (x + 5000, y + 5000),
-                                (x, y + 5000),
-                                (x, y),
+                                f
+                                for f in os.listdir(fpath)
+                                if f.endswith(".adf")
                             ]
                         )
-                    )
-                    source_index.append(ii)
+                        > 0
+                    ):
+                        logging.debug(
+                            "Using extents of adf dataset for coordinates."
+                        )
+                        with rio.open(fpath) as raster:
+                            coords.append(bounds_to_polygon(raster.bounds))
+                        source_index.append(ii)
+                    else:
+                        logging.debug("Using folder name for coordinates.")
+                        coord_str = re.findall("g_(\d*)_(\d*)", fname)[0]
+                        if len(coord_str) < 1:
+                            raise NameError("Unkown tiff naming scheme.")
+                        x = int(coord_str[0]) * 1000
+                        y = int(coord_str[1]) * 1000
+                        coords.append(
+                            shapely.Polygon(
+                                [
+                                    (x, y),
+                                    (x + 5000, y),
+                                    (x + 5000, y + 5000),
+                                    (x, y + 5000),
+                                    (x, y),
+                                ]
+                            )
+                        )
+                        source_index.append(ii)
                 else:
                     ind = [m.start() for m in re.finditer("_", fname)]
                     coords.append(

@@ -100,6 +100,8 @@ def load_and_buffer_gpkg(
                 fclass = "construction"
             elif table == "par-sur":
                 fclass = "parking"
+            elif hasattr(feature, "manual_class_1"):
+                fclass = feature.manual_class_1
 
             # Collect features in list
             if not fclass_filter or fclass in fclass_filter:
@@ -140,7 +142,6 @@ def load_and_buffer_gpkg(
             crs=gdf.crs,
             data={"fclass": fclasses, "geometry": buf_geoms},
         )
-
     return gdf
 
 

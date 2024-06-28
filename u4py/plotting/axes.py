@@ -24,6 +24,7 @@ from typing import Callable, Iterable, Tuple
 import contextily
 import geopandas as gp
 import matplotlib.pyplot as plt
+import matplotlib.ticker as mticker
 import numpy as np
 import rasterio
 import rasterio.plot as rioplot
@@ -835,6 +836,9 @@ def add_aspect(region: gp.GeoDataFrame, tiff_folder: os.PathLike, ax: Axes):
                         "label": "Exposition (°)",
                         "shrink": 0.7,
                         "ticks": [0, 90, 180, 270, 360],
+                        "format": mticker.FixedFormatter(
+                            ["N", "E", "S", "W", "N"]
+                        ),
                         # "pad": 0.05,
                     },
                 )
@@ -874,6 +878,9 @@ def add_aspect_slope(
                             "label": "Exposition (°)",
                             "shrink": 0.7,
                             "ticks": [0, 90, 180, 270, 360],
+                            "format": mticker.FixedFormatter(
+                                ["N", "E", "S", "W", "N"]
+                            ),
                             # "pad": 0.05,
                         },
                     )

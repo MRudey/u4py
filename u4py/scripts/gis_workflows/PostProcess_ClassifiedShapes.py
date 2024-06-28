@@ -4,9 +4,11 @@ each anomaly.
 """
 
 import configparser
+import datetime
 import os
 import warnings
 from multiprocessing import Pool
+from pathlib import Path
 
 import geopandas as gp
 import numpy as np
@@ -19,12 +21,14 @@ import u4py.utils.config as u4config
 import u4py.utils.projects as u4proj
 
 warnings.filterwarnings("ignore")
-u4config.cpu_count = 32
+# u4config.cpu_count = 60
 
 
 def main():
     project = u4proj.get_project(
-        proj_path="/home/rudolf/Documents/umwelt4/PostProcess_ClassifiedShapes.u4project",
+        proj_path=Path(
+            "~/Documents/umwelt4/PostProcess_ClassifiedShapes.u4project"
+        ).expanduser(),
         required=[
             "base_path",
             "places_path",
@@ -34,8 +38,9 @@ def main():
         ],
         interactive=False,
     )
+    overwrite = True
     use_parallel = True
-    generate_plots = False
+    generate_plots = True
     generate_pdf = True
 
     # Setting up paths
@@ -65,7 +70,7 @@ def main():
     )
 
     # Read Data
-    if not os.path.exists(cls_shp_fp_filtered):
+    if not os.path.exists(cls_shp_fp_filtered) or overwrite:
         gdf_filtered = filter_shapes(
             class_shp_fp, cls_shp_fp_filtered, project
         )
@@ -161,6 +166,9 @@ def filter_shapes(
     gdf_filtered = gdf_filtered.assign(locations=locations)
 
     gdf_filtered.to_file(output_path)
+    gdf_filtered.to_crs("EPSG:4326").to_file(
+        os.path.splitext(output_path)[0] + ".geojson"
+    )
     return gdf_filtered
 
 
@@ -300,4 +308,7 @@ def map_worker(
 
 
 if __name__ == "__main__":
+    tic = datetime.datetime.now()
     main()
+    duration = datetime.datetime.now() - tic
+    print(f"Runtime: {duration}")

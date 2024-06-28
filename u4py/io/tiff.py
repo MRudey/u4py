@@ -57,7 +57,12 @@ def clip_tiff_gpkg(
         logging.info(f"Clipping of {folder}/{tiff_path} not successfull")
 
 
-def clip_tiff(in_path: os.PathLike, ctiff_fol: os.PathLike, shapes: list):
+def clip_tiff(
+    in_path: os.PathLike,
+    ctiff_fol: os.PathLike,
+    shapes: list,
+    invert: bool = True,
+):
     """Clips a tiff file with `shapes` and saves it to `ctiff_fol`.
 
     :param in_path: The path of the tif file to clip.
@@ -66,12 +71,14 @@ def clip_tiff(in_path: os.PathLike, ctiff_fol: os.PathLike, shapes: list):
     :type ctiff_fol: os.PathLike
     :param shapes: The shapes with which to clip
     :type shapes: list
+    :param invert: Inverts the clip, if True data inside the shapes is clipped, defaults to True
+    :type invert: bool, optional
     """
     logging.debug(f"Clipping {in_path}")
     _, fname = os.path.split(in_path)
     out_path = os.path.join(ctiff_fol, fname)
     with rio.open(in_path, "r") as src:
-        out_image, out_transform = riomask.mask(src, shapes, invert=True)
+        out_image, out_transform = riomask.mask(src, shapes, invert=invert)
         out_meta = src.meta
     out_meta.update(
         {
@@ -134,36 +141,6 @@ def get_osm_tiff(
     """
     file_list = u4files.get_file_list_tiff(source_file_path)
     points = u4spatial.select_points_osm(query, file_list)
-    out_file_list = np.array(file_list)[points.source_ind]
-    return np.unique(out_file_list).tolist()
-
-
-def get_region_tiff(
-    region: gp.GeoDataFrame,
-    source_file_path: os.PathLike,
-    crs: str = "EPSG:32632",
-) -> list[os.PathLike]:
-    """Gets a list of paths to tiff files in a region.
-
-    :param region: A `GeoDataFrame` of the region, e.g. from a shape file
-    :type region: gp.GeoDataFrame
-    :param source_file_path: The path to the folder where the tiffs are stored (in `TB` folders)
-    :type source_file_path: os.PathLike
-    :param crs: The CRS of the input shapes, defaults to "EPSG:32632"
-    :type crs: str, optional
-    :return: A list of paths to the tiff files within the osm region.
-    :rtype: list[os.PathLike]
-    """
-    logging.info("Getting tiffs from region")
-
-    file_list = u4files.get_file_list_tiff(source_file_path)
-    if isinstance(region, gp.GeoDataFrame):
-        points = u4spatial.select_points_region(region, file_list, crs=crs)
-    elif isinstance(region, pd.Series):
-        points = u4spatial.select_points_region(region, file_list, crs=crs)
-    elif isinstance(region, shapely.Polygon):
-        region_gdf = gp.GeoDataFrame(geometry=gp.GeoSeries(region), crs=crs)
-        points = u4spatial.select_points_region(region_gdf, file_list, crs=crs)
     out_file_list = np.array(file_list)[points.source_ind]
     return np.unique(out_file_list).tolist()
 
@@ -444,12 +421,12 @@ def calculate_volume_in_shape(
         volumes_removed.append(vol_removed)
         volumes_added.append(vol_added)
         volumes_moved.append(vol_moved)
-    return shapes.assign(
-        volume=volumes,
-        volumes_removed=volumes_removed,
-        volumes_added=volumes_added,
-        volumes_moved=volumes_moved,
-    )
+    return {
+        "volumes": volumes,
+        "volumes_removed": volumes_removed,
+        "volumes_added": volumes_added,
+        "volumes_moved": volumes_moved,
+    }
 
 
 def get_tiff_coverage(
@@ -489,7 +466,10 @@ def get_terrain(
     terrain_feature: str = "slope",
     overwrite: bool = False,
 ) -> os.PathLike:
-    """Uses GDAL to calculate the specified terrain feature of a geotiff file, e.g. the `slope`, `aspect`, `hillshade`, `multi_hillshade`. Stores the results in a separate folder in the input directory for faster access.
+    """
+    Uses GDAL to calculate the specified terrain feature of a geotiff file,
+    e.g. the `slope`, `aspect`, `hillshade`, `multi_hillshade`. Stores the
+    results in a separate folder in the input directory for faster access.
 
     :param file_path: The path to the tiff file.
     :type file_path: os.PathLike
@@ -537,22 +517,27 @@ def get_terrain(
     return out_path
 
 
-def calculate_slope_in_shapes(
-    shapes: gp.GeoDataFrame, tiff_folder: os.PathLike
-) -> gp.GeoDataFrame:
-    """Calculates the slope for each shape in `shapes` using the data from the DEM found in `tiff_folder`. Also computes some basic statistics for each area.
+def calculate_terrain_in_shapes(
+    shapes: gp.GeoDataFrame, tiff_folder: os.PathLike, terrain_feature: str
+) -> dict:
+    """
+    Calculates the specified terrain feature for each shape in `shapes` using
+    the data from the DEM found in `tiff_folder`. Also computes some basic
+    statistics for each area.
 
     :param shapes: The shapes in a geodataframe.
     :type shapes: gp.GeoDataFrame
     :param tiff_folder: The folder where to find the DEM data (in `*.adf` format.)
     :type tiff_folder: os.PathLike
-    :return: A set of Polygons including mean and median slope, and standard deviation.
-    :rtype: gp.GeoDataFrame
+    :param terrain_feature: One of `'slope'`, `'aspect'`, `'hillshade'`, `'multi_hillshade'`
+    :type terrain_feature: str
+    :return: The calculated values as dictionary with mean, median and stddev.
+    :rtype:dict
     """
     file_list = u4files.get_file_list_adf(tiff_folder)
     points = u4spatial.select_points_region(shapes, file_list)
     file_list = [file_list[ii] for ii in points.source_ind]
-    slope_data = {
+    terrain_data = {
         "mean": [],
         "median": [],
         "std": [],
@@ -563,16 +548,39 @@ def calculate_slope_in_shapes(
             # Loop over all tiff files because a shape may overlap boundaries
             data = []
             for fp in file_list:
-                fp_slope = get_terrain(
-                    fp, terrain_feature="slope", overwrite=False
+                fp_terrain = get_terrain(
+                    fp, terrain_feature=terrain_feature, overwrite=False
                 )
-                slope = u4spatial.compute_for_raster_in_geom(
-                    fp_slope, shape, u4spatial.get_values, shapes.crs
+                terrain = u4spatial.compute_for_raster_in_geom(
+                    fp_terrain, shape, u4spatial.get_values, shapes.crs
                 )
-                if not slope is None:
-                    data.extend(slope)
+                if not terrain is None:
+                    data.extend(terrain)
             if len(data) > 0:
-                slope_data["mean"].append(np.mean(data))
-                slope_data["median"].append(np.median(data))
-                slope_data["std"].append(np.std(data))
-    return slope_data
+                terrain_data["mean"].append(np.mean(data))
+                terrain_data["median"].append(np.median(data))
+                terrain_data["std"].append(np.std(data))
+    return terrain_data
+
+
+def get_tiff_regions(
+    region: gp.GeoDataFrame, folder: os.PathLike
+) -> list[os.PathLike]:
+    """Gets a list of all tiff files within the region
+
+    :param region: The region to search for tiff files.
+    :type region: gp.GeoDataFrame
+    :param folder: The folder where the raster data is stored
+    :type folder: os.PathLike
+    :return: A list of all tiffs that intersect the region.
+    :rtype: list[os.PathLike]
+    """
+    coverage = get_tiff_coverage(folder)
+    if region.crs != coverage.crs:
+        coverage = coverage.to_crs(region)
+    part = coverage.clip(region)
+    if len(part) > 0:
+        return part.path.to_list()
+    else:
+        logging.info("No raster data in specified region found.")
+        return []

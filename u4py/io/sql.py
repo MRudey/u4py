@@ -963,3 +963,36 @@ def ogr_where_select(gpkg_path: os.PathLike, table: str, where: str) -> dict:
             data["geometry"].append(shapely.from_wkt(geom.ExportToWkt()))
     con = None
     return data
+
+
+def get_unique_entries(
+    file_path: os.PathLike, field: str, tables: list[str] = []
+) -> list[str]:
+    """Gets all unique entries from the field for each table.
+
+    :param file_path: The path to the sql database.
+    :type file_path: os.PathLike
+    :param field: The field name to get the values from.
+    :type field: str
+    :param tables: A single table, or list of table names, defaults to "" (all tables.)
+    :type tables: str | list[str], optional
+    :return: A list of unique entries from the tables.
+    :rtype: list[str]
+    """
+    if not tables:
+        tables = get_table_names(file_path)
+
+    result = []
+    for table in tables:
+        res = single_query(
+            file_path, f'SELECT DISTINCT "{field}" FROM "{table}"'
+        )
+        if len(res) == 1:
+            if res[0] == field:
+                if table == "lan-con":
+                    res = "construction"
+                elif table == "par-sur":
+                    res = "parking"
+        result.extend(res)
+
+    return list(np.unique(result))

@@ -11,6 +11,7 @@ from typing import Iterable, Tuple
 import contextily
 import geopandas as gp
 import matplotlib.artist as martist
+import matplotlib.cm as mcm
 import matplotlib.lines as mlines
 import matplotlib.patches as mpatches
 import matplotlib.pyplot as plt
@@ -1282,7 +1283,7 @@ def detailed_map(
     # Make geodataframe and add to plot
     shp_gdf = gp.GeoDataFrame(geometry=[row[1].geometry], crs=crs)
     fig, ax = plt.subplots(figsize=(16 / 2.54, 11.3 / 2.54), dpi=GLOBAL_DPI)
-    shp_gdf.plot(ax=ax, fc="None", ec="C0")
+    shp_gdf.plot(ax=ax, fc="None", ec="C1", label="Region")
     shp_gdf.buffer(plot_buffer).plot(ax=ax, fc="None", ec="None")
 
     # Make plot full image size and fix axis to current extent
@@ -1341,7 +1342,12 @@ def detailed_map(
         verticalalignment="bottom",
         zorder=10,
     )
+    h, l = ax.get_legend_handles_labels()
+    rdbu = mcm.get_cmap("RdBu")
+    h.append(mpatches.Patch(ec=mcm.RdBu(0), fc="None", label="Senkung"))
+    h.append(mpatches.Patch(ec=mcm.RdBu(256), fc="None", label="Hebung"))
     ax.legend(
+        handles=h,
         loc="upper right",
     )
 
