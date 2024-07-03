@@ -171,8 +171,8 @@ def location(series: gp.GeoSeries) -> str:
     wgs_point = gp.GeoDataFrame(
         geometry=[series.geometry.centroid], crs="EPSG:32632"
     ).to_crs("EPSG:4326")
-    lat = np.round(float(wgs_point.geometry.y), 6)
-    lng = np.round(float(wgs_point.geometry.x), 6)
+    lat = np.round(float(wgs_point.geometry.y.iloc[0]), 6)
+    lng = np.round(float(wgs_point.geometry.x.iloc[0]), 6)
 
     tex = (
         "\\subsection*{{Lokalität:}}\n"
