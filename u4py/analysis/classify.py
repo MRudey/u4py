@@ -110,6 +110,9 @@ def classify_shape(
     psi_path = os.path.join(
         project["paths"]["psi_path"], "hessen_l3_clipped.gpkg"
     )
+    cache_path = os.path.join(
+        project["paths"]["places_path"], "Classifier_shapes", "Web_Queries"
+    )
 
     # Getting hull for data extraction
     sub_set = u4spatial.get_subset(shp_gdf, group)
@@ -156,9 +159,9 @@ def classify_shape(
 
         # Geology
         if use_online:
-            res.update(geology(res, sub_set_hull))
-            res.update(hydrogeology(res, sub_set_hull))
-            res.update(topsoil(res, sub_set_hull))
+            res.update(geology(res, sub_set_hull, out_folder=cache_path))
+            res.update(hydrogeology(res, sub_set_hull, out_folder=cache_path))
+            res.update(topsoil(res, sub_set_hull, out_folder=cache_path))
 
         # Geohazard
         res.update(landslides(res, sub_set_hull, shp_path=hlnug_path))
@@ -659,8 +662,7 @@ def volume(geometry: gp.GeoDataFrame, diffplan_path: os.PathLike) -> dict:
 def geology(
     res: dict,
     sub_set_hull: gp.GeoDataFrame,
-    use_online: bool = True,
-    shp_path: os.PathLike = "",
+    out_folder: os.PathLike = "",
 ) -> dict:
     """Gets the geological units and their spatial extend in the area.
 
@@ -668,47 +670,69 @@ def geology(
     :type res: dict
     :param sub_set_hull: The hull of the area.
     :type sub_set_hull: gp.GeoDataFrame
-    :param use_online: Whether to query the online webservice of the HLNUG, defaults to True
-    :type use_online: bool, optional
-    :param shp_path: The path to a gpkg file containing the data (not implemented yet), defaults to ""
-    :type shp_path: os.PathLike, optional
+    :param out_folder: The path to a gpkg file containing the data (not implemented yet), defaults to ""
+    :type out_folder: os.PathLike, optional
     :return: The results dictionary with the classified data appended.
     :rtype: dict
     """
-    if use_online:
-        logging.info("Querying HLNUG for geology_data")
+    logging.info("Looking for geology data")
+    try:
+        unit_name = "geologisch"
+        petro_name = "petrograph"
+        bounds = sub_set_hull.bounds.iloc[0]
+        geology_data = u4web.query_internal(
+            "gk25-hessen:GK25_f_GK3",
+            region=[bounds.minx, bounds.miny, bounds.maxx, bounds.maxy],
+            region_crs=sub_set_hull.crs,
+            out_folder=out_folder,
+            suffix=f"{res['group']:05}",
+        ).clip(sub_set_hull)
+        if len(geology_data) < 1:
+            logging.info("Got empty response, try HLNUG")
+            raise NotImplementedError
+    except:
+        unit_name = "GEOLOGISCHE_EINHEIT"
+        petro_name = "PETROGRAPHIE"
         geology_data = u4web.query_hlnug(
             "geologie/gk25/MapServer",
             "Geologie (Kartiereinheiten)",
             region=sub_set_hull,
+            out_folder=out_folder,
+            suffix=f"{res['group']:05}",
         ).clip(sub_set_hull)
 
-        # Cut out parts where the data is None for some reason...
-        unit_list = geology_data["GEOLOGISCHE_EINHEIT"].to_list()
+    if len(geology_data) > 0:
+        # Replace empty unit names with petrographic description
+        unit_list = geology_data[unit_name]
+        if None in unit_list:
+            none_list = unit_list.isnull()
+            petro_list = geology_data[petro_name]
+            for ii in none_list:
+                geology_data.loc[ii, unit_name] = petro_list[ii]
+
+        # Someimes there is still some left -> remove them
+        unit_list = geology_data[unit_name].to_list()
         if None in unit_list:
             truth_array = [isinstance(unit, str) for unit in unit_list]
             geology_data = geology_data[truth_array]
-    elif shp_path:
-        logging.info("Loading geology_data from shapefile.")
-        raise NotImplementedError()
-    else:
-        raise ValueError("Please supply shapefile or set `use_online=True`.")
 
-    logging.info("Classifying Geology")
-    res["geology_units"], res["geology_area"] = u4spatial.area_per_feature(
-        geology_data, "GEOLOGISCHE_EINHEIT"
-    )
-    res["geology_percent"] = [
-        round((area / res["area"]) * 100, 1) for area in res["geology_area"]
-    ]
+        logging.info("Classifying Geology")
+        res["geology_units"], res["geology_area"] = u4spatial.area_per_feature(
+            geology_data, unit_name
+        )
+        res["geology_percent"] = [
+            round((area / res["area"]) * 100, 1)
+            for area in res["geology_area"]
+        ]
+    else:
+        logging.info(f"No geology data found for group {res['group']:05}.")
     return res
 
 
 def hydrogeology(
     res: dict,
     sub_set_hull: gp.GeoDataFrame,
-    use_online: bool = True,
-    shp_path: os.PathLike = "",
+    out_folder: os.PathLike = "",
 ) -> dict:
     """Gets the hydraulic conductivity and their spatial extend in the area.
 
@@ -716,33 +740,32 @@ def hydrogeology(
     :type res: dict
     :param sub_set_hull: The hull of the area.
     :type sub_set_hull: gp.GeoDataFrame
-    :param use_online: Whether to query the online webservice of the HLNUG, defaults to True
-    :type use_online: bool, optional
-    :param shp_path: The path to a gpkg file containing the data (not implemented yet), defaults to ""
-    :type shp_path: os.PathLike, optional
+    :param out_folder: The path to a gpkg file containing the data (not implemented yet), defaults to ""
+    :type out_folder: os.PathLike, optional
     :return: The results dictionary with the classified data appended.
     :rtype: dict
     """
-    if use_online:
-        logging.info("Querying HLNUG for hydro_units_data")
-        hydro_units_data = u4web.query_hlnug(
-            "geologie/huek200/MapServer",
-            "Hydrogeologische Einheiten",
-            region=sub_set_hull,
-        ).clip(sub_set_hull)
-    elif shp_path:
-        logging.info("Loading hydro_units_data from shapefile.")
-        raise NotImplementedError()
-    else:
-        raise ValueError("Please supply shapefile or set `use_online=True`.")
+    logging.info("Querying HLNUG for hydro_units_data")
+    hydro_units_data = u4web.query_hlnug(
+        "geologie/huek200/MapServer",
+        "Hydrogeologische Einheiten",
+        region=sub_set_hull,
+        out_folder=out_folder,
+        suffix=f"{res['group']:05}",
+    ).clip(sub_set_hull)
 
-    logging.info("Classifying hydrogeology.")
-    res["hydro_units"], res["hydro_area"] = u4spatial.area_per_feature(
-        hydro_units_data, "L_CH_TXT"
-    )
-    res["hydro_percent"] = [
-        round((area / res["area"]) * 100, 1) for area in res["hydro_area"]
-    ]
+    if len(hydro_units_data) > 0:
+        logging.info("Classifying hydrogeology.")
+        res["hydro_units"], res["hydro_area"] = u4spatial.area_per_feature(
+            hydro_units_data, "L_CH_TXT"
+        )
+        res["hydro_percent"] = [
+            round((area / res["area"]) * 100, 1) for area in res["hydro_area"]
+        ]
+    else:
+        logging.info(
+            f"No hydrogeology data found for group {res['group']:05}."
+        )
     return res
 
 
@@ -959,8 +982,7 @@ def karst(
 def topsoil(
     res: dict,
     sub_set_hull: gp.GeoDataFrame,
-    use_online: bool = True,
-    shp_path: os.PathLike = "",
+    out_folder: os.PathLike = "",
 ) -> dict:
     """Gets the composition of the topsoil and its spatial extent in the area.
 
@@ -968,33 +990,31 @@ def topsoil(
     :type res: dict
     :param sub_set_hull: The hull of the area.
     :type sub_set_hull: gp.GeoDataFrame
-    :param use_online: Whether to query the online webservice of the HLNUG, defaults to True
-    :type use_online: bool, optional
-    :param shp_path: The path to a gpkg file containing the data (not implemented yet), defaults to ""
-    :type shp_path: os.PathLike, optional
+    :param out_folder: The path to a gpkg file containing the data (not implemented yet), defaults to ""
+    :type out_folder: os.PathLike, optional
     :return: The results dictionary with the classified data appended.
     :rtype: dict
     """
-    if use_online:
-        logging.info("Querying HLNUG for topsoil_data")
-        topsoil_data = u4web.query_hlnug(
-            "boden/bfd50/MapServer",
-            "BFD50_Bodenhauptgruppen",
-            region=sub_set_hull,
-        ).clip(sub_set_hull)
-    elif shp_path:
-        logging.info("Loading topsoil_data from shapefile.")
-        raise NotImplementedError()
-    else:
-        raise ValueError("Please supply shapefile or set `use_online=True`.")
+    logging.info("Looking for topsoil_data")
+    topsoil_data = u4web.query_hlnug(
+        "boden/bfd50/MapServer",
+        "BFD50_Bodenhauptgruppen",
+        region=sub_set_hull,
+        out_folder=out_folder,
+        suffix=f"{res['group']:05}",
+    ).clip(sub_set_hull)
 
-    logging.info("Classifying Topsoil")
-    res["topsoil_units"], res["topsoil_area"] = u4spatial.area_per_feature(
-        topsoil_data, "UNTERGRUPPE"
-    )
-    res["topsoil_percent"] = [
-        round((area / res["area"]) * 100, 1) for area in res["topsoil_area"]
-    ]
+    if len(topsoil_data) > 0:
+        logging.info("Classifying Topsoil")
+        res["topsoil_units"], res["topsoil_area"] = u4spatial.area_per_feature(
+            topsoil_data, "UNTERGRUPPE"
+        )
+        res["topsoil_percent"] = [
+            round((area / res["area"]) * 100, 1)
+            for area in res["topsoil_area"]
+        ]
+    else:
+        logging.info(f"No topsoil data found for group {res['group']:05}.")
     return res
 
 

@@ -56,7 +56,7 @@ def main():
             "buffer_size": 100,
             "shp_cfg": shp_cfg,
             "project": project,
-            "use_online": False,
+            "use_online": True,
             "save_report": True,
         }
         for group in unique_groups

@@ -3,9 +3,11 @@ Functions to query webservices, especially the arcgis rest api
 """
 
 import io
+import json
 import logging
 import os
 import tempfile
+from pathlib import Path
 
 import geopandas as gp
 import numpy as np
@@ -13,9 +15,13 @@ import PIL
 import PIL.PngImagePlugin
 import restapi
 import shapely
+from owslib.wfs import WebFeatureService
 from owslib.wms import WebMapService, wms111, wms130
 
+import u4py.analysis.spatial as u4spatial
+
 HLNUG_URL = "https://geodienste-umwelt.hessen.de/arcgis/rest/services"
+INTERN_URL = "http://130.83.190.169:8080/geoserver/gk25-hessen/ows"
 
 
 def query_hlnug(
@@ -33,14 +39,14 @@ def query_hlnug(
     :type layer_name: str
     :param region: The region to search for data, defaults to [], getting the maximum data present (1000 entries max.).
     :type region: shapely.Polygon
-    :param out_folder: The location where to store the data, defaults to "". If empty, uses a temporary folder and returns a GeoDataFrame instead of a path to a shapefile.
-    :type out_folder: os.PathLike
+    :param out_folder: The location where to store the data, defaults to "". If empty, uses a temporary folder and returns a GeoDataFrame instead of a path to a shapefile, defaults to ""
+    :type out_folder: os.PathLike, optional
     :param layer_type: Define the type of the layer, defaults to "Feature Layer"
     :type layer_type: str, optional
     :param suffix: Suffix for identifying the intermediate savefile.
     :type suffix: str, optional
-    :return: The path to the saved shapefile.
-    :rtype: os.PathLike | gp.GeoDataFrame
+    :return: The data as geodataframe
+    :rtype: gp.GeoDataFrame
     """
     # Save features first to json then to shapefile
     if not out_folder:
@@ -52,8 +58,9 @@ def query_hlnug(
             gdf = _save_features(features, out_fname)
     else:
         out_fname = os.path.join(out_folder, f"{layer_name}{suffix}")
-        if os.path.exists(out_fname + ".shp"):
-            gdf = gp.read_file(out_fname + ".shp")
+        if os.path.exists(out_fname + ".gpkg"):
+            logging.info("Found locally cached file.")
+            gdf = gp.read_file(out_fname + ".gpkg")
 
         else:
             features = _query_server(
@@ -61,6 +68,137 @@ def query_hlnug(
             )
             gdf = _save_features(features, out_fname)
     return gdf
+
+
+def query_internal(
+    layer_name: str,
+    region: shapely.Polygon = [],
+    region_crs: str = "EPSG:32632",
+    out_folder: os.PathLike = "",
+    suffix: str = "",
+    maxfeatures: int = 3000,
+    login_path: os.PathLike = "~/Documents/umwelt4/login.json",
+) -> gp.GeoDataFrame:
+    """
+    Reads the given layer from the internal Open WFS server (available only in
+    the IAG).
+
+    Requires a valid login!
+
+    Available layers are:
+
+        - `gk25-hessen:GK25_f-deck_GK3`
+        - `gk25-hessen:GK25_f-dol_GK3`
+        - `gk25-hessen:GK25_f-lin_GK3`
+        - `gk25-hessen:GK25_f_GK3`
+        - `gk25-hessen:GK25_gk-p_GK3`
+        - `gk25-hessen:GK25_l-tek_GK3`
+        - `gk25-hessen:GK25_p-deck_GK3`
+        - `gk25-hessen:GK25_p-hydro_GK3`
+        - `gk25-hessen:GK25_p-tek_GK3`
+
+    :param layer_name: The name of the layer on the server. See list above.
+    :type layer_name: str
+    :param region: The region where to extract the data, defaults to []
+    :type region: shapely.Polygon, optional
+    :param region_crs: The crs of the region, defaults to "EPSG:32632"
+    :type region_crs: str, optional
+    :param out_folder: The location where to store the data, defaults to "". If empty, uses a temporary folder and returns a GeoDataFrame instead of a path to a shapefile, defaults to ""
+    :type out_folder: os.PathLike, optional
+    :param suffix: Suffix for identifying the intermediate savefile, defaults to ""
+    :type suffix: str, optional
+    :return: The data as geodataframe
+    :rtype: gp.GeoDataFrame
+    """
+
+    # Save features first to json then to shapefile
+    if not out_folder:
+        with tempfile.TemporaryDirectory() as out_folder:
+            out_fname = os.path.join(
+                out_folder, f"{layer_name.replace(':','_')}{suffix}"
+            )
+            features = _query_internal_server(
+                layer_name, region, region_crs, login_path, maxfeatures
+            )
+            gdf = _save_features(features, out_fname)
+    else:
+        os.makedirs(out_folder, exist_ok=True)
+        out_fname = os.path.join(
+            out_folder, f"{layer_name.replace(':','_')}{suffix}"
+        )
+        if os.path.exists(out_fname + ".gpkg"):
+            logging.info("Found locally cached file.")
+            gdf = gp.read_file(out_fname + ".gpkg")
+
+        else:
+            features = _query_internal_server(
+                layer_name, region, region_crs, login_path, maxfeatures
+            )
+            gdf = _save_features(features, out_fname)
+    return gdf
+
+
+def _query_internal_server(
+    layer_name: str,
+    region: shapely.Polygon,
+    region_crs: str,
+    login_path: os.PathLike,
+    maxfeatures: int,
+) -> str:
+    """Does the actual query of the internal IAG-GeoServer
+
+    :param layer_name: The name of the layer on the server.
+    :type layer_name: str
+    :param region: The region where to extract the data
+    :type region: shapely.Polygon
+    :param region_crs: The crs of the region.
+    :type region_crs: str
+    :param login_path: The path to the login file.
+    :type login_path: os.PathLike
+    :param maxfeatures: The maximum amount of features to return
+    :type maxfeatures: int
+    :raises KeyError: Raised when the layer is not found on the server.
+    :return: A JSON formatted reply from the webserver.
+    :rtype: str
+    """
+    logging.info("Querying internal server for geology_data")
+    login_path = Path(login_path).expanduser()
+    if not os.path.exists(login_path):
+        FileNotFoundError(
+            "Provide a valid login file. A json file with the keys `user_name` and `password`."
+        )
+
+    with open(login_path, "rt") as loginfile:
+        login = json.load(loginfile)
+    intern_wfs = WebFeatureService(
+        url=INTERN_URL,
+        username=login["user_name"],
+        password=login["password"],
+        version="1.1.0",
+    )
+    lyr_names = list(intern_wfs.contents)
+    if layer_name in lyr_names:
+        # Check for correct crs:
+        layer_crs = intern_wfs.contents[layer_name].crsOptions[0].id
+        if region_crs != layer_crs:
+            reg_gdf = gp.GeoDataFrame(
+                geometry=[u4spatial.bounds_to_polygon(region)], crs=region_crs
+            ).to_crs(layer_crs)
+            bounds = reg_gdf.bounds.iloc[0]
+            region = [bounds.minx, bounds.miny, bounds.maxx, bounds.maxy]
+
+        response = intern_wfs.getfeature(
+            typename=layer_name,
+            bbox=region,
+            srsname=intern_wfs.contents[layer_name].crsOptions[0],
+            maxfeatures=maxfeatures,
+            outputFormat="application/json",
+        )
+        response_data = json.loads(response.read())
+    else:
+        raise KeyError(f"Layer {layer_name} not found on Server: {lyr_names}")
+
+    return response_data
 
 
 def _save_features(features: str, out_fname: os.PathLike) -> gp.GeoDataFrame:
@@ -73,9 +211,14 @@ def _save_features(features: str, out_fname: os.PathLike) -> gp.GeoDataFrame:
     :return: A geodataframe with the features in EPSG:32632
     :rtype: gp.GeoDataFrame
     """
-    with open(features.dump(out_fname + ".json")) as geojson:
-        gdf = gp.read_file(geojson).to_crs("EPSG:32632")
-    gdf.to_file(out_fname + ".shp")
+    if isinstance(features, dict):
+        with open(out_fname + ".json", "wt") as geojson:
+            json.dump(features, geojson)
+        gdf = gp.read_file(out_fname + ".json").to_crs("EPSG:32632")
+    else:
+        with open(features.dump(out_fname + ".json")) as geojson:
+            gdf = gp.read_file(geojson).to_crs("EPSG:32632")
+    gdf.to_file(out_fname + ".gpkg")
     return gdf
 
 
@@ -101,6 +244,7 @@ def _query_server(
     :rtype: str
     """
     # Query webservice to find layer
+    logging.info("Querying HLNUG for geology_data")
     map_url = f"{HLNUG_URL}/{map_server_suffix}"
     feat_serv = restapi.MapService(map_url)
     lyr_types = [lyr.type for lyr in feat_serv.layers]
@@ -113,7 +257,7 @@ def _query_server(
                 f"Layer type mismatch: {lyr_types[ii]} != {layer_type}."
             )
     else:
-        raise KeyError(f"Layer not found on Server: {lyr_names}")
+        raise KeyError(f"Layer {layer_name} not found on Server: {lyr_names}")
 
     # Assemble url to layer and get data
     lyr_url = f"{map_url}/{ii}"
