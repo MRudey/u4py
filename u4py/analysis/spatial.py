@@ -523,10 +523,20 @@ def bounds_to_polygon(
                 (bounds.left, bounds.bottom),
             )
         )
-    if isinstance(bounds, mplax.Axes):
+    elif isinstance(bounds, mplax.Axes):
         xlim = bounds.get_xlim()
         ylim = bounds.get_ylim()
         poly = bounds_to_polygon((xlim[0], ylim[0], xlim[1], ylim[1]))
+    elif isinstance(bounds, gp.pd.Series):
+        poly = shapely.Polygon(
+            shell=(
+                (bounds.minx, bounds.miny),
+                (bounds.minx, bounds.maxy),
+                (bounds.maxx, bounds.maxy),
+                (bounds.maxx, bounds.miny),
+                (bounds.minx, bounds.miny),
+            )
+        )
     else:
         poly = shapely.Polygon(
             shell=(
@@ -784,6 +794,66 @@ def subdivide_polygon(
         )
 
     return [new_poly1, new_poly2]
+
+
+def subdivide_gdf_by_num(
+    gdf: gp.GeoDataFrame, nsub: int = 2
+) -> gp.GeoDataFrame:
+    """Subdivides the boundaries of the input geodataframe along x and y `nsub`-times.
+
+    :param gdf: The geodataframe for subdividing
+    :type gdf: gp.GeoDataFrame
+    :param nsub: The number of subdivisions, defaults to 2
+    :type nsub: int, optional
+    :return: A geodataframe containing polygons that subdivide the input geodataframe.
+    :rtype: gp.GeoDataFrame
+    """
+    bounds = gdf.total_bounds
+    xq = np.linspace(bounds[0], bounds[2], nsub + 1)
+    yq = np.linspace(bounds[1], bounds[3], nsub + 1)
+    geometries = []
+    for ii in range(4):
+        for jj in range(4):
+            geometries.append(
+                bounds_to_polygon((xq[ii], yq[jj], xq[ii + 1], yq[jj + 1]))
+            )
+    return gp.GeoDataFrame(geometry=geometries, crs=gdf.crs)
+
+
+def subdivide_gdf_by_squares(
+    gdf: gp.GeoDataFrame, width: float = 1000
+) -> gp.GeoDataFrame:
+    """Subdivides the boundaries of the input geodataframe into squares of `width` metres. The edges of the squares are not located along the edges of the input but rather overlap them.
+
+    :param gdf: The geodataframe for subdividing
+    :type gdf: gp.GeoDataFrame
+    :param width: The width of the squares, defaults to 1000
+    :type width: float, optional
+    :return: A geodataframe containing polygons that split the input into equally sized squares.
+    :rtype: gp.GeoDataFrame
+    """
+    in_crs = gdf.crs
+    if in_crs != "EPSG:32632":
+        gdf = gdf.to_crs("EPSG:32632")
+
+    bounds = gdf.total_bounds
+    minx = np.floor(bounds[0] / width) * width
+    miny = np.floor(bounds[1] / width) * width
+    maxx = np.ceil(bounds[2] / width) * width
+    maxy = np.ceil(bounds[3] / width) * width
+
+    xq = np.arange(minx, maxx + width, width)
+    yq = np.arange(miny, maxy + width, width)
+    geometries = []
+    for ii in range(len(xq) - 1):
+        for jj in range(len(yq) - 1):
+            geometries.append(
+                bounds_to_polygon((xq[ii], yq[jj], xq[ii + 1], yq[jj + 1]))
+            )
+
+    return gp.GeoDataFrame(geometry=geometries, crs="EPSG:32632").to_crs(
+        in_crs
+    )
 
 
 def group_nearest(x: np.ndarray, y: np.ndarray, max_dist: float) -> list:

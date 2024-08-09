@@ -289,7 +289,7 @@ def load_gpkg_data_region(
 
 
 def load_gpkg_data_region_ogr(
-    region: gp.GeoDataFrame | gp.GeoSeries,
+    region: gp.GeoDataFrame | gp.GeoSeries | shapely.Polygon,
     gpkg_file_path: os.PathLike,
     table: str = "",
     crs: str = "EPSG:32632",
@@ -321,9 +321,12 @@ def load_gpkg_data_region_ogr(
                 f"File contains several tables, please specify appropriate table from: {tables}"
             )
 
-    # Homogenize input CRS for extraction
+    # Make region if a polygon was given (has to be of same crs as gpkg)
     gpkg_crs = u4sql.get_crs(gpkg_file_path, table)[0]
-    if region.crs != gpkg_crs:
+    if isinstance(region, shapely.Polygon):
+        region = gp.GeoDataFrame(geometry=[region], crs=gpkg_crs)
+    # Homogenize input CRS for extraction
+    elif region.crs != gpkg_crs:
         region = region.to_crs(gpkg_crs)
 
     # Get WKT representation of geometry and load data

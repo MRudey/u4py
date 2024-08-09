@@ -137,7 +137,7 @@ def multi_proc_query(args: Tuple) -> Any:
 
 
 def single_query(
-    file_path: os.PathLike, query: str, jj: int = -1
+    file_path: os.PathLike, query: str, jj: int = -1, n_expected: int = 0
 ) -> Any | Tuple[Any, int]:
     """Executes a single sql query for the given db-file.
 
@@ -147,13 +147,18 @@ def single_query(
     :type query: str
     :param jj: The number of the query (useful for Iterables), defaults to -1
     :type jj: int, optional
+    :param n_expected: The number of expected outputs of the query. Useful to collect multiple outputs, defaults to 0 (single value)
+    :type n_expected: int, optional
     :return: The result of the query.
     :rtype: Any
     """
     logging.debug(f"{query}")
     con = sqlite3.connect(file_path)
     cur = con.cursor()
-    result = [value[0] for value in cur.execute(query)]
+    if n_expected > 0:
+        result = [value[:n_expected] for value in cur.execute(query)]
+    else:
+        result = [value[0] for value in cur.execute(query)]
     con.close()
     if jj >= 0:
         return (result, jj)
@@ -974,7 +979,7 @@ def get_unique_entries(
     :type file_path: os.PathLike
     :param field: The field name to get the values from.
     :type field: str
-    :param tables: A single table, or list of table names, defaults to "" (all tables.)
+    :param tables: A single table, or list of table names, defaults to [] (all tables.)
     :type tables: str | list[str], optional
     :return: A list of unique entries from the tables.
     :rtype: list[str]
@@ -996,3 +1001,23 @@ def get_unique_entries(
         result.extend(res)
 
     return list(np.unique(result))
+
+
+def get_bounds(file_path: os.PathLike) -> Tuple | list[tuple]:
+    """Gets the bounds of all datasets in the given gpkg file.
+
+    :param file_path: The path to the gpkg file.
+    :type file_path: os.PathLike
+    :param tables: A single table, or list of table names, defaults to [] (all tables.)
+    :type tables: str, list[str]
+    :return: A list of tuples containing (minx, miny, maxx, maxy) from the tables.
+    :rtype: list[tuple]
+    """
+
+    result = single_query(
+        file_path,
+        "SELECT min_x,min_y,max_x,max_y FROM gpkg_contents",
+        n_expected=4,
+    )
+
+    return result
