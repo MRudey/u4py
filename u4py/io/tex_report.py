@@ -13,6 +13,66 @@ import uncertainties as unc
 from uncertainties import unumpy as unp
 
 
+def multi_report(output_path: os.PathLike):
+    tex_folder = os.path.join(output_path, "tex_includes")
+    include_list = [
+        os.path.join(tex_folder, fp)
+        for fp in os.listdir(tex_folder)
+        if fp.endswith("tex")
+    ]
+    base_tex = (
+        "\\documentclass[\n"
+        + "  ngerman,\n"
+        + "  logofile=/home/rudolf/Documents/umwelt4/tuda_logo.pdf,\n"
+        + "  accentcolor=8c,\n"
+        + "]{tudapub}\n"
+        + "\\usepackage{graphicx}\n"
+        + "\\usepackage{subcaption}\n"
+        + "\\usepackage{enumitem}\n"
+        + "\\usepackage{wrapfig}\n"
+        + "\\usepackage{float}\n"
+        + "\\usepackage{fontawesome}\n"
+        + "\\usepackage[ngerman]{babel}\n"
+        + "\\usepackage{tocloft}"
+        + "\\addtolength{\\cftsecnumwidth}{10pt}"
+        # + "\\usepackage[margin=1in]{geometry}\n"
+        + "\\begin{document}\n"
+        # + "\\title{Detektierte Anomalien}\n"
+        # + "\\subtitle{Atlas anomaler Bodenbewegungen in Hessen}\n"
+        # + "\\author{automatisch generierter Report aus U4Py}\n"
+        # + "\\date{\\today}\n"
+        # + "\\addTitleBox{Institut für Angewandte Geowissenschaften}\n\n"
+        # + "\\maketitle\n\n"
+        # + "\\tableofcontents\n\n"
+        # + "\\clearpage\n"
+    )
+    include_list.sort()
+    for incl in include_list:
+        num = os.path.splitext(os.path.split(incl)[-1])[0].replace("_info", "")
+        tex = f"{base_tex}\\input{{{incl}}}\n\\clearpage\n" + "\\end{document}"
+
+        report_path = os.path.join(output_path, f"Site_Report_{num}.tex")
+        with open(
+            report_path, "wt", encoding="utf-8", newline="\n"
+        ) as tex_file:
+            tex_file.write(tex)
+
+        report_out_path = os.path.split(output_path)[0]
+        subprocess.run(
+            ["pdflatex", "-draftmode", f"{report_path}"],
+            cwd=report_out_path,
+        )
+        subprocess.run(
+            ["pdflatex", "-draftmode", f"{report_path}"],
+            cwd=report_out_path,
+        )
+        subprocess.run(
+            ["pdflatex", f"{report_path}"],
+            cwd=report_out_path,
+        )
+    clean_aux_files(report_out_path)
+
+
 def main_report(output_path: os.PathLike):
     tex_folder = os.path.join(output_path, "tex_includes")
     include_list = [
@@ -85,7 +145,12 @@ def clean_aux_files(report_out_path: os.PathLike):
             os.remove(fp)
 
 
-def site_report(row: tuple, output_path: os.PathLike, suffix: str):
+def site_report(
+    row: tuple,
+    output_path: os.PathLike,
+    suffix: str,
+    hlnug_data: gp.GeoDataFrame,
+):
     """Creates a report for each area of interest using LaTeX. This is later merged together into a larger main document by the `main` function.
 
     :param row: The index and data for the area of interest.
@@ -94,6 +159,8 @@ def site_report(row: tuple, output_path: os.PathLike, suffix: str):
     :type output_path: os.PathLike
     :param suffix: The subfolder to use for the LaTeX files.
     :type suffix: str
+    :param hlnug_data: More info loaded from HLNUG Dataset
+    :type hlnug_data: gp.GeoDataFrame
     """
 
     # Setting Paths
@@ -117,11 +184,13 @@ def site_report(row: tuple, output_path: os.PathLike, suffix: str):
         img_path + "_satimg.pdf"
     ):
         tex += details_and_satellite(img_path)
+    # Manual Classification or HLNUG data
+    if len(hlnug_data) > 0:
+        tex += hlnug_description(hlnug_data[hlnug_data.AMT_NR_ == group])
+    else:
+        tex += manual_description(row[1])
     tex += shape(row[1])
     tex += landuse(row[1])
-
-    # Manual Classification
-    tex += manual_description(row[1])
 
     # Volumina
     tex += moved_volumes(row[1])
@@ -131,7 +200,9 @@ def site_report(row: tuple, output_path: os.PathLike, suffix: str):
         tex += difference(img_path)
 
     # Topographie
-    if os.path.exists(img_path + "_slope.pdf"):
+    if os.path.exists(img_path + "_slope.pdf") or os.path.exists(
+        img_path + "_aspect_slope.pdf"
+    ):
         tex += topography(row[1], img_path)
 
     # PSI Data
@@ -209,31 +280,32 @@ def shape(series: gp.GeoSeries) -> str:
     short_ax = eval(series["shape_ellipse_b"])
     if isinstance(long_ax, list):
         areas = [np.pi * a * b for a, b in zip(long_ax, short_ax)]
-        imax = np.argmax(areas)
-        imin = np.argmin(areas)
-        if len(long_ax) > 2:
-            lax = str(
-                unc.ufloat(np.mean(long_ax), 2 * np.std(long_ax))
-            ).replace("+/-", "$\\pm$")
-            sax = str(
-                unc.ufloat(np.mean(short_ax), 2 * np.std(short_ax))
-            ).replace("+/-", "$\\pm$")
-        else:
-            lax = f"{round(long_ax[0])} und {round(long_ax[1])}"
-            sax = f"{round(short_ax[0])} und {round(short_ax[1])}"
+        if len(areas) > 0:
+            imax = np.argmax(areas)
+            imin = np.argmin(areas)
+            if len(long_ax) > 2:
+                lax = str(
+                    unc.ufloat(np.mean(long_ax), 2 * np.std(long_ax))
+                ).replace("+/-", "$\\pm$")
+                sax = str(
+                    unc.ufloat(np.mean(short_ax), 2 * np.std(short_ax))
+                ).replace("+/-", "$\\pm$")
+            else:
+                lax = f"{round(long_ax[0])} und {round(long_ax[1])}"
+                sax = f"{round(short_ax[0])} und {round(short_ax[1])}"
 
-        tex += (
-            f"Es handelt sich um {humanize.apnumber(len(long_ax))} Anomalien. "
-            + f"Die Anomalien sind ca. {lax}\\,m lang und ca. {sax}\\,m breit. "
-        )
-        if len(long_ax) > 2:
             tex += (
-                "Die flächenmäßig kleinste Anomalie ist hierbei ca. "
-                + f"{round(long_ax[imin])}\\,m lang und "
-                + f"{round(short_ax[imin])}\\,m breit, die größte ca. "
-                + f"{round(long_ax[imax])}\\,m lang und "
-                + f"{round(short_ax[imax])}\\,m breit. "
+                f"Es handelt sich um {humanize.apnumber(len(long_ax))} Anomalien. "
+                + f"Die Anomalien sind ca. {lax}\\,m lang und ca. {sax}\\,m breit. "
             )
+            if len(long_ax) > 2:
+                tex += (
+                    "Die flächenmäßig kleinste Anomalie ist hierbei ca. "
+                    + f"{round(long_ax[imin])}\\,m lang und "
+                    + f"{round(short_ax[imin])}\\,m breit, die größte ca. "
+                    + f"{round(long_ax[imax])}\\,m lang und "
+                    + f"{round(short_ax[imax])}\\,m breit. "
+                )
     if isinstance(long_ax, float):
         lax = f"{round(long_ax)}"
         sax = f"{round(short_ax)}"
@@ -371,18 +443,24 @@ def difference(img_path: os.PathLike) -> str:
     :return: The tex code.
     :rtype: str
     """
-    tex = (
-        "\\begin{figure}[!ht]\n"
-        + "  \\centering"
-        + f"  \\includegraphics[width=.9\\textwidth]{{{img_path+'_diffplan.pdf'}}}\n"
-        + "  \\caption{Differenzenplan im Gebiet.}\n"
-        + "\\end{figure}\n"
-        + "\\begin{figure}[!ht]\n"
-        + "  \\centering"
-        + f"  \\includegraphics[width=.9\\textwidth]{{{img_path+'_dem.pdf'}}}\n"
-        + "  \\caption{Digitales Höhenmodell (Schummerung).}\n"
-        + "\\end{figure}\n\n"
-    )
+    tex = ""
+    if os.path.exists(img_path + "_diffplan.pdf"):
+        tex += (
+            "\\begin{figure}[!ht]\n"
+            + "  \\centering"
+            + f"  \\includegraphics[width=.9\\textwidth]{{{img_path+'_diffplan.pdf'}}}\n"
+            + "  \\caption{Differenzenplan im Gebiet.}\n"
+            + "\\end{figure}\n"
+        )
+
+    if os.path.exists(img_path + "_dem.pdf"):
+        tex += (
+            "\\begin{figure}[!ht]\n"
+            + "  \\centering"
+            + f"  \\includegraphics[width=.9\\textwidth]{{{img_path+'_dem.pdf'}}}\n"
+            + "  \\caption{Digitales Höhenmodell (Schummerung).}\n"
+            + "\\end{figure}\n\n"
+        )
     return tex
 
 
@@ -394,7 +472,7 @@ def topography(series: gp.GeoSeries, img_path: os.PathLike) -> str:
     :return: The tex code.
     :rtype: str
     """
-    tex = "\\clearpage\n\\subsection*{Topographie}\n\n"
+    tex = "\n\\subsection*{Topographie}\n\n"
 
     for yy in ["14", "19", "21"]:
         year = f"20{yy}"
@@ -445,26 +523,32 @@ def topography(series: gp.GeoSeries, img_path: os.PathLike) -> str:
             else:
                 tex += "Es liegen für das nähere Umfeld der Anomalien keine Werte für die Steigung vor. "
             tex += "\n\n"
+    if os.path.exists(img_path + "_slope.pdf") and os.path.exists(
+        img_path + "_aspect.pdf"
+    ):
+        tex += (
+            "\n\\begin{figure}[!ht]\n"
+            + "  \\begin{subfigure}[][][t]{.49\\textwidth}\n"
+            + f"  \\includegraphics[width=\\textwidth]{{{img_path+'_slope.pdf'}}}\n"
+            + "  \\caption{Steigung}\n"
+            + "  \\end{subfigure}\n\hfill\n"
+            + "  \\begin{subfigure}[][][t]{.49\\textwidth}\n"
+            + "\\centering\n"
+            + f"  \\includegraphics[width=\\textwidth]{{{img_path+'_aspect.pdf'}}}\n"
+            + "  \\caption{Exposition.}\n"
+            + "  \\end{subfigure}\n\hfill\n"
+            + "  \\caption{Topographie im Gebiet.}"
+            + "\\end{figure}\n\n"
+        )
 
-    tex += (
-        "\n\\begin{figure}[!ht]\n"
-        + "  \\begin{subfigure}[][][t]{.49\\textwidth}\n"
-        + f"  \\includegraphics[width=\\textwidth]{{{img_path+'_slope.pdf'}}}\n"
-        + "  \\caption{Steigung}\n"
-        + "  \\end{subfigure}\n\hfill\n"
-        + "  \\begin{subfigure}[][][t]{.49\\textwidth}\n"
-        + "\\centering\n"
-        + f"  \\includegraphics[width=\\textwidth]{{{img_path+'_aspect.pdf'}}}\n"
-        + "  \\caption{Exposition.}\n"
-        + "  \\end{subfigure}\n\hfill\n"
-        + "  \\caption{Topographie im Gebiet.}"
-        + "\\end{figure}\n\n"
-        + "\\begin{figure}[!ht]\n"
-        + "  \\centering\n"
-        + f"  \\includegraphics[width=.95\\textwidth]{{{img_path+'_aspect_slope.pdf'}}}\n"
-        + "  \\caption{Steigung und Exposition}\n"
-        + "\\end{figure}\n"
-    )
+    if os.path.exists(img_path + "_aspect_slope.pdf"):
+        tex += (
+            "\\begin{figure}[!ht]\n"
+            + "  \\centering\n"
+            + f"  \\includegraphics[width=.95\\textwidth]{{{img_path+'_aspect_slope.pdf'}}}\n"
+            + "  \\caption{Steigung und Exposition}\n"
+            + "\\end{figure}\n"
+        )
     tex += "\n\n"
     return tex
 
@@ -740,7 +824,7 @@ def subsidence_risk(series: gp.GeoSeries) -> str:
 
 def geology(img_path) -> str:
     tex = (
-        "\\clearpage\n\\subsection*{Geologie}\n\n"
+        "\n\\subsection*{Geologie}\n\n"
         + "\\begin{figure}[H]\n"
         + "\\centering\n"
         + f"  \\includegraphics[width=\\textwidth]{{{img_path+'_GK25.pdf'}}}\n"
@@ -757,7 +841,7 @@ def geology(img_path) -> str:
 
 def hydrogeology(img_path: os.PathLike) -> str:
     tex = (
-        "\\clearpage\n\\subsection*{Hydrogeologie}\n\n"
+        "\n\\subsection*{Hydrogeologie}\n\n"
         + "\\begin{figure}[H]\n"
         + "\\centering\n"
         + f"  \\includegraphics[width=\\textwidth]{{{img_path+'_HUEK200.pdf'}}}\n"
@@ -774,7 +858,7 @@ def hydrogeology(img_path: os.PathLike) -> str:
 
 def soils(img_path: os.PathLike) -> str:
     tex = (
-        "\\clearpage\n\\subsection*{Bodengruppen}\n\n"
+        "\n\\subsection*{Bodengruppen}\n\n"
         + "\\begin{figure}[H]\n"
         + "\\centering\n"
         + f"  \\includegraphics[width=\\textwidth]{{{img_path+'_BFD50.pdf'}}}\n"
@@ -890,3 +974,115 @@ def topo_text(
     if "e" in ustr:
         ustr = f"{usl:.0f}\\,{unit}".replace("+/-", "$\\pm$")
     return usl, ustr
+
+
+def hlnug_description(hld: gp.GeoDataFrame) -> str:
+    """Adds a description based on HLNUG data
+
+    :param hld: The dataset
+    :type hld: gp.GeoDataFrame
+    :return: The description
+    :rtype: str
+    """
+
+    def kart_str(in_str):
+        if "ja" in in_str:
+            spl = in_str.split(" ")
+            if len(spl) > 2:
+                return f"von {spl[1]} am {spl[2]}"
+            else:
+                return f"von {spl[1]}"
+        else:
+            return "aus dem DGM"
+
+    tex = (
+        "\n\\subsection*{Beschreibung}\n\n"
+        + f"Es handelt sich hierbei um eine {hld.OBJEKT.values[0]} "
+    )
+    if hld.HERKUNFT.values[0]:
+        tex += f"welche durch {hld.HERKUNFT.values[0]} "
+        if hld.KARTIERT.values[0]:
+            tex += f"{kart_str(hld.KARTIERT.values[0])} "
+        tex += "kartiert wurde"
+    tex += ". "
+    if hld.KLASSI_DGM.values[0]:
+        tex += f"Der Befund im DGM ist {hld.KLASSI_DGM.values[0]}. "
+    if hld.RU_SCHICHT.values[0]:
+        tex += f"Die betroffenen Einheiten sind {hld.RU_SCHICHT.values[0]} "
+        if hld.RU_SCHIC_2.values[0]:
+            tex += f"und {hld.RU_SCHIC_2.values[0]} "
+        if hld.GEOLOGIE.values[0]:
+            tex += f"auf {hld.GEOLOGIE.values[0]} "
+            if hld.STR_SYSTEM.values[0]:
+                tex += f"({hld.STR_SYSTEM.values[0]})"
+        tex += ". "
+    else:
+        if hld.GEOLOGIE.values[0]:
+            tex += f"Die Geologie besteht aus {hld.GEOLOGIE.values[0]} "
+            if hld.STR_SYSTEM.values[0]:
+                tex += f"({hld.STR_SYSTEM.values[0]})"
+        tex += ". "
+
+    if hld.FLAECHE_M2.values[0]:
+        tex += f"Die betroffene Fläche beträgt ca. {np.round(hld.FLAECHE_M2.values[0], -2)}\\,m$^2$. "
+
+    if hld.LAENGE_M.values[0] and hld.BREITE_M.values[0]:
+        tex += f"Sie ist ca. {hld.LAENGE_M.values[0]}\\,m lang und {hld.BREITE_M.values[0]}\\,m breit"
+        if (
+            hld.H_MAX_MNN.values[0]
+            and hld.H_MIN_MNN.values[0]
+            and hld.H_DIFF_M.values[0]
+        ):
+            tex += f" und erstreckt sich von {hld.H_MAX_MNN.values[0]}\\,m\\,NN bis {hld.H_MIN_MNN.values[0]}\\,m\\,NN über ca. {hld.H_DIFF_M.values[0]}\\,m Höhendifferenz"
+        tex += ". "
+    exp2txt = {
+        "N": "Norden",
+        "NNO": "Nordnordosten",
+        "NNW": "Nordnordwesten",
+        "NO": "Nordosten",
+        "NW": "Nordwesten",
+        "O": "Osten",
+        "ONO": "Ostnordosten",
+        "OSO": "Ostsüdosten",
+        "S": "Süden",
+        "SO": "Südosten",
+        "SSO": "Südsüdosten",
+        "SSW": "Südsüdwesten",
+        "SW": "Südwesten",
+        "W": "Westen",
+        "WNW": "Westnordwesten",
+        "WSW": "Westsüdwesten",
+    }
+    if hld.EXPOSITION.values[0]:
+        if hld.EXPOSITION.values[0] != "n.b.":
+            tex += f"Das Gelände fällt nach {exp2txt[hld.EXPOSITION.values[0]]} ein. "
+
+    if hld.LANDNUTZUN.values[0]:
+        tex += f"Im wesentlichen ist das Gebiet von {hld.LANDNUTZUN.values[0]} bedeckt. "
+
+    if hld.URSACHE.values[0]:
+        tex += f"Eine mögliche Ursache ist {hld.URSACHE.values[0]}. "
+
+    if hld.SCHUTZ_OBJ.values[0]:
+        if hld.SCHUTZ_OBJ.values[0] == "nicht bekannt":
+            tex += "Eine potentielle Gefährdung ist nicht bekannt. "
+        else:
+            tex += f"Eine potentielle Gefährdung für {hld.SCHUTZ_OBJ.values[0]} könnte vorliegen. "
+
+    if hld.AKTIVITAET.values[0]:
+        if hld.AKTIVITAET.values[0] == "nicht bekannt":
+            tex += "Eine mögliche Aktivität ist nicht bekannt. "
+        if hld.AKTIVITAET.values[0] == "aktiv":
+            tex += f"Die {hld.OBJEKT.values[0]} ist aktiv. "
+
+    if hld.MASSNAHME.values[0]:
+        if hld.MASSNAHME.values[0] == "nicht bekannt":
+            tex += "Über unternommene Maßnahmen ist nichts bekannt. "
+        else:
+            tex += ""
+
+    if hld.BEMERKUNG.values[0]:
+        tex += "\n\n\\emph{Kommentar: " + hld.BEMERKUNG.values[0] + "}.\n\n"
+
+    tex = tex.replace("_", " ")
+    return tex

@@ -5,6 +5,7 @@ each anomaly.
 
 import configparser
 import datetime
+import logging
 import os
 import warnings
 from pathlib import Path
@@ -15,19 +16,15 @@ from tqdm import tqdm
 
 import u4py.analysis.processing as u4proc
 import u4py.analysis.spatial as u4spatial
-import u4py.io.reporting as u4rep
+import u4py.io.tex_report as u4rep
 import u4py.plotting.plots as u4plots
-import u4py.utils.config as u4config
 import u4py.utils.projects as u4proj
-
-warnings.filterwarnings("ignore")
-# u4config.cpu_count = 60
 
 
 def main():
     project = u4proj.get_project(
         proj_path=Path(
-            "~/Documents/umwelt4/PostProcess_ClassifiedShapes.u4project"
+            "~/Documents/umwelt4/PostProcess_ClassifiedShapesHLNUG.u4project"
         ).expanduser(),
         required=[
             "base_path",
@@ -38,10 +35,14 @@ def main():
         ],
         interactive=False,
     )
-    overwrite = True
+    overwrite = False
+    use_filtered = False
     use_parallel = True
     generate_plots = True
+    overwrite_plots = True
     generate_pdf = True
+    single_report = True
+    is_hlnug = True
 
     # Setting up paths
     output_path = os.path.join(
@@ -70,12 +71,24 @@ def main():
     )
 
     # Read Data
-    if not os.path.exists(cls_shp_fp_filtered) or overwrite:
-        gdf_filtered = filter_shapes(
-            class_shp_fp, cls_shp_fp_filtered, project
-        )
+    if use_filtered:
+        if not os.path.exists(cls_shp_fp_filtered) or overwrite:
+            gdf_filtered = filter_shapes(
+                class_shp_fp, cls_shp_fp_filtered, project
+            )
+            gdf_filtered = reverse_geolocate(
+                gdf_filtered, project, cls_shp_fp_filtered
+            )
+        else:
+            gdf_filtered = gp.read_file(cls_shp_fp_filtered)
     else:
-        gdf_filtered = gp.read_file(cls_shp_fp_filtered)
+        if not os.path.exists(cls_shp_fp_filtered) or overwrite:
+            gdf_filtered = gp.read_file(class_shp_fp)
+            gdf_filtered = reverse_geolocate(
+                gdf_filtered, project, cls_shp_fp_filtered
+            )
+        else:
+            gdf_filtered = gp.read_file(cls_shp_fp_filtered)
 
     # Generating Plots
     if generate_plots:
@@ -89,6 +102,7 @@ def main():
                 project,
                 dem_path,
                 contour_path,
+                overwrite_plots,
             )
             for row in gdf_filtered.iterrows()
         ]
@@ -103,6 +117,17 @@ def main():
             ):
                 wrap_map_worker(arg)
 
+    if is_hlnug:
+        hlnug_data = gp.read_file(
+            os.path.join(
+                project["paths"]["places_path"],
+                "HLNUG Daten",
+                "SHP",
+                "RD_Rutschungen_gesamt.shp",
+            )
+        )
+    else:
+        hlnug_data = gp.GeoDataFrame()
     # Generating TeX and final PDF
     if generate_pdf:
         for row in tqdm(
@@ -110,8 +135,13 @@ def main():
             desc="Generating tex files",
             total=len(gdf_filtered),
         ):
-            u4rep.site_report(row, output_path, "tex_includes")
-        u4rep.main_report(output_path)
+            u4rep.site_report(
+                row, output_path, "tex_includes", hlnug_data=hlnug_data
+            )
+        if single_report:
+            u4rep.main_report(output_path)
+        else:
+            u4rep.multi_report(output_path)
 
 
 def filter_shapes(
