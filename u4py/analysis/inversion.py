@@ -270,7 +270,7 @@ def invert_time_series(
     including *ALL* stations and not solve this for each single station. You do
     that by concatenating all stations and components into one big G-Matrix.
     """
-    _clean_inputs(data)
+    data = _clean_inputs(data)
     if not ind:
         ind = slice(len(data["t"]))
         ori = True
@@ -340,15 +340,16 @@ def _clean_inputs(data: dict):
     :type data: dict
     """
     logging.info("Cleaning inputs.")
-    ind = np.nonzero(
-        np.isfinite(data["dataN"])
-        | np.isfinite(data["dataE"])
-        | np.isfinite(data["dataU"])
-    )
-
     for kk in data.keys():
         if isinstance(data[kk], np.ndarray) and kk != "inversion_results":
-            data[kk] = data[kk][ind]
+            ind = np.isfinite(data[kk])
+            for ll in data.keys():
+                if (
+                    isinstance(data[ll], np.ndarray)
+                    and kk != "inversion_results"
+                ):
+                    data[ll] = data[ll][ind]
+    return data
 
 
 def _invert(

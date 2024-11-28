@@ -21,7 +21,7 @@ import u4py.utils.projects as u4proj
 def main():
     project = u4proj.get_project(
         proj_path=Path(
-            r"~\Documents\ArcGIS\U4_projects\Examples\PSI_Fit_FFM_Regions_BBD+EGMS.u4project"
+            r"~/Documents/umwelt4/Bericht_FFM_BBD_EGMS.u4project"
         ).expanduser(),
         required=[
             "base_path",
@@ -62,7 +62,7 @@ def main():
     )
     results_log = []
     os.makedirs(processing_path, exist_ok=True)
-
+    os.makedirs(project["paths"]["output_path"], exist_ok=True)
     # Loading Data
     regions = u4files.get_rois(project["paths"]["piloten_path"])
     for name, roi in tqdm(regions, desc="Reading Data and Creating Plots"):
