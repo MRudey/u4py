@@ -20,6 +20,7 @@ from multiprocessing import Pool
 from typing import Callable, Iterable, Tuple
 
 import geopandas as gp
+import shapely as shp
 from tqdm import tqdm
 
 import u4py.analysis.inversion as u4invert
@@ -300,4 +301,82 @@ def get_results(
                 "dataU": "timeseries",
             },
         )
+    return results
+
+
+def extract_profile(
+    name: str,
+    dataset: str,
+    roi: gp.GeoDataFrame,
+    processing_path: os.PathLike,
+    direction_paths: list[Tuple[os.PathLike, str]],
+    overwrite: bool = False,
+):
+    """Extracts values along a profile in the roi.
+
+    :param name: The name of the region of interest (for saving the intermediate results.)
+    :type name: str
+    :param dataset: The name of the dataset (e.g. "BBD", "EGMS_1", "EGMS_2)
+    :type dataset: str
+    :param roi: The region of interest.
+    :type roi: gp.GeoDataFrame
+    :param processing_path: The path where to store the intermediate results
+    :type processing_path: os.PathLike
+    :param direction_paths: The path to the psi data and the table name as a list of (path, table_name) Tuples
+    :type direction_paths: List[Tuple[os.PathLike, str]]
+    """
+    if "EGMS" in dataset:
+        gpkg_crs = "EPSG:3035"
+    else:
+        gpkg_crs = "EPSG:32632"
+    roi_gdf = gp.GeoDataFrame(geometry=[roi], crs="EPSG:32632")
+    results = {
+        "vert": None,
+        "ew": None,
+        "x_v": None,
+        "y_v": None,
+        "x_ew": None,
+        "y_ew": None,
+    }
+    psi_save_path = os.path.join(processing_path, f"{dataset}_{name}.pkl")
+    if not os.path.exists(psi_save_path) or overwrite:
+        logging.info("Getting vertical results")
+        data_v = u4gpkg.load_gpkg_data_region(
+            roi_gdf,
+            direction_paths[0][0],
+            direction_paths[0][1],
+            gpkg_crs=gpkg_crs,
+        )
+        if data_v:
+            points = gp.GeoDataFrame(
+                geometry=[
+                    shp.Point(x, y) for x, y in zip(data_v["x"], data_v["y"])
+                ],
+                crs=gpkg_crs,
+            ).to_crs("EPSG:32632")
+            results["vert"] = data_v["mean_vel"].to_numpy()
+            results["x_v"] = points.geometry.x.to_numpy()
+            results["y_v"] = points.geometry.y.to_numpy()
+        logging.info("Getting E-W results")
+        data_ew = u4gpkg.load_gpkg_data_region(
+            roi_gdf,
+            direction_paths[1][0],
+            direction_paths[1][1],
+            gpkg_crs=gpkg_crs,
+        )
+        if data_ew:
+            points = gp.GeoDataFrame(
+                geometry=[
+                    shp.Point(x, y) for x, y in zip(data_ew["x"], data_ew["y"])
+                ],
+                crs=gpkg_crs,
+            ).to_crs("EPSG:32632")
+            results["ew"] = data_ew["mean_vel"].to_numpy()
+            results["x_ew"] = points.geometry.x.to_numpy()
+            results["y_ew"] = points.geometry.y.to_numpy()
+        with open(psi_save_path, "wb") as pklfile:
+            pickle.dump(results, pklfile)
+    else:
+        with open(psi_save_path, "rb") as pklfile:
+            results = pickle.load(pklfile)
     return results
