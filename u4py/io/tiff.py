@@ -10,6 +10,7 @@ import geopandas as gp
 import numpy as np
 import rasterio as rio
 import rasterio.mask as riomask
+import scipy.stats as spstats
 import shapely
 from osgeo import gdal
 from tqdm import tqdm
@@ -545,12 +546,22 @@ def calculate_terrain_in_shapes(
                 terrain = u4spatial.compute_for_raster_in_geom(
                     fp_terrain, shape, u4spatial.get_values, shapes.crs
                 )
-                if not terrain is None:
+                if terrain is not None:
                     data.extend(terrain)
             if len(data) > 0:
-                terrain_data["mean"].append(np.mean(data))
-                terrain_data["median"].append(np.median(data))
-                terrain_data["std"].append(np.std(data))
+                data = np.array(data)
+                if terrain_feature == "aspect":
+                    terrain_data["mean"].append(
+                        np.rad2deg(spstats.circmean(np.deg2rad(data)))
+                    )
+                    terrain_data["std"].append(
+                        np.rad2deg(spstats.circstd(np.deg2rad(data)))
+                    )
+
+                else:
+                    terrain_data["mean"].append(np.mean(data))
+                    terrain_data["median"].append(np.median(data))
+                    terrain_data["std"].append(np.std(data))
     return terrain_data
 
 
