@@ -21,7 +21,7 @@ import u4py.utils.projects as u4proj
 def main():
     project = u4proj.get_project(
         proj_path=Path(
-            r"~\Documents\ArcGIS\U4_projects\Examples\NeotectonicsURG.u4project"
+            r"~\Documents\ArcGIS\U4_projects\Examples\PSI_Fit_FFM_Regions_BBD+EGMS.u4project"
         ).expanduser(),
         required=[
             "base_path",
@@ -58,7 +58,7 @@ def main():
         "EGMS_2018_2022_ost_west.gpkg",
     )
     processing_path = os.path.join(
-        project["paths"]["processing_path"], "NeoTect_URG_PSI"
+        project["paths"]["processing_path"], "FFM_EGMS_BBD"
     )
     results_log = []
     os.makedirs(processing_path, exist_ok=True)
@@ -66,7 +66,7 @@ def main():
     # Loading Data
     regions = u4files.get_rois(project["paths"]["piloten_path"])
     for name, roi in tqdm(regions, desc="Reading Data and Creating Plots"):
-        results_log.append(f"\n### Dataset: {name} ###\n")
+        results_log.append(f"\n\n### Dataset: {name} ###\n\n")
         fig, axes = plt.subplots(
             figsize=(9, 5), nrows=2, sharex=True, sharey=True
         )
@@ -142,7 +142,7 @@ def make_plot(axes: np.ndarray, results: dict, color: str):
 
 def fit_results(data_name: str, results: dict):
     results_log = []
-    results_log.append(f"\n - {data_name} - ")
+    results_log.append(f"\n\n - {data_name} - ")
     results_log.append("\nVertical")
     results_log.append(
         u4invert.print_inversion_results(
