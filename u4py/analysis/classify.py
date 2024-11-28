@@ -25,6 +25,7 @@ def classify_shape(
     shp_cfg: dict,
     project: dict,
     use_online: bool = False,
+    use_internal: bool = True,
     save_shapes: bool = False,
     save_fig: bool = False,
     save_report: bool = False,
@@ -45,6 +46,8 @@ def classify_shape(
     :type project: dict
     :param use_online: Query online webservices by the HLNUG for geology, hydrogeology and soil, defaults to False
     :type use_online: bool, optional
+    :param use_internal: First query the internal geoserver, defaults to True
+    :type use_internal: bool, optional
     :param save_shapes: Save the individual shapes with results as single shape files, defaults to False
     :type save_shapes: bool, optional
     :param save_fig: Create some plots for each site., defaults to False
@@ -110,14 +113,26 @@ def classify_shape(
     psi_path = os.path.join(
         project["paths"]["psi_path"], "hessen_l3_clipped.gpkg"
     )
-    cache_path = os.path.join(
-        project["paths"]["places_path"], "Classifier_shapes", "Web_Queries"
-    )
+    cache_path = os.path.join(project["paths"]["sites_path"], "Web_Queries")
 
     # Getting hull for data extraction
-    sub_set = u4spatial.get_subset(shp_gdf, group)
-    if len(sub_set) > 0:
-        sub_set_hull = u4spatial.get_subset_hull(shp_gdf, group, buffer_size)
+    if "color_levels" in shp_gdf.keys():
+        sub_set = u4spatial.get_subset(shp_gdf, group)
+        if len(sub_set) > 0:
+            sub_set_hull = u4spatial.get_subset_hull(
+                shp_gdf, group, buffer_size
+            )
+        else:
+            sub_set_hull = gp.GeoDataFrame()
+    else:
+        sub_set = shp_gdf[shp_gdf.groups == group]
+        if len(sub_set) > 0:
+            sub_set_hull = gp.GeoDataFrame(
+                geometry=[sub_set.unary_union.convex_hull.buffer(buffer_size)],
+                crs=shp_gdf.crs,
+            )
+        else:
+            sub_set_hull = gp.GeoDataFrame()
     if len(sub_set_hull) > 0:
         # Classification
         res = preallocate_results()
@@ -159,7 +174,14 @@ def classify_shape(
 
         # Geology
         if use_online:
-            res.update(geology(res, sub_set_hull, out_folder=cache_path))
+            res.update(
+                geology(
+                    res,
+                    sub_set_hull,
+                    out_folder=cache_path,
+                    use_internal=use_internal,
+                )
+            )
             res.update(hydrogeology(res, sub_set_hull, out_folder=cache_path))
             res.update(topsoil(res, sub_set_hull, out_folder=cache_path))
 
@@ -663,6 +685,7 @@ def geology(
     res: dict,
     sub_set_hull: gp.GeoDataFrame,
     out_folder: os.PathLike = "",
+    use_internal: bool = True,
 ) -> dict:
     """Gets the geological units and their spatial extend in the area.
 
@@ -672,25 +695,38 @@ def geology(
     :type sub_set_hull: gp.GeoDataFrame
     :param out_folder: The path to a gpkg file containing the data (not implemented yet), defaults to ""
     :type out_folder: os.PathLike, optional
+    :param use_internal: Try internal web server first, defaults to True.
+    :type use_internal: os.PathLike, optional
     :return: The results dictionary with the classified data appended.
     :rtype: dict
     """
     logging.info("Looking for geology data")
-    try:
-        unit_name = "geologisch"
-        petro_name = "petrograph"
-        bounds = sub_set_hull.bounds.iloc[0]
-        geology_data = u4web.query_internal(
-            "gk25-hessen:GK25_f_GK3",
-            region=[bounds.minx, bounds.miny, bounds.maxx, bounds.maxy],
-            region_crs=sub_set_hull.crs,
-            out_folder=out_folder,
-            suffix=f"{res['group']:05}",
-        ).clip(sub_set_hull)
-        if len(geology_data) < 1:
-            logging.info("Got empty response, try HLNUG")
-            raise NotImplementedError
-    except:
+    if use_internal:
+        try:
+            unit_name = "geologisch"
+            petro_name = "petrograph"
+            bounds = sub_set_hull.bounds.iloc[0]
+            geology_data = u4web.query_internal(
+                "gk25-hessen:GK25_f_GK3",
+                region=[bounds.minx, bounds.miny, bounds.maxx, bounds.maxy],
+                region_crs=sub_set_hull.crs,
+                out_folder=out_folder,
+                suffix=f"{res['group']:05}",
+            ).clip(sub_set_hull)
+            if len(geology_data) < 1:
+                logging.info("Got empty response, try HLNUG")
+                raise NotImplementedError
+        except:
+            unit_name = "GEOLOGISCHE_EINHEIT"
+            petro_name = "PETROGRAPHIE"
+            geology_data = u4web.query_hlnug(
+                "geologie/gk25/MapServer",
+                "Geologie (Kartiereinheiten)",
+                region=sub_set_hull,
+                out_folder=out_folder,
+                suffix=f"{res['group']:05}",
+            ).clip(sub_set_hull)
+    else:
         unit_name = "GEOLOGISCHE_EINHEIT"
         petro_name = "PETROGRAPHIE"
         geology_data = u4web.query_hlnug(

@@ -514,7 +514,10 @@ def geology_map(
     suffix: str,
     contour_path: os.PathLike,
     legend_path: os.PathLike,
+    shp_path: os.PathLike,
     plot_buffer: float,
+    overwrite: bool,
+    use_internal: bool = True,
 ):
     """Creates a map of the geological features around the area of interest.
 
@@ -530,16 +533,25 @@ def geology_map(
     :type contour_path: os.PathLike
     :param legend_path: The path where the legend is found.
     :type legend_path: os.PathLike
+    :param shp_path: The path where query data for HLNUG/GeoServer Data is found.
+    :type shp_path: os.PathLike
     :param plot_buffer: The buffer width around the area of interest.
     :type plot_buffer: float
     """
-    logging.info(f"Plotting geological map of group {row[1].group:05}.")
 
     # Setup Paths
     output_path = os.path.join(output_path, suffix)
-    shp_path = os.path.join(output_path, "HLNUG_queries")
     os.makedirs(output_path, exist_ok=True)
-    os.makedirs(shp_path, exist_ok=True)
+    if (
+        os.path.exists(
+            os.path.join(output_path, f"{row[1].group:05}_GK25.png")
+        )
+        and not overwrite
+    ):
+        logging.info(f"Skipping existing plot {row[1].group:05}")
+        return
+    else:
+        logging.info(f"Plotting geological map of group {row[1].group:05}.")
 
     # Make geodataframe and add to plot
     shp_gdf = gp.GeoDataFrame(geometry=[row[1].geometry], crs=crs)
@@ -554,20 +566,38 @@ def geology_map(
     region = gp.GeoDataFrame(
         geometry=[u4spatial.bounds_to_polygon(ax)], crs=crs
     )
-    geology_data = u4web.query_hlnug(
-        "geologie/gk25/MapServer",
-        "Geologie (Kartiereinheiten)",
-        region=region,
-        suffix=f"_{row[1].group:05}",
-        out_folder=shp_path,
-    )
+    if use_internal:
+        bounds = region.bounds.iloc[0]
+        geology_data = u4web.query_internal(
+            "gk25-hessen:GK25_f_GK3",
+            region=[bounds.minx, bounds.miny, bounds.maxx, bounds.maxy],
+            region_crs=region.crs,
+            suffix=f"{row[1].group:05}",
+            out_folder=shp_path,
+        )
+    else:
+        geology_data = u4web.query_hlnug(
+            "geologie/gk25/MapServer",
+            "Geologie (Kartiereinheiten)",
+            region=region,
+            suffix=f"_{row[1].group:05}",
+            out_folder=shp_path,
+        )
 
     if len(geology_data) > 0:
         # Get symbology and fill legend entry lists
+        if "TKEH" in geology_data.keys():  # For data from HLNUG
+            leg_list = geology_data["TKEH"].to_list()
+        else:  # For data from internal geoserver
+            leg_list = [
+                int(f"{tknr}{eh:03}")
+                for tknr, eh in zip(
+                    geology_data["tknr"].to_list(),
+                    geology_data["einheit"].to_list(),
+                )
+            ]
         leg_dict, lgh_from_file, lglb_from_file = (
-            u4plotfmt.get_style_from_legend(
-                geology_data["TKEH"].to_list(), legend_path
-            )
+            u4plotfmt.get_style_from_legend(leg_list, legend_path)
         )
         leg_handles = []
         leg_labels = []
@@ -615,13 +645,22 @@ def geology_map(
         )
 
         # Load tectonic data
-        fault_data = u4web.query_hlnug(
-            "geologie/gk25/MapServer",
-            "Tektonik (Liniendaten)",
-            region=region,
-            suffix=f"_{row[1].group:05}",
-            out_folder=shp_path,
-        )
+        if use_internal:
+            fault_data = u4web.query_internal(
+                "gk25-hessen:GK25_l-tek_GK3",
+                region=[bounds.minx, bounds.miny, bounds.maxx, bounds.maxy],
+                region_crs=region.crs,
+                suffix=f"{row[1].group:05}",
+                out_folder=shp_path,
+            )
+        else:
+            fault_data = u4web.query_hlnug(
+                "geologie/gk25/MapServer",
+                "Tektonik (Liniendaten)",
+                region=region,
+                suffix=f"_{row[1].group:05}",
+                out_folder=shp_path,
+            )
         fault_data.plot(ax=ax, color="k")
 
         # Formatting and other stuff
@@ -629,7 +668,7 @@ def geology_map(
         u4ax.add_basemap(
             ax=ax,
             crs=geology_data.crs,
-            source=contextily.providers.BaseMapDE.Grey,
+            source=contextily.providers.CartoDB.Positron,
         )
         fig.savefig(os.path.join(output_path, f"{row[1].group:05}_GK25.png"))
         fig.savefig(os.path.join(output_path, f"{row[1].group:05}_GK25.pdf"))
@@ -646,7 +685,9 @@ def hydrogeology_map(
     suffix: str,
     contour_path: os.PathLike,
     legend_path: os.PathLike,
+    shp_path: os.PathLike,
     plot_buffer: float,
+    overwrite: bool,
 ):
     """Creates a map of hydrogeological units in the area of interest.
 
@@ -662,16 +703,26 @@ def hydrogeology_map(
     :type contour_path: os.PathLike
     :param legend_path: The path where the legend is found.
     :type legend_path: os.PathLike
+    :param shp_path: The path where query data for HLNUG/GeoServer Data is found.
+    :type shp_path: os.PathLike
     :param plot_buffer: The buffer width around the area of interest.
     :type plot_buffer: float
     """
-    logging.info(f"Plotting hydrogeological map of group {row[1].group:05}.")
-
     # Setup Paths
     output_path = os.path.join(output_path, suffix)
-    shp_path = os.path.join(output_path, "HLNUG_queries")
     os.makedirs(output_path, exist_ok=True)
-    os.makedirs(shp_path, exist_ok=True)
+    if (
+        os.path.exists(
+            os.path.join(output_path, f"{row[1].group:05}_HUEK200.png")
+        )
+        and not overwrite
+    ):
+        logging.info(f"Skipping existing plot {row[1].group:05}")
+        return
+    else:
+        logging.info(
+            f"Plotting hydrogeological map of group {row[1].group:05}."
+        )
 
     # Make geodataframe and add to plot
     shp_gdf = gp.GeoDataFrame(geometry=[row[1].geometry], crs=crs)
@@ -690,7 +741,7 @@ def hydrogeology_map(
         "geologie/huek200/MapServer",
         "Hydrogeologische Einheiten",
         region=region,
-        suffix=f"_{row[1].group:05}",
+        suffix=f"{row[1].group:05}",
         out_folder=shp_path,
     )
 
@@ -738,7 +789,7 @@ def hydrogeology_map(
         u4ax.add_basemap(
             ax=ax,
             crs=hydro_units_data.crs,
-            source=contextily.providers.BaseMapDE.Grey,
+            source=contextily.providers.CartoDB.Positron,
         )
         fig.savefig(
             os.path.join(output_path, f"{row[1].group:05}_HUEK200.png")
@@ -761,7 +812,9 @@ def topsoil_map(
     suffix: str,
     contour_path: os.PathLike,
     legend_path: os.PathLike,
+    shp_path: os.PathLike,
     plot_buffer: float,
+    overwrite: bool,
 ):
     """Creates a map of topsoil units in the area of interest.
 
@@ -777,16 +830,25 @@ def topsoil_map(
     :type contour_path: os.PathLike
     :param legend_path: The path where the legend is found.
     :type legend_path: os.PathLike
+    :param shp_path: The path where query data for HLNUG/GeoServer Data is found.
+    :type shp_path: os.PathLike
     :param plot_buffer: The buffer width around the area of interest.
     :type plot_buffer: float
     """
-    logging.info(f"Plotting topsoil map of group {row[1].group:05}.")
 
     # Setup Paths
     output_path = os.path.join(output_path, suffix)
-    shp_path = os.path.join(output_path, "HLNUG_queries")
     os.makedirs(output_path, exist_ok=True)
-    os.makedirs(shp_path, exist_ok=True)
+    if (
+        os.path.exists(
+            os.path.join(output_path, f"{row[1].group:05}_BFD50.png")
+        )
+        and not overwrite
+    ):
+        logging.info(f"Skipping existing plot {row[1].group:05}")
+        return
+    else:
+        logging.info(f"Plotting topsoil map of group {row[1].group:05}.")
 
     # Make geodataframe and add to plot
     shp_gdf = gp.GeoDataFrame(geometry=[row[1].geometry], crs=crs)
@@ -805,7 +867,7 @@ def topsoil_map(
         "boden/bfd50/MapServer",
         "BFD50_Bodenhauptgruppen",
         region=region,
-        suffix=f"_{row[1].group:05}",
+        suffix=f"{row[1].group:05}",
         out_folder=shp_path,
     )
 
@@ -857,7 +919,7 @@ def topsoil_map(
         u4ax.add_basemap(
             ax=ax,
             crs=soil_data.crs,
-            source=contextily.providers.BaseMapDE.Grey,
+            source=contextily.providers.CartoDB.Positron,
         )
         fig.savefig(os.path.join(output_path, f"{row[1].group:05}_BFD50.png"))
         fig.savefig(os.path.join(output_path, f"{row[1].group:05}_BFD50.pdf"))
@@ -876,6 +938,7 @@ def satimg_map(
     suffix: str,
     contour_path: os.PathLike,
     plot_buffer: float,
+    overwrite: bool,
 ):
     """Creates a satellite overview of the area of interest.
 
@@ -892,11 +955,20 @@ def satimg_map(
     :param plot_buffer: The buffer width around the area of interest.
     :type plot_buffer: float
     """
-    logging.info(f"Plotting satellite image of group {row[1].group:05}.")
 
     # Setup Paths
     output_path = os.path.join(output_path, suffix)
     os.makedirs(output_path, exist_ok=True)
+    if (
+        os.path.exists(
+            os.path.join(output_path, f"{row[1].group:05}_satimg.png")
+        )
+        and not overwrite
+    ):
+        logging.info(f"Skipping existing plot {row[1].group:05}")
+        return
+    else:
+        logging.info(f"Plotting satellite image of group {row[1].group:05}.")
 
     # Make gdf and plot data
     shp_gdf = gp.GeoDataFrame(geometry=[row[1].geometry], crs=crs)
@@ -938,6 +1010,7 @@ def dem_map(
     dem_path: os.PathLike,
     contour_path: os.PathLike,
     plot_buffer: float,
+    overwrite: bool,
 ):
     """Creates a hillshade map of the digital elevation model in the area of interest.
 
@@ -956,13 +1029,19 @@ def dem_map(
     :param plot_buffer: The buffer width around the area of interest.
     :type plot_buffer: float
     """
-    logging.info(
-        f"Plotting digital elevation model of group {row[1].group:05}."
-    )
-
     # Setting paths
     output_path = os.path.join(output_path, suffix)
     os.makedirs(output_path, exist_ok=True)
+    if (
+        os.path.exists(os.path.join(output_path, f"{row[1].group:05}_dem.png"))
+        and not overwrite
+    ):
+        logging.info(f"Skipping existing plot {row[1].group:05}")
+        return
+    else:
+        logging.info(
+            f"Plotting digital elevation model of group {row[1].group:05}."
+        )
 
     # Loading data and plot it
     shp_gdf = gp.GeoDataFrame(geometry=[row[1].geometry], crs=crs)
@@ -1007,6 +1086,7 @@ def slope_map(
     dem_path: os.PathLike,
     contour_path: os.PathLike,
     plot_buffer: float,
+    overwrite: bool,
 ):
     """Creates a slope map of the digital elevation model in the area of interest.
 
@@ -1025,11 +1105,20 @@ def slope_map(
     :param plot_buffer: The buffer width around the area of interest.
     :type plot_buffer: float
     """
-    logging.info(f"Plotting slope map of group {row[1].group:05}.")
 
     # Setup Paths
     output_path = os.path.join(output_path, suffix)
     os.makedirs(output_path, exist_ok=True)
+    if (
+        os.path.exists(
+            os.path.join(output_path, f"{row[1].group:05}_slope.png")
+        )
+        and not overwrite
+    ):
+        logging.info(f"Skipping existing plot {row[1].group:05}")
+        return
+    else:
+        logging.info(f"Plotting slope map of group {row[1].group:05}.")
 
     # Make geodataframe and add to plot
     shp_gdf = gp.GeoDataFrame(geometry=[row[1].geometry], crs=crs)
@@ -1072,6 +1161,7 @@ def aspect_map(
     dem_path: os.PathLike,
     contour_path: os.PathLike,
     plot_buffer: float,
+    overwrite: bool,
 ):
     """Creates an aspect map of the digital elevation model in the area of interest.
 
@@ -1094,11 +1184,20 @@ def aspect_map(
     :param plot_buffer: The buffer width around the area of interest.
     :type plot_buffer: float
     """
-    logging.info(f"Plotting aspect map of group {row[1].group:05}.")
 
     # Setup Paths
     output_path = os.path.join(output_path, suffix)
     os.makedirs(output_path, exist_ok=True)
+    if (
+        os.path.exists(
+            os.path.join(output_path, f"{row[1].group:05}_aspect.png")
+        )
+        and not overwrite
+    ):
+        logging.info(f"Skipping existing plot {row[1].group:05}")
+        return
+    else:
+        logging.info(f"Plotting aspect map of group {row[1].group:05}.")
 
     # Make geodataframe and add to plot
     shp_gdf = gp.GeoDataFrame(geometry=[row[1].geometry], crs=crs)
@@ -1137,6 +1236,7 @@ def aspect_slope_map(
     dem_path: os.PathLike,
     contour_path: os.PathLike,
     plot_buffer: float,
+    overwrite: bool,
 ):
     """Creates an aspect map of the digital elevation model in the area of interest.
 
@@ -1155,10 +1255,19 @@ def aspect_slope_map(
     :param plot_buffer: The buffer width around the area of interest.
     :type plot_buffer: float
     """
-    logging.info(f"Plotting aspect-slope map of group {row[1].group:05}.")
 
     output_path = os.path.join(output_path, suffix)
     os.makedirs(output_path, exist_ok=True)
+    if (
+        os.path.exists(
+            os.path.join(output_path, f"{row[1].group:05}_aspect_slope.png")
+        )
+        and not overwrite
+    ):
+        logging.info(f"Skipping existing plot {row[1].group:05}")
+        return
+    else:
+        logging.info(f"Plotting aspect-slope map of group {row[1].group:05}.")
 
     shp_gdf = gp.GeoDataFrame(geometry=[row[1].geometry], crs=crs)
     fig, ax = plt.subplots(figsize=(16 / 2.54, 11.3 / 2.54), dpi=GLOBAL_DPI)
@@ -1201,6 +1310,7 @@ def diffplan_map(
     suffix: str,
     diff_plan_path: os.PathLike,
     plot_buffer: float,
+    overwrite: bool,
 ):
     """Creates a map of the differences in surface elevation in the area of interest.
 
@@ -1219,10 +1329,19 @@ def diffplan_map(
     :param plot_buffer: The buffer width around the area of interest.
     :type plot_buffer: float
     """
-    logging.info(f"Plotting difference map of group {row[1].group:05}.")
     # Setting Paths
     output_path = os.path.join(output_path, suffix)
     os.makedirs(output_path, exist_ok=True)
+    if (
+        os.path.exists(
+            os.path.join(output_path, f"{row[1].group:05}_diffplan.png")
+        )
+        and not overwrite
+    ):
+        logging.info(f"Skipping existing plot {row[1].group:05}")
+        return
+    else:
+        logging.info(f"Plotting difference map of group {row[1].group:05}.")
 
     # Loading Data
     shp_gdf = gp.GeoDataFrame(geometry=[row[1].geometry], crs=crs)
@@ -1256,6 +1375,7 @@ def detailed_map(
     hlnug_path: os.PathLike,
     contour_path: os.PathLike,
     plot_buffer: float,
+    overwrite: bool,
 ) -> Tuple[tuple, tuple]:
     """Makes a detailed overview map of the region including some geological features.
 
@@ -1274,11 +1394,17 @@ def detailed_map(
     :param plot_buffer: The buffer width around the area of interest.
     :type plot_buffer: float
     """
-    logging.info(f"Plotting detailed map of group {row[1].group:05}.")
-
     # Setup Paths
     output_path = os.path.join(output_path, suffix)
     os.makedirs(output_path, exist_ok=True)
+    if (
+        os.path.exists(os.path.join(output_path, f"{row[1].group:05}_map.png"))
+        and not overwrite
+    ):
+        logging.info(f"Skipping existing plot {row[1].group:05}")
+        return
+    else:
+        logging.info(f"Plotting detailed map of group {row[1].group:05}.")
 
     # Make geodataframe and add to plot
     shp_gdf = gp.GeoDataFrame(geometry=[row[1].geometry], crs=crs)
@@ -1369,6 +1495,7 @@ def timeseries_map(
     contour_path: os.PathLike,
     psi_path: os.PathLike,
     plot_buffer: float,
+    overwrite: bool,
 ) -> Tuple[tuple, tuple]:
     """Makes a detailed overview map of the region including some geological features.
 
@@ -1385,13 +1512,17 @@ def timeseries_map(
     :param plot_buffer: The buffer width around the area of interest.
     :type plot_buffer: float
     """
-    logging.info(
-        f"Plotting timeseries and psi map of group {row[1].group:05}."
-    )
+    if (
+        os.path.exists(os.path.join(output_path, f"{row[1].group:05}_psi.png"))
+        and not overwrite
+    ):
+        logging.info(f"Skipping existing plot {row[1].group:05}")
+        return
+    else:
+        logging.info(
+            f"Plotting timeseries and psi map of group {row[1].group:05}."
+        )
     # Set paths
-    output_path = (
-        "/home/rudolf/Documents/umwelt4/SelectedSites_April24/Detailed_Maps"
-    )
     output_path = os.path.join(output_path, suffix)
     psi_data_path = os.path.join(output_path, "psi_inv_data")
     os.makedirs(output_path, exist_ok=True)
@@ -1513,7 +1644,12 @@ def plot_legend(
     The legend handles may overlap, for better plotting of complex map
     symbologies.
     """
+    if isinstance(group, str):
+        grp = group
+    else:
+        grp = f"{group:05}"
 
+    logging.info("Creating legend")
     figl, axl = plt.subplots(
         figsize=(16 / 2.54, len(leg_labels) * 0.25), dpi=GLOBAL_DPI
     )
@@ -1535,10 +1671,6 @@ def plot_legend(
     axl.set_position([0, 0, 1, 1])
     axl.invert_yaxis()
 
-    if isinstance(group, str):
-        grp = group
-    else:
-        grp = f"{group:05}"
     figl.savefig(os.path.join(output_path, f"{grp}_{suffix}_leg.png"))
     figl.savefig(os.path.join(output_path, f"{grp}_{suffix}_leg.pdf"))
     plt.close(figl)

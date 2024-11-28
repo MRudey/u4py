@@ -31,6 +31,7 @@ import rasterio.plot as rioplot
 import scipy.stats as spstats
 import shapely as shp
 import skimage.transform as sktransf
+import urllib3.exceptions as urlexept
 from matplotlib.axes import Axes
 from matplotlib.colors import hsv_to_rgb
 from matplotlib.figure import Figure
@@ -47,6 +48,8 @@ import u4py.io.sql as u4sql
 import u4py.io.tiff as u4tiff
 import u4py.plotting.preparation as u4plotprep
 import u4py.utils.convert as u4convert
+
+OSM_AVAILABLE = True
 
 
 def _add_or_create(internal_plot):
@@ -449,7 +452,7 @@ def add_basemap(
     ax: Axes = None,
     crs: str = "EPSG:23032",
     zoom: str | int = "auto",
-    source=contextily.providers.OpenStreetMap.DE,
+    source=contextily.providers.OpenStreetMap.Mapnik,
     attribution=None,
     **kwargs,
 ) -> Tuple[Figure, Axes] | None:
@@ -468,36 +471,46 @@ def add_basemap(
     :return: The figure and axis if there was no axis specified.
     :rtype: Tuple[Figure, Axes] | None
     """
+    global OSM_AVAILABLE
     if base_map_path:
         with rasterio.open(base_map_path) as base_map:
             rioplot.show(base_map, ax=ax, zorder=0, **kwargs)
     else:
-        if source == contextily.providers.CartoDB.Voyager:
-            contextily.add_basemap(
-                ax=ax,
-                crs=crs,
-                source=contextily.providers.CartoDB.VoyagerNoLabels,
-                zoom=zoom,
-                zorder=0,
-                attribution=attribution,
-            )
-            contextily.add_basemap(
-                ax=ax,
-                crs=crs,
-                source=contextily.providers.CartoDB.VoyagerOnlyLabels,
-                zoom=zoom,
-                zorder=20,
-                attribution=attribution,
-            )
-        else:
-            contextily.add_basemap(
-                ax=ax,
-                crs=crs,
-                source=source,
-                zoom=zoom,
-                zorder=0,
-                attribution=attribution,
-            )
+        try:
+            if OSM_AVAILABLE:
+                if source == contextily.providers.CartoDB.Voyager:
+                    contextily.add_basemap(
+                        ax=ax,
+                        crs=crs,
+                        source=contextily.providers.CartoDB.VoyagerNoLabels,
+                        zoom=zoom,
+                        zorder=0,
+                        attribution=attribution,
+                    )
+                    contextily.add_basemap(
+                        ax=ax,
+                        crs=crs,
+                        source=contextily.providers.CartoDB.VoyagerOnlyLabels,
+                        zoom=zoom,
+                        zorder=20,
+                        attribution=attribution,
+                    )
+                else:
+                    contextily.add_basemap(
+                        ax=ax,
+                        crs=crs,
+                        source=source,
+                        zoom=zoom,
+                        zorder=0,
+                        attribution=attribution,
+                    )
+            else:
+                logging.info(
+                    "Connection to Server timed out. No Basemap Added."
+                )
+        except urlexept.TimeoutError:
+            logging.info("Connection to Server timed out. No Basemap Added.")
+            OSM_AVAILABLE = False
 
 
 @_add_or_create
@@ -925,6 +938,9 @@ def add_gpkg_data_in_axis(
     data = u4gpkg.load_gpkg_data_region_ogr(
         region, gpkg_path, table, clip=False
     )
+    if "column" in plot_kwargs.keys():
+        if plot_kwargs["column"] not in data.keys():
+            plot_kwargs["column"] = None
     if len(data) > 0:
         data.plot(ax=ax, **plot_kwargs)
     else:

@@ -13,6 +13,7 @@ import geopandas as gp
 import numpy as np
 import PIL
 import PIL.PngImagePlugin
+import requests
 import restapi
 import shapely
 from owslib.wfs import WebFeatureService
@@ -178,12 +179,16 @@ def _query_internal_server(
 
     with open(login_path, "rt") as loginfile:
         login = json.load(loginfile)
-    intern_wfs = WebFeatureService(
-        url=INTERN_URL,
-        username=login["user_name"],
-        password=login["password"],
-        version="1.1.0",
-    )
+    try:
+        intern_wfs = WebFeatureService(
+            url=INTERN_URL,
+            username=login["user_name"],
+            password=login["password"],
+            version="1.1.0",
+        )
+    except requests.exceptions.ConnectTimeout:
+        logging.info("Connection to internal server timed out.")
+        raise requests.exceptions.ConnectTimeout()
     lyr_names = list(intern_wfs.contents)
     if layer_name in lyr_names:
         # Check for correct crs:

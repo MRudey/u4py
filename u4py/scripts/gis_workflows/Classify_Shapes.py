@@ -22,7 +22,7 @@ import u4py.utils.projects as u4proj
 
 def main():
     project = u4proj.get_project(
-        proj_path="/home/rudolf/Documents/umwelt4/Classify_Shapes.u4project",
+        proj_path="/home/rudolf/Documents/umwelt4/Classify_ShapesHLNUG.u4project",
         required=[
             "base_path",
             "psi_path",
@@ -35,28 +35,38 @@ def main():
     )
     shp_cfg = u4config.get_shape_config()
     use_parallel = True
+    use_online = True
+    use_internal = False
 
     # Setting up paths
     shp_file = os.path.join(
         project["paths"]["sites_path"],
         "thresholded_contours_all_shapes.gpkg",
     )
-    site_stat_path = os.path.join(project["paths"]["sites_path"], "SiteStats")
-    os.makedirs(site_stat_path, exist_ok=True)
+    if not (os.path.exists(shp_file)):
+        shp_file = os.path.join(
+            project["paths"]["sites_path"], "RD_Rutschungen_gesamt.shp"
+        )
 
     # Getting Data
     # sub_region = create_test_region()
     # shp_gdf = u4gpkg.load_gpkg_data_region_ogr(sub_region, shp_file)
     shp_gdf = gp.read_file(shp_file).to_crs("EPSG:32632")
-    unique_groups = np.unique(shp_gdf.groups)
+    shp_gdf = shp_gdf[:100]
+    if "groups" in shp_gdf.keys():
+        unique_groups = np.unique(shp_gdf.groups)
+    else:
+        unique_groups = np.unique(shp_gdf.AMT_NR_)
+    # unique_groups = [9]
     kwargs = [
         {
             "shp_gdf": shp_gdf,
             "group": group,
-            "buffer_size": 100,
+            "buffer_size": 5,
             "shp_cfg": shp_cfg,
             "project": project,
-            "use_online": True,
+            "use_online": use_online,
+            "use_internal": use_internal,
             "save_report": True,
         }
         for group in unique_groups

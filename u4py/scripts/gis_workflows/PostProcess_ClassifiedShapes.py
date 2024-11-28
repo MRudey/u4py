@@ -135,7 +135,14 @@ def filter_shapes(
     rockf_f = class_shp_gdf.rockfall_num_inside > 0
     filter_all = np.logical_or(np.logical_or(lands_f, karst_f), rockf_f)
     gdf_filtered = class_shp_gdf[filter_all]
+    return gdf_filtered
 
+
+def reverse_geolocate(
+    gdf_filtered: gp.GeoDataFrame,
+    project: configparser.ConfigParser,
+    output_path: os.PathLike,
+) -> gp.GeoDataFrame:
     # Do a reverse geocoding to get the address of the locations.
     cached_locations = os.path.join(
         project["paths"]["results_path"], "cached_locations.txt"
@@ -181,6 +188,7 @@ def map_worker(
     project: configparser.ConfigParser,
     dem_path: os.PathLike,
     contour_path: os.PathLike,
+    overwrite: bool,
 ):
     """Calls the various plotting and reporting functions.
 
@@ -208,9 +216,16 @@ def map_worker(
         hlnug_path,
         contour_path,
         plot_buffer=250,
+        overwrite=overwrite,
     )
     u4plots.satimg_map(
-        row, crs, output_path, "known_features", contour_path, plot_buffer=100
+        row,
+        crs,
+        output_path,
+        "known_features",
+        contour_path,
+        plot_buffer=100,
+        overwrite=overwrite,
     )
     u4plots.diffplan_map(
         row,
@@ -219,34 +234,38 @@ def map_worker(
         "known_features",
         project["paths"]["diff_plan_path"],
         plot_buffer=100,
+        overwrite=overwrite,
     )
-    u4plots.dem_map(
-        row,
-        crs,
-        output_path,
-        "known_features",
-        dem_path,
-        contour_path,
-        plot_buffer=100,
-    )
-    u4plots.slope_map(
-        row,
-        crs,
-        output_path,
-        "known_features",
-        dem_path,
-        contour_path,
-        plot_buffer=100,
-    )
-    u4plots.aspect_map(
-        row,
-        crs,
-        output_path,
-        "known_features",
-        dem_path,
-        contour_path,
-        plot_buffer=100,
-    )
+    # u4plots.dem_map(
+    #     row,
+    #     crs,
+    #     output_path,
+    #     "known_features",
+    #     dem_path,
+    #     contour_path,
+    #     plot_buffer=100,
+    #     overwrite=overwrite,
+    # )
+    # u4plots.slope_map(
+    #     row,
+    #     crs,
+    #     output_path,
+    #     "known_features",
+    #     dem_path,
+    #     contour_path,
+    #     plot_buffer=100,
+    #     overwrite=overwrite,
+    # )
+    # u4plots.aspect_map(
+    #     row,
+    #     crs,
+    #     output_path,
+    #     "known_features",
+    #     dem_path,
+    #     contour_path,
+    #     plot_buffer=100,
+    #     overwrite=overwrite,
+    # )
     u4plots.aspect_slope_map(
         row,
         crs,
@@ -255,6 +274,10 @@ def map_worker(
         dem_path,
         contour_path,
         plot_buffer=100,
+        overwrite=overwrite,
+    )
+    shp_path = os.path.join(
+        project["paths"]["places_path"], "Classifier_shapes", "Web_Queries"
     )
     u4plots.geology_map(
         row,
@@ -265,7 +288,10 @@ def map_worker(
         os.path.join(
             project["paths"]["places_path"], "Geologie (Kartiereinheiten).pkl"
         ),
+        shp_path=shp_path,
         plot_buffer=100,
+        overwrite=overwrite,
+        use_internal=False,
     )
     u4plots.hydrogeology_map(
         row,
@@ -276,7 +302,9 @@ def map_worker(
         os.path.join(
             project["paths"]["places_path"], "Hydrogeologische Einheiten.pkl"
         ),
+        shp_path=shp_path,
         plot_buffer=100,
+        overwrite=overwrite,
     )
     u4plots.topsoil_map(
         row,
@@ -285,18 +313,25 @@ def map_worker(
         "known_features",
         contour_path,
         os.path.join(project["paths"]["places_path"], "legend_BFD50.pkl"),
+        shp_path=shp_path,
         plot_buffer=100,
+        overwrite=overwrite,
     )
-    if row[1].timeseries_num_psi > 5:
-        u4plots.timeseries_map(
-            row,
-            crs,
-            output_path,
-            "known_features",
-            contour_path,
-            os.path.join(project["paths"]["psi_path"]),
-            plot_buffer=100,
-        )
+
+    try:
+        if row[1].timeseries_num_psi > 5:
+            u4plots.timeseries_map(
+                row,
+                crs,
+                output_path,
+                "known_features",
+                contour_path,
+                os.path.join(project["paths"]["psi_path"]),
+                plot_buffer=100,
+                overwrite=overwrite,
+            )
+    except TypeError:
+        logging.info("No PSI features")
 
 
 if __name__ == "__main__":
