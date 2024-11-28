@@ -1050,9 +1050,9 @@ def invert_test_data():
     ]
     ax.annotate(
         text=(
-            "Earthquake Displacement\n"
+            "Erdbeben\n"
             + f"{matrix[7]:.2f} mm ({syn_comps[5][0]:.1f})\n"
-            + "(step + exp. decay)"
+            + "(Treppenfunktion + Relaxation)"
         ),
         xy=(syn_comps[6][0], y_EQ),
         xytext=(2004, -20),
@@ -1062,9 +1062,9 @@ def invert_test_data():
     )
     ax.annotate(
         text=(
-            "Antenna Offset\n"
+            "Antennenverschiebung\n"
             + f"{matrix[6]:.2f} mm ({syn_comps[7][0]:.1f})\n"
-            + "(step)"
+            + "(Treppenfunktion)"
         ),
         xy=(syn_comps[8][0], y_AT),
         xytext=(2011, 19),
@@ -1074,9 +1074,9 @@ def invert_test_data():
     )
     ax.annotate(
         text=(
-            "Water Extraction\n"
+            "Wasserentnahme\n"
             + f"{matrix[9]:.2f} mm ({syn_comps[9][0]:.1f}), {syn_comps[10][0][0]}-{syn_comps[10][0][1]}\n"
-            + "(logistic)"
+            + "(Logistische Funktion)"
         ),
         xy=(syn_comps[10][0][0], y_EX),
         xytext=(2003, 10),
@@ -1085,14 +1085,14 @@ def invert_test_data():
     )
 
     inputs = (
-        f"linear trend: {syn_comps[0]:.1f}$\\rightarrow$ {matrix[1]:.2f}\n"
-        + f"annual sine: {syn_comps[1]:.1f}$\\rightarrow$ {matrix[2]:.2f}\n"
-        + f"annual cosine: {syn_comps[2]:.1f}$\\rightarrow$ {matrix[3]:.2f}\n"
-        + f"semi-annual sine: {syn_comps[3]:.1f}$\\rightarrow$ {matrix[4]:.2f}\n"
-        + f"semi-annual cosine: {syn_comps[4]:.1f}$\\rightarrow$ {matrix[5]:.2f}\n"
-        + f"antenna offset: {syn_comps[7][0]:.1f}$\\rightarrow$ {matrix[6]:.2f}\n"
-        + f"earthquake offset: {syn_comps[5][0]:.1f}$\\rightarrow$ {matrix[7]:.2f}\n"
-        + f"water extraction: {syn_comps[9][0]:.1f}$\\rightarrow$ {matrix[9]:.2f}\n"
+        f"Mittlere Geschwindigkeit: {syn_comps[0]:.1f}$\\rightarrow$ {matrix[1]:.2f}$\\frac{{mm}}{{a}}$\n"
+        + f"Jährlicher Sinus: {syn_comps[1]:.1f}$\\rightarrow$ {matrix[2]:.2f}\n"
+        + f"Jährlicher Kosinus: {syn_comps[2]:.1f}$\\rightarrow$ {matrix[3]:.2f}\n"
+        + f"Halbjährlicher Sinus: {syn_comps[3]:.1f}$\\rightarrow$ {matrix[4]:.2f}\n"
+        + f"Halbjährlicher Kosinus: {syn_comps[4]:.1f}$\\rightarrow$ {matrix[5]:.2f}\n"
+        + f"Antennenverschiebung: {syn_comps[7][0]:.1f}$\\rightarrow$ {matrix[6]:.2f}\n"
+        + f"Erdbeben: {syn_comps[5][0]:.1f}$\\rightarrow$ {matrix[7]:.2f}\n"
+        + f"Wasserentnahme: {syn_comps[9][0]:.1f}$\\rightarrow$ {matrix[9]:.2f}\n"
     )
     ax.annotate(
         inputs,
@@ -1101,15 +1101,15 @@ def invert_test_data():
         horizontalalignment="right",
         verticalalignment="bottom",
     )
-    ax.set_xlabel("Time")
-    ax.set_ylabel("Displacement (mm)")
+    ax.set_xlabel("Zeit")
+    ax.set_ylabel("Verschiebung (mm)")
     fig.tight_layout()
     fig.savefig(
         Path(
-            "~/HESSENBOX-DA/Umwelt_4_privat/2023-07 Treffen/beispiel_zeitreihe.pdf"
+            r"~\HESSENBOX-DA\Umwelt_4\Bericht_2024\images\beispiel_zeitreihe.pdf"
         ).expanduser()
     )
-    plt.show()
+    # plt.show()
 
 
 if __name__ == "__main__":
