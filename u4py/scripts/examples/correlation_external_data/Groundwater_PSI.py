@@ -1,8 +1,6 @@
 import csv
 import datetime
 import os
-from multiprocessing import Pool
-from pathlib import Path
 
 import geopandas as gp
 import matplotlib.gridspec as gs
@@ -12,10 +10,10 @@ from matplotlib import pyplot as plt
 from tqdm import tqdm
 
 import u4py.addons.groundwater as u4gw
+import u4py.analysis.processing as u4proc
 import u4py.io.gpkg as u4gpkg
 import u4py.plotting.axes as u4ax
 import u4py.plotting.formatting as u4pltfmt
-import u4py.utils.config as u4config
 import u4py.utils.convert as u4conv
 import u4py.utils.projects as u4proj
 
@@ -71,15 +69,7 @@ def main():
     ]
 
     if use_parallel:
-        with Pool(u4config.cpu_count - 2) as p:
-            corr_data = list(
-                tqdm(
-                    p.imap_unordered(parallel_make_plot, args),
-                    total=len(args),
-                    desc="Generating Plots",
-                    leave=False,
-                )
-            )
+        u4proc.batch_mapping(args, parallel_make_plot, "Generating Plots")
 
     else:
         corr_data = []

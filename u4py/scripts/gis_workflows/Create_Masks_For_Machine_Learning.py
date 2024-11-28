@@ -5,7 +5,6 @@ Creates masks to segment tiff files for machine-learning
 import configparser
 import json
 import os
-from multiprocessing import Pool
 
 import geopandas as gp
 import numpy as np
@@ -13,6 +12,7 @@ import rasterio as rio
 from rasterio import features as riofeat
 from tqdm import tqdm
 
+import u4py.analysis.processing as u4proc
 import u4py.io.gpkg as u4gpkg
 import u4py.io.sql as u4sql
 import u4py.io.tiff as u4tiff
@@ -69,15 +69,7 @@ def main():
         for raster_file in raster_list
     ]
     if use_parallel:
-        with Pool(u4config.cpu_count - 2) as p:
-            list(
-                tqdm(
-                    p.imap_unordered(wrap_extract_masks, args),
-                    total=len(args),
-                    desc="Generating Plots",
-                    leave=False,
-                )
-            )
+        u4proc.batch_mapping(args, wrap_extract_masks, "Generating Plots")
     else:
         for arg in tqdm(
             args,

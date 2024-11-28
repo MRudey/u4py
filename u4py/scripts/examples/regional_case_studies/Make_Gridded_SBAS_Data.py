@@ -4,7 +4,6 @@
 import logging
 import os
 import shutil
-from multiprocessing import Pool
 from pathlib import Path
 
 import geopandas as gp
@@ -12,14 +11,11 @@ import matplotlib.pyplot as plt
 import numpy as np
 from tqdm import tqdm
 
+import u4py.analysis.processing as u4proc
 import u4py.analysis.spatial as u4spatial
 import u4py.io.gpkg as u4gpkg
 import u4py.io.sql as u4sql
 import u4py.io.tiff as u4tiff
-
-# import u4py.utils.config as u4config
-
-# u4config.start_logger()
 
 
 def main():
@@ -27,10 +23,12 @@ def main():
     dx = 25
     width = 2500
 
-    sbas_folder = Path(r"~\Documents\ArcGIS\SBAS").expanduser()
-    bbd_path = Path(
-        r"~\Documents\ArcGIS\Data_2023\hessen_L2B\hessen_l2b_desc_clipped.gpkg"
-    ).expanduser()
+    sbas_folder = "/mnt/Raid/Umwelt4/SBAS"
+    # sbas_folder = Path(r"~\Documents\ArcGIS\SBAS").expanduser()
+    bbd_path = "/mnt/Raid/Umwelt4/hessen_L2B/hessen_l2b_desc_clipped.gpkg"
+    # bbd_path = Path(
+    #     r"~\Documents\ArcGIS\Data_2023\hessen_L2B\hessen_l2b_desc_clipped.gpkg"
+    # ).expanduser()
 
     file_list = [
         os.path.join(sbas_folder, fp)
@@ -76,18 +74,7 @@ def grid_data(
         )
     ]
     if use_parallel:
-        with Pool(6) as p:
-            logging.info("Starting Parallel Conversion")
-            list(
-                tqdm(
-                    p.imap_unordered(rectify_wrapper, args),
-                    total=len(args),
-                    desc="Processing Layers",
-                    leave=False,
-                    position=0,
-                )
-            )
-
+        u4proc.batch_mapping(args, rectify_wrapper, "Processing layers")
     else:
         for arg in tqdm(args):
             rectify_wrapper(arg)
@@ -169,7 +156,7 @@ def rectify_data(
     dx: float,
 ):
     vv = np.ones((len(yq), len(xq))) * np.nan
-    for ii, x in tqdm(enumerate(xq), total=len(xq), leave=False):
+    for ii, x in enumerate(xq):
         x_slc = np.logical_and(xx_data <= x + dx / 2, xx_data >= x - dx / 2)
         for jj, y in enumerate(yq):
             y_slc = np.logical_and(

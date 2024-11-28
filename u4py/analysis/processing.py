@@ -14,6 +14,7 @@ overwritten by setting the keyword argument `overwrite=True`.
 from __future__ import annotations
 
 import logging
+import multiprocessing.pool as mpp
 import os
 import pickle
 from multiprocessing import Pool
@@ -156,7 +157,11 @@ def inversion_map_worker(data: dict) -> Tuple[Tuple, Tuple]:
         return (None, None)
 
 
-def batch_mapping(fnc_args: Iterable, fnc: Callable, desc: str) -> list:
+def batch_mapping(
+    fnc_args: Iterable,
+    fnc: Callable,
+    desc: str = "",
+) -> list:
     """Maps the function over a pool of workers.
 
     :param fnc_args: The list of data to be processed.
@@ -164,18 +169,28 @@ def batch_mapping(fnc_args: Iterable, fnc: Callable, desc: str) -> list:
     :param fnc: The function to be mapped.
     :type fnc: Callable
     :param desc: The description to show in the progressbar.
-    :type desc: str
+    :type desc: str, optional
     :return: The results as a list.
     :rtype: list
     """
-    with Pool(u4config.cpu_count) as p:
-        results = list(
-            tqdm(
-                p.imap_unordered(fnc, fnc_args),
-                total=len(fnc_args),
-                desc=desc,
+    ncpu = min(len(fnc_args), u4config.cpu_count)
+    logging.info(f"Starting parallel pool with {ncpu} threads.")
+
+    if desc:
+        logging.debug("Using unordered mapping (p.imap_unordered).")
+        with Pool(ncpu) as p:
+            results = list(
+                tqdm(
+                    p.imap_unordered(fnc, fnc_args),
+                    total=len(fnc_args),
+                    desc=desc,
+                    leave=False,
+                )
             )
-        )
+    else:
+        logging.debug("Using ordered mapping (p.map).")
+        with Pool(u4config.cpu_count) as p:
+            results = list(p.map(fnc, fnc_args))
     return results
 
 

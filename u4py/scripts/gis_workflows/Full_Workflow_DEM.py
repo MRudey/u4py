@@ -9,12 +9,12 @@ processed individually, with a certain overlap.
 
 import logging
 import os
-from multiprocessing import Pool
 from pathlib import Path
 
 import geopandas as gp
 from tqdm import tqdm
 
+import u4py.analysis.processing as u4proc
 import u4py.analysis.spatial as u4spatial
 import u4py.io.files as u4files
 import u4py.io.tiff as u4tiff
@@ -79,18 +79,9 @@ def main():
             for ctp in clipped_tiff_list
         ]
         if use_parallel_contouring:
-            with Pool(u4config.cpu_count) as p:
-                logging.info("Starting Parallel Contouring")
-                clgdf_list = list(
-                    tqdm(
-                        p.imap_unordered(
-                            u4tiff.batch_get_thresholded_contours, args
-                        ),
-                        total=len(tiff_file_list),
-                        desc="Getting contours",
-                        leave=False,
-                    )
-                )
+            clgdf_list = u4proc.batch_mapping(
+                args, u4tiff.batch_get_thresholded_contours, "Getting contours"
+            )
         else:
             logging.info("Starting Single-threaded Contouring")
             clgdf_list = [

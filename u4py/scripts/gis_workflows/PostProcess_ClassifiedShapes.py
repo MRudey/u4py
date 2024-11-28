@@ -7,13 +7,13 @@ import configparser
 import datetime
 import os
 import warnings
-from multiprocessing import Pool
 from pathlib import Path
 
 import geopandas as gp
 import numpy as np
 from tqdm import tqdm
 
+import u4py.analysis.processing as u4proc
 import u4py.analysis.spatial as u4spatial
 import u4py.io.reporting as u4rep
 import u4py.plotting.plots as u4plots
@@ -93,15 +93,7 @@ def main():
             for row in gdf_filtered.iterrows()
         ]
         if use_parallel:
-            with Pool(u4config.cpu_count - 2) as p:
-                list(
-                    tqdm(
-                        p.imap_unordered(wrap_map_worker, args),
-                        total=len(args),
-                        desc="Generating Plots",
-                        leave=False,
-                    )
-                )
+            u4proc.batch_mapping(args, wrap_map_worker, "Generating Plots")
         else:
             for arg in tqdm(
                 args,

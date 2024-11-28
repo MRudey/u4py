@@ -7,13 +7,13 @@ Can be the output of ADAfinder, GroundMotionAnalyzer or U4Py-Full Workflows.
 
 import logging
 import os
-from multiprocessing import Pool
 
 import geopandas as gp
 import numpy as np
 from tqdm import tqdm
 
 import u4py.analysis.classify as u4class
+import u4py.analysis.processing as u4proc
 import u4py.utils.config as u4config
 import u4py.utils.projects as u4proj
 
@@ -62,16 +62,9 @@ def main():
         for group in unique_groups
     ]
     if use_parallel:
-        print(f"Using {u4config.cpu_count} cores.")
-        with Pool(u4config.cpu_count) as p:
-            main_list = list(
-                tqdm(
-                    p.imap_unordered(classifier_wrapper, kwargs),
-                    total=len(kwargs),
-                    desc="Classifying Groups",
-                    leave=False,
-                )
-            )
+        main_list = u4proc.batch_mapping(
+            kwargs, classifier_wrapper, "Classifying Groups"
+        )
     else:
         main_list = []
         for kwarg in tqdm(

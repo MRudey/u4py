@@ -7,17 +7,16 @@ GPKGs and saving them to shapefiles.
 import logging
 import os
 from collections import OrderedDict
-from multiprocessing import Pool
 from typing import Iterable, Tuple
 
 import geopandas as gp
 import shapely as shp
 from tqdm import tqdm
 
+import u4py.analysis.processing as u4proc
 import u4py.io.files as u4files
 import u4py.io.gpkg as u4gpkg
 import u4py.io.sql as u4sql
-import u4py.utils.config as u4config
 
 
 def create_adafinder_read_map(
@@ -165,20 +164,7 @@ def convert_gpkg_to_shp(fname: str, project: dict):
         ii += 1
         args.append((fpath, "Ost_West", reg, project, ii, jj + 1))
 
-    # for arg in args:
-    #     conversion_worker(arg)
-    ncpu = min(len(args), u4config.cpu_count)
-    with Pool(ncpu) as p:
-        logging.info("Starting Parallel Conversion")
-        list(
-            tqdm(
-                p.imap_unordered(conversion_worker, args),
-                total=len(args),
-                desc="Processing Layers",
-                leave=False,
-                position=0,
-            )
-        )
+    u4proc.batch_mapping(args, conversion_worker, desc="Processing Layers")
 
 
 def conversion_worker(args: Iterable):

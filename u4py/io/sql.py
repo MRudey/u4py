@@ -6,13 +6,10 @@ from __future__ import annotations
 
 import copy
 import logging
-import multiprocessing.pool as mpp
 import os
 import pickle as pkl
 import sqlite3
 import struct
-from datetime import datetime
-from multiprocessing import Pool
 from typing import Any, Iterable, Tuple
 
 import geopandas as gp
@@ -22,9 +19,9 @@ import utm
 from osgeo import ogr
 from tqdm import tqdm
 
+import u4py.analysis.processing as u4proc
 import u4py.analysis.spatial as u4spatial
 import u4py.plotting.preparation as u4plotprep
-import u4py.utils.config as u4config
 import u4py.utils.convert as u4conv
 
 
@@ -108,32 +105,6 @@ def get_table_names(
             and not tab.startswith("sqlite")
         ]
     return tables
-
-
-def map_queries(queries: list) -> list:
-    """Maps a list of sql queries to a parallel processing pool.
-
-    :param queries: The list of queries as strings.
-    :type queries: list
-    :return: The results of the queries as a list.
-    :rtype: list
-    """
-    """"""
-    logging.info("Starting parallel sql extraction.")
-    with Pool(u4config.cpu_count) as p:
-        results = list(p.map(multi_proc_query, queries))
-    return results
-
-
-def multi_proc_query(args: Tuple) -> Any:
-    """Multiprocessing wrapper for sql queries
-
-    :param args: Input arguments
-    :type args: Tuple
-    :return: The result of the query.
-    :rtype: Any
-    """
-    return single_query(*args)
 
 
 def single_query(
@@ -527,7 +498,6 @@ def load_tables(file_path: os.PathLike) -> dict:
 def load_osm_gpkg(
     gpkg_file: os.PathLike,
     fclass: list = [],
-    pool: bool | mpp.Pool = False,
     table_name: str = "",
 ) -> list:
     """
@@ -537,8 +507,6 @@ def load_osm_gpkg(
     :type gpkg_file: os.PathLike
     :param fclass: Feature classes to extract, defaults to []
     :type fclass: list, optional
-    :param pool: Use existing parallel Pool, defaults to False
-    :type pool: bool, optional
     :param table_name: The name of the table where to extract the features, defaults to "".
     :type table_name: str, optional
     :return: A list containing all geometries
@@ -567,7 +535,7 @@ def load_osm_gpkg(
     geom_blobs = cur.execute(query).fetchall()
     con.close()
     limit = 3 * 10**5
-    if len(geom_blobs) < limit and not pool:
+    if len(geom_blobs) < limit:
         logging.info(f"Less than {limit} entries, non-parallel is faster.")
         geometries = [
             decode_geom(blob[0])
@@ -575,13 +543,7 @@ def load_osm_gpkg(
         ]
     else:
         geom_blobs = [blob[0] for blob in geom_blobs]
-        if not pool:
-            logging.info("Starting parallel pool")
-            with Pool(u4config.cpu_count) as p:
-                geometries = p.map(decode_geom, geom_blobs)
-        else:
-            logging.info("Using existing pool")
-            geometries = pool.map(decode_geom, geom_blobs)
+        u4proc.batch_mapping(geom_blobs, decode_geom, "Decoding geometries")
 
     return geometries
 

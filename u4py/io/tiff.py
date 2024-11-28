@@ -4,18 +4,18 @@ Functions for handling tiff files.
 
 import logging
 import os
-from multiprocessing import Pool
 from typing import Tuple
 
 import geopandas as gp
 import numpy as np
-import pandas as pd
 import rasterio as rio
 import rasterio.mask as riomask
 import shapely
 from osgeo import gdal
 from tqdm import tqdm
 
+
+import u4py.analysis.processing as u4proc
 import u4py.analysis.spatial as u4spatial
 import u4py.io.files as u4files
 import u4py.io.gpkg as u4gpkg
@@ -261,16 +261,7 @@ def get_clipped_tiff_list(
         args = [(tfp, gpkg_path, ctiff_fol) for tfp in tiff_file_list]
 
         if use_parallel:
-            with Pool(u4config.cpu_count) as p:
-                logging.info("Starting Parallel Pool")
-                list(
-                    tqdm(
-                        p.imap_unordered(batch_clip_tiff, args),
-                        total=len(tiff_file_list),
-                        desc="Masking Rasters",
-                        leave=False,
-                    )
-                )
+            u4proc.batch_mapping(args, batch_clip_tiff, desc="Masking Rasters")
         else:
             for arg in tqdm(
                 args,
