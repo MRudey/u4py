@@ -219,7 +219,7 @@ def table_to_dict(
     if recalculate_stats:
         mean_vel, var_mean_vel = get_stats(cur, table, info, where, file_path)
     else:
-        logging.info(f"Getting means.")
+        logging.info("Getting means.")
         mv_key, var_mv_key = get_meanvelo_keys(info["all_keys"])
         mean_vel, var_mean_vel = multi_col_select(
             cur, [mv_key, var_mv_key], table, where
@@ -401,7 +401,7 @@ def read_info(cur: sqlite3.Cursor, table: str) -> dict:
         ]
         info["id_key"] = "ID"
     # If we have no id key yet and the dataset is a EGMS dataset:
-    if not "id_key" in info.keys() and "EGMS" in table:
+    if "id_key" not in info.keys() and "EGMS" in table:
         info["id_key"] = "pid"
         info["non_time_keys"] = info["all_keys"][:13]
     return info
@@ -423,7 +423,7 @@ def read_timeseries(
     :return: The timestamps and queries to extract.
     :rtype: Tuple[np.ndarray, list]
     """
-    logging.debug(f"Getting timeseries")
+    logging.debug("Getting timeseries")
     time_columns = [
         k for k in info["all_keys"] if k not in info["non_time_keys"]
     ]
@@ -443,7 +443,7 @@ def read_timeseries(
         [r[len(info["non_time_keys"]) :] for r in timeseries]
     )
 
-    timeseries[timeseries == None] = np.nan
+    timeseries[timeseries is None] = np.nan
 
     return time, timeseries.astype("float64")
 
@@ -464,7 +464,7 @@ def gen_timeseries_queries(
     :return: The timestamps and queries to extract.
     :rtype: Tuple[np.ndarray, list]
     """
-    logging.debug(f"Getting timeseries")
+    logging.debug("Getting timeseries")
     key_list = [k for k in info["all_keys"] if k not in info["non_time_keys"]]
     time = np.array([u4conv.sql_key_to_time(k) for k in key_list])
     if where:
@@ -805,7 +805,7 @@ def get_crs(gpkg_path: os.PathLike, table: str = "") -> list[str]:
             f"SELECT srs_id from gpkg_geometry_columns WHERE table_name='{table}'"
         )
     else:
-        query = con.ExecuteSQL(f"SELECT srs_id from gpkg_geometry_columns")
+        query = con.ExecuteSQL("SELECT srs_id from gpkg_geometry_columns")
     srs_id = [layer.srs_id for layer in query]
     con = None
     return [f"EPSG:{srs}" for srs in srs_id]
@@ -820,7 +820,7 @@ def get_tables(gpkg_path: os.PathLike) -> list[str]:
     :rtype: list[str]
     """
     con = ogr.Open(gpkg_path)
-    query = con.ExecuteSQL(f"SELECT table_name from gpkg_geometry_columns")
+    query = con.ExecuteSQL("SELECT table_name from gpkg_geometry_columns")
     tables = [layer.table_name for layer in query]
     con = None
     return tables
@@ -886,9 +886,7 @@ def get_geometry_column(gpkg_path: os.PathLike, table: str = "") -> list[str]:
             f"SELECT column_name FROM gpkg_geometry_columns WHERE table_name='{table}'"
         )
     else:
-        query = con.ExecuteSQL(
-            f"SELECT column_name FROM gpkg_geometry_columns"
-        )
+        query = con.ExecuteSQL("SELECT column_name FROM gpkg_geometry_columns")
     column_name = [layer.column_name for layer in query]
     con = None
     return column_name
