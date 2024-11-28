@@ -52,7 +52,7 @@ def setup_parser(module_descript: str) -> argparse.ArgumentParser:
     parser.add_argument(
         "-i",
         "--input",
-        help="Filepath of the input file or folder. You will be asked to provide one when empty.",
+        help="Filepath of the config file. You will be asked to provide one when empty.",
         metavar="PATH",
         default="",
     )
