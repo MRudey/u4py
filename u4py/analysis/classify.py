@@ -672,12 +672,16 @@ def volume(geometry: gp.GeoDataFrame, diffplan_path: os.PathLike) -> dict:
     logging.info("Computing volumes in shapes")
     volumes = u4tiff.calculate_volume_in_shape(geometry, diffplan_path)
     res = dict()
-    res["volumes_total"] = int(np.round(np.sum(volumes["volumes"]), -2))
+    res["volumes_total"] = int(np.round(np.nansum(volumes["volumes"]), -2))
     res["volumes_removed"] = int(
-        np.round(np.sum(volumes["volumes_removed"]), -2)
+        np.round(np.nansum(volumes["volumes_removed"]), -2)
     )
-    res["volumes_added"] = int(np.round(np.sum(volumes["volumes_added"]), -2))
-    res["volumes_moved"] = int(np.round(np.sum(volumes["volumes_moved"]), -2))
+    res["volumes_added"] = int(
+        np.round(np.nansum(volumes["volumes_added"]), -2)
+    )
+    res["volumes_moved"] = int(
+        np.round(np.nansum(volumes["volumes_moved"]), -2)
+    )
     return res
 
 
