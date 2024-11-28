@@ -20,7 +20,8 @@ from owslib.wms import WebMapService, wms111, wms130
 
 import u4py.analysis.spatial as u4spatial
 
-HLNUG_URL = "https://geodienste-umwelt.hessen.de/arcgis/rest/services"
+# HLNUG_URL = "https://geodienste-umwelt.hessen.de/arcgis/rest/services"
+HLNUG_URL = "https://geologie.hessen.de/arcgis/rest/services/"
 INTERN_URL = "http://130.83.190.169:8080/geoserver/gk25-hessen/ows"
 
 
@@ -30,6 +31,7 @@ def query_hlnug(
     region: shapely.Polygon = [],
     out_folder: os.PathLike = "",
     suffix: str = "",
+    clip: bool = False,
 ) -> os.PathLike | gp.GeoDataFrame:
     """Queries the HLNUG Webservice for a specific layer.
 
@@ -55,7 +57,10 @@ def query_hlnug(
             features = _query_server(
                 map_server_suffix, layer_name, region=region
             )
-            gdf = _save_features(features, out_fname)
+            if clip:
+                gdf = _save_features(features, out_fname, region=region)
+            else:
+                gdf = _save_features(features, out_fname)
     else:
         out_fname = os.path.join(out_folder, f"{layer_name}{suffix}")
         if os.path.exists(out_fname + ".gpkg"):
@@ -66,7 +71,10 @@ def query_hlnug(
             features = _query_server(
                 map_server_suffix, layer_name, region=region
             )
-            gdf = _save_features(features, out_fname)
+            if clip:
+                gdf = _save_features(features, out_fname, region=region)
+            else:
+                gdf = _save_features(features, out_fname)
     return gdf
 
 
@@ -201,7 +209,9 @@ def _query_internal_server(
     return response_data
 
 
-def _save_features(features: str, out_fname: os.PathLike) -> gp.GeoDataFrame:
+def _save_features(
+    features: str, out_fname: os.PathLike, region: gp.GeoDataFrame = []
+) -> gp.GeoDataFrame:
     """Saves the features to geojson and shapefile.
 
     :param features: The features loaded from a query (in JSON format)
@@ -218,6 +228,8 @@ def _save_features(features: str, out_fname: os.PathLike) -> gp.GeoDataFrame:
     else:
         with open(features.dump(out_fname + ".json")) as geojson:
             gdf = gp.read_file(geojson).to_crs("EPSG:32632")
+    if len(region) > 0:
+        gdf = gdf.clip(region)
     gdf.to_file(out_fname + ".gpkg")
     return gdf
 
