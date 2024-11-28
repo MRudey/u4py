@@ -1233,10 +1233,14 @@ def flattening(shapes: gp.GeoDataFrame) -> list:
             success = ellipse.estimate(xy)
             if success:
                 _, _, a, b, theta = ellipse.params
+
                 aa.append(round(a, 2))
                 bb.append(round(b, 2))
                 tt.append(round(theta, 1))
-                flattn.append(round((a - b) / a, 1))
+                try:
+                    flattn.append(round((a - b) / a, 1))
+                except ZeroDivisionError:
+                    flattn.append(0)
     return (aa, bb, tt, flattn)
 
 
