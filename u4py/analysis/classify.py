@@ -1210,8 +1210,11 @@ def manual_classification(
         project["paths"]["sites_path"], "koubik_merged.shp"
     )
 
-    man_gdf = gp.read_file(man_path)
-    man_gdf_mk = gp.read_file(man_path_mk)
+    if os.path.exists(man_path) and os.path.exists(man_path_mk):
+        man_gdf = gp.read_file(man_path)
+        man_gdf_mk = gp.read_file(man_path_mk)
+    else:
+        return res
 
     interscts = man_gdf.intersects(sub_set_hull.geometry[0])
     interscts_mk = man_gdf_mk.intersects(sub_set_hull.geometry[0])
@@ -1244,7 +1247,7 @@ def manual_classification(
             # Extract three most common classes
             for ii, cla in enumerate(unique_classes):
                 if ii < 3:
-                    res[f"manual_{ii+1}"] = cla
+                    res[f"manual_class_{ii+1}"] = cla
         elif len(candidates) > 1:
             logging.info(
                 f"Multiple classifications found for group {group:05}"
