@@ -918,7 +918,11 @@ def add_aspect_slope(
 
 @_add_or_create
 def add_gpkg_data_in_axis(
-    gpkg_path: os.PathLike, table: str, ax: Axes, **plot_kwargs
+    gpkg_path: os.PathLike,
+    table: str,
+    ax: Axes,
+    ax_crs: str = "EPSG:32632",
+    **plot_kwargs,
 ):
     """Adds data from a gpkg file to the plot using the boundaries of the axis as the extend of the geometry
 
@@ -933,8 +937,8 @@ def add_gpkg_data_in_axis(
     """
     crs = u4sql.get_crs(gpkg_path, table)[0]
     region = gp.GeoDataFrame(
-        geometry=[u4spatial.bounds_to_polygon(ax)], crs=crs
-    )
+        geometry=[u4spatial.bounds_to_polygon(ax)], crs=ax_crs
+    ).to_crs(crs)
     data = u4gpkg.load_gpkg_data_region_ogr(
         region, gpkg_path, table, clip=False
     )
