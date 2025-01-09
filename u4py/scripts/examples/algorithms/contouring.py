@@ -152,14 +152,15 @@ def main():
     u4ax.add_basemap(ax=axes[1][0], crs=crs)
     u4ax.add_basemap(ax=axes[1][1], crs=crs)
     u4ax.add_basemap(ax=axes[1][2], crs=crs)
-    fig.tight_layout()
     axes[0][0].yaxis.set_major_formatter(u4pltfmt.coordinate_formatter)
     axes[1][0].yaxis.set_major_formatter(u4pltfmt.coordinate_formatter)
     axes[1][0].xaxis.set_major_formatter(u4pltfmt.coordinate_formatter)
     axes[1][1].xaxis.set_major_formatter(u4pltfmt.coordinate_formatter)
     axes[1][2].xaxis.set_major_formatter(u4pltfmt.coordinate_formatter)
+    u4pltfmt.enumerate_axes(fig)
+    fig.tight_layout()
     fig.savefig(os.path.join(output_path, "ContourWorkflow.png"))
-    fig.savefig(os.path.join(output_path, "ContourWorkflow.pdf"))
+    # fig.savefig(os.path.join(output_path, "ContourWorkflow.pdf"))
 
 
 if __name__ == "__main__":
