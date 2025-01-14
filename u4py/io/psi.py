@@ -116,6 +116,7 @@ def get_point_data(
     radius: float,
     region_name: str,
     source_fpath: os.PathLike,
+    table: str = "vertikal",
     overwrite: bool = False,
 ) -> dict:
     """Returns the points with data from `source_fpath` that are within
@@ -137,13 +138,13 @@ def get_point_data(
     if isinstance(point, shapely.Point):
         point = point.xy
     _, pkl_fpath = u4files.set_data_file_paths(
-        source_fpath, region_name, "point"
+        source_fpath, region_name, f"point_{table}"
     )
     _, shp_fpath = u4files.set_point_file_paths(
-        source_fpath, region_name, "point"
+        source_fpath, region_name, f"point_{table}"
     )
     _, region_fpath = u4files.set_point_file_paths(
-        source_fpath, region_name, "point_region"
+        source_fpath, region_name, f"point_region_{table}"
     )
 
     if (
@@ -152,12 +153,16 @@ def get_point_data(
         or overwrite
     ):
         data, region = u4gpkg.load_gpkg_data_point(
-            point=point, radius=radius, gpkg_file_path=source_fpath
+            point=point,
+            radius=radius,
+            gpkg_file_path=source_fpath,
+            table=table,
         )
-        u4spatial.xy_data_to_gdf(data["x"], data["y"]).to_file(shp_fpath)
-        region.to_file(region_fpath)
-        with open(pkl_fpath, "wb") as pkl_file:
-            pkl.dump(data, pkl_file)
+        if data:
+            u4spatial.xy_data_to_gdf(data["x"], data["y"]).to_file(shp_fpath)
+            region.to_file(region_fpath)
+            with open(pkl_fpath, "wb") as pkl_file:
+                pkl.dump(data, pkl_file)
     else:
         with open(pkl_fpath, "rb") as pkl_file:
             data = pkl.load(pkl_file)

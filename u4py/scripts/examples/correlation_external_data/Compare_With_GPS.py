@@ -1,17 +1,22 @@
-""" Compares the detected ground motion with local GNSS stations"""
+"""Compares the detected ground motion with local GNSS stations"""
 
 import datetime
 import os
 from pathlib import Path
 
+import geopandas as gp
+import matplotlib.axes as mplax
+import matplotlib.lines as mline
 import matplotlib.pyplot as plt
 import numpy as np
 import scipy.ndimage as spimage
 import scipy.stats as spstats
+import uncertainties as unc
 
 import u4py.addons.gnss as u4gnss
 import u4py.io.files as u4files
 import u4py.io.psi as u4psi
+import u4py.plotting.axes as u4ax
 import u4py.utils.convert as u4convert
 import u4py.utils.projects as u4projects
 
@@ -20,7 +25,7 @@ def main():
     # Options
 
     distance = 75  # Distance around gnss station to look for psis
-    filter_width = 3  # median filter size, 0=nofilter
+    filter_width = 0  # median filter size, 0=nofilter
     take_diff = False  # Take differences between points to correlate
     overwrite = False
     id_selection = ["BADH00DEU", "KLOP00DEU", "FFMJ00DEU"]
@@ -30,12 +35,40 @@ def main():
         proj_path=Path(
             r"~\Documents\ArcGIS\U4_projects\Examples\Compare_with_GPS_GPKG.u4project"
         ).expanduser(),
-        required=["ext_path", "psi_path", "output_path"],
+        required=["ext_path", "output_path"],
         interactive=False,
     )
-    psi_path = os.path.join(
-        project["paths"]["psi_path"], "hessen_l3_clipped.gpkg"
+    psi_path_bbd1 = os.path.join(
+        project["paths"]["base_path"],
+        "Data_2021",
+        "INSAR_Data",
+        "BBD_2021_vertikal.gpkg",
     )
+    psi_path_bbd2 = os.path.join(
+        project["paths"]["base_path"], "Data_2023", "hessen_l3_clipped.gpkg"
+    )
+    psi_path_egms1 = os.path.join(
+        project["paths"]["base_path"],
+        "Data_EGMS_2015-2021",
+        "EGMS_2015_2021_vertikal.gpkg",
+    )
+    psi_path_egms2 = os.path.join(
+        project["paths"]["base_path"],
+        "Data_EGMS_2018-2022",
+        "EGMS_2018_2022_vertikal.gpkg",
+    )
+    psi_path_list = [
+        psi_path_bbd1,
+        psi_path_bbd2,
+        psi_path_egms1,
+        psi_path_egms2,
+    ]
+    tables = [
+        "BBD_2021_vertikal",
+        "vertikal",
+        "EGMS_2015_2021_vertikal",
+        "EGMS_2018_2022_vertikal",
+    ]
     output_folder = os.path.join(
         project["paths"]["output_path"], "Compare_With_GPS"
     )
@@ -51,78 +84,135 @@ def main():
     sel = [stations[stations.ID == ii] for ii in id_selection]
 
     fig, axes = plt.subplots(
-        nrows=len(sel), sharex=True, figsize=(8, len(sel) * 3)
+        nrows=len(sel), sharex=True, sharey=True, figsize=(12, 6)
     )
-    min_t = datetime.datetime(3000, 1, 1)
-    max_t = datetime.datetime(1000, 1, 1)
     for ii, station in enumerate(sel):
-        data_vert = u4psi.get_point_data(
-            station.geometry,
-            distance,
-            f"{station.ID.values[0]}_GNSS",
-            psi_path,
-            overwrite=overwrite,
-        )
+        gnss_data = u4convert.gnss_dat_to_dict(gnss_file_list[ii])
+        gnss_t = gnss_data["gps_datetime"]
+        gnss_v = gnss_data["res_up"]
+        if filter_width:
+            gnss_v = spimage.median_filter(gnss_v, filter_width)
+        axes[ii].plot(gnss_t, gnss_v, "-", color="k")
 
-        if data_vert:
-            gnss_data = u4convert.gnss_dat_to_dict(gnss_file_list[ii])
-
-            psi_t = data_vert["time"]
-            psi_v = np.nanmedian(data_vert["timeseries"], axis=0)
-            gnss_t = gnss_data["gps_datetime"]
-            gnss_v = gnss_data["res_up"]
-            if filter_width:
-                gnss_v = spimage.median_filter(gnss_v, filter_width)
-
-            if take_diff:
-                psi_t = psi_t[:-1]
-                psi_v = np.diff(psi_v)
-                gnss_t = gnss_t[:-1]
-                gnss_v = np.diff(gnss_v)
-
-            correlate_time_series(
-                psi_t,
-                psi_v,
-                gnss_t,
-                gnss_v,
-                station.name.values[0],
+        for cc, (psi_path, table) in enumerate(zip(psi_path_list, tables)):
+            plot_psi_vs_gnss(
+                gnss_data,
+                psi_path,
+                table,
+                station,
+                distance,
+                axes[ii],
                 output_folder,
+                filter_width,
+                take_diff,
+                overwrite,
+                color=f"C{cc}",
             )
-            axes[ii].plot(
-                gnss_t,
-                gnss_v,
-                "-",
-            )
-            axes[ii].plot(
-                psi_t,
-                psi_v,
-                "-",
-            )
-            if psi_t[0] < min_t:
-                min_t = psi_t[0]
-            if psi_t[-1] > max_t:
-                max_t = psi_t[-1]
-            axes[ii].set_title(station.name.values[0])
-            axes[ii].annotate(
-                f"#PS: {data_vert['num_points']}",
-                (0.05, 0.05),
-                xycoords="axes fraction",
-            )
-    axes[0].set_xlim(
-        min_t - datetime.timedelta(31), max_t + datetime.timedelta(31)
-    )
-    axes[0].legend(
-        ["GNSS", f"PSI {distance}m Radius"],
+    fig.legend(
+        handles=[
+            mline.Line2D([], [], color="k", label="GNSS"),
+            mline.Line2D(
+                [],
+                [],
+                marker=".",
+                linestyle="None",
+                color="C0",
+                label="BBD 2015-2021",
+            ),
+            mline.Line2D(
+                [],
+                [],
+                marker=".",
+                linestyle="None",
+                color="C1",
+                label="BBD 2015-2022",
+            ),
+            mline.Line2D(
+                [],
+                [],
+                marker=".",
+                linestyle="None",
+                color="C2",
+                label="EGMS 2016-2021",
+            ),
+            mline.Line2D(
+                [],
+                [],
+                marker=".",
+                linestyle="None",
+                color="C3",
+                label="EGMS 2018-2023",
+            ),
+        ],
         fontsize="small",
-        loc="lower right",
+        loc="lower center",
+        ncols=5,
     )
-    for ax in axes:
-        ax.set_ylabel("Displacement (mm)")
-    axes[-1].set_xlabel("Time")
-    fig.set_constrained_layout(True)
+    axes[1].set_ylabel("Bodenbewegung (mm)")
+    axes[-1].set_xlabel("Zeitraum")
+    axes[0].set_ylim(-15, 15)
+    axes[0].set_xlim(
+        datetime.datetime(2015, 1, 1),
+        datetime.datetime(2022, 6, 1),
+    )
+    fig.subplots_adjust(top=0.95, left=0.075, right=0.99, bottom=0.125)
+
     fig.savefig(os.path.join(output_folder, "GNSS_PSI_timeseries"))
     fig.savefig(os.path.join(output_folder, "GNSS_PSI_timeseries.pdf"))
     # plot_gnss_and_psi(gnss_file_list)
+
+
+def plot_psi_vs_gnss(
+    gnss_data: dict,
+    psi_path: os.PathLike,
+    table: str,
+    station: gp.GeoDataFrame,
+    distance: float,
+    ax: mplax.Axes,
+    output_folder: os.PathLike,
+    filter_width: int,
+    take_diff: bool,
+    overwrite: bool,
+    color: str = "C0",
+):
+    psi_data, _ = u4psi.get_point_data(
+        station.geometry,
+        distance,
+        f"{station.ID.values[0]}_GNSS",
+        psi_path,
+        table=table,
+        overwrite=overwrite,
+    )
+
+    if psi_data:
+        psi_t = psi_data["time"]
+        psi_v = np.nanmedian(psi_data["timeseries"], axis=0)
+        gnss_t = gnss_data["gps_datetime"]
+        gnss_v = gnss_data["res_up"]
+        psi_val = unc.ufloat(np.nanmedian(psi_v), 2 * np.nanstd(psi_v))
+        gnss_val = unc.ufloat(np.nanmedian(gnss_v), 2 * np.nanstd(gnss_v))
+        print(
+            station.name.values[0],
+            f"psi: {psi_val},  gnss: {gnss_val}",
+        )
+        if filter_width:
+            gnss_v = spimage.median_filter(gnss_v, filter_width)
+
+        correlate_time_series(
+            psi_t,
+            psi_v,
+            gnss_t,
+            gnss_v,
+            station.name.values[0],
+            output_folder,
+        )
+
+        u4ax.plot_timeseries(
+            psi_data["time"], psi_data["timeseries"], ax=ax, color=color
+        )
+
+        ax.set_title(station.name.values[0])
+    return
 
 
 def subsample_gnss(data_vert, gnss_data):

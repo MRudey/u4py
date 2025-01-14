@@ -238,8 +238,12 @@ def reformat_gdf_to_dict(gdf: gp.GeoDataFrame) -> dict:
         "Z",
         "mean_velo_vert",
         "var_mean_velo_vert",
+        "mean_velo_",
+        "var_mean_v",
         "mean_velo_east",
         "var_mean_velo_east",
+        "mean_velo_",
+        "var_mean_v",
         "fid",
         "geom",
         "pid",
@@ -272,6 +276,9 @@ def reformat_gdf_to_dict(gdf: gp.GeoDataFrame) -> dict:
     if "mean_velo_vert" in gdf.keys():
         mv_key = "mean_velo_vert"
         mvs_key = "var_mean_velo_vert"
+    elif "mean_velo_" in gdf.keys():
+        mv_key = "mean_velo_"
+        mvs_key = "var_mean_v"
     if "mean_velo_east" in gdf.keys():
         mv_key = "mean_velo_east"
         mvs_key = "var_mean_velo_east"
@@ -312,7 +319,19 @@ def sql_key_to_time(key: str) -> datetime:
     :rtype: datetime
     """
     try:
+        # For BBD 2023 data
         dts = datetime.strptime(key, "date_%Y%m%d")
     except ValueError:
-        dts = datetime.strptime(key, "%Y%m%d")
+        try:
+            # For EGMS data
+            dts = datetime.strptime(key, "%Y%m%d")
+        except ValueError:
+            # For BBD 2021 data
+            start_time = datetime(2015, 4, 7)
+            dt = timedelta(6)
+            ts_0 = 20150
+            cur_ts = int(key[5:])
+            num_dt = cur_ts - ts_0
+            dts = start_time + num_dt * dt
+
     return dts

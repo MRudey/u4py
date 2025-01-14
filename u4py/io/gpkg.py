@@ -15,6 +15,7 @@ from osgeo import ogr
 import u4py.analysis.spatial as u4spatial
 import u4py.io.sql as u4sql
 import u4py.io.tiff as u4tiff
+import u4py.utils.convert as u4conv
 
 ogr.UseExceptions()
 
@@ -175,13 +176,12 @@ def load_gpkg_data_point(
     gpkg_crs = u4sql.get_crs(gpkg_file_path, table)[0]
     region = u4spatial.region_around_point(point, radius, crs=gpkg_crs)
 
-    data = u4sql.table_to_dict(gpkg_file_path, table, region.bounds)
-    clipped_data = u4spatial.clip_data_points(
-        data, region, split_points=split_points, crs=gpkg_crs
+    points = load_gpkg_data_region_ogr(
+        region, gpkg_file_path, table, crs=region.crs
     )
-    if clipped_data:
-        clipped_data["crs"] = gpkg_crs
-    return clipped_data, region
+    data = u4conv.reformat_gdf_to_dict(points)
+
+    return data, region
 
 
 def load_gpkg_data_osm(

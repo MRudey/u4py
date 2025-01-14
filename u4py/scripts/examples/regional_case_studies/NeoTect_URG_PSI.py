@@ -21,7 +21,7 @@ import u4py.utils.projects as u4proj
 def main():
     project = u4proj.get_project(
         proj_path=Path(
-            r"~/Documents/umwelt4/Bericht_FFM_BBD_EGMS.u4project"
+            r"~\Documents\ArcGIS\U4_projects\Examples\Bericht_FFM_BBD_EGMS.u4project"
         ).expanduser(),
         required=[
             "base_path",

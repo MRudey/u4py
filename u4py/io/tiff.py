@@ -15,7 +15,6 @@ import shapely
 from osgeo import gdal
 from tqdm import tqdm
 
-
 import u4py.analysis.processing as u4proc
 import u4py.analysis.spatial as u4spatial
 import u4py.io.files as u4files
@@ -160,15 +159,57 @@ def get_point_tiff(
     :param source_file_path: The path to the folder where the tiffs are stored (in `TB` folders)
     :type source_file_path: os.PathLike
     :param overwrite: Whether to overwrite the output shapefile, defaults to False
-    :return: A list of paths to the tiff files within the osm region.
+    :return: A list of paths to the tiff files within region.
     :rtype: list[os.PathLike]
     """
     logging.info("Getting tiffs around point")
-
     file_list = u4files.get_file_list_tiff(source_file_path)
+    if not file_list:
+        file_list = u4files.get_file_list_adf(source_file_path)
+    if not file_list:
+        raise FileNotFoundError("No suitable DEM folders or tiffs found.")
     points = u4spatial.select_points_point(point, radius, file_list)
     out_file_list = np.array(file_list)[points.source_ind]
     return np.unique(out_file_list).tolist()
+
+
+def get_pointlist_tiff(
+    points: gp.GeoDataFrame,
+    source_file_path: os.PathLike,
+) -> list[Tuple[int, os.PathLike]]:
+    """Returns paths of tiff files where the points are located.
+
+    :param points: A geodataframe of points
+    :type points: gp.GeoDataFrame
+    :param source_file_path: A path where tiffs or adf raster data is found
+    :type source_file_path: os.PathLike
+    :raises FileNotFoundError: When no suitable folder was given
+    :return: A list of indices for point and tiff paths for each point
+    :rtype: list[Tuple[int, os.PathLike]]
+    """
+    logging.info("Getting tiffs around point")
+    file_list = u4files.get_file_list_tiff(source_file_path)
+    if not file_list:
+        file_list = u4files.get_file_list_adf(source_file_path)
+    if not file_list:
+        raise FileNotFoundError("No suitable DEM folders or tiffs found.")
+    with rio.open(file_list[0]) as dataset:
+        raster_crs = dataset.crs
+    polygons, file_list_index = u4spatial._get_coords(file_list)
+    raster_gdf = gp.GeoDataFrame(
+        {"geometry": polygons, "file_list_index": file_list_index},
+        crs=raster_crs,
+    )
+    if points.crs != raster_gdf.crs:
+        points = points.to_crs(raster_gdf.crs)
+    subset = gp.sjoin(raster_gdf, points, how="inner", predicate="contains")
+    tiff_list = [
+        (idx, file_list[fii])
+        for fii, idx in zip(
+            subset.file_list_index.to_list(), subset.index_right.to_list()
+        )
+    ]
+    return tiff_list
 
 
 def ndarray_to_geotiff(

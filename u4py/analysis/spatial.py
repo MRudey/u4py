@@ -364,7 +364,7 @@ def select_points_region(
 def select_points_point(
     point: list | Tuple | gp.GeoDataFrame | shapely.Point,
     radius: float,
-    psi_file_path: os.PathLike,
+    psi_file_path: os.PathLike | List[os.PathLike],
     split_points: bool = False,
     crs: str = "EPSG:32632",
 ) -> gp.GeoDataFrame | List[gp.GeoDataFrame]:
@@ -377,7 +377,7 @@ def select_points_point(
     :param radius: The radius to calculate the buffer
     :type radius: float
     :param psi_file_path: The file or folder to select from
-    :type psi_file_path: os.PathLike
+    :type psi_file_path: os.PathLike | List[os.PathLike]
     :param split_points: Splits the output into a list of points based on the selection, defaults to False
     :type split_points: bool, optional
     :param crs: The coordinate system of the output points, defaults to "EPSG:32632".
