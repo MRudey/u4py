@@ -130,7 +130,7 @@ def main():
 
         # Timeseries Fit and Residuals
         t_EX = ext_times[sel_name]
-        results = u4proc.invert_psi_dict(
+        results = u4proc.get_psi_dict_inversion(
             sel_data,
             save_path=os.path.join(
                 project["paths"]["processing_path"],

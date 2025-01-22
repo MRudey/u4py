@@ -1,4 +1,4 @@
-""" Shows possible correlation of surface motion with gas storage activity """
+"""Shows possible correlation of surface motion with gas storage activity"""
 
 import os
 
@@ -38,7 +38,7 @@ def main():
     data_well = u4psi.get_point_data(
         (464350, 5516100), 500, "OilWell", gpkg_path
     )
-    results = u4proc.invert_psi_dict(
+    results = u4proc.get_psi_dict_inversion(
         data_well,
         save_path=os.path.join(
             project["paths"]["processing_path"], "GasStorage.pkl"

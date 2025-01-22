@@ -1556,7 +1556,7 @@ def timeseries_map(
         f"grp_{row[1].group:05}_regional",
         os.path.join(psi_path, "hessen_l3_clipped.gpkg"),
     )
-    results = u4proc.invert_psi_dict(
+    results = u4proc.get_psi_dict_inversion(
         psi_local,
         save_path=os.path.join(psi_data_path, f"grp_{row[1].group:05}.pkl"),
     )

@@ -143,6 +143,7 @@ def table_to_dict(
     bounds: Tuple = (),
     get_timeseries: bool = True,
     recalculate_stats: bool = False,
+    where: str = "",
 ) -> dict:
     """Opens the given sql database and gets all content of the given table.
 
@@ -156,6 +157,8 @@ def table_to_dict(
     :type get_timeseries: bool
     :param recalculate_stats: Whether to recalculate the mean and variance for the timeseries.
     :type recalculate_stats: bool
+    :param where: Additional where statements for the extraction
+    :type where: str
     :return: The content of the table.
     :rtype: dict
 
@@ -172,7 +175,6 @@ def table_to_dict(
     con = sqlite3.connect(file_path)
     cur = con.cursor()
     info = read_info(cur, table)
-    info["num_points"] = num_points
 
     # Getting column names for coordinates
     # (BBD: X,Y,Z; EGMS: easting, northing, height)
@@ -187,15 +189,16 @@ def table_to_dict(
         z_str = "height"
 
     if len(bounds) > 0:
+        where_bounds = ""
         if isinstance(bounds, tuple) or isinstance(bounds, list):
-            where = (
+            where_bounds = (
                 f"{x_str} > {bounds[0]} AND "
                 + f"{x_str} < {bounds[2]} AND "
                 + f"{y_str} > {bounds[1]} AND "
                 + f"{y_str} < {bounds[3]} "
             )
         elif isinstance(bounds, gp.pd.DataFrame):
-            where = (
+            where_bounds = (
                 f"{x_str} > {bounds.minx.values[0]} AND "
                 + f"{x_str} < {bounds.maxx.values[0]} AND "
                 + f"{y_str} > {bounds.miny.values[0]} AND "
@@ -203,8 +206,10 @@ def table_to_dict(
             )
         else:
             TypeError("Bounds of invalid type.")
-    else:
-        where = ""
+        if where_bounds and where:
+            where += " AND " + where_bounds
+        elif where_bounds:
+            where = where_bounds
 
     logging.info("Querying coordinates and keys")
     xx, yy, zz, ps_id = multi_col_select(
@@ -225,7 +230,6 @@ def table_to_dict(
             cur, [mv_key, var_mv_key], table, where
         )
     con.close()
-
     if info["has_time"] and get_timeseries:
         output = {
             "x": np.array(xx),
@@ -236,7 +240,7 @@ def table_to_dict(
             "timeseries": timeseries,
             "mean_vel": mean_vel,
             "var_mean_vel": var_mean_vel,
-            "num_points": info["num_points"],
+            "num_points": len(ps_id),
         }
     else:
         output = {
@@ -246,7 +250,7 @@ def table_to_dict(
             "ps_id": np.array(ps_id),
             "mean_vel": np.array(mean_vel),
             "var_mean_vel": np.array(var_mean_vel),
-            "num_points": info["num_points"],
+            "num_points": len(ps_id),
         }
 
     return output
@@ -652,9 +656,18 @@ def gen_queries_psi_gpkg(
     cur = con.cursor()
     info = read_info(cur, direction)
     # Get Coordinates
-    xx = np.array(select(cur, "X", direction))
-    yy = np.array(select(cur, "Y", direction))
-    zz = np.array(select(cur, "Z", direction))
+    try:
+        xx = np.array(select(cur, "X", direction))
+    except sqlite3.OperationalError as _:
+        xx = np.array(select(cur, "easting", direction))
+    try:
+        yy = np.array(select(cur, "Y", direction))
+    except sqlite3.OperationalError as _:
+        yy = np.array(select(cur, "northing", direction))
+    try:
+        zz = np.array(select(cur, "Z", direction))
+    except sqlite3.OperationalError as _:
+        zz = np.array(select(cur, "height", direction))
 
     if info["has_time"]:
         time, queries = gen_timeseries_queries(file_path, direction, info)

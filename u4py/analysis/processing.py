@@ -14,7 +14,6 @@ overwritten by setting the keyword argument `overwrite=True`.
 from __future__ import annotations
 
 import logging
-import multiprocessing.pool as mpp
 import os
 import pickle
 from multiprocessing import Pool
@@ -30,7 +29,7 @@ import u4py.utils.config as u4config
 import u4py.utils.convert as u4convert
 
 
-def invert_psi_dict(
+def get_psi_dict_inversion(
     data: dict = dict(),
     t_AT: list = [],
     t_EQ: list = [],
@@ -44,7 +43,7 @@ def invert_psi_dict(
         "dataU": "timeseries",
     },
 ) -> list:
-    """Inverts a dictionary loaded or merged from h5-files
+    """Loads inversion results or recreates the inversion results for the given dataset.
 
     :param data: Data dictionary according to u4py standard (e.g. read from h5).
     :type data: dict
@@ -63,56 +62,29 @@ def invert_psi_dict(
     :return: The matrix of components.
     :rtype: list
     """
-    if (overwrite or not os.path.exists(save_path)) and data:
-        prepared_data = u4invert.reformat_dict(data, data_mapping=data_mapping)
-        (
-            ori_matrix,
-            prepared_data,
-            t_1,
-            parameters_list,
-        ) = u4invert.invert_time_series(
-            prepared_data,
-            t_AT=t_AT,
-            t_EQ=t_EQ,
-            t_EX=t_EX,
-            num_coeffs=num_coeffs,
-        )
-        ind = u4invert.remove_outliers(
-            prepared_data["ori_dhat_data"], threshold=2
-        )
-        (
-            matrix,
-            prepared_data,
-            t_2,
-            parameters_list,
-        ) = u4invert.invert_time_series(
-            prepared_data,
-            t_AT=t_AT,
-            t_EQ=t_EQ,
-            t_EX=t_EX,
-            num_coeffs=num_coeffs,
-            ind=ind,
-        )
-        prepared_data["ori_inversion_results"] = ori_matrix
-        prepared_data["inversion_results"] = matrix
-        prepared_data["ori_dhat_data"]["t"] = t_1
-        prepared_data["dhat_data"]["t"] = t_2
-        prepared_data["parameters_list"] = parameters_list
+    if save_path and data:
+        if (overwrite or not os.path.exists(save_path)) and data:
+            prepared_data = invert_psi_dict(
+                data, data_mapping, t_AT, t_EQ, t_EX, num_coeffs
+            )
+            try:
+                os.remove(save_path)
+            except FileNotFoundError:
+                logging.info("No inversion results found. Creating new file.")
+            with open(save_path, "wb") as pkl_file:
+                pickle.dump(prepared_data, pkl_file)
 
-        try:
-            os.remove(save_path)
-        except FileNotFoundError:
-            logging.info("No inversion results found. Creating new file.")
-        with open(save_path, "wb") as pkl_file:
-            pickle.dump(prepared_data, pkl_file)
-
-    elif os.path.exists(save_path):
-        _, fname = os.path.split(save_path)
-        logging.info(f"Loading from save file: {fname}")
-        with open(save_path, "rb") as pkl_file:
-            prepared_data = pickle.load(pkl_file)
-    else:
-        FileNotFoundError("No Inversion data found")
+        elif os.path.exists(save_path):
+            _, fname = os.path.split(save_path)
+            logging.info(f"Loading from save file: {fname}")
+            with open(save_path, "rb") as pkl_file:
+                prepared_data = pickle.load(pkl_file)
+        else:
+            FileNotFoundError("No Inversion data found")
+    elif data:
+        prepared_data = invert_psi_dict(
+            data, data_mapping, t_AT, t_EQ, t_EX, num_coeffs
+        )
 
     # Add other components to results dictionary (in case EW or NS data was given.)
     directions = ["U"]
@@ -125,6 +97,64 @@ def invert_psi_dict(
         prepared_data, directions=directions
     )
     return ref_data
+
+
+def invert_psi_dict(
+    data: dict,
+    data_mapping: dict,
+    t_AT: list,
+    t_EQ: list,
+    t_EX: list,
+    num_coeffs: int,
+) -> dict:
+    """_summary_
+
+    :param data: Data dictionary according to u4py standard (e.g. read from h5).
+    :type data: dict
+    :param data_mapping: Dictionary for mapping the data sets to the appropriate directions.
+    :type data_mapping: dict
+    :param t_AT: A list with times of known antenna offsets, defaults to []
+    :type t_AT: list, optional
+    :param t_EQ: A list with times of known earthquakes, defaults to []
+    :type t_EQ: list, optional
+    :param num_coeffs: The number of parameters to use for inversion, defaults to 1
+    :type num_coeffs: int, optional
+    :return: The unformatted inversion results
+    :rtype: dict
+    """
+    prepared_data = u4invert.reformat_dict(data, data_mapping=data_mapping)
+    (
+        ori_matrix,
+        prepared_data,
+        t_1,
+        parameters_list,
+    ) = u4invert.invert_time_series(
+        prepared_data,
+        t_AT=t_AT,
+        t_EQ=t_EQ,
+        t_EX=t_EX,
+        num_coeffs=num_coeffs,
+    )
+    ind = u4invert.remove_outliers(prepared_data["ori_dhat_data"], threshold=2)
+    (
+        matrix,
+        prepared_data,
+        t_2,
+        parameters_list,
+    ) = u4invert.invert_time_series(
+        prepared_data,
+        t_AT=t_AT,
+        t_EQ=t_EQ,
+        t_EX=t_EX,
+        num_coeffs=num_coeffs,
+        ind=ind,
+    )
+    prepared_data["ori_inversion_results"] = ori_matrix
+    prepared_data["inversion_results"] = matrix
+    prepared_data["ori_dhat_data"]["t"] = t_1
+    prepared_data["dhat_data"]["t"] = t_2
+    prepared_data["parameters_list"] = parameters_list
+    return prepared_data
 
 
 def inversion_map_worker(data: dict) -> Tuple[Tuple, Tuple]:
@@ -240,7 +270,7 @@ def extraction_worker(data: dict, ii: int) -> dict:
     return extract
 
 
-def get_results(
+def get_results_gpkg_in_roi(
     name: str,
     dataset: str,
     roi: gp.GeoDataFrame,
@@ -248,7 +278,7 @@ def get_results(
     direction_paths: list[Tuple[os.PathLike, str]],
     overwrite: bool,
     min_psi: int = 0,
-):
+) -> dict:
     """Loads the results of a inversion with two directions.
 
     :param name: The name of the region of interest (for saving the intermediate results.)
@@ -271,9 +301,6 @@ def get_results(
     else:
         gpkg_crs = ""
     psi_save_path = os.path.join(processing_path, f"{dataset}_{name}.pkl")
-    inv_save_path = os.path.join(
-        processing_path, f"{dataset}_{name}_invres.pkl"
-    )
     roi_gdf = gp.GeoDataFrame(geometry=[roi], crs="EPSG:32632")
     results = []
     if not os.path.exists(psi_save_path) or overwrite:
@@ -297,7 +324,7 @@ def get_results(
             ):
                 data_v["timeseries_ew"] = data_ew["timeseries"]
                 logging.info("Inverting both components")
-                results = invert_psi_dict(
+                results = get_psi_dict_inversion(
                     data_v,
                     save_path=psi_save_path,
                     data_mapping={
@@ -308,7 +335,7 @@ def get_results(
                     overwrite=overwrite,
                 )
     else:
-        results = invert_psi_dict(
+        results = get_psi_dict_inversion(
             save_path=psi_save_path,
             data_mapping={
                 "dataE": "timeseries_ew",
@@ -319,6 +346,10 @@ def get_results(
     return results
 
 
+def parallel_get_results_gpkg_in_roi(args: Iterable) -> dict:
+    return get_results_gpkg_in_roi(*args)
+
+
 def extract_profile(
     name: str,
     dataset: str,
@@ -326,7 +357,7 @@ def extract_profile(
     processing_path: os.PathLike,
     direction_paths: list[Tuple[os.PathLike, str]],
     overwrite: bool = False,
-):
+) -> dict:
     """Extracts values along a profile in the roi.
 
     :param name: The name of the region of interest (for saving the intermediate results.)
@@ -395,3 +426,53 @@ def extract_profile(
         with open(psi_save_path, "rb") as pklfile:
             results = pickle.load(pklfile)
     return results
+
+
+def get_results_gpkg_single(
+    dataset: str,
+    pid: str,
+    direction_paths: list[Tuple[os.PathLike, str]],
+) -> dict:
+    """Loads the results of a inversion with two directions.
+
+    :param dataset: The name of the dataset (e.g. "BBD", "EGMS_1", "EGMS_2)
+    :type dataset: str
+    :param pid: The unique identifier of the scatterer.
+    :type pid: str
+    :param direction_paths: The path to the psi data and the table name as a list of (path, table_name) Tuples
+    :type direction_paths: List[Tuple[os.PathLike, str]]
+    """
+    if "EGMS" in dataset:
+        pid_name = "pid"
+    else:
+        pid_name = "ID"
+
+    logging.info("Getting vertical results")
+    data_v = u4gpkg.load_gpkg_data_where(
+        direction_paths[0][0],
+        direction_paths[0][1],
+        where=f"{pid_name}='{pid}'",
+    )
+    logging.info("Getting E-W results")
+    data_ew = u4gpkg.load_gpkg_data_where(
+        direction_paths[1][0],
+        direction_paths[1][1],
+        where=f"{pid_name}='{pid}'",
+    )
+    if data_v and data_ew:
+        data_v["timeseries_ew"] = data_ew["timeseries"]
+        logging.info("Inverting both components")
+        results = get_psi_dict_inversion(
+            data_v,
+            data_mapping={
+                "dataE": "timeseries_ew",
+                "dataN": "timeseries",
+                "dataU": "timeseries",
+            },
+        )
+    return results
+
+
+def parallel_get_results_gpkg_single(args: Iterable) -> dict:
+    """Parallel wrapper for `get_results_gpkg_single`"""
+    return get_results_gpkg_single(*args)

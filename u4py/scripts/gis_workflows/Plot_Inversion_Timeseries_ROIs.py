@@ -41,7 +41,9 @@ def main():
             project["paths"]["processing_path"], f"{name}.pkl"
         )
         if data:
-            results = u4proc.invert_psi_dict(data, save_path=inv_save_path)
+            results = u4proc.get_psi_dict_inversion(
+                data, save_path=inv_save_path
+            )
             fig, ax = plt.subplots(figsize=(9, 5))
             u4ax.plot_timeseries_fit(ax=ax, results=results)
             ax.set_title(name)

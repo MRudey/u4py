@@ -80,7 +80,7 @@ def main():
         psi_path,
         overwrite=overwrite,
     )
-    res_well = u4proc.invert_psi_dict(
+    res_well = u4proc.get_psi_dict_inversion(
         data_well,
         save_path=os.path.join(
             project["paths"]["processing_path"], "GasStorage.pkl"
@@ -97,7 +97,7 @@ def main():
     data_crum, region_osm = u4psi.get_osm_data(
         query, psi_path, overwrite=overwrite
     )
-    res_crum = u4proc.invert_psi_dict(
+    res_crum = u4proc.get_psi_dict_inversion(
         data_crum,
         save_path=os.path.join(
             project["paths"]["processing_path"], "Crumstadt.pkl"
@@ -133,7 +133,7 @@ def main():
     temp_ref = u4invert.reformat_simple_timeseries(
         np.array(temp_data["time"]), y_mean
     )
-    res_temp = u4proc.invert_psi_dict(
+    res_temp = u4proc.get_psi_dict_inversion(
         temp_ref,
         save_path=os.path.join(
             project["paths"]["processing_path"], "Temperature.pkl"
@@ -142,7 +142,7 @@ def main():
     )
 
     gas_ref = u4invert.reformat_simple_timeseries(date_gas, level_gas)
-    res_gas = u4proc.invert_psi_dict(
+    res_gas = u4proc.get_psi_dict_inversion(
         gas_ref,
         save_path=os.path.join(
             project["paths"]["processing_path"], "Gas_Reform.pkl"

@@ -209,7 +209,7 @@ def add_timeseries(
     :param inversion_path: The path to the inversion data file for this region, defaults to ""
     :type inversion_path: os.PathLike, optional
     """
-    results = u4proc.invert_psi_dict(
+    results = u4proc.get_psi_dict_inversion(
         data, save_path=inversion_path, overwrite=overwrite
     )
     u4plotprep.print_inversion_results_for_publications(results)

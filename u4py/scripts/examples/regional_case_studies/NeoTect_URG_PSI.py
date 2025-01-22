@@ -70,7 +70,7 @@ def main():
         fig, axes = plt.subplots(
             figsize=(9, 5), nrows=2, sharex=True, sharey=True
         )
-        results = u4proc.get_results(
+        results = u4proc.get_results_gpkg_in_roi(
             name,
             "BBD",
             roi,
@@ -81,7 +81,7 @@ def main():
         if results:
             make_plot(axes, results, color="C0")
             results_log.extend(fit_results("BBD", results))
-        results = u4proc.get_results(
+        results = u4proc.get_results_gpkg_in_roi(
             name,
             "EGMS_1",
             roi,
@@ -95,7 +95,7 @@ def main():
         if results:
             make_plot(axes, results, color="C1")
             results_log.extend(fit_results("EGMS_1", results))
-        results = u4proc.get_results(
+        results = u4proc.get_results_gpkg_in_roi(
             name,
             "EGMS_2",
             roi,

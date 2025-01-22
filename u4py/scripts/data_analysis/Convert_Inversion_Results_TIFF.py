@@ -36,7 +36,9 @@ def main():
             "output_path",
         ],
         interactive=False,
+        proj_path="/home/rudolf/Documents/umwelt4/Pkl_to_Tiff_BBD2023.u4project",
     )
+    chunk_size = 50
 
     logging.info("Setting up paths")
     is_normal = False
@@ -53,12 +55,12 @@ def main():
             project["paths"]["results_path"]
         )
         converted_data, chunk_size = u4plotprep.convert_results_for_grid(
-            data[0], chunk_size=50
+            data[0], chunk_size=chunk_size
         )
     else:
         data = u4files.get_all_pickle_data(project["paths"]["results_path"])
         converted_data, chunk_size = u4plotprep.convert_results_for_grid(
-            data[1], chunk_size=50
+            data[1], chunk_size=chunk_size
         )
 
     logging.info("Creating numpy arrays from data")

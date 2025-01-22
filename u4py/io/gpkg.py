@@ -244,7 +244,7 @@ def load_gpkg_data_region(
     :type gpkg_crs: str, optional
     :param region_crs: The CRS of the region used for clipping, defaults to "EPSG:32632". Only has an effect if the region is not a GeoDataFrame.
     :type region_crs: str, optional
-    :return: The points from `psi_file_path` in a `radius` round `point`.
+    :return: The points from `psi_file_path` in the `region`.
     :rtype: dict
     """
     if not table:
@@ -286,6 +286,35 @@ def load_gpkg_data_region(
     if clipped_data:
         clipped_data["crs"] = gpkg_crs
     return clipped_data
+
+
+def load_gpkg_data_where(
+    gpkg_file_path: os.PathLike, table: str = "", where: str = ""
+) -> dict:
+    """Selects data from a gpkg file where the given SQL statement is true.
+
+    :param gpkg_file_path: The path to the gpkg file.
+    :type gpkg_file_path: os.PathLike
+    :param table: The table where to look for data, defaults to ""
+    :type table: str, optional
+    :param where: The SQL query for filtering, defaults to ""
+    :type where: str, optional
+    :return: The points from `psi_file_path`.
+    :rtype: dict
+    """
+    if not table:
+        tables = u4sql.get_table_names(gpkg_file_path)
+        if len(tables) < 1:
+            raise ValueError("File does not contain any tables")
+        elif len(tables) == 1:
+            table = tables[0]
+        else:
+            raise ValueError(
+                f"File contains several tables, please specify appropriate table from: {tables}"
+            )
+
+    data = u4sql.table_to_dict(gpkg_file_path, table, where=where)
+    return data
 
 
 def load_gpkg_data_region_ogr(

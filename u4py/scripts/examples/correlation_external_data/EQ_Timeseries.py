@@ -65,7 +65,7 @@ def main():
         inversion_path = os.path.join(
             project["paths"]["processing_path"], f"{eqid}_{eqloc}_{eqtime}.pkl"
         )
-        results = u4proc.invert_psi_dict(data, save_path=inversion_path)
+        results = u4proc.get_psi_dict_inversion(data, save_path=inversion_path)
         u4ax.plot_timeseries_fit(ax=axes[ii + 1], results=results)
         axes[ii + 1].annotate(
             f"$M_L${eqmag}, {eqloc} ({eqdep} km)",

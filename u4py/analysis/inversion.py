@@ -877,8 +877,12 @@ def stack_data(
         for k in ["dataE", "dataN", "dataU"]:
             time_series[k] = dataset[data_mapping[k]]
         time_series["station"] = [str(nn) for nn in dataset["ps_id"]]
-        time_series["xmid"] = dataset["xmid"]
-        time_series["ymid"] = dataset["ymid"]
+        if "xmid" in data_keys:
+            time_series["xmid"] = dataset["xmid"]
+            time_series["ymid"] = dataset["ymid"]
+        else:
+            time_series["xmid"] = np.mean(dataset["x"])
+            time_series["ymid"] = np.mean(dataset["y"])
     return time_series
 
 

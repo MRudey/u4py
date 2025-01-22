@@ -38,6 +38,7 @@ def load(module_descript: str = "No description given."):
     logging.info(
         f"Set loglevel to {log_level_str(logging.getLogger().level)}."
     )
+    return args
 
 
 def setup_parser(module_descript: str) -> argparse.ArgumentParser:
@@ -55,6 +56,13 @@ def setup_parser(module_descript: str) -> argparse.ArgumentParser:
         help="Filepath of the config file. You will be asked to provide one when empty.",
         metavar="PATH",
         default="",
+    )
+    parser.add_argument(
+        "-ov",
+        "--overwrite",
+        help="Overwrite results and intermediate files.",
+        default=False,
+        type=bool,
     )
     parser.add_argument(
         "-c",
