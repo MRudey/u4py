@@ -52,7 +52,7 @@ def main():
     # sub_region = create_test_region()
     # shp_gdf = u4gpkg.load_gpkg_data_region_ogr(sub_region, shp_file)
     shp_gdf = gp.read_file(shp_file).to_crs("EPSG:32632")
-    shp_gdf = shp_gdf[:100]
+    # shp_gdf = shp_gdf[:100]
     if "groups" in shp_gdf.keys():
         unique_groups = np.unique(shp_gdf.groups)
     else:

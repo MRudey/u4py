@@ -6,6 +6,7 @@ from __future__ import annotations
 
 import logging
 import os
+import warnings
 from typing import Iterable, Tuple
 
 import contextily
@@ -26,7 +27,7 @@ import u4py.io.tiff as u4tiff
 import u4py.plotting.axes as u4ax
 import u4py.plotting.formatting as u4plotfmt
 
-GLOBAL_DPI = 150
+GLOBAL_DPI = 72
 
 
 def plot_inversion_results(
@@ -497,7 +498,8 @@ def plot_shape(
     ax.annotate(slope_str, (0.025, 0.025), xycoords="axes fraction", zorder=4)
     fig.tight_layout()
     u4ax.add_basemap(
-        ax=ax, crs=sub_set.crs, source=contextily.providers.CartoDB.Positron
+        ax=ax,
+        crs=sub_set.crs,  # source=contextily.providers.CartoDB.Positron
     )
     fig.savefig(os.path.join(save_folder, f"Site_{group}.png"))
     plt.close(fig)
@@ -665,11 +667,11 @@ def geology_map(
 
         # Formatting and other stuff
         u4plotfmt.add_scalebar(ax=ax, width=plot_buffer * 4)
-        u4ax.add_basemap(
-            ax=ax,
-            crs=geology_data.crs,
-            source=contextily.providers.CartoDB.Positron,
-        )
+        # u4ax.add_basemap(
+        #     ax=ax,
+        #     crs=geology_data.crs,
+        #     # source=contextily.providers.CartoDB.Positron,
+        # )
         fig.savefig(os.path.join(output_path, f"{row[1].group:05}_GK25.png"))
         fig.savefig(os.path.join(output_path, f"{row[1].group:05}_GK25.pdf"))
 
@@ -786,11 +788,11 @@ def hydrogeology_map(
 
         # Formatting and other stuff
         u4plotfmt.add_scalebar(ax=ax, width=plot_buffer * 4)
-        u4ax.add_basemap(
-            ax=ax,
-            crs=hydro_units_data.crs,
-            source=contextily.providers.CartoDB.Positron,
-        )
+        # u4ax.add_basemap(
+        #     ax=ax,
+        #     crs=hydro_units_data.crs,
+        #     # source=contextily.providers.CartoDB.Positron,
+        # )
         fig.savefig(
             os.path.join(output_path, f"{row[1].group:05}_HUEK200.png")
         )
@@ -916,11 +918,11 @@ def topsoil_map(
 
         # Formatting and other stuff
         u4plotfmt.add_scalebar(ax=ax, width=plot_buffer * 4)
-        u4ax.add_basemap(
-            ax=ax,
-            crs=soil_data.crs,
-            source=contextily.providers.CartoDB.Positron,
-        )
+        # u4ax.add_basemap(
+        #     ax=ax,
+        #     crs=soil_data.crs,
+        #     # source=contextily.providers.CartoDB.Positron,
+        # )
         fig.savefig(os.path.join(output_path, f"{row[1].group:05}_BFD50.png"))
         fig.savefig(os.path.join(output_path, f"{row[1].group:05}_BFD50.pdf"))
 
@@ -1468,8 +1470,10 @@ def detailed_map(
         verticalalignment="bottom",
         zorder=10,
     )
-    h, l = ax.get_legend_handles_labels()
-    rdbu = mcm.get_cmap("RdBu")
+    with warnings.catch_warnings():
+        # Catches UserWarning for unsupported handles.
+        warnings.simplefilter("ignore")
+        h, _ = ax.get_legend_handles_labels()
     h.append(mpatches.Patch(ec=mcm.RdBu(0), fc="None", label="Senkung"))
     h.append(mpatches.Patch(ec=mcm.RdBu(256), fc="None", label="Hebung"))
     ax.legend(

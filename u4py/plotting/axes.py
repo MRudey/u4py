@@ -508,7 +508,7 @@ def add_basemap(
                 logging.info(
                     "Connection to Server timed out. No Basemap Added."
                 )
-        except urlexept.TimeoutError:
+        except:
             logging.info("Connection to Server timed out. No Basemap Added.")
             OSM_AVAILABLE = False
 

@@ -58,22 +58,22 @@ def multi_report(output_path: os.PathLike):
             tex_file.write(tex)
 
         report_out_path = os.path.split(output_path)[0]
-        subprocess.run(
-            ["pdflatex", "-draftmode", f"{report_path}"],
-            cwd=report_out_path,
-        )
-        subprocess.run(
-            ["pdflatex", "-draftmode", f"{report_path}"],
-            cwd=report_out_path,
-        )
-        subprocess.run(
-            ["pdflatex", f"{report_path}"],
-            cwd=report_out_path,
-        )
-    clean_aux_files(report_out_path)
+        run_tool_chain(report_path, report_out_path)
 
 
-def main_report(output_path: os.PathLike):
+def main_report(
+    output_path: os.PathLike,
+    title: str,
+    subtitle: str,
+    suffix: str = "",
+):
+    """Generates a single report from all files in the `tex_includes` folder.
+
+    :param output_path: The path to the output folder, where also the `tex_includes` are located.
+    :type output_path: os.PathLike
+    :param suffix: The suffix added to the report to distinguish different datasets, defaults to ""
+    :type suffix: str, optional
+    """
     tex_folder = os.path.join(output_path, "tex_includes")
     include_list = [
         os.path.join(tex_folder, fp)
@@ -97,8 +97,8 @@ def main_report(output_path: os.PathLike):
         + "\\addtolength{\\cftsecnumwidth}{10pt}"
         # + "\\usepackage[margin=1in]{geometry}\n"
         + "\\begin{document}\n"
-        + "\\title{Detektierte Anomalien}\n"
-        + "\\subtitle{Atlas anomaler Bodenbewegungen in Hessen}\n"
+        + f"\\title{{{title}}}\n"
+        + f"\\subtitle{{{subtitle}}}\n"
         + "\\author{automatisch generierter Report aus U4Py}\n"
         + "\\date{\\today}\n"
         + "\\addTitleBox{Institut für Angewandte Geowissenschaften}\n\n"
@@ -111,11 +111,27 @@ def main_report(output_path: os.PathLike):
         tex += f"\\input{{{incl}}}\n\\clearpage\n"
     tex += "\\end{document}"
 
-    report_path = os.path.join(output_path, "Site_Report.tex")
+    report_path = os.path.join(output_path, f"Site_Report{suffix}.tex")
     with open(report_path, "wt", encoding="utf-8", newline="\n") as tex_file:
         tex_file.write(tex)
 
     report_out_path = os.path.split(output_path)[0]
+    run_tool_chain(report_path, report_out_path, suffix)
+
+
+def run_tool_chain(
+    report_path: os.PathLike, report_out_path: os.PathLike, suffix: str = ""
+):
+    """Runs a 3x Latex toolchain, first two in draft mode and then full compilation.
+
+    :param report_path: The path to the main file
+    :type report_path: os.PathLike
+    :param report_out_path: The output path of the final file
+    :type report_out_path: os.PathLike
+    :param suffix: A suffix that was added to the report_path, defaults to ""
+    :type suffix: str, optional
+    """
+    clean_aux_files(report_out_path, suffix)
     subprocess.run(
         ["pdflatex", "-draftmode", f"{report_path}"],
         cwd=report_out_path,
@@ -128,16 +144,17 @@ def main_report(output_path: os.PathLike):
         ["pdflatex", f"{report_path}"],
         cwd=report_out_path,
     )
-    clean_aux_files(report_out_path)
+    clean_aux_files(report_out_path, suffix)
 
 
-def clean_aux_files(report_out_path: os.PathLike):
+def clean_aux_files(report_out_path: os.PathLike, suffix: str):
     tex_temps = [
         "pdfa.xmpi",
-        "Site_Report.aux",
-        "Site_Report.log",
-        "Site_Report.out",
-        "Site_Report.xmpdata",
+        f"Site_Report{suffix}.aux",
+        f"Site_Report{suffix}.log",
+        f"Site_Report{suffix}.out",
+        f"Site_Report{suffix}.xmpdata",
+        f"Site_Report{suffix}.toc",
     ]
     for tp in tex_temps:
         fp = os.path.join(report_out_path, tp)
@@ -170,13 +187,8 @@ def site_report(
     img_path = os.path.join(output_path, "known_features", f"{group:05}")
 
     # Create TeX code
-
-    tex = (
-        "\\section{"
-        + ",".join(row[1].locations.split(",")[:-4])
-        + f" ({group})"
-        + "}\n\n"
-    )
+    heading = sanitize_text(",".join(row[1].locations.split(",")[:-4]))
+    tex = "\\section{" + heading + f" ({group})" + "}\n\n"
 
     # Overview plot and satellite image
     tex += location(row[1])
@@ -244,23 +256,23 @@ def location(series: gp.GeoSeries) -> str:
     ).to_crs("EPSG:4326")
     lat = np.round(float(wgs_point.geometry.y.iloc[0]), 6)
     lng = np.round(float(wgs_point.geometry.x.iloc[0]), 6)
-
+    address = sanitize_text(series.locations)
     tex = (
         "\\subsection*{{Lokalität:}}\n"
         + "\\textbf{Adresse:} "
-        + f"{series.locations}\n\n"
+        + f"{address}\n\n"
         + f"\\textbf{{Koordinaten (UTM 32N):}} "
         + f"{int(series.geometry.centroid.y)}\\,N "
         + f"{int(series.geometry.centroid.x)}\\,E\n\n"
         + f"\\textbf{{Google Maps:}} "
         + f"\\href{{https://www.google.com/maps/place/{lat},{lng}/@{lat},{lng}/data=!3m1!1e3}}"
-        + f"{{\\faExternalLink {np.round(lat,3)}\\,N, {np.round(lng,3)}\\,E}}\n\n"
+        + f"{{\\faExternalLink {np.round(lat, 3)}\\,N, {np.round(lng, 3)}\\,E}}\n\n"
         + f"\\textbf{{Bing Maps:}} "
         + f"\\href{{https://bing.com/maps/default.aspx?cp={lat}~{lng}&style=h&lvl=15}}"
-        + f"{{\\faExternalLink {np.round(lat,3)}\\,N, {np.round(lng,3)}\\,E}}\n\n"
+        + f"{{\\faExternalLink {np.round(lat, 3)}\\,N, {np.round(lng, 3)}\\,E}}\n\n"
         + f"\\textbf{{OpenStreetMap:}} "
         + f"\\href{{http://www.openstreetmap.org/?lat={lat}&lon={lng}&zoom=17&layers=M}}"
-        + f"{{\\faExternalLink {np.round(lat,3)}\\,N, {np.round(lng,3)}\\,E}}\n\n"
+        + f"{{\\faExternalLink {np.round(lat, 3)}\\,N, {np.round(lng, 3)}\\,E}}\n\n"
     )
     return tex
 
@@ -327,6 +339,7 @@ def manual_description(series: gp.GeoSeries) -> str:
             series[f"manual_class_{ii}"]
             for ii in range(1, 4)
             if series[f"manual_class_{ii}"]
+            and series[f"manual_class_{ii}"] != "(empty)"
         ]
     )
     prob_txt = ["wahrscheinlich", "möglicherweise"]
@@ -386,11 +399,11 @@ def details_and_satellite(img_path: os.PathLike) -> str:
         "\\begin{figure}[h!]\n"
         + "  \\centering\n"
         + "  \\begin{subfigure}[][][t]{.49\\textwidth}\n"
-        + f"    \\includegraphics[width=\\textwidth]{{{img_path+'_map.pdf'}}}\n"
+        + f"    \\includegraphics[width=\\textwidth]{{{img_path + '_map.pdf'}}}\n"
         + "    \\caption{Übersicht über das Gebiet der Gruppe inklusive verschiedener Geogefahren und der detektierten Anomalien (Kartengrundlage OpenStreetMap).}\n"
         + "  \\end{subfigure}\n\hfill\n"
         + "  \\begin{subfigure}[][][t]{.49\\textwidth}\n"
-        + f"    \\includegraphics[width=\\textwidth]{{{img_path+'_satimg.pdf'}}}\n"
+        + f"    \\includegraphics[width=\\textwidth]{{{img_path + '_satimg.pdf'}}}\n"
         + "    \\caption{Luftbild basierend auf ESRI Imagery.}\n"
         + "  \\end{subfigure}\n"
         + "  \\caption{Lokalität der Anomalie.}"
@@ -448,7 +461,7 @@ def difference(img_path: os.PathLike) -> str:
         tex += (
             "\\begin{figure}[!ht]\n"
             + "  \\centering"
-            + f"  \\includegraphics[width=.9\\textwidth]{{{img_path+'_diffplan.pdf'}}}\n"
+            + f"  \\includegraphics[width=.9\\textwidth]{{{img_path + '_diffplan.pdf'}}}\n"
             + "  \\caption{Differenzenplan im Gebiet.}\n"
             + "\\end{figure}\n"
         )
@@ -457,7 +470,7 @@ def difference(img_path: os.PathLike) -> str:
         tex += (
             "\\begin{figure}[!ht]\n"
             + "  \\centering"
-            + f"  \\includegraphics[width=.9\\textwidth]{{{img_path+'_dem.pdf'}}}\n"
+            + f"  \\includegraphics[width=.9\\textwidth]{{{img_path + '_dem.pdf'}}}\n"
             + "  \\caption{Digitales Höhenmodell (Schummerung).}\n"
             + "\\end{figure}\n\n"
         )
@@ -529,12 +542,12 @@ def topography(series: gp.GeoSeries, img_path: os.PathLike) -> str:
         tex += (
             "\n\\begin{figure}[!ht]\n"
             + "  \\begin{subfigure}[][][t]{.49\\textwidth}\n"
-            + f"  \\includegraphics[width=\\textwidth]{{{img_path+'_slope.pdf'}}}\n"
+            + f"  \\includegraphics[width=\\textwidth]{{{img_path + '_slope.pdf'}}}\n"
             + "  \\caption{Steigung}\n"
             + "  \\end{subfigure}\n\hfill\n"
             + "  \\begin{subfigure}[][][t]{.49\\textwidth}\n"
             + "\\centering\n"
-            + f"  \\includegraphics[width=\\textwidth]{{{img_path+'_aspect.pdf'}}}\n"
+            + f"  \\includegraphics[width=\\textwidth]{{{img_path + '_aspect.pdf'}}}\n"
             + "  \\caption{Exposition.}\n"
             + "  \\end{subfigure}\n\hfill\n"
             + "  \\caption{Topographie im Gebiet.}"
@@ -545,7 +558,7 @@ def topography(series: gp.GeoSeries, img_path: os.PathLike) -> str:
         tex += (
             "\\begin{figure}[!ht]\n"
             + "  \\centering\n"
-            + f"  \\includegraphics[width=.95\\textwidth]{{{img_path+'_aspect_slope.pdf'}}}\n"
+            + f"  \\includegraphics[width=.95\\textwidth]{{{img_path + '_aspect_slope.pdf'}}}\n"
             + "  \\caption{Steigung und Exposition}\n"
             + "\\end{figure}\n"
         )
@@ -698,7 +711,7 @@ def psi_map(img_path: os.PathLike) -> str:
         "\\subsection*{InSAR Daten}\n\n"
         + "\\begin{figure}[h!]\n"
         + "  \\centering\n"
-        + f"  \\includegraphics[width=\\textwidth]{{{img_path+'_psi.png'}}}\n"
+        + f"  \\includegraphics[width=\\textwidth]{{{img_path + '_psi.png'}}}\n"
         + "  \\caption{Persistent scatterer und Zeitreihe der Deformation "
         + "im Gebiet der Gruppe.}\n"
         + "\\end{figure}\n\n"
@@ -827,12 +840,12 @@ def geology(img_path) -> str:
         "\n\\subsection*{Geologie}\n\n"
         + "\\begin{figure}[H]\n"
         + "\\centering\n"
-        + f"  \\includegraphics[width=\\textwidth]{{{img_path+'_GK25.pdf'}}}\n"
+        + f"  \\includegraphics[width=\\textwidth]{{{img_path + '_GK25.pdf'}}}\n"
         + "\\end{figure}\n"
         + "\\vspace{-2ex}\n"
         + "\\begin{figure}[H]\n"
         + "\\centering\n"
-        + f"  \\includegraphics[width=.75\\textwidth]{{{img_path+'_GK25_leg.pdf'}}}\n"
+        + f"  \\includegraphics[width=.75\\textwidth]{{{img_path + '_GK25_leg.pdf'}}}\n"
         + "  \\caption{Geologie im Gebiet basierend auf GK25 (Quelle: HLNUG).}\n"
         + "\\end{figure}\n\n"
     )
@@ -844,12 +857,12 @@ def hydrogeology(img_path: os.PathLike) -> str:
         "\n\\subsection*{Hydrogeologie}\n\n"
         + "\\begin{figure}[H]\n"
         + "\\centering\n"
-        + f"  \\includegraphics[width=\\textwidth]{{{img_path+'_HUEK200.pdf'}}}\n"
+        + f"  \\includegraphics[width=\\textwidth]{{{img_path + '_HUEK200.pdf'}}}\n"
         + "\\end{figure}\n"
         + "\\vspace{-2ex}\n"
         + "\\begin{figure}[H]\n"
         + "\\centering\n"
-        + f"  \\includegraphics[width=.75\\textwidth]{{{img_path+'_HUEK200_leg.pdf'}}}\n"
+        + f"  \\includegraphics[width=.75\\textwidth]{{{img_path + '_HUEK200_leg.pdf'}}}\n"
         + "  \\caption{Hydrogeologische Einheiten im Gebiet basierend auf HÜK200 (Quelle: HLNUG).}\n"
         + "\\end{figure}\n\n"
     )
@@ -861,12 +874,12 @@ def soils(img_path: os.PathLike) -> str:
         "\n\\subsection*{Bodengruppen}\n\n"
         + "\\begin{figure}[H]\n"
         + "\\centering\n"
-        + f"  \\includegraphics[width=\\textwidth]{{{img_path+'_BFD50.pdf'}}}\n"
+        + f"  \\includegraphics[width=\\textwidth]{{{img_path + '_BFD50.pdf'}}}\n"
         + "\\end{figure}\n"
         + "\\vspace{-2ex}\n"
         + "\\begin{figure}[H]\n"
         + "\\centering\n"
-        + f"  \\includegraphics[width=.75\\textwidth]{{{img_path+'_BFD50_leg.pdf'}}}\n"
+        + f"  \\includegraphics[width=.75\\textwidth]{{{img_path + '_BFD50_leg.pdf'}}}\n"
         + "  \\caption{Bodenhauptgruppen im Gebiet basierend auf der BFD50 (Quelle: HLNUG).}\n"
         + "\\end{figure}\n\n"
     )
@@ -1086,3 +1099,18 @@ def hlnug_description(hld: gp.GeoDataFrame) -> str:
 
     tex = tex.replace("_", " ")
     return tex
+
+
+def sanitize_text(in_str: str) -> str:
+    """Escapes all special characters in the input string for LaTeX.
+
+    :param in_str: The input string, possibly containing symbols with special meaning in LaTeX.
+    :type in_str: str
+    :return: The sanitized string.
+    :rtype: str
+    """
+    # Somehow regex did not work properly...
+    characters = ["&", "%", "$", "#", "_", "{", "}"]
+    for char in characters:
+        in_str = in_str.replace(char, f"\\{char}")
+    return in_str

@@ -7,7 +7,6 @@ import configparser
 import datetime
 import logging
 import os
-import warnings
 from pathlib import Path
 
 import geopandas as gp
@@ -24,7 +23,7 @@ import u4py.utils.projects as u4proj
 def main():
     project = u4proj.get_project(
         proj_path=Path(
-            "~/Documents/umwelt4/PostProcess_ClassifiedShapesHLNUG.u4project"
+            "~/Documents/umwelt4/PostProcess_ClassifiedShapes.u4project"
         ).expanduser(),
         required=[
             "base_path",
@@ -36,24 +35,35 @@ def main():
         interactive=False,
     )
     overwrite = False
-    use_filtered = False
-    use_parallel = True
+    use_filtered = True
+    use_parallel = False
     generate_plots = True
-    overwrite_plots = True
+    overwrite_plots = False
     generate_pdf = True
     single_report = True
-    is_hlnug = True
+    is_hlnug = False
+
+    # Setting up names of report
+    # report_title = "Große Bewegungsanomalien in Hessen"
+    # report_subtitle = (
+    #     "Anomalien mit mindestens 20000\,m\\textsuperscript{3} Volumenänderung"
+    # )
+    # report_suffix = "_onlyLarge"
+    report_title = "Bewegungsanomalien in Hessen"
+    report_subtitle = "Anomalien in der Nähe bekannter Geogefahren"
+    report_suffix = "_hazard"
 
     # Setting up paths
     output_path = os.path.join(
-        project["paths"]["output_path"], "Detailed_Maps"
+        project["paths"]["output_path"], f"Detailed_Maps{report_suffix}"
     )
     os.makedirs(output_path, exist_ok=True)
     class_shp_fp = os.path.join(
         project["paths"]["results_path"], "Classified_Shapes.gpkg"
     )
     cls_shp_fp_filtered = os.path.join(
-        project["paths"]["results_path"], "Filtered_Classified_Shapes.gpkg"
+        project["paths"]["results_path"],
+        f"Filtered_Classified_Shapes{report_suffix}.gpkg",
     )
     hlnug_path = os.path.join(
         project["paths"]["places_path"],
@@ -76,17 +86,13 @@ def main():
             gdf_filtered = filter_shapes(
                 class_shp_fp, cls_shp_fp_filtered, project
             )
-            gdf_filtered = reverse_geolocate(
-                gdf_filtered, project, cls_shp_fp_filtered
-            )
+            gdf_filtered = reverse_geolocate(gdf_filtered, cls_shp_fp_filtered)
         else:
             gdf_filtered = gp.read_file(cls_shp_fp_filtered)
     else:
         if not os.path.exists(cls_shp_fp_filtered) or overwrite:
             gdf_filtered = gp.read_file(class_shp_fp)
-            gdf_filtered = reverse_geolocate(
-                gdf_filtered, project, cls_shp_fp_filtered
-            )
+            gdf_filtered = reverse_geolocate(gdf_filtered, cls_shp_fp_filtered)
         else:
             gdf_filtered = gp.read_file(cls_shp_fp_filtered)
 
@@ -139,7 +145,9 @@ def main():
                 row, output_path, "tex_includes", hlnug_data=hlnug_data
             )
         if single_report:
-            u4rep.main_report(output_path)
+            u4rep.main_report(
+                output_path, report_title, report_subtitle, report_suffix
+            )
         else:
             u4rep.multi_report(output_path)
 
@@ -170,13 +178,10 @@ def filter_shapes(
 
 def reverse_geolocate(
     gdf_filtered: gp.GeoDataFrame,
-    project: configparser.ConfigParser,
     output_path: os.PathLike,
 ) -> gp.GeoDataFrame:
     # Do a reverse geocoding to get the address of the locations.
-    cached_locations = os.path.join(
-        project["paths"]["results_path"], "cached_locations.txt"
-    )
+    cached_locations = os.path.join(output_path, "cached_locations.txt")
     if not os.path.exists(cached_locations):
         locations = u4spatial.reverse_geolocate(gdf_filtered)
         with open(cached_locations, "wt", encoding="utf-8") as cache:
@@ -266,36 +271,36 @@ def map_worker(
         plot_buffer=100,
         overwrite=overwrite,
     )
-    # u4plots.dem_map(
-    #     row,
-    #     crs,
-    #     output_path,
-    #     "known_features",
-    #     dem_path,
-    #     contour_path,
-    #     plot_buffer=100,
-    #     overwrite=overwrite,
-    # )
-    # u4plots.slope_map(
-    #     row,
-    #     crs,
-    #     output_path,
-    #     "known_features",
-    #     dem_path,
-    #     contour_path,
-    #     plot_buffer=100,
-    #     overwrite=overwrite,
-    # )
-    # u4plots.aspect_map(
-    #     row,
-    #     crs,
-    #     output_path,
-    #     "known_features",
-    #     dem_path,
-    #     contour_path,
-    #     plot_buffer=100,
-    #     overwrite=overwrite,
-    # )
+    u4plots.dem_map(
+        row,
+        crs,
+        output_path,
+        "known_features",
+        dem_path,
+        contour_path,
+        plot_buffer=100,
+        overwrite=overwrite,
+    )
+    u4plots.slope_map(
+        row,
+        crs,
+        output_path,
+        "known_features",
+        dem_path,
+        contour_path,
+        plot_buffer=100,
+        overwrite=overwrite,
+    )
+    u4plots.aspect_map(
+        row,
+        crs,
+        output_path,
+        "known_features",
+        dem_path,
+        contour_path,
+        plot_buffer=100,
+        overwrite=overwrite,
+    )
     u4plots.aspect_slope_map(
         row,
         crs,
