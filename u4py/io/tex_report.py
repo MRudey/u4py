@@ -218,7 +218,7 @@ def site_report(
         tex += topography(row[1], img_path)
 
     # PSI Data
-    if os.path.exists(img_path + "_psi.png"):
+    if os.path.exists(img_path + "_psi.pdf"):
         tex += psi_map(img_path)
 
     # Geohazard
@@ -711,7 +711,7 @@ def psi_map(img_path: os.PathLike) -> str:
         "\\subsection*{InSAR Daten}\n\n"
         + "\\begin{figure}[h!]\n"
         + "  \\centering\n"
-        + f"  \\includegraphics[width=\\textwidth]{{{img_path + '_psi.png'}}}\n"
+        + f"  \\includegraphics[width=\\textwidth]{{{img_path + '_psi.pdf'}}}\n"
         + "  \\caption{Persistent scatterer und Zeitreihe der Deformation "
         + "im Gebiet der Gruppe.}\n"
         + "\\end{figure}\n\n"

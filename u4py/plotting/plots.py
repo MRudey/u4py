@@ -27,7 +27,8 @@ import u4py.io.tiff as u4tiff
 import u4py.plotting.axes as u4ax
 import u4py.plotting.formatting as u4plotfmt
 
-GLOBAL_DPI = 72
+GLOBAL_DPI = 72  # DPI setting for plots
+GLOBAL_TYPES = ["pdf"]  # List of filetypes to export for figures
 
 
 def plot_inversion_results(
@@ -352,8 +353,8 @@ def plot_hotspots(
         if title:
             ax.set_title(title)
         fig.tight_layout()
-        fig.savefig(f"{fpath_woex}.pdf")
-        fig.savefig(f"{fpath_woex}.png")
+        for ftype in GLOBAL_TYPES:
+            fig.savefig(f"{fpath_woex}.{ftype}")
 
     return (h.get_offsets(), h.get_array(), crs)
 
@@ -416,8 +417,9 @@ def plot_GroundMotionAnalyzer(
         if title:
             ax.set_title(title)
         fig.tight_layout()
-        fig.savefig(f"{fpath_woex}.pdf")
-        fig.savefig(f"{fpath_woex}.png")
+
+        for ftype in GLOBAL_TYPES:
+            fig.savefig(f"{fpath_woex}.{ftype}")
         plt.close(fig)
 
 
@@ -446,9 +448,12 @@ def plot_site_statistics(
             res[y_key],
         )
         fig.tight_layout()
-        fig.savefig(
-            os.path.join(site_dir, f"{x_key}_vs_{y_key}_{res['group']}.png")
-        )
+        for ftype in GLOBAL_TYPES:
+            fig.savefig(
+                os.path.join(
+                    site_dir, f"{x_key}_vs_{y_key}_{res['group']}.{ftype}"
+                )
+            )
         plt.close(fig)
     else:
         raise KeyError(
@@ -501,7 +506,8 @@ def plot_shape(
         ax=ax,
         crs=sub_set.crs,  # source=contextily.providers.CartoDB.Positron
     )
-    fig.savefig(os.path.join(save_folder, f"Site_{group}.png"))
+    for ftype in GLOBAL_TYPES:
+        fig.savefig(os.path.join(save_folder, f"Site_{group}.{ftype}"))
     plt.close(fig)
 
 
@@ -544,12 +550,13 @@ def geology_map(
     # Setup Paths
     output_path = os.path.join(output_path, suffix)
     os.makedirs(output_path, exist_ok=True)
-    if (
+    fexists = [
         os.path.exists(
-            os.path.join(output_path, f"{row[1].group:05}_GK25.png")
+            os.path.join(output_path, f"{row[1].group:05}_GK25.{ftype}")
         )
-        and not overwrite
-    ):
+        for ftype in GLOBAL_TYPES
+    ]
+    if np.all(fexists) and not overwrite:
         logging.info(f"Skipping existing plot {row[1].group:05}")
         return
     else:
@@ -672,8 +679,11 @@ def geology_map(
         #     crs=geology_data.crs,
         #     # source=contextily.providers.CartoDB.Positron,
         # )
-        fig.savefig(os.path.join(output_path, f"{row[1].group:05}_GK25.png"))
-        fig.savefig(os.path.join(output_path, f"{row[1].group:05}_GK25.pdf"))
+
+        for ftype in GLOBAL_TYPES:
+            fig.savefig(
+                os.path.join(output_path, f"{row[1].group:05}_GK25.{ftype}")
+            )
 
         # Create legend
         plot_legend(leg_handles, leg_labels, output_path, row[1].group, "GK25")
@@ -713,12 +723,13 @@ def hydrogeology_map(
     # Setup Paths
     output_path = os.path.join(output_path, suffix)
     os.makedirs(output_path, exist_ok=True)
-    if (
+    fexists = [
         os.path.exists(
-            os.path.join(output_path, f"{row[1].group:05}_HUEK200.png")
+            os.path.join(output_path, f"{row[1].group:05}_HUEK200.{ftype}")
         )
-        and not overwrite
-    ):
+        for ftype in GLOBAL_TYPES
+    ]
+    if np.all(fexists) and not overwrite:
         logging.info(f"Skipping existing plot {row[1].group:05}")
         return
     else:
@@ -793,12 +804,10 @@ def hydrogeology_map(
         #     crs=hydro_units_data.crs,
         #     # source=contextily.providers.CartoDB.Positron,
         # )
-        fig.savefig(
-            os.path.join(output_path, f"{row[1].group:05}_HUEK200.png")
-        )
-        fig.savefig(
-            os.path.join(output_path, f"{row[1].group:05}_HUEK200.pdf")
-        )
+        for ftype in GLOBAL_TYPES:
+            fig.savefig(
+                os.path.join(output_path, f"{row[1].group:05}_HUEK200.{ftype}")
+            )
 
         # Create legend
         plot_legend(
@@ -841,12 +850,13 @@ def topsoil_map(
     # Setup Paths
     output_path = os.path.join(output_path, suffix)
     os.makedirs(output_path, exist_ok=True)
-    if (
+    fexists = [
         os.path.exists(
-            os.path.join(output_path, f"{row[1].group:05}_BFD50.png")
+            os.path.join(output_path, f"{row[1].group:05}_BFD50.{ftype}")
         )
-        and not overwrite
-    ):
+        for ftype in GLOBAL_TYPES
+    ]
+    if np.all(fexists) and not overwrite:
         logging.info(f"Skipping existing plot {row[1].group:05}")
         return
     else:
@@ -923,8 +933,10 @@ def topsoil_map(
         #     crs=soil_data.crs,
         #     # source=contextily.providers.CartoDB.Positron,
         # )
-        fig.savefig(os.path.join(output_path, f"{row[1].group:05}_BFD50.png"))
-        fig.savefig(os.path.join(output_path, f"{row[1].group:05}_BFD50.pdf"))
+        for ftype in GLOBAL_TYPES:
+            fig.savefig(
+                os.path.join(output_path, f"{row[1].group:05}_BFD50.{ftype}")
+            )
 
         # Create legend
         plot_legend(
@@ -961,12 +973,13 @@ def satimg_map(
     # Setup Paths
     output_path = os.path.join(output_path, suffix)
     os.makedirs(output_path, exist_ok=True)
-    if (
+    fexists = [
         os.path.exists(
-            os.path.join(output_path, f"{row[1].group:05}_satimg.png")
+            os.path.join(output_path, f"{row[1].group:05}_satimg.{ftype}")
         )
-        and not overwrite
-    ):
+        for ftype in GLOBAL_TYPES
+    ]
+    if np.all(fexists) and not overwrite:
         logging.info(f"Skipping existing plot {row[1].group:05}")
         return
     else:
@@ -999,8 +1012,10 @@ def satimg_map(
     # Formatting and save
     u4plotfmt.add_scalebar(ax=ax, width=plot_buffer * 4)
 
-    fig.savefig(os.path.join(output_path, f"{row[1].group:05}_satimg.png"))
-    fig.savefig(os.path.join(output_path, f"{row[1].group:05}_satimg.pdf"))
+    for ftype in GLOBAL_TYPES:
+        fig.savefig(
+            os.path.join(output_path, f"{row[1].group:05}_satimg.{ftype}")
+        )
     plt.close(fig)
 
 
@@ -1034,10 +1049,13 @@ def dem_map(
     # Setting paths
     output_path = os.path.join(output_path, suffix)
     os.makedirs(output_path, exist_ok=True)
-    if (
-        os.path.exists(os.path.join(output_path, f"{row[1].group:05}_dem.png"))
-        and not overwrite
-    ):
+    fexists = [
+        os.path.exists(
+            os.path.join(output_path, f"{row[1].group:05}_dem.{ftype}")
+        )
+        for ftype in GLOBAL_TYPES
+    ]
+    if np.all(fexists) and not overwrite:
         logging.info(f"Skipping existing plot {row[1].group:05}")
         return
     else:
@@ -1075,8 +1093,10 @@ def dem_map(
 
     # Formatting and other stuff
     u4plotfmt.add_scalebar(ax=ax, width=plot_buffer * 4)
-    fig.savefig(os.path.join(output_path, f"{row[1].group:05}_dem.png"))
-    fig.savefig(os.path.join(output_path, f"{row[1].group:05}_dem.pdf"))
+    for ftype in GLOBAL_TYPES:
+        fig.savefig(
+            os.path.join(output_path, f"{row[1].group:05}_dem.{ftype}")
+        )
     plt.close(fig)
 
 
@@ -1111,12 +1131,13 @@ def slope_map(
     # Setup Paths
     output_path = os.path.join(output_path, suffix)
     os.makedirs(output_path, exist_ok=True)
-    if (
+    fexists = [
         os.path.exists(
-            os.path.join(output_path, f"{row[1].group:05}_slope.png")
+            os.path.join(output_path, f"{row[1].group:05}_slope.{ftype}")
         )
-        and not overwrite
-    ):
+        for ftype in GLOBAL_TYPES
+    ]
+    if np.all(fexists) and not overwrite:
         logging.info(f"Skipping existing plot {row[1].group:05}")
         return
     else:
@@ -1150,8 +1171,10 @@ def slope_map(
 
     # Formatting and other stuff
     u4plotfmt.add_scalebar(ax=ax, width=plot_buffer * 4)
-    fig.savefig(os.path.join(output_path, f"{row[1].group:05}_slope.png"))
-    fig.savefig(os.path.join(output_path, f"{row[1].group:05}_slope.pdf"))
+    for ftype in GLOBAL_TYPES:
+        fig.savefig(
+            os.path.join(output_path, f"{row[1].group:05}_slope.{ftype}")
+        )
     plt.close(fig)
 
 
@@ -1190,12 +1213,13 @@ def aspect_map(
     # Setup Paths
     output_path = os.path.join(output_path, suffix)
     os.makedirs(output_path, exist_ok=True)
-    if (
+    fexists = [
         os.path.exists(
-            os.path.join(output_path, f"{row[1].group:05}_aspect.png")
+            os.path.join(output_path, f"{row[1].group:05}_aspect.{ftype}")
         )
-        and not overwrite
-    ):
+        for ftype in GLOBAL_TYPES
+    ]
+    if np.all(fexists) and not overwrite:
         logging.info(f"Skipping existing plot {row[1].group:05}")
         return
     else:
@@ -1225,8 +1249,10 @@ def aspect_map(
     )
     # Formatting and other stuff
     u4plotfmt.add_scalebar(ax=ax, width=plot_buffer * 4)
-    fig.savefig(os.path.join(output_path, f"{row[1].group:05}_aspect.png"))
-    fig.savefig(os.path.join(output_path, f"{row[1].group:05}_aspect.pdf"))
+    for ftype in GLOBAL_TYPES:
+        fig.savefig(
+            os.path.join(output_path, f"{row[1].group:05}_aspect.{ftype}")
+        )
     plt.close(fig)
 
 
@@ -1260,12 +1286,15 @@ def aspect_slope_map(
 
     output_path = os.path.join(output_path, suffix)
     os.makedirs(output_path, exist_ok=True)
-    if (
+    fexists = [
         os.path.exists(
-            os.path.join(output_path, f"{row[1].group:05}_aspect_slope.png")
+            os.path.join(
+                output_path, f"{row[1].group:05}_aspect_slope.{ftype}"
+            )
         )
-        and not overwrite
-    ):
+        for ftype in GLOBAL_TYPES
+    ]
+    if np.all(fexists) and not overwrite:
         logging.info(f"Skipping existing plot {row[1].group:05}")
         return
     else:
@@ -1296,12 +1325,12 @@ def aspect_slope_map(
 
     # Formatting and other stuff
     u4plotfmt.add_scalebar(ax=ax, width=plot_buffer * 4)
-    fig.savefig(
-        os.path.join(output_path, f"{row[1].group:05}_aspect_slope.png")
-    )
-    fig.savefig(
-        os.path.join(output_path, f"{row[1].group:05}_aspect_slope.pdf")
-    )
+    for ftype in GLOBAL_TYPES:
+        fig.savefig(
+            os.path.join(
+                output_path, f"{row[1].group:05}_aspect_slope.{ftype}"
+            )
+        )
     plt.close(fig)
 
 
@@ -1334,12 +1363,13 @@ def diffplan_map(
     # Setting Paths
     output_path = os.path.join(output_path, suffix)
     os.makedirs(output_path, exist_ok=True)
-    if (
+    fexists = [
         os.path.exists(
-            os.path.join(output_path, f"{row[1].group:05}_diffplan.png")
+            os.path.join(output_path, f"{row[1].group:05}_diffplan.{ftype}")
         )
-        and not overwrite
-    ):
+        for ftype in GLOBAL_TYPES
+    ]
+    if np.all(fexists) and not overwrite:
         logging.info(f"Skipping existing plot {row[1].group:05}")
         return
     else:
@@ -1364,8 +1394,10 @@ def diffplan_map(
 
     # Format and save
     u4plotfmt.add_scalebar(ax=ax, width=2 * plot_buffer)
-    fig.savefig(os.path.join(output_path, f"{row[1].group:05}_diffplan.png"))
-    fig.savefig(os.path.join(output_path, f"{row[1].group:05}_diffplan.pdf"))
+    for ftype in GLOBAL_TYPES:
+        fig.savefig(
+            os.path.join(output_path, f"{row[1].group:05}_diffplan.{ftype}")
+        )
     plt.close(fig)
 
 
@@ -1399,10 +1431,14 @@ def detailed_map(
     # Setup Paths
     output_path = os.path.join(output_path, suffix)
     os.makedirs(output_path, exist_ok=True)
-    if (
-        os.path.exists(os.path.join(output_path, f"{row[1].group:05}_map.png"))
-        and not overwrite
-    ):
+
+    fexists = [
+        os.path.exists(
+            os.path.join(output_path, f"{row[1].group:05}_map.{ftype}")
+        )
+        for ftype in GLOBAL_TYPES
+    ]
+    if np.all(fexists) and not overwrite:
         logging.info(f"Skipping existing plot {row[1].group:05}")
         return
     else:
@@ -1486,8 +1522,11 @@ def detailed_map(
         ax=ax, crs=crs, source=contextily.providers.CartoDB.Voyager
     )
     u4plotfmt.add_scalebar(ax=ax, width=plot_buffer * 4)
-    fig.savefig(os.path.join(output_path, f"{row[1].group:05}_map.png"))
-    fig.savefig(os.path.join(output_path, f"{row[1].group:05}_map.pdf"))
+    for ftype in GLOBAL_TYPES:
+        fig.savefig(
+            os.path.join(output_path, f"{row[1].group:05}_map.{ftype}")
+        )
+
     plt.close(fig)
 
 
@@ -1516,10 +1555,13 @@ def timeseries_map(
     :param plot_buffer: The buffer width around the area of interest.
     :type plot_buffer: float
     """
-    if (
-        os.path.exists(os.path.join(output_path, f"{row[1].group:05}_psi.png"))
-        and not overwrite
-    ):
+    fexists = [
+        os.path.exists(
+            os.path.join(output_path, f"{row[1].group:05}_psi.{ftype}")
+        )
+        for ftype in GLOBAL_TYPES
+    ]
+    if np.all(fexists) and not overwrite:
         logging.info(f"Skipping existing plot {row[1].group:05}")
         return
     else:
@@ -1599,7 +1641,7 @@ def timeseries_map(
         alpha=0.75,
         linewidth=1,
     )
-    u4plotfmt.add_scalebar(ax=ax_map, width=plot_buffer * 4)
+    u4plotfmt.add_scalebar(ax=ax_map, width=plot_buffer * 4, div=1)
     ax_map.axis("off")
     fig.tight_layout()
     plt.axis("equal")
@@ -1616,8 +1658,10 @@ def timeseries_map(
     ax_ts.set_ylabel("Displacement (mm)")
 
     fig.tight_layout()
-    fig.savefig(os.path.join(output_path, f"{row[1].group:05}_psi.png"))
-    fig.savefig(os.path.join(output_path, f"{row[1].group:05}_psi.pdf"))
+    for ftype in GLOBAL_TYPES:
+        fig.savefig(
+            os.path.join(output_path, f"{row[1].group:05}_psi.{ftype}")
+        )
     plt.close(fig)
 
 
@@ -1675,6 +1719,6 @@ def plot_legend(
     axl.set_position([0, 0, 1, 1])
     axl.invert_yaxis()
 
-    figl.savefig(os.path.join(output_path, f"{grp}_{suffix}_leg.png"))
-    figl.savefig(os.path.join(output_path, f"{grp}_{suffix}_leg.pdf"))
+    for ftype in GLOBAL_TYPES:
+        figl.savefig(os.path.join(output_path, f"{grp}_{suffix}_leg.{ftype}"))
     plt.close(figl)
