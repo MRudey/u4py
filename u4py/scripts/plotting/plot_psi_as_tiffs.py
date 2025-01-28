@@ -4,10 +4,12 @@ Plots all PSI from the gpkg file into geotiffs and saves them in a folder.
 
 import os
 from datetime import datetime
+from pathlib import Path
 
 import numpy as np
 from tqdm import tqdm
 
+import u4py.analysis.processing as u4proc
 import u4py.io.sql as u4sql
 import u4py.io.tiff as u4tiff
 import u4py.utils.config as u4config
@@ -18,39 +20,77 @@ u4config.start_logger()
 
 def main():
     project = u4proj.get_project(
-        required=["psi_path", "output_path"],
-        # interactive=False,
+        required=["base_path"],
+        proj_path=Path(
+            "~/Documents/umwelt4/Convert_EGMS_to_Tiff.u4project"
+        ).expanduser(),
     )
-    direction = "vertikal"
+    folder_list = [
+        "Data_EGMS_2015_2021",
+        "Data_EGMS_2018_2022",
+        "Data_EGMS_2019_2023",
+    ]
+    file_list = []
+    for fp in folder_list:
+        folder_path = os.path.join(project["paths"]["base_path"], fp)
+        file_list.extend(
+            [
+                os.path.join(folder_path, gpkg_fp)
+                for gpkg_fp in os.listdir(folder_path)
+                if gpkg_fp.endswith(".gpkg")
+            ]
+        )
 
-    # Setting up paths
-    output_dir = os.path.join(
-        project["paths"]["output_path"], f"PSI_Tiffs_{direction}"
-    )
-    os.makedirs(output_dir, exist_ok=True)
+    for fp in tqdm(file_list, desc="Converting gpkg files", leave=False):
+        egms_gpkg_to_tiff(fp, project["paths"]["base_path"])
 
-    # Reading common data, elevation data (zs) not used atm
-    xs, ys, _, time, queries, info = u4sql.gen_queries_psi_gpkg(
-        os.path.join(project["paths"]["psi_path"], "hessen_l3_clipped.gpkg"),
-        direction,
-    )
-    xq = np.array((xs - np.min(xs)) / 50, dtype=int)
-    yq = np.array((ys - np.min(ys)) / 50, dtype=int)
-    extent = (  # Adjustments necessary to match up coordinates
-        np.min(xs) + 25,
-        np.max(xs) + 75,
-        np.min(ys) - 25,
-        np.max(ys) + 25,
-    )
 
-    # Build arguments list (for easier parallelization, WIP)
-    arguments = [(xq, yq, time, extent, output_dir, info, q) for q in queries]
-    for arg in tqdm(
-        arguments,
-        desc="Generating GeoTiffs",
-        leave=False,
+def egms_gpkg_to_tiff(gpkg_file_path: os.PathLike, output_path: os.PathLike):
+    """
+    Converts the timeseries data stored in the egms gpkg file to a set of
+    geotiffs for faster display. Extracts data from all directions in the
+    given file.
+
+    :param gpkg_file_path: The path to the gpkg file.
+    :type gpkg_file_path: os.PathLike
+    :param output_path: The path where the folder with the tiffs shall be stored.
+    :type output_path: os.PathLike
+    """
+    directions = u4sql.get_table_names(gpkg_file_path)
+    for direction in tqdm(
+        directions, desc="Extracting directions", leave=False
     ):
-        multi_geotiff(arg)
+        # Setting up paths
+        output_dir = os.path.join(output_path, f"PSI_Tiffs_{direction}")
+        os.makedirs(output_dir, exist_ok=True)
+
+        # Reading common data, elevation data (zs) not used atm
+        xs, ys, _, time, queries, info = u4sql.gen_queries_psi_gpkg(
+            gpkg_file_path,
+            direction,
+        )
+        spacing = np.min(
+            [
+                np.min(np.diff(np.sort(np.unique(xs)))),
+                np.min(np.diff(np.sort(np.unique(ys)))),
+            ]
+        )
+        xq = np.array((xs - np.min(xs)) / spacing, dtype=int)
+        yq = np.array((ys - np.min(ys)) / spacing, dtype=int)
+        extent = (  # Adjustments necessary to match up coordinates
+            np.min(xs) + spacing / 2,
+            np.max(xs) + spacing * 1.5,
+            np.min(ys) - spacing / 2,
+            np.max(ys) + spacing / 2,
+        )
+
+        # Build arguments list (for easier parallelization, WIP)
+        arguments = [
+            (xq, yq, time, extent, output_dir, info, q) for q in queries
+        ]
+        u4proc.batch_mapping(
+            arguments, multi_geotiff, desc="Generating GeoTiffs"
+        )
 
 
 def multi_geotiff(arguments: tuple):
@@ -80,8 +120,8 @@ def multi_geotiff(arguments: tuple):
         vels,
         extent,
         os.path.join(output_dir, fname),
-        crs=info["proj_crs"],
-        time=time_str,
+        crs="EPSG:3035",
+        compress="lzw",
     )
 
 

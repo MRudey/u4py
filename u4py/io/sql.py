@@ -638,39 +638,46 @@ def get_envlen(eee: str) -> int:
 
 
 def gen_queries_psi_gpkg(
-    file_path: os.PathLike, direction: str = "vertikal"
+    file_path: os.PathLike, table: str = "vertikal"
 ) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, list]:
     """
     Opens a gpkg and generates queries to extract the data limited to psi files
 
     :param file_path: The database as a gpkg file.
     :type file_path: os.PathLike
-    :param direction: The direction to use, defaults to "vertikal"
-    :type direction: str, optional
+    :param table: The direction to use, defaults to "vertikal"
+    :type table: str, optional
     :return: Some data and preformatted queries to extract the data from the database.
     :rtype: Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, list]
     """
-    logging.info(f"Generating queries to extract {direction} from {file_path}")
+    logging.info(f"Generating queries to extract {table} from {file_path}")
     # Get number of rows and names of columns
     con = sqlite3.connect(file_path)
     cur = con.cursor()
-    info = read_info(cur, direction)
+    tables = get_table_names(file_path)
+    if table not in tables:
+        raise KeyError(
+            f"Given table does not exist in file! Specify one of {tables}"
+        )
+    info = read_info(cur, table)
     # Get Coordinates
+    logging.info("Loading coordinates")
     try:
-        xx = np.array(select(cur, "X", direction))
+        xx = np.array(select(cur, "X", table))
     except sqlite3.OperationalError as _:
-        xx = np.array(select(cur, "easting", direction))
+        xx = np.array(select(cur, "easting", table))
     try:
-        yy = np.array(select(cur, "Y", direction))
+        yy = np.array(select(cur, "Y", table))
     except sqlite3.OperationalError as _:
-        yy = np.array(select(cur, "northing", direction))
+        yy = np.array(select(cur, "northing", table))
     try:
-        zz = np.array(select(cur, "Z", direction))
+        zz = np.array(select(cur, "Z", table))
     except sqlite3.OperationalError as _:
-        zz = np.array(select(cur, "height", direction))
+        zz = np.array(select(cur, "height", table))
 
+    logging.info("Generating timeseries queries")
     if info["has_time"]:
-        time, queries = gen_timeseries_queries(file_path, direction, info)
+        time, queries = gen_timeseries_queries(file_path, table, info)
 
     con.close()
 
