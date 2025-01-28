@@ -670,7 +670,8 @@ def geology_map(
                 suffix=f"_{row[1].group:05}",
                 out_folder=shp_path,
             )
-        fault_data.plot(ax=ax, color="k")
+        if fault_data:
+            fault_data.plot(ax=ax, color="k")
 
         # Formatting and other stuff
         u4plotfmt.add_scalebar(ax=ax, width=plot_buffer * 4)
