@@ -22,7 +22,7 @@ def main():
     project = u4proj.get_project(
         required=["base_path"],
         proj_path=Path(
-            "~/Documents/umwelt4/Convert_EGMS_to_Tiff.u4project"
+            "~/Documents/umwelt4/Convert_EGMS_gpkg_to_tif.u4project"
         ).expanduser(),
     )
     folder_list = [

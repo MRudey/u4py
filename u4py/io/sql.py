@@ -473,12 +473,12 @@ def gen_timeseries_queries(
     time = np.array([u4conv.sql_key_to_time(k) for k in key_list])
     if where:
         queries = [
-            (file_path, f"SELECT {k} FROM '{table}' WHERE {where}", jj)
+            (file_path, f'SELECT "{k}" FROM "{table}" WHERE {where}', jj)
             for jj, k in enumerate(key_list)
         ]
     else:
         queries = [
-            (file_path, f"SELECT {k} FROM '{table}'", jj)
+            (file_path, f'SELECT "{k}" FROM "{table}"', jj)
             for jj, k in enumerate(key_list)
         ]
     return time, queries
