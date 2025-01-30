@@ -340,8 +340,9 @@ def _clean_inputs(data: dict):
     :type data: dict
     """
     logging.info("Cleaning inputs.")
+    ignore_list = ["inversion_results", "time"]
     for kk in data.keys():
-        if isinstance(data[kk], np.ndarray) and kk != "inversion_results":
+        if isinstance(data[kk], np.ndarray) and kk not in ignore_list:
             ind = np.isfinite(data[kk])
             for ll in data.keys():
                 if (
@@ -631,7 +632,7 @@ def _set_g_antenna(
         g_hat = np.zeros_like(time)
         g_hat[time > tat] = 1
         g_AT.append(g_hat)
-        parameter_list.append(f"antenna offset no. {ii+1}")
+        parameter_list.append(f"antenna offset no. {ii + 1}")
     return g_AT, parameter_list
 
 
@@ -670,7 +671,7 @@ def _set_g_earthquakes(
             g_heq = np.zeros_like(time)
             g_heq[time > t_EQ[ii]] = g_heq[time > t_EQ[ii]] + 1
             g_EQ.append(g_heq)
-            parameter_list.append(f"earthquake no. {ii+1}")
+            parameter_list.append(f"earthquake no. {ii + 1}")
     return g_EQ, parameter_list
 
 
@@ -704,7 +705,7 @@ def _set_g_postseismic(
             iB = time > te
             g_psm[iB] = g_psm[iB] + np.log(1 + (time[iB] - te))
             g_POSTSM.append(g_psm)
-            parameter_list.append(f"postseismic no. {ii+1}")
+            parameter_list.append(f"postseismic no. {ii + 1}")
     return g_POSTSM, parameter_list
 
 
@@ -735,7 +736,7 @@ def _set_g_extraction(
         t_off = t_start + 0.5 * duration
         gex = gex + _expit(time, k=k, t_off=t_off)
         g_EX.append(gex)
-        parameter_list.append(f"water extraction no. {ii+1}")
+        parameter_list.append(f"water extraction no. {ii + 1}")
     return g_EX, parameter_list
 
 

@@ -168,7 +168,6 @@ def inversion_map_worker(data: dict) -> Tuple[Tuple, Tuple]:
     Returns the data as a tuple of (`x`, `y`, `results`) for each direction.
     In case the inversion somehow goes wrong, (None, None) is returned.
     """
-
     try:
         matrix_ori, data, _, parameters_list = u4invert.invert_time_series(
             data
@@ -182,8 +181,7 @@ def inversion_map_worker(data: dict) -> Tuple[Tuple, Tuple]:
             (data["xmid"], data["ymid"], matrix),
         )
         return results
-    except:
-        logging.info("Inversion failed")
+    except RuntimeError:
         return (None, None)
 
 
@@ -191,6 +189,7 @@ def batch_mapping(
     fnc_args: Iterable,
     fnc: Callable,
     desc: str = "",
+    total: int = 0,
 ) -> list:
     """Maps the function over a pool of workers.
 
@@ -203,7 +202,14 @@ def batch_mapping(
     :return: The results as a list.
     :rtype: list
     """
-    ncpu = min(len(fnc_args), u4config.cpu_count)
+    try:
+        nargs = len(fnc_args)
+        ncpu = min(nargs, u4config.cpu_count)
+    except TypeError:
+        ncpu = u4config.cpu_count
+        nargs = None
+    if not total:
+        total = nargs
     logging.info(f"Starting parallel pool with {ncpu} threads.")
 
     if desc:
@@ -212,7 +218,7 @@ def batch_mapping(
             results = list(
                 tqdm(
                     p.imap_unordered(fnc, fnc_args),
-                    total=len(fnc_args),
+                    total=total,
                     desc=desc,
                     leave=False,
                 )

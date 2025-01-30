@@ -10,14 +10,15 @@ from pathlib import Path
 
 import geopandas as gp
 import numpy as np
+import scipy.spatial as spspat
 from tqdm import tqdm
 
 import u4py.analysis.processing as u4proc
 import u4py.analysis.spatial as u4spatial
 import u4py.io.sql as u4sql
 import u4py.utils.cmd_args as u4args
-
-# import u4py.utils.config as u4config
+import u4py.utils.config as u4config
+import u4py.utils.convert as u4convert
 import u4py.utils.projects as u4proj
 
 # u4config.start_logger()
@@ -45,7 +46,7 @@ def main():
         proj_path=proj_path,
     )
     merged_data = merge_data(project)
-    # # All points
+    # All points
     # if not os.path.exists(project["paths"]["output_path"]) or overwrite:
     #     extracts = u4proc.get_extracts(merged_data)
     #     invert_extracts(extracts, project["paths"]["output_path"])
@@ -73,64 +74,60 @@ def main():
             # Get x and y extend for rastering
             minx = np.floor(bounds.minx[0] / raster_size) * raster_size
             maxx = np.ceil(bounds.maxx[0] / raster_size) * raster_size
-            x_rng = np.arange(minx, maxx, raster_size)
             miny = np.floor(bounds.miny[0] / raster_size) * raster_size
             maxy = np.ceil(bounds.maxy[0] / raster_size) * raster_size
-            y_rng = np.arange(miny, maxy, raster_size)
 
-            # Get indices where to put data for each point
-            ii_x = [
-                np.argwhere(x_rng >= x).squeeze()[0]
-                for x in tqdm(
-                    merged_data["vertikal"]["x"],
-                    desc="Getting x indices",
-                    leave=False,
+            # Build KDTree and queries for fast lookup
+            x, y = np.mgrid[minx:maxx:raster_size, miny:maxy:raster_size]
+            tree = spspat.KDTree(np.c_[x.ravel(), y.ravel()])
+            queries = [
+                (xx, yy)
+                for xx, yy in zip(
+                    merged_data["vertikal"]["x"], merged_data["vertikal"]["y"]
                 )
             ]
-            ii_y = [
-                np.argwhere(y_rng >= y).squeeze()[0]
-                for y in tqdm(
-                    merged_data["vertikal"]["y"],
-                    desc="Getting y indices",
-                    leave=False,
-                )
-            ]
-            indices = np.array([(ix, iy) for ix, iy in zip(ii_x, ii_y)])
-            uqidc = np.unique(indices, axis=0)
-            extracts = [
-                {
-                    "x": x_rng[ii_x[ii]],
-                    "y": y_rng[ii_y[ii]],
-                    "time": merged_data["vertikal"]["time"],
-                    "ps_id": [],
-                    "timeseries_v": [],
-                    "timeseries_ew": [],
-                }
-                for ii in tqdm(
-                    range(len(ii_x)),
-                    desc="Preallocating extracts",
-                    leave=False,
-                )
-            ]
-            for ii, (tsv, tsew, psid) in tqdm(
-                enumerate(
-                    zip(
-                        merged_data["vertikal"]["timeseries"],
-                        merged_data["Ost_West"]["timeseries"],
-                        merged_data["vertikal"]["ps_id"],
-                    )
-                ),
-                desc="Getting extracts",
-                leave=False,
-                total=len(merged_data["vertikal"]["x"]),
+
+            # Lookup indices of grid where to put the data
+            dd, idx = tree.query(queries, workers=u4config.cpu_count)
+
+            logging.info("Preallocating lists")
+            ts_v = [list() for _ in range(x.size)]
+            ts_ew = [list() for _ in range(x.size)]
+            ps_id = [list() for _ in range(x.size)]
+            time = [list() for _ in range(x.size)]
+            xs = [0 for _ in range(x.size)]
+            ys = [0 for _ in range(x.size)]
+            x_flat = np.array(x).flat
+            y_flat = np.array(y).flat
+
+            # Assemble data lists
+            for ii, jj in tqdm(
+                enumerate(idx), total=len(idx), desc="Assemble data lists"
             ):
-                uqiis = np.nonzero(np.all(uqidc == indices[ii], axis=1))[0]
-                if len(uqiis) > 1:
-                    logging.info("Error, to many indices found?")
-                else:
-                    extracts[uqiis[0]]["timeseries_v"].append(tsv)
-                    extracts[uqiis[0]]["timeseries_ew"].append(tsew)
-                    extracts[uqiis[0]]["ps_id"].append(psid)
+                ts_v[jj].append(merged_data["vertikal"]["timeseries"][ii])
+                ts_ew[jj].append(merged_data["Ost_West"]["timeseries"][ii])
+                ps_id[jj].append(merged_data["vertikal"]["ps_id"][ii])
+                time[jj].append(merged_data["vertikal"]["time"])
+                xs[jj] = x_flat[jj]
+                ys[jj] = y_flat[jj]
+
+            # Extracting data
+            extracts = []
+            for ii in tqdm(
+                range(len(ts_v)), total=len(ts_v), desc="Extracting data"
+            ):
+                if len(ts_v[ii]) > 0:
+                    extracts.append(
+                        u4convert.reformat_gpkg(
+                            xs[ii],
+                            ys[ii],
+                            0,
+                            ps_id[ii],
+                            np.hstack(time[ii]),
+                            np.hstack(ts_v[ii]),
+                            np.hstack(ts_ew[ii]),
+                        )
+                    )
             invert_extracts(extracts, output_path)
 
 
