@@ -602,6 +602,41 @@ def geology_map(
             suffix=f"_{row[1].group:05}",
             out_folder=shp_path,
         )
+        hydro_pts = u4web.query_hlnug(
+            "geologie/gk25/MapServer",
+            "Hydrogeologie (Punktdaten)",
+            region=region,
+            suffix=f"_hygpts_{row[1].group:05}",
+            out_folder=shp_path,
+        )
+        nass = u4web.query_hlnug(
+            "geologie/gk25/MapServer",
+            "Nassstellen",
+            region=region,
+            suffix=f"_nass_{row[1].group:05}",
+            out_folder=shp_path,
+        )
+        water = u4web.query_hlnug(
+            "geologie/gk25/MapServer",
+            "Gewässer",
+            region=region,
+            suffix=f"_water_{row[1].group:05}",
+            out_folder=shp_path,
+        )
+        geo_pts = u4web.query_hlnug(
+            "geologie/gk25/MapServer",
+            "Geologie (Punktdaten)",
+            region=region,
+            suffix=f"_gepts_{row[1].group:05}",
+            out_folder=shp_path,
+        )
+        bohr = u4web.query_hlnug(
+            "geologie/bohrdatenportal/MapServer",
+            "Archivbohrungen, Endteufe [m]",
+            region=region,
+            suffix=f"_bohr_{row[1].group:05}",
+            out_folder=shp_path,
+        )
 
     if len(geology_data) > 0:
         # Get symbology and fill legend entry lists
@@ -697,6 +732,17 @@ def geology_map(
             )
         if len(fault_data) > 0:
             fault_data.plot(ax=ax, color="k")
+
+        if not hydro_pts.empty:
+            hydro_pts.plot(ax=ax, color="b")
+        if not nass.empty:
+            nass.plot(ax=ax, color="b")
+        if not water.empty:
+            water.plot(ax=ax, color="c")
+        if not geo_pts.empty:
+            geo_pts.plot(ax=ax, color="r")
+        if not bohr.empty:
+            bohr.plot(ax=ax)
 
         # Formatting and other stuff
         u4plotfmt.add_scalebar(ax=ax, width=plot_buffer * 4)

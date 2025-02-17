@@ -236,8 +236,7 @@ def _save_features(
             gdf = gp.read_file(geojson).to_crs("EPSG:32632")
     if len(region) > 0:
         gdf = gdf.clip(region)
-    if len(gdf) > 0:
-        gdf.to_file(out_fname + ".gpkg")
+    gdf.to_file(out_fname + ".gpkg")
     return gdf
 
 

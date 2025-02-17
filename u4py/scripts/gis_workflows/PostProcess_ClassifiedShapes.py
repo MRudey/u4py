@@ -24,8 +24,8 @@ import u4py.utils.projects as u4proj
 def main():
     project = u4proj.get_project(
         proj_path=Path(
-            # "~/Documents/umwelt4/PostProcess_ClassifiedShapesHLNUG.u4project"
-            "~/Documents/umwelt4/PostProcess_ClassifiedShapes.u4project"
+            "~/Documents/umwelt4/PostProcess_ClassifiedShapesHLNUG.u4project"
+            # "~/Documents/umwelt4/PostProcess_ClassifiedShapes.u4project"
         ).expanduser(),
         required=[
             "base_path",
@@ -39,31 +39,28 @@ def main():
     overwrite = False
     use_filtered = False
     use_parallel = False
-    generate_plots = False
-    overwrite_plots = False
+    generate_plots = True
+    overwrite_plots = True
     generate_document = True
     single_report = False
-    is_hlnug = False
+    is_hlnug = True
 
     if is_hlnug:
-        out_format = "docx"
         u4plots.GLOBAL_TYPES = ["png"]
-    else:
-        out_format = "pdf"
 
     # Setting up names of report
 
-    report_title = "Große Bewegungsanomalien in Hessen"
-    report_subtitle = (
-        "Anomalien mit mindestens 20000\,m\\textsuperscript{3} Volumenänderung"
-    )
-    report_suffix = "_onlyLarge"
+    # report_title = "Große Bewegungsanomalien in Hessen"
+    # report_subtitle = (
+    #     "Anomalien mit mindestens 20000\,m\\textsuperscript{3} Volumenänderung"
+    # )
+    # report_suffix = "_onlyLarge"
     # report_title = "Bewegungsanomalien in Hessen"
     # report_subtitle = "Anomalien in der Nähe bekannter Geogefahren"
     # report_suffix = "_hazard"
-    # report_title = "Rutschungsdatenbank Hessen"
-    # report_subtitle = "nach HLNUG"
-    # report_suffix = "_hlnug"
+    report_title = "Rutschungsdatenbank Hessen"
+    report_subtitle = "nach HLNUG"
+    report_suffix = "_hlnug"
 
     # Setting up paths
     output_path = os.path.join(
@@ -106,6 +103,7 @@ def main():
     else:
         if not os.path.exists(cls_shp_fp_filtered) or overwrite:
             gdf_filtered = gp.read_file(class_shp_fp)
+            gdf_filtered = gdf_filtered[:20]
             gdf_filtered = reverse_geolocate(
                 gdf_filtered, project["paths"]["results_path"]
             )
@@ -125,6 +123,7 @@ def main():
                 dem_path,
                 contour_path,
                 overwrite_plots,
+                report_suffix,
             )
             for row in gdf_filtered.iterrows()
         ]
@@ -256,6 +255,7 @@ def map_worker(
     dem_path: os.PathLike,
     contour_path: os.PathLike,
     overwrite: bool,
+    suffix: str,
 ):
     """Calls the various plotting and reporting functions.
 
@@ -344,7 +344,9 @@ def map_worker(
         overwrite=overwrite,
     )
     shp_path = os.path.join(
-        project["paths"]["places_path"], "Classifier_shapes", "Web_Queries"
+        project["paths"]["places_path"],
+        "Classifier_shapes",
+        "Web_Queries" + suffix,
     )
     u4plots.geology_map(
         row,
