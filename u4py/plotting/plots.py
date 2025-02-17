@@ -576,14 +576,24 @@ def geology_map(
         geometry=[u4spatial.bounds_to_polygon(ax)], crs=crs
     )
     if use_internal:
-        bounds = region.bounds.iloc[0]
-        geology_data = u4web.query_internal(
-            "gk25-hessen:GK25_f_GK3",
-            region=[bounds.minx, bounds.miny, bounds.maxx, bounds.maxy],
-            region_crs=region.crs,
-            suffix=f"{row[1].group:05}",
-            out_folder=shp_path,
-        )
+        try:
+            bounds = region.bounds.iloc[0]
+            geology_data = u4web.query_internal(
+                "gk25-hessen:GK25_f_GK3",
+                region=[bounds.minx, bounds.miny, bounds.maxx, bounds.maxy],
+                region_crs=region.crs,
+                suffix=f"{row[1].group:05}",
+                out_folder=shp_path,
+            )
+        except TimeoutError:
+            logging.debug("Internal Server timed out, using fallback.")
+            geology_data = u4web.query_hlnug(
+                "geologie/gk25/MapServer",
+                "Geologie (Kartiereinheiten)",
+                region=region,
+                suffix=f"_{row[1].group:05}",
+                out_folder=shp_path,
+            )
     else:
         geology_data = u4web.query_hlnug(
             "geologie/gk25/MapServer",
@@ -655,13 +665,28 @@ def geology_map(
 
         # Load tectonic data
         if use_internal:
-            fault_data = u4web.query_internal(
-                "gk25-hessen:GK25_l-tek_GK3",
-                region=[bounds.minx, bounds.miny, bounds.maxx, bounds.maxy],
-                region_crs=region.crs,
-                suffix=f"{row[1].group:05}",
-                out_folder=shp_path,
-            )
+            try:
+                fault_data = u4web.query_internal(
+                    "gk25-hessen:GK25_l-tek_GK3",
+                    region=[
+                        bounds.minx,
+                        bounds.miny,
+                        bounds.maxx,
+                        bounds.maxy,
+                    ],
+                    region_crs=region.crs,
+                    suffix=f"{row[1].group:05}",
+                    out_folder=shp_path,
+                )
+            except TimeoutError:
+                logging.debug("Internal Server timed out, using fallback.")
+                fault_data = u4web.query_hlnug(
+                    "geologie/gk25/MapServer",
+                    "Tektonik (Liniendaten)",
+                    region=region,
+                    suffix=f"_{row[1].group:05}",
+                    out_folder=shp_path,
+                )
         else:
             fault_data = u4web.query_hlnug(
                 "geologie/gk25/MapServer",
@@ -670,16 +695,16 @@ def geology_map(
                 suffix=f"_{row[1].group:05}",
                 out_folder=shp_path,
             )
-        if fault_data:
+        if len(fault_data) > 0:
             fault_data.plot(ax=ax, color="k")
 
         # Formatting and other stuff
         u4plotfmt.add_scalebar(ax=ax, width=plot_buffer * 4)
-        # u4ax.add_basemap(
-        #     ax=ax,
-        #     crs=geology_data.crs,
-        #     # source=contextily.providers.CartoDB.Positron,
-        # )
+        u4ax.add_basemap(
+            ax=ax,
+            crs=geology_data.crs,
+            source=contextily.providers.TopPlusOpen.Grey,
+        )
 
         for ftype in GLOBAL_TYPES:
             fig.savefig(
@@ -1556,6 +1581,7 @@ def timeseries_map(
     :param plot_buffer: The buffer width around the area of interest.
     :type plot_buffer: float
     """
+    output_path = os.path.join(output_path, suffix)
     fexists = [
         os.path.exists(
             os.path.join(output_path, f"{row[1].group:05}_psi.{ftype}")
@@ -1570,7 +1596,6 @@ def timeseries_map(
             f"Plotting timeseries and psi map of group {row[1].group:05}."
         )
     # Set paths
-    output_path = os.path.join(output_path, suffix)
     psi_data_path = os.path.join(output_path, "psi_inv_data")
     os.makedirs(output_path, exist_ok=True)
     os.makedirs(psi_data_path, exist_ok=True)
@@ -1579,8 +1604,8 @@ def timeseries_map(
     shp_gdf = gp.GeoDataFrame(geometry=[row[1].geometry], crs=crs)
 
     # Create figure and axes
-    fig = plt.figure(figsize=(16 / 2.54, 11.3 / 2.54), dpi=GLOBAL_DPI)
-    gs = fig.add_gridspec(ncols=2, width_ratios=(1, 2))
+    fig = plt.figure(figsize=(13, 5), dpi=GLOBAL_DPI)
+    gs = fig.add_gridspec(ncols=2, width_ratios=(1, 3))
     ax_map = fig.add_subplot(gs[0])
     ax_ts = fig.add_subplot(gs[1])
 
@@ -1589,18 +1614,9 @@ def timeseries_map(
     shp_gdf.buffer(plot_buffer).plot(ax=ax_map, fc="None", ec="None")
 
     # Load PSI data
-    reg_gdf = gp.GeoDataFrame(
-        geometry=[u4spatial.bounds_to_polygon(ax_map)],
-        crs=crs,
-    )
     psi_local = u4psi.get_region_data(
         shp_gdf,
         f"grp_{row[1].group:05}_local",
-        os.path.join(psi_path, "hessen_l3_clipped.gpkg"),
-    )
-    psi_regional = u4psi.get_region_data(
-        reg_gdf,
-        f"grp_{row[1].group:05}_regional",
         os.path.join(psi_path, "hessen_l3_clipped.gpkg"),
     )
     results = u4proc.get_psi_dict_inversion(
@@ -1608,7 +1624,28 @@ def timeseries_map(
         save_path=os.path.join(psi_data_path, f"grp_{row[1].group:05}.pkl"),
     )
 
-    # Convert PSI data for plotting
+    # Add PSI in Map
+    ax_map.axis("equal")
+    u4ax.add_gpkg_data_where(
+        contour_path,
+        table="thresholded_contours_all_shapes",
+        where=f"groups=={row[1].group}",
+        ax=ax_map,
+        edgecolor="k",
+        facecolor="None",
+        alpha=0.75,
+        linewidth=1,
+    )
+    fig.tight_layout()
+    reg_gdf = gp.GeoDataFrame(
+        geometry=[u4spatial.bounds_to_polygon(ax_map)],
+        crs=crs,
+    )
+    psi_regional = u4psi.get_region_data(
+        reg_gdf,
+        f"grp_{row[1].group:05}_regional",
+        os.path.join(psi_path, "hessen_l3_clipped.gpkg"),
+    )
     u4spatial.xy_data_to_gdf(
         psi_regional["x"],
         psi_regional["y"],
@@ -1621,7 +1658,7 @@ def timeseries_map(
         vmin=-5,
         vmax=5,
         zorder=2,
-        markersize=10,
+        markersize=30,
         edgecolors="k",
         legend=True,
         legend_kwds={
@@ -1632,32 +1669,21 @@ def timeseries_map(
             "pad": 0.1,
         },
     )
-    u4ax.add_gpkg_data_where(
-        contour_path,
-        table="thresholded_contours_all_shapes",
-        where=f"groups=={row[1].group}",
-        ax=ax_map,
-        edgecolor="k",
-        facecolor="None",
-        alpha=0.75,
-        linewidth=1,
-    )
     u4plotfmt.add_scalebar(ax=ax_map, width=plot_buffer * 4, div=1)
-    ax_map.axis("off")
-    fig.tight_layout()
-    plt.axis("equal")
-    plt.draw()
     u4ax.add_basemap(
         ax=ax_map, crs=crs, source=contextily.providers.CartoDB.Voyager
     )
+    ax_map.axis("off")
+    plt.draw()
 
     # Plot Timeseries
     u4ax.plot_timeseries_fit(
         ax=ax_ts, results=results, fit_num=1, annotate=True, show_errors=True
     )
+    mylim = np.max(np.abs((ax_ts.get_ylim()))) * 1.4
+    ax_ts.set_ylim(-mylim, mylim)
     ax_ts.set_xlabel("Time")
     ax_ts.set_ylabel("Displacement (mm)")
-
     fig.tight_layout()
     for ftype in GLOBAL_TYPES:
         fig.savefig(

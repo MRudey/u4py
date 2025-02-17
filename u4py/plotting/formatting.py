@@ -298,10 +298,10 @@ def add_scalebar(
     """
 
     if (
-        (not "left" in loc)
-        and (not "right" in loc)
-        and (not "top" in loc)
-        and (not "bottom" in loc)
+        ("left" not in loc)
+        and ("right" not in loc)
+        and ("top" not in loc)
+        and ("bottom" not in loc)
     ):
         raise ValueError(
             "Invalid location string, allowed values are: 'top', 'bottom', "
@@ -362,12 +362,13 @@ def add_scalebar(
         fontweight="bold",
         color="w",
         path_effects=[path_effects.withStroke(linewidth=2, foreground="k")],
+        zorder=99,
     )
 
     for ii in range(div):
         ax.add_patch(
             mpatches.Rectangle(
-                (x, y), width, height, facecolor="w", edgecolor="k", zorder=10
+                (x, y), width, height, facecolor="w", edgecolor="k", zorder=99
             )
         )
         _label_scalebar(ax, x, y, width, height)
@@ -378,7 +379,7 @@ def add_scalebar(
                 height,
                 facecolor="k",
                 edgecolor="k",
-                zorder=10,
+                zorder=99,
             )
         )
         if ii < div - 1:

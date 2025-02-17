@@ -63,6 +63,7 @@ def query_hlnug(
             else:
                 gdf = _save_features(features, out_fname)
     else:
+        os.makedirs(out_folder, exist_ok=True)
         out_fname = os.path.join(out_folder, f"{layer_name}{suffix}")
         if os.path.exists(out_fname + ".gpkg"):
             logging.info("Found locally cached file.")
@@ -124,7 +125,7 @@ def query_internal(
     if not out_folder:
         with tempfile.TemporaryDirectory() as out_folder:
             out_fname = os.path.join(
-                out_folder, f"{layer_name.replace(':','_')}{suffix}"
+                out_folder, f"{layer_name.replace(':', '_')}{suffix}"
             )
             features = _query_internal_server(
                 layer_name, region, region_crs, login_path, maxfeatures
@@ -133,7 +134,7 @@ def query_internal(
     else:
         os.makedirs(out_folder, exist_ok=True)
         out_fname = os.path.join(
-            out_folder, f"{layer_name.replace(':','_')}{suffix}"
+            out_folder, f"{layer_name.replace(':', '_')}{suffix}"
         )
         if os.path.exists(out_fname + ".gpkg"):
             logging.info("Found locally cached file.")
@@ -235,7 +236,8 @@ def _save_features(
             gdf = gp.read_file(geojson).to_crs("EPSG:32632")
     if len(region) > 0:
         gdf = gdf.clip(region)
-    gdf.to_file(out_fname + ".gpkg")
+    if len(gdf) > 0:
+        gdf.to_file(out_fname + ".gpkg")
     return gdf
 
 
@@ -263,7 +265,9 @@ def _query_server(
     # Query webservice to find layer
     logging.info("Querying HLNUG for geology_data")
     map_url = f"{HLNUG_URL}/{map_server_suffix}"
-    feat_serv = restapi.MapService(map_url)
+    feat_serv = restapi.MapService(
+        map_url, client="u4py, rudolf@geo.tu-darmstadt.de"
+    )
     lyr_types = [lyr.type for lyr in feat_serv.layers]
     lyr_names = [lyr.name for lyr in feat_serv.layers]
 
@@ -278,7 +282,9 @@ def _query_server(
 
     # Assemble url to layer and get data
     lyr_url = f"{map_url}/{ii}"
-    ms_lyr = restapi.MapServiceLayer(lyr_url)
+    ms_lyr = restapi.MapServiceLayer(
+        lyr_url, client="u4py, rudolf@geo.tu-darmstadt.de"
+    )
     if len(region) > 0:
         restgeom = polygon_to_restapi(
             region.geometry[0], region.crs.to_string()
