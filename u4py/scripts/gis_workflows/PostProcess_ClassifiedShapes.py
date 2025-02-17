@@ -15,7 +15,8 @@ from tqdm import tqdm
 
 import u4py.analysis.processing as u4proc
 import u4py.analysis.spatial as u4spatial
-import u4py.io.tex_report as u4rep
+import u4py.io.docx_report as u4docx
+import u4py.io.tex_report as u4tex
 import u4py.plotting.plots as u4plots
 import u4py.utils.projects as u4proj
 
@@ -23,6 +24,7 @@ import u4py.utils.projects as u4proj
 def main():
     project = u4proj.get_project(
         proj_path=Path(
+            # "~/Documents/umwelt4/PostProcess_ClassifiedShapesHLNUG.u4project"
             "~/Documents/umwelt4/PostProcess_ClassifiedShapes.u4project"
         ).expanduser(),
         required=[
@@ -35,23 +37,33 @@ def main():
         interactive=False,
     )
     overwrite = False
-    use_filtered = True
+    use_filtered = False
     use_parallel = False
-    generate_plots = True
+    generate_plots = False
     overwrite_plots = False
-    generate_pdf = True
-    single_report = True
+    generate_document = True
+    single_report = False
     is_hlnug = False
 
+    if is_hlnug:
+        out_format = "docx"
+        u4plots.GLOBAL_TYPES = ["png"]
+    else:
+        out_format = "pdf"
+
     # Setting up names of report
-    # report_title = "Große Bewegungsanomalien in Hessen"
-    # report_subtitle = (
-    #     "Anomalien mit mindestens 20000\,m\\textsuperscript{3} Volumenänderung"
-    # )
-    # report_suffix = "_onlyLarge"
-    report_title = "Bewegungsanomalien in Hessen"
-    report_subtitle = "Anomalien in der Nähe bekannter Geogefahren"
-    report_suffix = "_hazard"
+
+    report_title = "Große Bewegungsanomalien in Hessen"
+    report_subtitle = (
+        "Anomalien mit mindestens 20000\,m\\textsuperscript{3} Volumenänderung"
+    )
+    report_suffix = "_onlyLarge"
+    # report_title = "Bewegungsanomalien in Hessen"
+    # report_subtitle = "Anomalien in der Nähe bekannter Geogefahren"
+    # report_suffix = "_hazard"
+    # report_title = "Rutschungsdatenbank Hessen"
+    # report_subtitle = "nach HLNUG"
+    # report_suffix = "_hlnug"
 
     # Setting up paths
     output_path = os.path.join(
@@ -86,13 +98,17 @@ def main():
             gdf_filtered = filter_shapes(
                 class_shp_fp, cls_shp_fp_filtered, project
             )
-            gdf_filtered = reverse_geolocate(gdf_filtered, cls_shp_fp_filtered)
+            gdf_filtered = reverse_geolocate(
+                gdf_filtered, project["paths"]["results_path"]
+            )
         else:
             gdf_filtered = gp.read_file(cls_shp_fp_filtered)
     else:
         if not os.path.exists(cls_shp_fp_filtered) or overwrite:
             gdf_filtered = gp.read_file(class_shp_fp)
-            gdf_filtered = reverse_geolocate(gdf_filtered, cls_shp_fp_filtered)
+            gdf_filtered = reverse_geolocate(
+                gdf_filtered, project["paths"]["results_path"]
+            )
         else:
             gdf_filtered = gp.read_file(cls_shp_fp_filtered)
 
@@ -112,6 +128,7 @@ def main():
             )
             for row in gdf_filtered.iterrows()
         ]
+        # args = args[:20]
         if use_parallel:
             u4proc.batch_mapping(args, wrap_map_worker, "Generating Plots")
         else:
@@ -134,22 +151,37 @@ def main():
         )
     else:
         hlnug_data = gp.GeoDataFrame()
-    # Generating TeX and final PDF
-    if generate_pdf:
-        for row in tqdm(
-            gdf_filtered.iterrows(),
-            desc="Generating tex files",
-            total=len(gdf_filtered),
-        ):
-            u4rep.site_report(
-                row, output_path, "tex_includes", hlnug_data=hlnug_data
-            )
-        if single_report:
-            u4rep.main_report(
-                output_path, report_title, report_subtitle, report_suffix
-            )
+
+    # Generating individual files and final report (for PDF).
+    if generate_document:
+        if not is_hlnug:
+            for row in tqdm(
+                gdf_filtered.iterrows(),
+                desc="Generating tex files",
+                total=len(gdf_filtered),
+            ):
+                u4tex.site_report(row, output_path, "tex_includes")
+            if single_report:
+                u4tex.main_report(
+                    output_path,
+                    report_title,
+                    report_subtitle,
+                    report_suffix,
+                )
+            else:
+                u4tex.multi_report(output_path)
         else:
-            u4rep.multi_report(output_path)
+            ii = 0
+            for row in tqdm(
+                gdf_filtered.iterrows(),
+                desc="Generating docx files",
+                total=len(gdf_filtered),
+            ):
+                if ii < 20:
+                    u4docx.site_report(
+                        row, output_path, report_suffix, hlnug_data
+                    )
+                    ii += 1
 
 
 def filter_shapes(
