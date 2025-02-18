@@ -24,7 +24,8 @@ import u4py.utils.projects as u4proj
 def main():
     project = u4proj.get_project(
         proj_path=Path(
-            "~/Documents/umwelt4/PostProcess_ClassifiedShapesHLNUG.u4project"
+            r"~\Documents\ArcGIS\U4_projects\PostProcess_ClassifiedShapesHLNUG.u4project"
+            # "~/Documents/umwelt4/PostProcess_ClassifiedShapesHLNUG.u4project"
             # "~/Documents/umwelt4/PostProcess_ClassifiedShapes.u4project"
         ).expanduser(),
         required=[
@@ -39,7 +40,7 @@ def main():
     overwrite = False
     use_filtered = False
     use_parallel = False
-    generate_plots = True
+    generate_plots = False
     overwrite_plots = True
     generate_document = True
     single_report = False

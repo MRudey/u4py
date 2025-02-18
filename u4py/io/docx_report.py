@@ -105,7 +105,7 @@ def site_report(
         document = hydrogeology(img_path, img_fmt, document)
     if os.path.exists(img_path + f"_BFD50.{img_fmt}"):
         document = soils(img_path, img_fmt, document)
-
+    FIGURENUM = 1
     # Save to docx file
     document.save(os.path.join(output_path_docx, f"{group:05}_info.docx"))
 
