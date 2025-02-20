@@ -465,16 +465,13 @@ def get_style_from_legend(
     un_uuid.sort()
     leg_handles = []
     leg_labels = []
-    jj = 0
+
     for uuid in un_uuid:
         try:
             ii = uuids.index(uuid)
             if isinstance(styles[ii], str):
                 leg_handles.append(
-                    mpatches.Rectangle(
-                        (0, jj),
-                        width=0.05,
-                        height=0.75,
+                    mpatches.Patch(
                         facecolor=facecolors[ii],
                         edgecolor=edgecolors[ii],
                         alpha=alphas[ii],
@@ -486,10 +483,7 @@ def get_style_from_legend(
             elif isinstance(styles[ii], dict):
                 if not styles[ii]["hatch"]:
                     leg_handles.append(
-                        mpatches.Rectangle(
-                            (0, jj),
-                            width=0.05,
-                            height=0.75,
+                        mpatches.Patch(
                             facecolor=facecolors[ii],
                             edgecolor=edgecolors[ii],
                             alpha=alphas[ii],
@@ -498,11 +492,9 @@ def get_style_from_legend(
                         )
                     )
                 else:
-                    leg_handles.append(
-                        mpatches.Rectangle(
-                            (0, jj),
-                            width=0.05,
-                            height=0.75,
+                    handle = []
+                    handle.append(
+                        mpatches.Patch(
                             facecolor=facecolors[ii],
                             edgecolor=edgecolors[ii],
                             alpha=alphas[ii],
@@ -514,11 +506,8 @@ def get_style_from_legend(
                         ht = styles[ii]["hatch"][hii]
                         hc = styles[ii]["hatch_color"][0]
                         hca = styles[ii]["hatch_alpha"][0]
-                        leg_handles.append(
-                            mpatches.Rectangle(
-                                (0, jj),
-                                width=0.05,
-                                height=0.75,
+                        handle.append(
+                            mpatches.Patch(
                                 facecolor="None",
                                 edgecolor=hc,
                                 alpha=hca,
@@ -526,20 +515,13 @@ def get_style_from_legend(
                                 linewidth=linewidths[ii],
                             )
                         )
+                    leg_handles.append(tuple(handle))
             txt_width = 80
-            wrapped_text = textwrap.wrap(labels[ii], txt_width)
             leg_labels.append(textwrap.fill(labels[ii], txt_width))
-            for ii in range(len(wrapped_text)):
-                if ii > 0:
-                    leg_labels.append("")
-                    jj += 0.75
 
         except ValueError:
             leg_handles.append(
-                mpatches.Rectangle(
-                    (0, jj),
-                    width=0.05,
-                    height=0.75,
+                mpatches.Patch(
                     facecolor=(0.5, 0.5, 0.5),
                     edgecolor=(0.5, 0.5, 0.5),
                     alpha=0.5,
@@ -549,7 +531,6 @@ def get_style_from_legend(
                 )
             )
             leg_labels.append("unknown")
-        jj += 1
 
     return leg_dict, leg_handles, leg_labels
 

@@ -18,16 +18,25 @@ import u4py.analysis.spatial as u4spatial
 import u4py.io.docx_report as u4docx
 import u4py.io.tex_report as u4tex
 import u4py.plotting.plots as u4plots
+import u4py.utils.cmd_args as u4args
 import u4py.utils.projects as u4proj
 
 
 def main():
+    args = u4args.load()
+    if args.input:
+        proj_path = args.input
+    else:
+        # proj_path = r"~\Documents\ArcGIS\U4_projects\PostProcess_ClassifiedShapesHLNUG.u4project"
+        # proj_path = (
+        #     "~/Documents/umwelt4/PostProcess_ClassifiedShapesHLNUG.u4project"
+        # )
+        proj_path = "~/Documents/umwelt4/PostProcess_ClassifiedShapes_onlyLarge.u4project"
+        # proj_path = (
+        #     "~/Documents/umwelt4/PostProcess_ClassifiedShapes_hazard.u4project"
+        # )
     project = u4proj.get_project(
-        proj_path=Path(
-            r"~\Documents\ArcGIS\U4_projects\PostProcess_ClassifiedShapesHLNUG.u4project"
-            # "~/Documents/umwelt4/PostProcess_ClassifiedShapesHLNUG.u4project"
-            # "~/Documents/umwelt4/PostProcess_ClassifiedShapes.u4project"
-        ).expanduser(),
+        proj_path=Path(proj_path).expanduser(),
         required=[
             "base_path",
             "places_path",
@@ -37,35 +46,14 @@ def main():
         ],
         interactive=False,
     )
-    overwrite = False
-    use_filtered = False
-    use_parallel = False
-    generate_plots = False
-    overwrite_plots = True
-    generate_document = True
-    single_report = False
-    is_hlnug = True
 
-    if is_hlnug:
+    if project.getboolean("config", "is_hlnug"):
         u4plots.GLOBAL_TYPES = ["png"]
-
-    # Setting up names of report
-
-    # report_title = "Große Bewegungsanomalien in Hessen"
-    # report_subtitle = (
-    #     "Anomalien mit mindestens 20000\,m\\textsuperscript{3} Volumenänderung"
-    # )
-    # report_suffix = "_onlyLarge"
-    # report_title = "Bewegungsanomalien in Hessen"
-    # report_subtitle = "Anomalien in der Nähe bekannter Geogefahren"
-    # report_suffix = "_hazard"
-    report_title = "Rutschungsdatenbank Hessen"
-    report_subtitle = "nach HLNUG"
-    report_suffix = "_hlnug"
 
     # Setting up paths
     output_path = os.path.join(
-        project["paths"]["output_path"], f"Detailed_Maps{report_suffix}"
+        project["paths"]["output_path"],
+        f"Detailed_Maps{project['metadata']['report_suffix']}",
     )
     os.makedirs(output_path, exist_ok=True)
     class_shp_fp = os.path.join(
@@ -73,7 +61,7 @@ def main():
     )
     cls_shp_fp_filtered = os.path.join(
         project["paths"]["results_path"],
-        f"Filtered_Classified_Shapes{report_suffix}.gpkg",
+        f"Filtered_Classified_Shapes{project['metadata']['report_suffix']}.gpkg",
     )
     hlnug_path = os.path.join(
         project["paths"]["places_path"],
@@ -91,28 +79,35 @@ def main():
     )
 
     # Read Data
-    if use_filtered:
-        if not os.path.exists(cls_shp_fp_filtered) or overwrite:
+    if project.getboolean("config", "use_filtered"):
+        if not os.path.exists(cls_shp_fp_filtered) or project.getboolean(
+            "config", "overwrite_data"
+        ):
             gdf_filtered = filter_shapes(
                 class_shp_fp, cls_shp_fp_filtered, project
             )
             gdf_filtered = reverse_geolocate(
-                gdf_filtered, project["paths"]["results_path"]
+                gdf_filtered,
+                project["paths"]["results_path"],
+                cls_shp_fp_filtered,
             )
         else:
             gdf_filtered = gp.read_file(cls_shp_fp_filtered)
     else:
-        if not os.path.exists(cls_shp_fp_filtered) or overwrite:
+        if not os.path.exists(cls_shp_fp_filtered) or project.getboolean(
+            "config", "overwrite_data"
+        ):
             gdf_filtered = gp.read_file(class_shp_fp)
-            gdf_filtered = gdf_filtered[:20]
             gdf_filtered = reverse_geolocate(
-                gdf_filtered, project["paths"]["results_path"]
+                gdf_filtered,
+                project["paths"]["results_path"],
+                cls_shp_fp_filtered,
             )
         else:
             gdf_filtered = gp.read_file(cls_shp_fp_filtered)
 
     # Generating Plots
-    if generate_plots:
+    if project.getboolean("config", "generate_plots"):
         # Assembling arguments for processing
         args = [
             (
@@ -123,13 +118,13 @@ def main():
                 project,
                 dem_path,
                 contour_path,
-                overwrite_plots,
-                report_suffix,
+                project.getboolean("config", "overwrite_plots"),
+                project["metadata"]["report_suffix"],
             )
             for row in gdf_filtered.iterrows()
         ]
         # args = args[:20]
-        if use_parallel:
+        if project.getboolean("config", "use_parallel"):
             u4proc.batch_mapping(args, wrap_map_worker, "Generating Plots")
         else:
             for arg in tqdm(
@@ -140,7 +135,7 @@ def main():
             ):
                 wrap_map_worker(arg)
 
-    if is_hlnug:
+    if project.getboolean("config", "is_hlnug"):
         hlnug_data = gp.read_file(
             os.path.join(
                 project["paths"]["places_path"],
@@ -153,20 +148,20 @@ def main():
         hlnug_data = gp.GeoDataFrame()
 
     # Generating individual files and final report (for PDF).
-    if generate_document:
-        if not is_hlnug:
+    if project.getboolean("config", "generate_document"):
+        if not project.getboolean("config", "is_hlnug"):
             for row in tqdm(
                 gdf_filtered.iterrows(),
                 desc="Generating tex files",
                 total=len(gdf_filtered),
             ):
                 u4tex.site_report(row, output_path, "tex_includes")
-            if single_report:
+            if project.getboolean("config", "single_report"):
                 u4tex.main_report(
                     output_path,
-                    report_title,
-                    report_subtitle,
-                    report_suffix,
+                    project["metadata"]["report_title"],
+                    project["metadata"]["report_subtitle"],
+                    project["metadata"]["report_suffix"],
                 )
             else:
                 u4tex.multi_report(output_path)
@@ -179,7 +174,10 @@ def main():
             ):
                 if ii < 20:
                     u4docx.site_report(
-                        row, output_path, report_suffix, hlnug_data
+                        row,
+                        output_path,
+                        project["metadata"]["report_suffix"],
+                        hlnug_data,
                     )
                     ii += 1
 
@@ -211,6 +209,7 @@ def filter_shapes(
 def reverse_geolocate(
     gdf_filtered: gp.GeoDataFrame,
     output_path: os.PathLike,
+    cls_shp_fp_filtered: os.PathLike,
 ) -> gp.GeoDataFrame:
     # Do a reverse geocoding to get the address of the locations.
     cached_locations = os.path.join(output_path, "cached_locations.txt")
@@ -231,9 +230,9 @@ def reverse_geolocate(
                 cache.write(loc + "\n")
     gdf_filtered = gdf_filtered.assign(locations=locations)
 
-    gdf_filtered.to_file(output_path)
+    gdf_filtered.to_file(cls_shp_fp_filtered)
     gdf_filtered.to_crs("EPSG:4326").to_file(
-        os.path.splitext(output_path)[0] + ".geojson"
+        os.path.splitext(cls_shp_fp_filtered)[0] + ".geojson"
     )
     return gdf_filtered
 
@@ -255,7 +254,7 @@ def map_worker(
     project: configparser.ConfigParser,
     dem_path: os.PathLike,
     contour_path: os.PathLike,
-    overwrite: bool,
+    overwrite_plots: bool,
     suffix: str,
 ):
     """Calls the various plotting and reporting functions.
@@ -284,7 +283,7 @@ def map_worker(
         hlnug_path,
         contour_path,
         plot_buffer=250,
-        overwrite=overwrite,
+        overwrite=overwrite_plots,
     )
     u4plots.satimg_map(
         row,
@@ -293,7 +292,7 @@ def map_worker(
         "known_features",
         contour_path,
         plot_buffer=100,
-        overwrite=overwrite,
+        overwrite=overwrite_plots,
     )
     u4plots.diffplan_map(
         row,
@@ -302,7 +301,7 @@ def map_worker(
         "known_features",
         project["paths"]["diff_plan_path"],
         plot_buffer=100,
-        overwrite=overwrite,
+        overwrite=overwrite_plots,
     )
     u4plots.dem_map(
         row,
@@ -312,7 +311,7 @@ def map_worker(
         dem_path,
         contour_path,
         plot_buffer=100,
-        overwrite=overwrite,
+        overwrite=overwrite_plots,
     )
     u4plots.slope_map(
         row,
@@ -322,7 +321,7 @@ def map_worker(
         dem_path,
         contour_path,
         plot_buffer=100,
-        overwrite=overwrite,
+        overwrite=overwrite_plots,
     )
     u4plots.aspect_map(
         row,
@@ -332,7 +331,7 @@ def map_worker(
         dem_path,
         contour_path,
         plot_buffer=100,
-        overwrite=overwrite,
+        overwrite=overwrite_plots,
     )
     u4plots.aspect_slope_map(
         row,
@@ -342,7 +341,7 @@ def map_worker(
         dem_path,
         contour_path,
         plot_buffer=100,
-        overwrite=overwrite,
+        overwrite=overwrite_plots,
     )
     shp_path = os.path.join(
         project["paths"]["places_path"],
@@ -360,7 +359,7 @@ def map_worker(
         ),
         shp_path=shp_path,
         plot_buffer=100,
-        overwrite=overwrite,
+        overwrite=overwrite_plots,
         use_internal=False,
     )
     u4plots.hydrogeology_map(
@@ -374,7 +373,7 @@ def map_worker(
         ),
         shp_path=shp_path,
         plot_buffer=100,
-        overwrite=overwrite,
+        overwrite=overwrite_plots,
     )
     u4plots.topsoil_map(
         row,
@@ -385,7 +384,7 @@ def map_worker(
         os.path.join(project["paths"]["places_path"], "legend_BFD50.pkl"),
         shp_path=shp_path,
         plot_buffer=100,
-        overwrite=overwrite,
+        overwrite=overwrite_plots,
     )
 
     try:
@@ -398,7 +397,7 @@ def map_worker(
                 contour_path,
                 os.path.join(project["paths"]["psi_path"]),
                 plot_buffer=100,
-                overwrite=overwrite,
+                overwrite=overwrite_plots,
             )
     except TypeError:
         logging.info("No PSI features")

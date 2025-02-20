@@ -19,6 +19,7 @@ from functools import partial
 from tkinter import TclError, messagebox, ttk
 
 import u4py.io.files as u4files
+import u4py.utils.types as u4types
 
 global PROJECT
 
@@ -29,7 +30,7 @@ def get_project(
         "base_path",
     ],
     interactive: bool = True,
-) -> configparser.ConfigParser:
+) -> u4types.U4Project:
     """Interactive project path loader.
 
     A project file stores all relevant paths for specific plots. Typically used

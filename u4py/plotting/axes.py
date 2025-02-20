@@ -23,6 +23,10 @@ from typing import Callable, Iterable, Tuple
 
 import contextily
 import geopandas as gp
+import mapclassify  # Keep for user defined chloropleths
+import matplotlib.lines as mlines
+import matplotlib.patches as mpatches
+import matplotlib.path as mpath
 import matplotlib.pyplot as plt
 import matplotlib.ticker as mticker
 import numpy as np
@@ -31,9 +35,8 @@ import rasterio.plot as rioplot
 import scipy.stats as spstats
 import shapely as shp
 import skimage.transform as sktransf
-import urllib3.exceptions as urlexept
 from matplotlib.axes import Axes
-from matplotlib.colors import hsv_to_rgb
+from matplotlib.colors import ListedColormap, hsv_to_rgb
 from matplotlib.figure import Figure
 from pyproj import CRS
 from shapely import plotting as shplt
@@ -1040,3 +1043,427 @@ def add_hlnug_shapes(
                     linewidth=leg_dict["linewidth"][ii],
                     add_points=False,
                 )
+
+
+@_add_or_create
+def add_fault_data(
+    fault_data: gp.GeoDataFrame,
+    leg_handles: list,
+    leg_labels: list,
+    ax: Axes,
+) -> Tuple[list, list]:
+    """Adds faults from the HLNUG server to the axis
+
+    :param fault_data: The fault data loaded from HLNUG
+    :type fault_data: gp.GeoDataFrame
+    :param leg_handles: The legend handles for symbology
+    :type leg_handles: list
+    :param leg_labels: The legend labels
+    :type leg_labels: list
+    :param ax: The axis to add the data to
+    :type ax: Axes
+    :return: A tuple with the updated legend handles and labels
+    :rtype: Tuple[list, list]
+    """
+    # Add known faults
+    faults = ~fault_data.BEZEICHNUNG.str.contains(
+        "vermutet", case=False, na=False
+    )
+    if faults.any():
+        fault_data[faults].plot(ax=ax, color="k")
+        leg_handles, leg_labels = add_line_legend_entry(
+            leg_handles,
+            leg_labels,
+            "Störung",
+            color="k",
+            linewidth=2,
+            linestyle="-",
+        )
+
+    # Add suspected faults
+    sus_faults = fault_data.BEZEICHNUNG.str.contains(
+        "vermutet", case=False, na=False
+    )
+    if sus_faults.any():
+        fault_data[sus_faults].plot(ax=ax, color="k", linestyle="--")
+        leg_handles, leg_labels = add_line_legend_entry(
+            leg_handles,
+            leg_labels,
+            "Störung, vermutet",
+            color="k",
+            linewidth=2,
+            linestyle="--",
+        )
+    return leg_handles, leg_labels
+
+
+@_add_or_create
+def add_hydrological_points(
+    hydro_pts: gp.GeoDataFrame,
+    leg_handles: list,
+    leg_labels: list,
+    ax: Axes,
+) -> Tuple[list, list]:
+    """Adds hydrogeological points of interest from the HLNUG server to the axis
+
+    :param hydro_pts: The hydrogeological points of interest data loaded from HLNUG
+    :type hydro_pts: gp.GeoDataFrame
+    :param leg_handles: The legend handles for symbology
+    :type leg_handles: list
+    :param leg_labels: The legend labels
+    :type leg_labels: list
+    :param ax: The axis to add the data to
+    :type ax: Axes
+    :return: A tuple with the updated legend handles and labels
+    :rtype: Tuple[list, list]
+    """
+    springs = hydro_pts.BEZEICHNUNG.str.contains("Quell", case=False, na=False)
+    if springs.any():
+        hydro_pts[springs].plot(
+            ax=ax,
+            marker=mpath.Path.arc(0, 180),
+            color="#ff00cc",
+            markersize=50,
+            zorder=5,
+        )
+        leg_handles, leg_labels = add_line_legend_entry(
+            leg_handles,
+            leg_labels,
+            "Quellen und Quellgruppen",
+            marker=mpath.Path.arc(0, 180),
+            color="#ff00cc",
+            linestyle="None",
+        )
+    ponors = hydro_pts.BEZEICHNUNG.str.contains(
+        "Schwind", case=False, na=False
+    )
+    if ponors.any():
+        hydro_pts[ponors].plot(
+            ax=ax,
+            marker="$\downarrow$",
+            color="#ff00cc",
+            markersize=50,
+            zorder=5,
+        )
+        leg_handles, leg_labels = add_line_legend_entry(
+            leg_handles,
+            leg_labels,
+            "Schwinde, Bachschwinde",
+            marker="$\downarrow$",
+            color="#ff00cc",
+            linestyle="None",
+        )
+
+    drains = hydro_pts.BEZEICHNUNG.str.contains("Drän", case=False, na=False)
+    if drains.any():
+        hydro_pts[drains].plot(
+            ax=ax,
+            marker="s",
+            color="#ff00cc",
+            markersize=50,
+            zorder=5,
+        )
+        leg_handles, leg_labels = add_line_legend_entry(
+            leg_handles,
+            leg_labels,
+            "Drän",
+            marker="s",
+            color="#ff00cc",
+            linestyle="None",
+        )
+
+    drain_adits = hydro_pts.BEZEICHNUNG.str.contains(
+        "Wasserstollen", case=False, na=False
+    )
+    if drain_adits.any():
+        hydro_pts[drain_adits].plot(
+            ax=ax,
+            marker="s",
+            color="r",
+            markersize=50,
+            zorder=5,
+        )
+        leg_handles, leg_labels = add_line_legend_entry(
+            leg_handles,
+            leg_labels,
+            "Wasserstollen",
+            marker="s",
+            color="r",
+            linestyle="None",
+        )
+
+    wells = hydro_pts.BEZEICHNUNG.str.contains("Brunnen", case=False, na=False)
+    if wells.any():
+        hydro_pts[wells].plot(
+            ax=ax,
+            marker="o",
+            edgecolor="r",
+            color="None",
+            markersize=50,
+            zorder=5,
+        )
+        leg_handles, leg_labels = add_line_legend_entry(
+            leg_handles,
+            leg_labels,
+            "Brunnen",
+            marker="o",
+            markeredgecolor="r",
+            markerfacecolor="None",
+            linestyle="None",
+        )
+
+    if not (springs | drains | ponors | drain_adits | wells).all():
+        print("There are hydrogeological points without symbology.")
+    return leg_handles, leg_labels
+
+
+@_add_or_create
+def add_soggy_areas(
+    soggy_areas: gp.GeoDataFrame,
+    leg_handles: list,
+    leg_labels: list,
+    ax: Axes,
+) -> Tuple[list, list]:
+    """Adds soggy areas from the HLNUG server to the axis
+
+    :param soggy_areas: The soggy areas data loaded from HLNUG
+    :type soggy_areas: gp.GeoDataFrame
+    :param leg_handles: The legend handles for symbology
+    :type leg_handles: list
+    :param leg_labels: The legend labels
+    :type leg_labels: list
+    :param ax: The axis to add the data to
+    :type ax: Axes
+    :return: A tuple with the updated legend handles and labels
+    :rtype: Tuple[list, list]
+    """
+    soggy_areas.plot(ax=ax, facecolor="b", edgecolor="None", alpha=0.5)
+    add_patch_legend_entry(
+        leg_handles,
+        leg_labels,
+        "Nassstellen",
+        facecolor="b",
+        edgecolor="None",
+        alpha=0.5,
+    )
+    return leg_handles, leg_labels
+
+
+@_add_or_create
+def add_water_surface(
+    water_surface: gp.GeoDataFrame,
+    leg_handles: list,
+    leg_labels: list,
+    ax: Axes,
+) -> Tuple[list, list]:
+    """Adds water surfaces from the HLNUG server to the axis
+
+    :param water_surface: The water surfaces data loaded from HLNUG
+    :type water_surface: gp.GeoDataFrame
+    :param leg_handles: The legend handles for symbology
+    :type leg_handles: list
+    :param leg_labels: The legend labels
+    :type leg_labels: list
+    :param ax: The axis to add the data to
+    :type ax: Axes
+    :return: A tuple with the updated legend handles and labels
+    :rtype: Tuple[list, list]
+    """
+    water_surface.plot(ax=ax, facecolor="c", edgecolor="None")
+    add_patch_legend_entry(
+        leg_handles,
+        leg_labels,
+        "Wasserflächen",
+        facecolor="c",
+        edgecolor="None",
+    )
+    return leg_handles, leg_labels
+
+
+@_add_or_create
+def add_geo_pts(
+    geo_pts: gp.GeoDataFrame,
+    leg_handles: list,
+    leg_labels: list,
+    ax: Axes,
+) -> Tuple[list, list]:
+    """Adds geological points of interest from the HLNUG server to the axis
+
+    :param geo_pts: The geological points of interest data loaded from HLNUG
+    :type geo_pts: gp.GeoDataFrame
+    :param leg_handles: The legend handles for symbology
+    :type leg_handles: list
+    :param leg_labels: The legend labels
+    :type leg_labels: list
+    :param ax: The axis to add the data to
+    :type ax: Axes
+    :return: A tuple with the updated legend handles and labels
+    :rtype: Tuple[list, list]
+    """
+    landslides = geo_pts.BEZEICHNUNG.str.contains(
+        "Rutschung", case=False, na=False
+    )
+    if landslides.any():
+        geo_pts[landslides].plot(
+            ax=ax,
+            marker="$\downarrow$",
+            edgecolor="r",
+            facecolor="None",
+            markersize=50,
+            zorder=5,
+        )
+        leg_handles, leg_labels = add_line_legend_entry(
+            leg_handles,
+            leg_labels,
+            "Rutschung",
+            marker="$\downarrow$",
+            markeredgecolor="r",
+            markerfacecolor="None",
+            linestyle="None",
+        )
+
+    mining = geo_pts.BEZEICHNUNG.str.contains("Bergbau", case=False, na=False)
+    if mining.any():
+        geo_pts[mining].plot(
+            ax=ax,
+            marker="x",
+            edgecolor="k",
+            facecolor="None",
+            markersize=50,
+            zorder=5,
+        )
+        leg_handles, leg_labels = add_line_legend_entry(
+            leg_handles,
+            leg_labels,
+            "Bergbau",
+            marker="x",
+            markeredgecolor="k",
+            markerfacecolor="None",
+            linestyle="None",
+        )
+    return leg_handles, leg_labels
+
+
+@_add_or_create
+def add_drill_sites(
+    drill_sites: gp.GeoDataFrame,
+    leg_handles: list,
+    leg_labels: list,
+    ax: Axes,
+) -> Tuple[list, list]:
+    """Adds drill sites from the HLNUG server to the axis
+
+    :param drill_sites: The drill sites data loaded from HLNUG
+    :type drill_sites: gp.GeoDataFrame
+    :param leg_handles: The legend handles for symbology
+    :type leg_handles: list
+    :param leg_labels: The legend labels
+    :type leg_labels: list
+    :param ax: The axis to add the data to
+    :type ax: Axes
+    :return: A tuple with the updated legend handles and labels
+    :rtype: Tuple[list, list]
+    """
+    drill_sites.plot(
+        ax=ax,
+        column="ET",
+        scheme="UserDefined",
+        classification_kwds={"bins": [10, 20, 50, 100]},
+        cmap=ListedColormap(
+            [
+                [0.56078431, 0.76078431, 1.0, 1.0],
+                [0.47058824, 0.61176471, 1.0, 1.0],
+                [0.61960784, 0.50196078, 1.0, 1.0],
+                [0.81176471, 0.34117647, 0.96862745, 1.0],
+                [1.0, 0.0, 0.76078431, 1.0],
+            ]
+        ),
+        edgecolor="k",
+    )
+    leg_handles, leg_labels = add_line_legend_entry(
+        leg_handles, leg_labels, "Bohrungen", linestyle="None"
+    )
+    leg_handles, leg_labels = add_line_legend_entry(
+        leg_handles,
+        leg_labels,
+        "< 10 m",
+        marker="o",
+        markerfacecolor=[0.56078431, 0.76078431, 1.0, 1.0],
+        markeredgecolor="k",
+        linestyle="None",
+    )
+    leg_handles, leg_labels = add_line_legend_entry(
+        leg_handles,
+        leg_labels,
+        "10 - 20 m",
+        marker="o",
+        markerfacecolor=[0.47058824, 0.61176471, 1.0, 1.0],
+        markeredgecolor="k",
+        linestyle="None",
+    )
+    leg_handles, leg_labels = add_line_legend_entry(
+        leg_handles,
+        leg_labels,
+        "20 - 50 m",
+        marker="o",
+        markerfacecolor=[0.61960784, 0.50196078, 1.0, 1.0],
+        markeredgecolor="k",
+        linestyle="None",
+    )
+    leg_handles, leg_labels = add_line_legend_entry(
+        leg_handles,
+        leg_labels,
+        "50 - 100 m",
+        marker="o",
+        markerfacecolor=[0.81176471, 0.34117647, 0.96862745, 1.0],
+        markeredgecolor="k",
+        linestyle="None",
+    )
+    leg_handles, leg_labels = add_line_legend_entry(
+        leg_handles,
+        leg_labels,
+        "> 100 m",
+        marker="o",
+        markerfacecolor=[1.0, 0.0, 0.76078431, 1.0],
+        markeredgecolor="k",
+        linestyle="None",
+    )
+    return leg_handles, leg_labels
+
+
+def add_line_legend_entry(
+    leg_handles: list, leg_labels: list, label: str, **kwargs
+) -> Tuple[list, list]:
+    """Helper function to add handles and labels of a line object to the list.
+
+    :param leg_handles: The legend handles for symbology
+    :type leg_handles: list
+    :param leg_labels: The legend labels
+    :type leg_labels: list
+    :param **kwargs: Formatting arguments for the Line2D object
+    :type **kwargs: dict
+    :return: A tuple with the updated legend handles and labels
+    :rtype: Tuple[list, list]
+    """
+    leg_handles.append(mlines.Line2D([], [], **kwargs))
+    leg_labels.append(label)
+    return leg_handles, leg_labels
+
+
+def add_patch_legend_entry(
+    leg_handles: list, leg_labels: list, label: str, **kwargs
+) -> Tuple[list, list]:
+    """Helper function to add handles and labels of a patch object to the list.
+
+    :param leg_handles: The legend handles for symbology
+    :type leg_handles: list
+    :param leg_labels: The legend labels
+    :type leg_labels: list
+    :param **kwargs: Formatting arguments for the Line2D object
+    :type **kwargs: dict
+    :return: A tuple with the updated legend handles and labels
+    :rtype: Tuple[list, list]
+    """
+    leg_handles.append(mpatches.Patch(**kwargs))
+    leg_labels.append(label)
+    return leg_handles, leg_labels

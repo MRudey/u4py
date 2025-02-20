@@ -17,6 +17,7 @@ from . import (
     gnss,
     groundwater,
     rivers,
+    seismo,
     web_services,
 )
 from .adatools import *
@@ -27,4 +28,5 @@ from .gma import *
 from .gnss import *
 from .groundwater import *
 from .rivers import *
+from .seismo import *
 from .web_services import *

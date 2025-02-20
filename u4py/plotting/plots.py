@@ -13,7 +13,6 @@ import contextily
 import geopandas as gp
 import matplotlib.artist as martist
 import matplotlib.cm as mcm
-import matplotlib.lines as mlines
 import matplotlib.patches as mpatches
 import matplotlib.pyplot as plt
 import numpy as np
@@ -602,43 +601,7 @@ def geology_map(
             suffix=f"_{row[1].group:05}",
             out_folder=shp_path,
         )
-        hydro_pts = u4web.query_hlnug(
-            "geologie/gk25/MapServer",
-            "Hydrogeologie (Punktdaten)",
-            region=region,
-            suffix=f"_hygpts_{row[1].group:05}",
-            out_folder=shp_path,
-        )
-        nass = u4web.query_hlnug(
-            "geologie/gk25/MapServer",
-            "Nassstellen",
-            region=region,
-            suffix=f"_nass_{row[1].group:05}",
-            out_folder=shp_path,
-        )
-        water = u4web.query_hlnug(
-            "geologie/gk25/MapServer",
-            "Gewässer",
-            region=region,
-            suffix=f"_water_{row[1].group:05}",
-            out_folder=shp_path,
-        )
-        geo_pts = u4web.query_hlnug(
-            "geologie/gk25/MapServer",
-            "Geologie (Punktdaten)",
-            region=region,
-            suffix=f"_gepts_{row[1].group:05}",
-            out_folder=shp_path,
-        )
-        bohr = u4web.query_hlnug(
-            "geologie/bohrdatenportal/MapServer",
-            "Archivbohrungen, Endteufe [m]",
-            region=region,
-            suffix=f"_bohr_{row[1].group:05}",
-            out_folder=shp_path,
-        )
-
-    if len(geology_data) > 0:
+    if not geology_data.empty:
         # Get symbology and fill legend entry lists
         if "TKEH" in geology_data.keys():  # For data from HLNUG
             leg_list = geology_data["TKEH"].to_list()
@@ -650,35 +613,24 @@ def geology_map(
                     geology_data["einheit"].to_list(),
                 )
             ]
+
+        leg_handles = []
+        leg_labels = []
+
+        leg_handles, leg_labels = u4ax.add_patch_legend_entry(
+            leg_handles,
+            leg_labels,
+            "Bereich der Anomalie",
+            facecolor="None",
+            edgecolor="C0",
+            linewidth=3,
+        )
+
         leg_dict, lgh_from_file, lglb_from_file = (
             u4plotfmt.get_style_from_legend(leg_list, legend_path)
         )
-        leg_handles = []
-        leg_labels = []
-        leg_handles.append(
-            mpatches.Rectangle(
-                (0, -1),
-                width=0.05,
-                height=0.75,
-                facecolor="None",
-                edgecolor="C0",
-                linewidth=3,
-            )
-        )
-        leg_labels.append("Bereich der Anomalie")
         leg_handles.extend(lgh_from_file)
         leg_labels.extend(lglb_from_file)
-        last_row = sum([1 if ll else 0.75 for ll in leg_labels]) + 1
-        leg_handles.append(
-            mlines.Line2D(
-                [0.005, 0.045],
-                [last_row - 1.9, last_row - 1.5],
-                color="k",
-                linewidth=2,
-                zorder=5,
-            )
-        )
-        leg_labels.append("Störungen, inkl. vermutet")
 
         # Plot geological map
         u4ax.add_hlnug_shapes(
@@ -730,19 +682,88 @@ def geology_map(
                 suffix=f"_{row[1].group:05}",
                 out_folder=shp_path,
             )
-        if len(fault_data) > 0:
-            fault_data.plot(ax=ax, color="k")
+        if not fault_data.empty:
+            leg_handles, leg_labels = u4ax.add_fault_data(
+                fault_data=fault_data,
+                leg_handles=leg_handles,
+                leg_labels=leg_labels,
+                ax=ax,
+            )
 
+        hydro_pts = u4web.query_hlnug(
+            "geologie/gk25/MapServer",
+            "Hydrogeologie (Punktdaten)",
+            region=region,
+            suffix=f"_hygpts_{row[1].group:05}",
+            out_folder=shp_path,
+        )
         if not hydro_pts.empty:
-            hydro_pts.plot(ax=ax, color="b")
-        if not nass.empty:
-            nass.plot(ax=ax, color="b")
-        if not water.empty:
-            water.plot(ax=ax, color="c")
+            leg_handles, leg_labels = u4ax.add_hydrological_points(
+                hydro_pts=hydro_pts,
+                leg_handles=leg_handles,
+                leg_labels=leg_labels,
+                ax=ax,
+            )
+
+        soggy_areas = u4web.query_hlnug(
+            "geologie/gk25/MapServer",
+            "Nassstellen",
+            region=region,
+            suffix=f"_nass_{row[1].group:05}",
+            out_folder=shp_path,
+        )
+        if not soggy_areas.empty:
+            leg_handles, leg_labels = u4ax.add_soggy_areas(
+                soggy_areas=soggy_areas,
+                leg_handles=leg_handles,
+                leg_labels=leg_labels,
+                ax=ax,
+            )
+
+        water_surface = u4web.query_hlnug(
+            "geologie/gk25/MapServer",
+            "Gewässer",
+            region=region,
+            suffix=f"_water_{row[1].group:05}",
+            out_folder=shp_path,
+        )
+        if not water_surface.empty:
+            leg_handles, leg_labels = u4ax.add_water_surface(
+                water_surface=water_surface,
+                leg_handles=leg_handles,
+                leg_labels=leg_labels,
+                ax=ax,
+            )
+
+        geo_pts = u4web.query_hlnug(
+            "geologie/gk25/MapServer",
+            "Geologie (Punktdaten)",
+            region=region,
+            suffix=f"_gepts_{row[1].group:05}",
+            out_folder=shp_path,
+        )
         if not geo_pts.empty:
-            geo_pts.plot(ax=ax, color="r")
-        if not bohr.empty:
-            bohr.plot(ax=ax)
+            leg_handles, leg_labels = u4ax.add_geo_pts(
+                geo_pts=geo_pts,
+                leg_handles=leg_handles,
+                leg_labels=leg_labels,
+                ax=ax,
+            )
+
+        drill_sites = u4web.query_hlnug(
+            "geologie/bohrdatenportal/MapServer",
+            "Archivbohrungen, Endteufe [m]",
+            region=region,
+            suffix=f"_bohr_{row[1].group:05}",
+            out_folder=shp_path,
+        )
+        if not drill_sites.empty:
+            leg_handles, leg_labels = u4ax.add_drill_sites(
+                drill_sites=drill_sites,
+                leg_handles=leg_handles,
+                leg_labels=leg_labels,
+                ax=ax,
+            )
 
         # Formatting and other stuff
         u4plotfmt.add_scalebar(ax=ax, width=plot_buffer * 4)
@@ -759,6 +780,7 @@ def geology_map(
 
         # Create legend
         plot_legend(leg_handles, leg_labels, output_path, row[1].group, "GK25")
+
     plt.close(fig)
 
 
@@ -839,17 +861,14 @@ def hydrogeology_map(
         )
         leg_handles = []
         leg_labels = []
-        leg_handles.append(
-            mpatches.Rectangle(
-                (0, -1),
-                width=0.05,
-                height=0.75,
-                facecolor="None",
-                edgecolor="C0",
-                linewidth=3,
-            )
+        leg_handles, leg_labels = u4ax.add_patch_legend_entry(
+            leg_handles,
+            leg_labels,
+            "Bereich der Anomalie",
+            facecolor="None",
+            edgecolor="C0",
+            linewidth=3,
         )
-        leg_labels.append("Bereich der Anomalie")
         leg_handles.extend(lgh_from_file)
         leg_labels.extend(lglb_from_file)
 
@@ -871,11 +890,11 @@ def hydrogeology_map(
 
         # Formatting and other stuff
         u4plotfmt.add_scalebar(ax=ax, width=plot_buffer * 4)
-        # u4ax.add_basemap(
-        #     ax=ax,
-        #     crs=hydro_units_data.crs,
-        #     # source=contextily.providers.CartoDB.Positron,
-        # )
+        u4ax.add_basemap(
+            ax=ax,
+            crs=hydro_units_data.crs,
+            source=contextily.providers.TopPlusOpen.Grey,
+        )
         for ftype in GLOBAL_TYPES:
             fig.savefig(
                 os.path.join(output_path, f"{row[1].group:05}_HUEK200.{ftype}")
@@ -968,17 +987,14 @@ def topsoil_map(
         leg_dict["alpha"] = [0.4 * a for a in leg_dict["alpha"]]
         leg_handles = []
         leg_labels = []
-        leg_handles.append(
-            mpatches.Rectangle(
-                (0, -1),
-                width=0.05,
-                height=0.75,
-                facecolor="None",
-                edgecolor="C0",
-                linewidth=3,
-            )
+        leg_handles, leg_labels = u4ax.add_patch_legend_entry(
+            leg_handles,
+            leg_labels,
+            "Bereich der Anomalie",
+            facecolor="None",
+            edgecolor="C0",
+            linewidth=3,
         )
-        leg_labels.append("Bereich der Anomalie")
         leg_handles.extend(lgh_from_file)
         leg_labels.extend(lglb_from_file)
 
@@ -1000,11 +1016,11 @@ def topsoil_map(
 
         # Formatting and other stuff
         u4plotfmt.add_scalebar(ax=ax, width=plot_buffer * 4)
-        # u4ax.add_basemap(
-        #     ax=ax,
-        #     crs=soil_data.crs,
-        #     # source=contextily.providers.CartoDB.Positron,
-        # )
+        u4ax.add_basemap(
+            ax=ax,
+            crs=soil_data.crs,
+            source=contextily.providers.TopPlusOpen.Grey,
+        )
         for ftype in GLOBAL_TYPES:
             fig.savefig(
                 os.path.join(output_path, f"{row[1].group:05}_BFD50.{ftype}")
@@ -1771,27 +1787,19 @@ def plot_legend(
         grp = f"{group:05}"
 
     logging.info("Creating legend")
-    figl, axl = plt.subplots(
+    figl = plt.figure(
         figsize=(16 / 2.54, len(leg_labels) * 0.25), dpi=GLOBAL_DPI
     )
-
-    ii = 0
-    for lbl in leg_labels:
-        axl.annotate(lbl, (0.06, -0.9 + ii), verticalalignment="top")
-        if lbl:
-            ii += 1
-        else:
-            ii += 0.75
-
-    for lgh in leg_handles:
-        axl.add_artist(lgh)
-
-    axl.axis("off")
-    axl.set_ylim(-1.5, ii - 0.5)
-    axl.set_xlim(0, 1)
-    axl.set_position([0, 0, 1, 1])
-    axl.invert_yaxis()
+    legend = figl.legend(
+        handles=leg_handles, labels=leg_labels, framealpha=1, frameon=False
+    )
+    bbox = legend.get_window_extent()
+    bbox = bbox.from_extents(*(bbox.extents + np.array([-5, -5, 5, 5])))
+    bbox = bbox.transformed(figl.dpi_scale_trans.inverted())
 
     for ftype in GLOBAL_TYPES:
-        figl.savefig(os.path.join(output_path, f"{grp}_{suffix}_leg.{ftype}"))
+        figl.savefig(
+            os.path.join(output_path, f"{grp}_{suffix}_leg.{ftype}"),
+            bbox_inches=bbox,
+        )
     plt.close(figl)
