@@ -227,7 +227,9 @@ def _save_features(
     :return: A geodataframe with the features in EPSG:32632
     :rtype: gp.GeoDataFrame
     """
-    if isinstance(features, dict):
+    if len(features) == 0:
+        gdf = gp.GeoDataFrame(geometry=[])
+    elif isinstance(features, dict):
         with open(out_fname + ".json", "wt") as geojson:
             json.dump(features, geojson)
         gdf = gp.read_file(out_fname + ".json").to_crs("EPSG:32632")
@@ -288,7 +290,10 @@ def _query_server(
         restgeom = polygon_to_restapi(
             region.geometry[0], region.crs.to_string()
         )
-        features = ms_lyr.select_by_location(restgeom)
+        try:
+            features = ms_lyr.select_by_location(restgeom)
+        except restapi.RestAPIException:
+            features = []
     else:
         features = ms_lyr.query()
     return features
