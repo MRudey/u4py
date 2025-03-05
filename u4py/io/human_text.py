@@ -232,7 +232,7 @@ def direction_to_text(
     if out_lang != "abbrev":
         if in_lang == "en":
             desc = translate_abbrev_en[out_lang][desc]
-        if in_lang == "de":
+        elif in_lang == "de":
             desc = translate_abbrev_de[out_lang][desc]
     return desc
 
@@ -282,3 +282,38 @@ def topo_text(
         ustr = ustr.replace("+/-", "±")
         ustr = ustr.replace("\\,", "\u00a0")
     return usl, ustr
+
+
+def listed_strings(entry: str | list) -> str:
+    """
+    Converts a possible list of strings into a more human-readable enumeration
+    of strings.
+
+    :param entry: A single string (returned immediately) or a list of strings to build the enumeration.
+    :type entry: str | list
+    :return: The list of strings with commas
+    :rtype: str
+    """
+
+    # Sometimes we have strings that are lists??
+    if isinstance(entry, str):
+        if entry.startswith("["):
+            entry = eval(entry)
+        else:
+            return entry
+
+    if isinstance(entry, list):
+        if len(entry) < 2:
+            return entry[0]
+        if len(entry) > 2:
+            region_str = ""
+            for ii, ent in enumerate(entry):
+                if ii + 1 != len(entry):
+                    region_str += f"{ent}, "
+                else:
+                    region_str = region_str[:-2] + f" und {entry}"
+            return region_str
+        else:
+            return f"{entry[0]} und {entry[1]}"
+    else:
+        raise TypeError(f"Type of entry is invalid: {type(entry)}!")

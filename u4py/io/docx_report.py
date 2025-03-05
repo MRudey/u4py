@@ -10,19 +10,20 @@ import docx.parts
 import docx.shared
 import geopandas as gp
 import humanize
-import numpy as np
 import uncertainties as unc
 from docx.document import Document
 from docx.enum.text import WD_ALIGN_PARAGRAPH
 
 import u4py.io.human_text as u4human
+from u4py.utils.types import U4ResDict
 
 FIGURENUM = 1
 TABLENUM = 1
+humanize.activate("de")
 
 
 def site_report(
-    row: tuple,
+    row: U4ResDict,
     output_path: os.PathLike,
     suffix: str,
     hlnug_data: gp.GeoDataFrame,
@@ -43,6 +44,13 @@ def site_report(
     output_path_docx = os.path.join(output_path, suffix)
     os.makedirs(output_path_docx, exist_ok=True)
     img_path = os.path.join(output_path, "known_features", f"{group:05}")
+    site_path = os.path.split(os.path.split(output_path)[0])[0]
+    web_query_path = os.path.join(
+        site_path,
+        "Places",
+        "Classifier_shapes",
+        "Web_Queries_" + suffix.split("_")[-1],
+    )
 
     # Create Document and apply style
     document = docx.Document()
@@ -73,17 +81,19 @@ def site_report(
         document = details_and_satellite(img_path, img_fmt, document)
     # Manual Classification or HLNUG data
     document = hlnug_description(
-        hlnug_data[hlnug_data.AMT_NR_ == group], document
+        hlnug_data[hlnug_data.AMT_NR_ == group],
+        row[1],
+        document,
+        web_query_path,
     )
-    document = shape(row[1], document)
     document = landuse(row[1], document)
 
     # Volumina
     document = moved_volumes(row[1], document)
 
     # Difference maps
-    if os.path.exists(img_path + f"_diffplan.{img_fmt}"):
-        document = difference(img_path, img_fmt, document)
+    if os.path.exists(img_path + f"_dem.{img_fmt}"):
+        document = dem(img_path, img_fmt, document)
 
     # Topographie
     if os.path.exists(img_path + f"_slope.{img_fmt}") or os.path.exists(
@@ -94,9 +104,6 @@ def site_report(
     # PSI Data
     if os.path.exists(img_path + f"_psi.{img_fmt}"):
         document = psi_map(img_path, img_fmt, document)
-
-    # Geohazard
-    document = geohazard(row[1], document)
 
     # Geologie etc...
     if os.path.exists(img_path + f"_GK25.{img_fmt}"):
@@ -119,11 +126,6 @@ def location(series: gp.GeoSeries, document: Document) -> Document:
     :rtype: str
     """
 
-    wgs_point = gp.GeoDataFrame(
-        geometry=[series.geometry.centroid], crs="EPSG:32632"
-    ).to_crs("EPSG:4326")
-    lat = np.round(float(wgs_point.geometry.y.iloc[0]), 6)
-    lng = np.round(float(wgs_point.geometry.x.iloc[0]), 6)
     document.add_heading("Lokalität:", level=1)
 
     prgph = document.add_paragraph()
@@ -134,27 +136,6 @@ def location(series: gp.GeoSeries, document: Document) -> Document:
     prgph.add_run("Koordinaten (UTM 32N): ").bold = True
     prgph.add_run(f"{int(series.geometry.centroid.y)} N ")
     prgph.add_run(f"{int(series.geometry.centroid.x)} E")
-
-    prgph = document.add_paragraph()
-    prgph.alignment = WD_ALIGN_PARAGRAPH.LEFT
-    prgph.add_run("Google Maps: ").bold = True
-    prgph.add_run(
-        f"https://www.google.com/maps/place/{lat},{lng}/@{lat},{lng}/data=!3m1!1e3"
-    )
-
-    prgph = document.add_paragraph()
-    prgph.alignment = WD_ALIGN_PARAGRAPH.LEFT
-    prgph.add_run("Bing Maps: ").bold = True
-    prgph.add_run(
-        f"https://bing.com/maps/default.aspx?cp={lat}~{lng}&style=h&lvl=15"
-    )
-
-    prgph = document.add_paragraph()
-    prgph.alignment = WD_ALIGN_PARAGRAPH.LEFT
-    prgph.add_run("OpenStreetMap: ").bold = True
-    prgph.add_run(
-        f"http://www.openstreetmap.org/?lat={lat}&lon={lng}&zoom=17&layers=M"
-    )
     return document
 
 
@@ -178,12 +159,10 @@ def details_and_satellite(
     prgph = document.add_paragraph()
     prgph.add_run(f"Abbildung {FIGURENUM}: ").bold = True
     FIGURENUM += 1
-    prgph.add_run("Lokalität der Anomalie. ")
+    prgph.add_run("Lokalität der Rutschung. ")
     prgph.add_run("Links: ").italic = True
     prgph.add_run(
-        "Übersicht über das Gebiet der Gruppe inklusive verschiedener "
-        + "Geogefahren und der detektierten Anomalien "
-        + "(Kartengrundlage OpenStreetMap). "
+        "Übersicht über das Gebiet der Rutschung inklusive weiterer Rutschungen (Basiskarte OpenStreetMap). "
     )
     prgph.add_run("Rechts: ").italic = True
     prgph.add_run("Luftbild basierend auf ESRI Imagery.")
@@ -191,7 +170,12 @@ def details_and_satellite(
     return document
 
 
-def hlnug_description(hld: gp.GeoDataFrame, document: Document) -> Document:
+def hlnug_description(
+    hld: gp.GeoDataFrame,
+    row: U4ResDict,
+    document: Document,
+    web_query_path: os.PathLike,
+) -> Document:
     """Adds a description based on HLNUG data
 
     :param hld: The dataset
@@ -199,160 +183,117 @@ def hlnug_description(hld: gp.GeoDataFrame, document: Document) -> Document:
     :return: The description
     :rtype: str
     """
-
-    def kart_str(in_str):
-        if "ja" in in_str:
-            spl = in_str.split(" ")
-            if len(spl) > 2:
-                return f"von {spl[1]} am {spl[2]}"
-            else:
-                return f"von {spl[1]}"
-        else:
-            return "aus dem DGM"
-
     document.add_heading("Beschreibung", level=1)
     prgph = document.add_paragraph()
-    prgph.add_run(f"Es handelt sich hierbei um eine {hld.OBJEKT.values[0]} ")
-    if hld.HERKUNFT.values[0]:
-        prgph.add_run(f"welche durch {hld.HERKUNFT.values[0]} ")
-        if hld.KARTIERT.values[0]:
-            prgph.add_run(f"{kart_str(hld.KARTIERT.values[0])} ")
-        prgph.add_run("kartiert wurde")
-    prgph.add_run(". ")
-    if hld.KLASSI_DGM.values[0]:
-        prgph.add_run(f"Der Befund im DGM ist {hld.KLASSI_DGM.values[0]}. ")
-    if hld.RU_SCHICHT.values[0]:
+
+    # Add geological structural area
+    structure_string = u4human.listed_strings(row["structural_region"])
+    if isinstance(structure_string, list):
         prgph.add_run(
-            f"Die betroffenen Einheiten sind {hld.RU_SCHICHT.values[0]} "
+            f"Die Rutschung liegt in den geologischen Strukturräumen {structure_string} "
         )
-        if hld.RU_SCHIC_2.values[0]:
-            prgph.add_run(f"und {hld.RU_SCHIC_2.values[0]} ")
-        if hld.GEOLOGIE.values[0]:
-            prgph.add_run(f"auf {hld.GEOLOGIE.values[0]} ")
-            if hld.STR_SYSTEM.values[0]:
-                prgph.add_run(f"({hld.STR_SYSTEM.values[0]})")
-        prgph.add_run(". ")
     else:
-        if hld.GEOLOGIE.values[0]:
-            prgph.add_run(
-                f"Die Geologie besteht aus {hld.GEOLOGIE.values[0]} "
-            )
-            if hld.STR_SYSTEM.values[0]:
-                prgph.add_run(f"({hld.STR_SYSTEM.values[0]})")
-        prgph.add_run(". ")
-
-    if hld.FLAECHE_M2.values[0]:
         prgph.add_run(
-            f"Die betroffene Fläche beträgt {np.round(hld.FLAECHE_M2.values[0], -2)} m². "
+            f'Die Rutschung liegt im geologischen Strukturraum "{structure_string}" '
         )
 
-    if hld.LAENGE_M.values[0] and hld.BREITE_M.values[0]:
-        prgph.add_run(
-            f"Sie ist {hld.LAENGE_M.values[0]}\u00a0m lang und {hld.BREITE_M.values[0]}\u00a0m breit"
-        )
-        if (
-            hld.H_MAX_MNN.values[0]
-            and hld.H_MIN_MNN.values[0]
-            and hld.H_DIFF_M.values[0]
-        ):
-            prgph.add_run(
-                f" und erstreckt sich von {hld.H_MAX_MNN.values[0]}\u00a0m NN bis {hld.H_MIN_MNN.values[0]}\u00a0m NN über {hld.H_DIFF_M.values[0]}\u00a0m Höhendifferenz"
+    # Add number and name of geological map
+    if isinstance(row["geology_mapnum"], list):
+        map_list = [
+            f"{mpnum} {mpname}"
+            for mpnum, mpname in zip(
+                row["geology_mapnum"], row["geology_mapname"]
             )
-        prgph.add_run(". ")
-
-    if hld.EXPOSITION.values[0]:
-        if hld.EXPOSITION.values[0] != "n.b.":
-            prgph.add_run(
-                f"Das Gelände fällt nach {u4human.direction_to_text(hld.EXPOSITION.values[0], in_lang='de')} ein. "
-            )
-
-    if hld.LANDNUTZUN.values[0]:
+        ]
+        mapnum_string = u4human.listed_strings(map_list)
+        prgph.add_run(f"auf den Kartenblättern {mapnum_string}. ")
+    else:
         prgph.add_run(
-            f"Im wesentlichen ist das Gebiet von {hld.LANDNUTZUN.values[0]} bedeckt. "
+            f"auf dem Kartenblatt {row['geology_mapnum']} {row['geology_mapname']}. "
         )
 
-    if hld.URSACHE.values[0]:
-        prgph.add_run(f"Eine mögliche Ursache ist {hld.URSACHE.values[0]}. ")
+    # Add dimensions
+    prgph.add_run(
+        f"Sie hat eine Länge von ca. {hld['LAENGE_M'].values[0]}\u00a0m, eine Breite von ca. {hld['BREITE_M'].values[0]}\u00a0m und verläuft nach {u4human.direction_to_text(hld['EXPOSITION'].values[0], in_lang='de')}. "
+    )
 
-    if hld.SCHUTZ_OBJ.values[0]:
-        if hld.SCHUTZ_OBJ.values[0] == "nicht bekannt":
-            prgph.add_run("Eine potentielle Gefährdung ist nicht bekannt. ")
-        else:
-            prgph.add_run(
-                f"Eine potentielle Gefährdung für {hld.SCHUTZ_OBJ.values[0]} könnte vorliegen. "
-            )
+    # Add sliding layers
+    prgph.add_run(
+        f"Die an der Rutschung beteiligten Schichten sind {hld['RU_SCHICHT'].values[0]}"
+    )
+    if hld["RU_SCHIC_2"].values[0]:
+        prgph.add_run(f" und {hld['RU_SCHIC_2'].values[0]}")
+    prgph.add_run(". ")
 
-    if hld.AKTIVITAET.values[0]:
-        if hld.AKTIVITAET.values[0] == "nicht bekannt":
-            prgph.add_run("Eine mögliche Aktivität ist nicht bekannt. ")
-        if hld.AKTIVITAET.values[0] == "aktiv":
-            prgph.add_run(f"Die {hld.OBJEKT.values[0]} ist aktiv. ")
-
-    if hld.MASSNAHME.values[0]:
-        if hld.MASSNAHME.values[0] == "nicht bekannt":
-            prgph.add_run("Über unternommene Maßnahmen ist nichts bekannt. ")
-        else:
-            prgph.add_run("")
-
-    if hld.BEMERKUNG.values[0]:
-        prgph = document.add_paragraph()
-        prgph.add_run(
-            "Kommentar: " + hld.BEMERKUNG.values[0] + "."
-        ).italic = True
-
-    return document
-
-
-def shape(series: gp.GeoSeries, document: Document) -> Document:
-    """Adds shape information to the document
-
-    :param series: The GeoSeries object extracted from the row.
-    :type series: gp.GeoSeries
-    :return: The tex code.
-    :rtype: str
-    """
-    humanize.activate("de")
-    prgph = document.add_paragraph()
-    prgph.add_run("Größe und Form: ").bold = True
-
-    long_ax = eval(series["shape_ellipse_a"])
-    short_ax = eval(series["shape_ellipse_b"])
-    if isinstance(long_ax, list):
-        areas = [np.pi * a * b for a, b in zip(long_ax, short_ax)]
-        if len(areas) > 0:
-            imax = np.argmax(areas)
-            imin = np.argmin(areas)
-            if len(long_ax) > 2:
-                lax = (
-                    f"zwischen {round(np.min(long_ax))} und "
-                    + f"{round(np.max(long_ax))}"
-                )
-                sax = (
-                    f"zwischen {round(np.min(short_ax))} und "
-                    + f"{round(np.max(short_ax))}"
-                )
+    # Add roads
+    if (
+        row["roads_has_motorway"]
+        or row["roads_has_primary"]
+        or row["roads_has_secondary"]
+    ):
+        road_list = []
+        if row["roads_has_motorway"]:
+            if row["roads_motorway_names"].startswith("["):
+                motorway_names = eval(row["roads_motorway_names"])
             else:
-                lax = f"{round(long_ax[0])} und {round(long_ax[1])}"
-                sax = f"{round(short_ax[0])} und {round(short_ax[1])}"
-
-            prgph.add_run(
-                f"Es handelt sich um {humanize.apnumber(len(long_ax))} "
-                + f"Anomalien. Die Anomalien sind {lax}\u00a0m lang und {sax}"
-                + "\u00a0m breit. "
-            )
-            if len(long_ax) > 2:
-                prgph.add_run(
-                    "Die flächenmäßig kleinste Anomalie ist hierbei "
-                    + f"{round(long_ax[imin])}\u00a0m lang und "
-                    + f"{round(short_ax[imin])}\u00a0m breit, die größte "
-                    + f"{round(long_ax[imax])}\u00a0m lang und "
-                    + f"{round(short_ax[imax])}\u00a0m breit. "
+                motorway_names = row["roads_motorway_names"]
+            motorway_lengths = eval(row["roads_motorway_length"])
+            if isinstance(motorway_lengths, list):
+                for rname, rlen in zip(motorway_names, motorway_lengths):
+                    road_list.append(
+                        f"der {rname} auf einer Länge von {rlen:.1f}\u00a0m"
+                    )
+            else:
+                road_list.append(
+                    f"der {motorway_names} auf einer Länge von {motorway_lengths:.1f}\u00a0m"
                 )
-    if isinstance(long_ax, float):
-        lax = f"{round(long_ax)}"
-        sax = f"{round(short_ax)}"
-        prgph.add_run(f"Die Anomalie ist {lax} m lang und {sax} m breit. ")
+        if row["roads_has_primary"]:
+            if row["roads_primary_names"].startswith("["):
+                primary_names = eval(row["roads_primary_names"])
+            else:
+                primary_names = row["roads_primary_names"]
+            primary_lengths = eval(row["roads_primary_length"])
+            if isinstance(primary_lengths, list):
+                for rname, rlen in zip(primary_names, primary_lengths):
+                    road_list.append(
+                        f"der {rname} auf einer Länge von {rlen:.1f}\u00a0m"
+                    )
+            else:
+                road_list.append(
+                    f"der {primary_names} auf einer Länge von {primary_lengths:.1f}\u00a0m"
+                )
+        if row["roads_has_secondary"]:
+            if row["roads_secondary_names"].startswith("["):
+                secondary_names = eval(row["roads_secondary_names"])
+            else:
+                secondary_names = row["roads_secondary_names"]
+            secondary_lengths = eval(row["roads_secondary_length"])
+            if isinstance(secondary_lengths, list):
+                for rname, rlen in zip(secondary_names, secondary_lengths):
+                    road_list.append(
+                        f"der {rname} auf einer Länge von {rlen:.1f}\u00a0m"
+                    )
+            else:
+                road_list.append(
+                    f"der {secondary_names} auf einer Länge von {secondary_lengths:.1f}\u00a0m"
+                )
+        prgph.add_run(
+            f"Die Rutschung wird von {u4human.listed_strings(road_list)} durchkreuzt. "
+        )
 
+    # Add drill sites
+    drill_path = os.path.join(
+        web_query_path,
+        f"Archivbohrungen, Endteufe [m]_bohr_{row['group']:05}.gpkg",
+    )
+    if os.path.exists(drill_path):
+        num_wells = len(gp.read_file(drill_path))
+        if num_wells > 1:
+            prgph.add_run(
+                f"Im Umfeld der Rutschung sind {humanize.apnumber(num_wells)} Bohrungen bekannt. "
+            )
+        elif num_wells == 1:
+            prgph.add_run("Im Umfeld der Rutschung ist eine Bohrung bekannt. ")
     return document
 
 
@@ -376,7 +317,7 @@ def landuse(series: gp.GeoSeries, document: Document) -> Document:
         prgph.add_run(
             "Der überwiegende Teil wird durch "
             + f"{u4human.landuse_str(series.landuse_major)} bedeckt. "
-            + "Die Anteile der Landnutzung sind: "
+            + "Die Anteile der Landnutzung nach OpenStreetMap sind: "
         )
         if isinstance(landuse, list):
             lnd_str = ""
@@ -402,7 +343,8 @@ def moved_volumes(series: gp.GeoSeries, document: Document) -> Document:
     """
     document.add_heading("Höhenveränderungen", level=1)
     document.add_paragraph(
-        "Im Gebiet um die detektierte Anomalie wurde insgesamt "
+        "Im Gebiet um die detektierte Anomalie wurde laut vorliegendem "
+        + "Differenzenplan (HVBG) insgesamt "
         + f"{series.volumes_moved}\u00a0m³ Material bewegt, "
         + f"wovon {series.volumes_added}\u00a0m³ hinzugefügt und "
         + f"{abs(series.volumes_removed)}\u00a0m³ abgetragen wurde. "
@@ -412,10 +354,8 @@ def moved_volumes(series: gp.GeoSeries, document: Document) -> Document:
     return document
 
 
-def difference(
-    img_path: os.PathLike, img_fmt: str, document: Document
-) -> Document:
-    """Adds the difference and slope maps.
+def dem(img_path: os.PathLike, img_fmt: str, document: Document) -> Document:
+    """Adds the dem maps.
 
     :param img_path: The path to the image folder including group name.
     :type img_path: os.PathLike
@@ -423,24 +363,19 @@ def difference(
     :rtype: str
     """
     global FIGURENUM
-    if os.path.exists(img_path + f"_diffplan.{img_fmt}") and os.path.exists(
-        img_path + f"_dem.{img_fmt}"
-    ):
+    if os.path.exists(img_path + f"_dem.{img_fmt}"):
         prgph = document.add_paragraph()
         prgph.alignment = WD_ALIGN_PARAGRAPH.CENTER
         run = prgph.add_run()
         run.add_picture(
-            img_path + f"_diffplan.{img_fmt}", width=docx.shared.Mm(70)
+            img_path + f"_dem.{img_fmt}", width=docx.shared.Mm(140)
         )
-        run.add_picture(img_path + f"_dem.{img_fmt}", width=docx.shared.Mm(70))
     prgph = document.add_paragraph()
     prgph.add_run(f"Abbildung {FIGURENUM}: ").bold = True
     FIGURENUM += 1
-    prgph.add_run("Höhendaten im Bereich der Anomalie. ")
-    prgph.add_run("Links: ").italic = True
-    prgph.add_run("Differenzenplan im Gebiet.")
-    prgph.add_run("Rechts: ").italic = True
-    prgph.add_run("Digitales Höhenmodell (Schummerung).")
+    prgph.add_run(
+        "Digitales Höhenmodell DGM 1 (HVBG) und vorhandene Bohrungen."
+    )
     return document
 
 
@@ -461,8 +396,8 @@ def topography(
     document.add_heading("Topographie", level=1)
 
     document.add_paragraph(
-        "In den folgenden Jahren war die Topographie im Bereich der "
-        + "Anomalien wie folgt:"
+        "In den Jahren 2014, 2019 und 2021 war die Topographie anhand des DGM1"
+        + " (HVBG) im Bereich der Rutschung wie folgt:"
     )
     for yy in ["14", "19", "21"]:
         year = f"20{yy}"
@@ -478,7 +413,7 @@ def topography(
             if isinstance(sl_m, list) or isinstance(sl_m, float):
                 usl, usl_str = u4human.topo_text(sl_m, sl_s, "%", is_tex=False)
                 prgph.add_run(
-                    f"Im Bereich der Anomalie {u4human.slope_std_str(usl.s)} "
+                    f"Im Bereich der Rutschung {u4human.slope_std_str(usl.s)} "
                     + f"und {u4human.slope_str(usl.n)} ({usl_str}). "
                 )
                 if as_m:
@@ -491,7 +426,7 @@ def topography(
                     )
             else:
                 prgph.add_run(
-                    "Es liegen für den inneren Bereich der Anomalie keine Daten vor (außerhalb DEM). "
+                    "Es liegen für den inneren Bereich der Rutschung keine Daten vor (außerhalb DEM). "
                 )
 
             # Values for the hull around all anomalies
@@ -519,7 +454,7 @@ def topography(
                     )
             else:
                 prgph.add_run(
-                    "Es liegen für das nähere Umfeld der Anomalien keine Werte für die Steigung vor. "
+                    "Es liegen für das nähere Umfeld der Rutschung keine Werte für die Steigung vor. "
                 )
 
     if os.path.exists(img_path + f"_slope.{img_fmt}") and os.path.exists(
@@ -582,149 +517,15 @@ def psi_map(
     FIGURENUM += 1
     prgph.add_run(
         "Persistent scatterer und Zeitreihe der Deformation "
-        + "im Gebiet der Gruppe."
+        + "im Gebiet der Rutschung."
     )
-    print(img_path)
-    return document
-
-
-def geohazard(series: gp.GeoSeries, document: Document) -> Document:
-    """Converts the known geohazards into a descriptive text.
-
-    :param series: The GeoSeries object extracted from the row.
-    :type series: gp.GeoSeries
-    :return: The tex code.
-    :rtype: str
-    """
-    global TABLENUM
-    document.add_heading("Geogefahren", level=1)
-    prgph = document.add_paragraph()
-    prgph.add_run(f"Tabelle {TABLENUM}: ").bold = True
-    prgph.add_run("Bekannte Geogefahren im Bereich der Rutschung.")
-    table = document.add_table(rows=4, cols=3, style="Light Shading Accent 1")
-    table.cell(0, 0).text = "Typ"
-    table.cell(0, 1).text = "Innerhalb des Areals"
-    table.cell(0, 2).text = "Im Umkreis von 1 km"
-    table.cell(1, 0).text = "Hangrutschungen"
-    table.cell(1, 1).text = f"{series.landslides_num_inside}"
-    table.cell(1, 2).text = f"{series.landslides_num_1km}"
-    table.cell(2, 0).text = "Karsterscheinungen"
-    table.cell(2, 1).text = f"{series.karst_num_inside}"
-    table.cell(2, 2).text = f"{series.karst_num_1km}"
-    table.cell(3, 0).text = "Steinschläge"
-    table.cell(3, 1).text = f"{series.rockfall_num_inside}"
-    table.cell(3, 2).text = f"{series.rockfall_num_1km}"
-
-    document = landslide_risk(series, document)
-    document = karst_risk(series, document)
-    document = subsidence_risk(series, document)
-    return document
-
-
-def landslide_risk(series: gp.GeoSeries, document: Document) -> Document:
-    """Converts the known landslides into a descriptive text.
-
-    :param series: The GeoSeries object extracted from the row.
-    :type series: gp.GeoSeries
-    :return: The tex code.
-    :rtype: str
-    """
-    lsar = series.landslide_total
-    document.add_heading("Rutschungsgefährdung", level=2)
-    prgph = document.add_paragraph()
-    if lsar > 0:
-        prgph.add_run(
-            f"Das Gebiet liegt {u4human.part_str(lsar)} ({lsar:.0f}%) in "
-            + "einem gefährdeten Bereich mit rutschungsanfälligen Schichten. "
-        )
-        try:
-            landslide_units = eval(series.landslide_units)
-        except (NameError, SyntaxError):
-            landslide_units = series.landslide_units
-        if isinstance(landslide_units, list):
-            text = "Die Einheiten sind: "
-            for unit in landslide_units:
-                text += f"{unit}, "
-            prgph.add_run(text[:-2] + ".")
-        else:
-            prgph.add_run(f"Wichtigste Einheiten sind {landslide_units}.")
-    else:
-        prgph.add_run(
-            "Es liegen keine Informationen zur Rutschungsgefährdung vor."
-        )
-    return document
-
-
-def karst_risk(series: gp.GeoSeries, document: Document) -> Document:
-    """Converts the known karst phenomena into a descriptive text.
-
-    :param series: The GeoSeries object extracted from the row.
-    :type series: gp.GeoSeries
-    :return: The tex code.
-    :rtype: str
-    """
-    ksar = series.karst_total
-    document.add_heading("Karstgefährdung", level=2)
-    prgph = document.add_paragraph()
-    if ksar > 0:
-        prgph.add_run(
-            f"Das Gebiet liegt {u4human.part_str(ksar)} ({ksar:.0f}\%) in "
-            + "einem Bereich bekannter verkarsteter Schichten. "
-        )
-        try:
-            karst_units = eval(series.karst_units)
-        except (NameError, SyntaxError):
-            karst_units = series.karst_units
-        if isinstance(karst_units, list):
-            text = "Die Einheiten sind: "
-            for unit in karst_units:
-                text += f"{unit}, "
-            prgph.add_run(text[:-2] + ".")
-        else:
-            prgph.add_run(f"Wichtigste Einheiten sind {karst_units}.")
-    else:
-        prgph.add_run("Es liegen keine Informationen zur Karstgefährdung vor.")
-    return document
-
-
-def subsidence_risk(series: gp.GeoSeries, document: Document) -> Document:
-    """Converts the area of known subsidence into a descriptive text.
-
-    :param series: The GeoSeries object extracted from the row.
-    :type series: gp.GeoSeries
-    :return: The tex code.
-    :rtype: str
-    """
-    subsar = series.subsidence_total
-    document.add_heading("Setzungsgefährdung", level=2)
-    prgph = document.add_paragraph()
-    if subsar > 0:
-        prgph.add_run(
-            f"Das Gebiet liegt {u4human.part_str(subsar)} ({subsar:.0f}\%) in "
-            + "einem Bereich bekannter setzungsgefährdeter Schichten. "
-        )
-        try:
-            subsidence_units = eval(series.subsidence_units)
-        except (NameError, SyntaxError):
-            subsidence_units = series.subsidence_units
-        if isinstance(subsidence_units, list):
-            text = "Die Einheiten sind: "
-            for unit in subsidence_units:
-                text += f"{unit}, "
-            prgph.add_run(text[:-2] + ".")
-        else:
-            prgph.add_run(f"Wichtigste Einheiten sind {subsidence_units}.")
-    else:
-        prgph.add_run(
-            "Es liegen keine Informationen zur Setzungsgefährdung vor."
-        )
     return document
 
 
 def geology(
     img_path: os.PathLike, img_fmt: str, document: Document
 ) -> Document:
-    """Adds information for geology to the docum
+    """Adds information for geology to the document.
 
     :param img_path: The path to the geology image file.
     :type img_path: os.PathLike
@@ -746,7 +547,7 @@ def geology(
     prgph.alignment = WD_ALIGN_PARAGRAPH.CENTER
     run = prgph.add_run()
     run.add_picture(
-        img_path + f"_GK25_leg.{img_fmt}", width=docx.shared.Mm(150)
+        img_path + f"_GK25_leg.{img_fmt}", width=docx.shared.Mm(70)
     )
 
     prgph = document.add_paragraph()
@@ -784,7 +585,7 @@ def hydrogeology(
     prgph.alignment = WD_ALIGN_PARAGRAPH.CENTER
     run = prgph.add_run()
     run.add_picture(
-        img_path + f"_HUEK200_leg.{img_fmt}", width=docx.shared.Mm(150)
+        img_path + f"_HUEK200_leg.{img_fmt}", width=docx.shared.Mm(70)
     )
 
     prgph = document.add_paragraph()
@@ -798,7 +599,7 @@ def hydrogeology(
 
 
 def soils(img_path: os.PathLike, img_fmt: str, document: Document) -> Document:
-    """Adds information for soils to the documen
+    """Adds information for soils to the document.
 
     :param img_path: The path to the soils image file.
     :type img_path: os.PathLike
@@ -820,7 +621,7 @@ def soils(img_path: os.PathLike, img_fmt: str, document: Document) -> Document:
     prgph.alignment = WD_ALIGN_PARAGRAPH.CENTER
     run = prgph.add_run()
     run.add_picture(
-        img_path + f"_BFD50_leg.{img_fmt}", width=docx.shared.Mm(150)
+        img_path + f"_BFD50_leg.{img_fmt}", width=docx.shared.Mm(70)
     )
 
     prgph = document.add_paragraph()

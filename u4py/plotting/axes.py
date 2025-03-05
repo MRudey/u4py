@@ -926,7 +926,7 @@ def add_gpkg_data_in_axis(
     ax: Axes,
     ax_crs: str = "EPSG:32632",
     **plot_kwargs,
-):
+) -> mpatches.Patch:
     """Adds data from a gpkg file to the plot using the boundaries of the axis as the extend of the geometry
 
     :param gpkg_path: The path to the geodatabase with HLNUG data.
@@ -937,6 +937,8 @@ def add_gpkg_data_in_axis(
     :type ax: Axes
     :param **plot_kwargs: Keyword arguments passed to the `GeoDataFrame.plot()` function.
     :type **plot_kwargs: dict
+    :return: A legend handle for the data
+    :rtype: mpatches.Patch
     """
     crs = u4sql.get_crs(gpkg_path, table)[0]
     region = gp.GeoDataFrame(
@@ -948,10 +950,46 @@ def add_gpkg_data_in_axis(
     if "column" in plot_kwargs.keys():
         if plot_kwargs["column"] not in data.keys():
             plot_kwargs["column"] = None
-    if len(data) > 0:
-        data.plot(ax=ax, **plot_kwargs)
+    # Special plotting for roads
+    if "fclass" in plot_kwargs.keys():
+        data = data[data["fclass"] == plot_kwargs["fclass"]]
+        if not data.empty:
+            if plot_kwargs["fclass"] == "motorway":
+                # Orange buffered shape with black edges and black center line
+                plot_kwargs["facecolor"] = "#ffb300"
+                plot_kwargs["edgecolor"] = "k"
+                plot_kwargs["linewidth"] = 0.5
+                plot_kwargs["zorder"] = 4
+                del plot_kwargs["fclass"]
+                gdf = gp.GeoDataFrame(geometry=[data.buffer(25).unary_union])
+                gdf.plot(ax=ax, **plot_kwargs)
+                data.plot(ax=ax, color="k", linewidth=0.5)
+                return mpatches.Patch(label="Autobahn", **plot_kwargs)
+            elif plot_kwargs["fclass"] == "primary":
+                # Yellow buffered shape with black edges
+                plot_kwargs["facecolor"] = "#ffff00"
+                plot_kwargs["edgecolor"] = "k"
+                plot_kwargs["linewidth"] = 0.5
+                plot_kwargs["zorder"] = 4
+                del plot_kwargs["fclass"]
+                gdf = gp.GeoDataFrame(geometry=[data.buffer(10).unary_union])
+                gdf.plot(ax=ax, **plot_kwargs)
+                return mpatches.Patch(label="Bundesstraße", **plot_kwargs)
+            elif plot_kwargs["fclass"] == "secondary":
+                # White buffered shape with black edges
+                plot_kwargs["facecolor"] = "#ffffff"
+                plot_kwargs["edgecolor"] = "k"
+                plot_kwargs["linewidth"] = 0.5
+                plot_kwargs["zorder"] = 4
+                del plot_kwargs["fclass"]
+                gdf = gp.GeoDataFrame(geometry=[data.buffer(10).unary_union])
+                gdf.plot(ax=ax, **plot_kwargs)
+                return mpatches.Patch(label="Landstraße", **plot_kwargs)
     else:
-        logging.info("No data inside axis found.")
+        if len(data) > 0:
+            data.plot(ax=ax, **plot_kwargs)
+        else:
+            logging.info("No data inside axis found.")
 
 
 @_add_or_create
@@ -1347,20 +1385,20 @@ def add_geo_pts(
 @_add_or_create
 def add_drill_sites(
     drill_sites: gp.GeoDataFrame,
-    leg_handles: list,
-    leg_labels: list,
     ax: Axes,
+    leg_handles: list = [],
+    leg_labels: list = [],
 ) -> Tuple[list, list]:
     """Adds drill sites from the HLNUG server to the axis
 
     :param drill_sites: The drill sites data loaded from HLNUG
     :type drill_sites: gp.GeoDataFrame
-    :param leg_handles: The legend handles for symbology
-    :type leg_handles: list
-    :param leg_labels: The legend labels
-    :type leg_labels: list
     :param ax: The axis to add the data to
     :type ax: Axes
+    :param leg_handles: The legend handles for symbology, defaults to [].
+    :type leg_handles: list
+    :param leg_labels: The legend labels, defaults to [].
+    :type leg_labels: list
     :return: A tuple with the updated legend handles and labels
     :rtype: Tuple[list, list]
     """

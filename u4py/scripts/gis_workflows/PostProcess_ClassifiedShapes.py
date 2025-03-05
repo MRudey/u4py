@@ -28,10 +28,10 @@ def main():
         proj_path = args.input
     else:
         # proj_path = r"~\Documents\ArcGIS\U4_projects\PostProcess_ClassifiedShapesHLNUG.u4project"
-        # proj_path = (
-        #     "~/Documents/umwelt4/PostProcess_ClassifiedShapesHLNUG.u4project"
-        # )
-        proj_path = "~/Documents/umwelt4/PostProcess_ClassifiedShapes_onlyLarge.u4project"
+        proj_path = (
+            "~/Documents/umwelt4/PostProcess_ClassifiedShapesHLNUG.u4project"
+        )
+        # proj_path = "~/Documents/umwelt4/PostProcess_ClassifiedShapes_onlyLarge.u4project"
         # proj_path = (
         #     "~/Documents/umwelt4/PostProcess_ClassifiedShapes_hazard.u4project"
         # )
@@ -48,7 +48,8 @@ def main():
     )
 
     if project.getboolean("config", "is_hlnug"):
-        u4plots.GLOBAL_TYPES = ["png"]
+        u4plots.IMAGE_FORMATS = ["png"]
+        u4plots.IS_HLNUG = True
 
     # Setting up paths
     output_path = os.path.join(
@@ -73,10 +74,13 @@ def main():
         "DGM1_2021",
         "raster_2021",
     )
-    contour_path = os.path.join(
-        project["paths"]["results_path"],
-        "thresholded_contours_all_shapes.gpkg",
-    )
+    if project.getboolean("config", "is_hlnug"):
+        contour_path = class_shp_fp
+    else:
+        contour_path = os.path.join(
+            project["paths"]["results_path"],
+            "thresholded_contours_all_shapes.gpkg",
+        )
 
     # Read Data
     if project.getboolean("config", "use_filtered"):
@@ -166,20 +170,17 @@ def main():
             else:
                 u4tex.multi_report(output_path)
         else:
-            ii = 0
             for row in tqdm(
                 gdf_filtered.iterrows(),
                 desc="Generating docx files",
                 total=len(gdf_filtered),
             ):
-                if ii < 20:
-                    u4docx.site_report(
-                        row,
-                        output_path,
-                        project["metadata"]["report_suffix"],
-                        hlnug_data,
-                    )
-                    ii += 1
+                u4docx.site_report(
+                    row,
+                    output_path,
+                    "docx_reports" + project["metadata"]["report_suffix"],
+                    hlnug_data,
+                )
 
 
 def filter_shapes(
@@ -275,6 +276,15 @@ def map_worker(
     :type contour_path: os.PathLike
     """
 
+    shp_path = os.path.join(
+        project["paths"]["places_path"],
+        "Classifier_shapes",
+        "Web_Queries" + suffix,
+    )
+    places_path = os.path.join(
+        project["paths"]["places_path"], "OSM_shapes", "all_shapes.gpkg"
+    )
+
     u4plots.detailed_map(
         row,
         crs,
@@ -284,6 +294,7 @@ def map_worker(
         contour_path,
         plot_buffer=250,
         overwrite=overwrite_plots,
+        places_path=places_path,
     )
     u4plots.satimg_map(
         row,
@@ -294,25 +305,38 @@ def map_worker(
         plot_buffer=100,
         overwrite=overwrite_plots,
     )
-    u4plots.diffplan_map(
-        row,
-        crs,
-        output_path,
-        "known_features",
-        project["paths"]["diff_plan_path"],
-        plot_buffer=100,
-        overwrite=overwrite_plots,
-    )
-    u4plots.dem_map(
-        row,
-        crs,
-        output_path,
-        "known_features",
-        dem_path,
-        contour_path,
-        plot_buffer=100,
-        overwrite=overwrite_plots,
-    )
+    if not u4plots.IS_HLNUG:
+        u4plots.diffplan_map(
+            row,
+            crs,
+            output_path,
+            "known_features",
+            project["paths"]["diff_plan_path"],
+            plot_buffer=100,
+            overwrite=overwrite_plots,
+        )
+        u4plots.dem_map(
+            row,
+            crs,
+            output_path,
+            "known_features",
+            dem_path,
+            contour_path,
+            plot_buffer=100,
+            overwrite=overwrite_plots,
+        )
+    else:
+        u4plots.dem_map(
+            row,
+            crs,
+            output_path,
+            "known_features",
+            dem_path,
+            contour_path,
+            plot_buffer=100,
+            overwrite=overwrite_plots,
+            shp_path=shp_path,
+        )
     u4plots.slope_map(
         row,
         crs,
@@ -342,11 +366,6 @@ def map_worker(
         contour_path,
         plot_buffer=100,
         overwrite=overwrite_plots,
-    )
-    shp_path = os.path.join(
-        project["paths"]["places_path"],
-        "Classifier_shapes",
-        "Web_Queries" + suffix,
     )
     u4plots.geology_map(
         row,

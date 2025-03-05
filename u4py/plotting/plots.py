@@ -26,8 +26,11 @@ import u4py.io.tiff as u4tiff
 import u4py.plotting.axes as u4ax
 import u4py.plotting.formatting as u4plotfmt
 
-GLOBAL_DPI = 72  # DPI setting for plots
-GLOBAL_TYPES = ["pdf"]  # List of filetypes to export for figures
+warnings.filterwarnings("ignore", module="matplotlib")
+
+IMAGE_DPI = 150  # DPI setting for plots
+IMAGE_FORMATS = ["pdf"]  # List of filetypes to export for figures
+IS_HLNUG = False
 
 
 def plot_inversion_results(
@@ -352,7 +355,7 @@ def plot_hotspots(
         if title:
             ax.set_title(title)
         fig.tight_layout()
-        for ftype in GLOBAL_TYPES:
+        for ftype in IMAGE_FORMATS:
             fig.savefig(f"{fpath_woex}.{ftype}")
 
     return (h.get_offsets(), h.get_array(), crs)
@@ -401,7 +404,7 @@ def plot_GroundMotionAnalyzer(
         overwrite=overwrite,
     )
     if output_filepath:
-        fig, ax = plt.subplots(figsize=(6, 10), dpi=GLOBAL_DPI)
+        fig, ax = plt.subplots(figsize=(6, 10), dpi=IMAGE_DPI)
         u4ax.add_tile(gma_tile_path, ax=ax, cmap="Reds", vm=(-2, -1), zorder=3)
         fpath_woex = os.path.splitext(output_filepath)[0]
         u4ax.add_basemap(ax=ax, crs=crs)
@@ -417,7 +420,7 @@ def plot_GroundMotionAnalyzer(
             ax.set_title(title)
         fig.tight_layout()
 
-        for ftype in GLOBAL_TYPES:
+        for ftype in IMAGE_FORMATS:
             fig.savefig(f"{fpath_woex}.{ftype}")
         plt.close(fig)
 
@@ -447,7 +450,7 @@ def plot_site_statistics(
             res[y_key],
         )
         fig.tight_layout()
-        for ftype in GLOBAL_TYPES:
+        for ftype in IMAGE_FORMATS:
             fig.savefig(
                 os.path.join(
                     site_dir, f"{x_key}_vs_{y_key}_{res['group']}.{ftype}"
@@ -505,7 +508,7 @@ def plot_shape(
         ax=ax,
         crs=sub_set.crs,  # source=contextily.providers.CartoDB.Positron
     )
-    for ftype in GLOBAL_TYPES:
+    for ftype in IMAGE_FORMATS:
         fig.savefig(os.path.join(save_folder, f"Site_{group}.{ftype}"))
     plt.close(fig)
 
@@ -553,7 +556,7 @@ def geology_map(
         os.path.exists(
             os.path.join(output_path, f"{row[1].group:05}_GK25.{ftype}")
         )
-        for ftype in GLOBAL_TYPES
+        for ftype in IMAGE_FORMATS
     ]
     if np.all(fexists) and not overwrite:
         logging.info(f"Skipping existing plot {row[1].group:05}")
@@ -563,7 +566,7 @@ def geology_map(
 
     # Make geodataframe and add to plot
     shp_gdf = gp.GeoDataFrame(geometry=[row[1].geometry], crs=crs)
-    fig, ax = plt.subplots(figsize=(16 / 2.54, 11.3 / 2.54), dpi=GLOBAL_DPI)
+    fig, ax = plt.subplots(figsize=(16 / 2.54, 11.3 / 2.54), dpi=IMAGE_DPI)
     shp_gdf.plot(ax=ax, fc="None", ec="C0", zorder=5, linewidth=3)
     shp_gdf.buffer(plot_buffer).plot(ax=ax, fc="None", ec="None")
 
@@ -640,15 +643,26 @@ def geology_map(
         )
 
         # Plot other anomalies
-        u4ax.add_gpkg_data_where(
-            contour_path,
-            ax=ax,
-            table="thresholded_contours_all_shapes",
-            where=f"groups=={row[1].group}",
-            edgecolor="C0",
-            facecolor="None",
-            linewidth=1,
-        )
+        if not IS_HLNUG:
+            # For non HLNUG data use the thresholded contours
+            u4ax.add_gpkg_data_in_axis(
+                contour_path,
+                ax=ax,
+                table="thresholded_contours_all_shapes",
+                edgecolor="k",
+                facecolor="None",
+                linewidth=1,
+            )
+        else:
+            # For HLNUG data use the
+            u4ax.add_gpkg_data_in_axis(
+                contour_path,
+                ax=ax,
+                table="Classified_Shapes",
+                edgecolor="k",
+                facecolor="None",
+                linewidth=1,
+            )
 
         # Load tectonic data
         if use_internal:
@@ -773,7 +787,7 @@ def geology_map(
             source=contextily.providers.TopPlusOpen.Grey,
         )
 
-        for ftype in GLOBAL_TYPES:
+        for ftype in IMAGE_FORMATS:
             fig.savefig(
                 os.path.join(output_path, f"{row[1].group:05}_GK25.{ftype}")
             )
@@ -821,7 +835,7 @@ def hydrogeology_map(
         os.path.exists(
             os.path.join(output_path, f"{row[1].group:05}_HUEK200.{ftype}")
         )
-        for ftype in GLOBAL_TYPES
+        for ftype in IMAGE_FORMATS
     ]
     if np.all(fexists) and not overwrite:
         logging.info(f"Skipping existing plot {row[1].group:05}")
@@ -833,7 +847,7 @@ def hydrogeology_map(
 
     # Make geodataframe and add to plot
     shp_gdf = gp.GeoDataFrame(geometry=[row[1].geometry], crs=crs)
-    fig, ax = plt.subplots(figsize=(16 / 2.54, 11.3 / 2.54), dpi=GLOBAL_DPI)
+    fig, ax = plt.subplots(figsize=(16 / 2.54, 11.3 / 2.54), dpi=IMAGE_DPI)
     shp_gdf.plot(ax=ax, fc="None", ec="C0", zorder=5, linewidth=3)
     shp_gdf.buffer(plot_buffer).plot(ax=ax, fc="None", ec="None")
 
@@ -878,15 +892,26 @@ def hydrogeology_map(
         )
 
         # Plot other anomalies
-        u4ax.add_gpkg_data_where(
-            contour_path,
-            table="thresholded_contours_all_shapes",
-            where=f"groups=={row[1].group}",
-            ax=ax,
-            edgecolor="C0",
-            facecolor="None",
-            linewidth=1,
-        )
+        if not IS_HLNUG:
+            # For non HLNUG data use the thresholded contours
+            u4ax.add_gpkg_data_in_axis(
+                contour_path,
+                ax=ax,
+                table="thresholded_contours_all_shapes",
+                edgecolor="k",
+                facecolor="None",
+                linewidth=1,
+            )
+        else:
+            # For HLNUG data use the
+            u4ax.add_gpkg_data_in_axis(
+                contour_path,
+                ax=ax,
+                table="Classified_Shapes",
+                edgecolor="k",
+                facecolor="None",
+                linewidth=1,
+            )
 
         # Formatting and other stuff
         u4plotfmt.add_scalebar(ax=ax, width=plot_buffer * 4)
@@ -895,7 +920,7 @@ def hydrogeology_map(
             crs=hydro_units_data.crs,
             source=contextily.providers.TopPlusOpen.Grey,
         )
-        for ftype in GLOBAL_TYPES:
+        for ftype in IMAGE_FORMATS:
             fig.savefig(
                 os.path.join(output_path, f"{row[1].group:05}_HUEK200.{ftype}")
             )
@@ -945,7 +970,7 @@ def topsoil_map(
         os.path.exists(
             os.path.join(output_path, f"{row[1].group:05}_BFD50.{ftype}")
         )
-        for ftype in GLOBAL_TYPES
+        for ftype in IMAGE_FORMATS
     ]
     if np.all(fexists) and not overwrite:
         logging.info(f"Skipping existing plot {row[1].group:05}")
@@ -955,7 +980,7 @@ def topsoil_map(
 
     # Make geodataframe and add to plot
     shp_gdf = gp.GeoDataFrame(geometry=[row[1].geometry], crs=crs)
-    fig, ax = plt.subplots(figsize=(16 / 2.54, 11.3 / 2.54), dpi=GLOBAL_DPI)
+    fig, ax = plt.subplots(figsize=(16 / 2.54, 11.3 / 2.54), dpi=IMAGE_DPI)
     shp_gdf.plot(ax=ax, fc="None", ec="C0", zorder=5, linewidth=3)
     shp_gdf.buffer(plot_buffer).plot(ax=ax, fc="None", ec="None")
 
@@ -1004,15 +1029,26 @@ def topsoil_map(
         )
 
         # Plot other anomalies
-        u4ax.add_gpkg_data_where(
-            contour_path,
-            table="thresholded_contours_all_shapes",
-            where=f"groups=={row[1].group}",
-            ax=ax,
-            edgecolor="C0",
-            facecolor="None",
-            linewidth=1,
-        )
+        if not IS_HLNUG:
+            # For non HLNUG data use the thresholded contours
+            u4ax.add_gpkg_data_in_axis(
+                contour_path,
+                ax=ax,
+                table="thresholded_contours_all_shapes",
+                edgecolor="k",
+                facecolor="None",
+                linewidth=1,
+            )
+        else:
+            # For HLNUG data use the
+            u4ax.add_gpkg_data_in_axis(
+                contour_path,
+                ax=ax,
+                table="Classified_Shapes",
+                edgecolor="k",
+                facecolor="None",
+                linewidth=1,
+            )
 
         # Formatting and other stuff
         u4plotfmt.add_scalebar(ax=ax, width=plot_buffer * 4)
@@ -1021,7 +1057,7 @@ def topsoil_map(
             crs=soil_data.crs,
             source=contextily.providers.TopPlusOpen.Grey,
         )
-        for ftype in GLOBAL_TYPES:
+        for ftype in IMAGE_FORMATS:
             fig.savefig(
                 os.path.join(output_path, f"{row[1].group:05}_BFD50.{ftype}")
             )
@@ -1065,7 +1101,7 @@ def satimg_map(
         os.path.exists(
             os.path.join(output_path, f"{row[1].group:05}_satimg.{ftype}")
         )
-        for ftype in GLOBAL_TYPES
+        for ftype in IMAGE_FORMATS
     ]
     if np.all(fexists) and not overwrite:
         logging.info(f"Skipping existing plot {row[1].group:05}")
@@ -1075,7 +1111,7 @@ def satimg_map(
 
     # Make gdf and plot data
     shp_gdf = gp.GeoDataFrame(geometry=[row[1].geometry], crs=crs)
-    fig, ax = plt.subplots(figsize=(16 / 2.54, 11.3 / 2.54), dpi=GLOBAL_DPI)
+    fig, ax = plt.subplots(figsize=(16 / 2.54, 11.3 / 2.54), dpi=IMAGE_DPI)
     shp_gdf.plot(ax=ax, fc="None", ec="C0")
     shp_gdf.buffer(plot_buffer).plot(ax=ax, fc="None", ec="None")
 
@@ -1086,21 +1122,32 @@ def satimg_map(
     u4ax.add_basemap(
         ax=ax, crs=crs, source=contextily.providers.Esri.WorldImagery
     )
-    u4ax.add_gpkg_data_where(
-        contour_path,
-        table="thresholded_contours_all_shapes",
-        where=f"groups=={row[1].group}",
-        ax=ax,
-        edgecolor="C1",
-        facecolor="None",
-        alpha=0.75,
-        linewidth=1,
-    )
+    # Plot other anomalies
+    if not IS_HLNUG:
+        # For non HLNUG data use the thresholded contours
+        u4ax.add_gpkg_data_in_axis(
+            contour_path,
+            ax=ax,
+            table="thresholded_contours_all_shapes",
+            edgecolor="w",
+            facecolor="None",
+            linewidth=2,
+        )
+    else:
+        # For HLNUG data use the
+        u4ax.add_gpkg_data_in_axis(
+            contour_path,
+            ax=ax,
+            table="Classified_Shapes",
+            edgecolor="w",
+            facecolor="None",
+            linewidth=2,
+        )
 
     # Formatting and save
     u4plotfmt.add_scalebar(ax=ax, width=plot_buffer * 4)
 
-    for ftype in GLOBAL_TYPES:
+    for ftype in IMAGE_FORMATS:
         fig.savefig(
             os.path.join(output_path, f"{row[1].group:05}_satimg.{ftype}")
         )
@@ -1116,6 +1163,7 @@ def dem_map(
     contour_path: os.PathLike,
     plot_buffer: float,
     overwrite: bool,
+    shp_path: os.PathLike = "",
 ):
     """Creates a hillshade map of the digital elevation model in the area of interest.
 
@@ -1141,7 +1189,7 @@ def dem_map(
         os.path.exists(
             os.path.join(output_path, f"{row[1].group:05}_dem.{ftype}")
         )
-        for ftype in GLOBAL_TYPES
+        for ftype in IMAGE_FORMATS
     ]
     if np.all(fexists) and not overwrite:
         logging.info(f"Skipping existing plot {row[1].group:05}")
@@ -1153,7 +1201,7 @@ def dem_map(
 
     # Loading data and plot it
     shp_gdf = gp.GeoDataFrame(geometry=[row[1].geometry], crs=crs)
-    fig, ax = plt.subplots(figsize=(16 / 2.54, 11.3 / 2.54), dpi=GLOBAL_DPI)
+    fig, ax = plt.subplots(figsize=(16 / 2.54, 11.3 / 2.54), dpi=IMAGE_DPI)
     shp_gdf.plot(ax=ax, fc="None", ec="C0")
     shp_gdf.buffer(plot_buffer).plot(ax=ax, fc="None", ec="None")
 
@@ -1166,22 +1214,51 @@ def dem_map(
     )
     u4ax.add_dem(region, dem_path, ax=ax)
 
-    # Add contours of individual anomalies
-    u4ax.add_gpkg_data_where(
-        contour_path,
-        table="thresholded_contours_all_shapes",
-        where=f"groups=={row[1].group}",
-        ax=ax,
-        buffer=5,
-        edgecolor="C1",
-        facecolor="None",
-        alpha=0.5,
-        linewidth=1,
-    )
+    # Plot other anomalies
+    if not IS_HLNUG:
+        # For non HLNUG data use the thresholded contours
+        u4ax.add_gpkg_data_in_axis(
+            contour_path,
+            ax=ax,
+            table="thresholded_contours_all_shapes",
+            edgecolor="k",
+            facecolor="None",
+            linewidth=1,
+        )
+    else:
+        # For HLNUG data use the
+        u4ax.add_gpkg_data_in_axis(
+            contour_path,
+            ax=ax,
+            table="Classified_Shapes",
+            edgecolor="k",
+            facecolor="None",
+            linewidth=1,
+        )
+        if shp_path:
+            drill_sites = u4web.query_hlnug(
+                "geologie/bohrdatenportal/MapServer",
+                "Archivbohrungen, Endteufe [m]",
+                region=region,
+                suffix=f"_bohr_{row[1].group:05}",
+                out_folder=shp_path,
+            )
+            if not drill_sites.empty:
+                u4ax.add_drill_sites(
+                    drill_sites=drill_sites,
+                    ax=ax,
+                )
+                leg_handles, leg_labels = u4ax.add_drill_sites(
+                    drill_sites=drill_sites,
+                    leg_handles=[],
+                    leg_labels=[],
+                    ax=ax,
+                )
+                ax.legend(leg_handles, leg_labels)
 
     # Formatting and other stuff
     u4plotfmt.add_scalebar(ax=ax, width=plot_buffer * 4)
-    for ftype in GLOBAL_TYPES:
+    for ftype in IMAGE_FORMATS:
         fig.savefig(
             os.path.join(output_path, f"{row[1].group:05}_dem.{ftype}")
         )
@@ -1223,7 +1300,7 @@ def slope_map(
         os.path.exists(
             os.path.join(output_path, f"{row[1].group:05}_slope.{ftype}")
         )
-        for ftype in GLOBAL_TYPES
+        for ftype in IMAGE_FORMATS
     ]
     if np.all(fexists) and not overwrite:
         logging.info(f"Skipping existing plot {row[1].group:05}")
@@ -1233,7 +1310,7 @@ def slope_map(
 
     # Make geodataframe and add to plot
     shp_gdf = gp.GeoDataFrame(geometry=[row[1].geometry], crs=crs)
-    fig, ax = plt.subplots(figsize=(16 / 2.54, 11.3 / 2.54), dpi=GLOBAL_DPI)
+    fig, ax = plt.subplots(figsize=(16 / 2.54, 11.3 / 2.54), dpi=IMAGE_DPI)
     shp_gdf.plot(ax=ax, fc="None", ec="C0")
     shp_gdf.buffer(plot_buffer).plot(ax=ax, fc="None", ec="None")
 
@@ -1245,21 +1322,31 @@ def slope_map(
         geometry=[u4spatial.bounds_to_polygon(ax)], crs=crs
     )
     u4ax.add_slope(region, dem_path, ax=ax)
-    u4ax.add_gpkg_data_where(
-        contour_path,
-        table="thresholded_contours_all_shapes",
-        where=f"groups=={row[1].group}",
-        ax=ax,
-        buffer=5,
-        edgecolor="w",
-        facecolor="None",
-        alpha=0.75,
-        linewidth=1,
-    )
+    # Plot other anomalies
+    if not IS_HLNUG:
+        # For non HLNUG data use the thresholded contours
+        u4ax.add_gpkg_data_in_axis(
+            contour_path,
+            ax=ax,
+            table="thresholded_contours_all_shapes",
+            edgecolor="w",
+            facecolor="None",
+            linewidth=2,
+        )
+    else:
+        # For HLNUG data use the
+        u4ax.add_gpkg_data_in_axis(
+            contour_path,
+            ax=ax,
+            table="Classified_Shapes",
+            edgecolor="w",
+            facecolor="None",
+            linewidth=2,
+        )
 
     # Formatting and other stuff
     u4plotfmt.add_scalebar(ax=ax, width=plot_buffer * 4)
-    for ftype in GLOBAL_TYPES:
+    for ftype in IMAGE_FORMATS:
         fig.savefig(
             os.path.join(output_path, f"{row[1].group:05}_slope.{ftype}")
         )
@@ -1305,7 +1392,7 @@ def aspect_map(
         os.path.exists(
             os.path.join(output_path, f"{row[1].group:05}_aspect.{ftype}")
         )
-        for ftype in GLOBAL_TYPES
+        for ftype in IMAGE_FORMATS
     ]
     if np.all(fexists) and not overwrite:
         logging.info(f"Skipping existing plot {row[1].group:05}")
@@ -1315,7 +1402,7 @@ def aspect_map(
 
     # Make geodataframe and add to plot
     shp_gdf = gp.GeoDataFrame(geometry=[row[1].geometry], crs=crs)
-    fig, ax = plt.subplots(figsize=(16 / 2.54, 11.3 / 2.54), dpi=GLOBAL_DPI)
+    fig, ax = plt.subplots(figsize=(16 / 2.54, 11.3 / 2.54), dpi=IMAGE_DPI)
     shp_gdf.plot(ax=ax, fc="None", ec="k")
     shp_gdf.buffer(plot_buffer).plot(ax=ax, fc="None", ec="None")
 
@@ -1325,19 +1412,30 @@ def aspect_map(
         geometry=[u4spatial.bounds_to_polygon(ax)], crs=crs
     )
     u4ax.add_aspect(region, dem_path, ax=ax)
-    u4ax.add_gpkg_data_where(
-        contour_path,
-        table="thresholded_contours_all_shapes",
-        where=f"groups=={row[1].group}",
-        ax=ax,
-        buffer=5,
-        edgecolor="k",
-        facecolor="None",
-        linewidth=0.5,
-    )
+    # Plot other anomalies
+    if not IS_HLNUG:
+        # For non HLNUG data use the thresholded contours
+        u4ax.add_gpkg_data_in_axis(
+            contour_path,
+            ax=ax,
+            table="thresholded_contours_all_shapes",
+            edgecolor="k",
+            facecolor="None",
+            linewidth=1,
+        )
+    else:
+        # For HLNUG data use the
+        u4ax.add_gpkg_data_in_axis(
+            contour_path,
+            ax=ax,
+            table="Classified_Shapes",
+            edgecolor="k",
+            facecolor="None",
+            linewidth=1,
+        )
     # Formatting and other stuff
     u4plotfmt.add_scalebar(ax=ax, width=plot_buffer * 4)
-    for ftype in GLOBAL_TYPES:
+    for ftype in IMAGE_FORMATS:
         fig.savefig(
             os.path.join(output_path, f"{row[1].group:05}_aspect.{ftype}")
         )
@@ -1380,7 +1478,7 @@ def aspect_slope_map(
                 output_path, f"{row[1].group:05}_aspect_slope.{ftype}"
             )
         )
-        for ftype in GLOBAL_TYPES
+        for ftype in IMAGE_FORMATS
     ]
     if np.all(fexists) and not overwrite:
         logging.info(f"Skipping existing plot {row[1].group:05}")
@@ -1389,7 +1487,7 @@ def aspect_slope_map(
         logging.info(f"Plotting aspect-slope map of group {row[1].group:05}.")
 
     shp_gdf = gp.GeoDataFrame(geometry=[row[1].geometry], crs=crs)
-    fig, ax = plt.subplots(figsize=(16 / 2.54, 11.3 / 2.54), dpi=GLOBAL_DPI)
+    fig, ax = plt.subplots(figsize=(16 / 2.54, 11.3 / 2.54), dpi=IMAGE_DPI)
     shp_gdf.plot(ax=ax, fc="None", ec="k")
     shp_gdf.buffer(plot_buffer).plot(ax=ax, fc="None", ec="None")
 
@@ -1399,21 +1497,31 @@ def aspect_slope_map(
         geometry=[u4spatial.bounds_to_polygon(ax)], crs=crs
     )
     u4ax.add_aspect_slope(region, dem_path, ax=ax)
-    u4ax.add_gpkg_data_where(
-        contour_path,
-        table="thresholded_contours_all_shapes",
-        where=f"groups=={row[1].group}",
-        ax=ax,
-        buffer=5,
-        edgecolor="k",
-        facecolor="None",
-        linewidth=0.5,
-        zorder=5,
-    )
+    # Plot other anomalies
+    if not IS_HLNUG:
+        # For non HLNUG data use the thresholded contours
+        u4ax.add_gpkg_data_in_axis(
+            contour_path,
+            ax=ax,
+            table="thresholded_contours_all_shapes",
+            edgecolor="k",
+            facecolor="None",
+            linewidth=1,
+        )
+    else:
+        # For HLNUG data use the
+        u4ax.add_gpkg_data_in_axis(
+            contour_path,
+            ax=ax,
+            table="Classified_Shapes",
+            edgecolor="k",
+            facecolor="None",
+            linewidth=1,
+        )
 
     # Formatting and other stuff
     u4plotfmt.add_scalebar(ax=ax, width=plot_buffer * 4)
-    for ftype in GLOBAL_TYPES:
+    for ftype in IMAGE_FORMATS:
         fig.savefig(
             os.path.join(
                 output_path, f"{row[1].group:05}_aspect_slope.{ftype}"
@@ -1455,7 +1563,7 @@ def diffplan_map(
         os.path.exists(
             os.path.join(output_path, f"{row[1].group:05}_diffplan.{ftype}")
         )
-        for ftype in GLOBAL_TYPES
+        for ftype in IMAGE_FORMATS
     ]
     if np.all(fexists) and not overwrite:
         logging.info(f"Skipping existing plot {row[1].group:05}")
@@ -1467,7 +1575,7 @@ def diffplan_map(
     shp_gdf = gp.GeoDataFrame(geometry=[row[1].geometry], crs=crs)
 
     # Plotting
-    fig, ax = plt.subplots(figsize=(16 / 2.54, 11.3 / 2.54), dpi=GLOBAL_DPI)
+    fig, ax = plt.subplots(figsize=(16 / 2.54, 11.3 / 2.54), dpi=IMAGE_DPI)
     shp_gdf.plot(ax=ax, fc="None", ec="C0")
     shp_gdf.buffer(plot_buffer).plot(ax=ax, fc="None", ec="None")
 
@@ -1482,7 +1590,7 @@ def diffplan_map(
 
     # Format and save
     u4plotfmt.add_scalebar(ax=ax, width=2 * plot_buffer)
-    for ftype in GLOBAL_TYPES:
+    for ftype in IMAGE_FORMATS:
         fig.savefig(
             os.path.join(output_path, f"{row[1].group:05}_diffplan.{ftype}")
         )
@@ -1498,6 +1606,7 @@ def detailed_map(
     contour_path: os.PathLike,
     plot_buffer: float,
     overwrite: bool,
+    places_path: os.PathLike,
 ) -> Tuple[tuple, tuple]:
     """Makes a detailed overview map of the region including some geological features.
 
@@ -1515,6 +1624,8 @@ def detailed_map(
     :type contour_path: os.PathLike
     :param plot_buffer: The buffer width around the area of interest.
     :type plot_buffer: float
+    :param places_path: The path where other shapefiles are found.
+    :type places_path: os.PathLike
     """
     # Setup Paths
     output_path = os.path.join(output_path, suffix)
@@ -1524,7 +1635,7 @@ def detailed_map(
         os.path.exists(
             os.path.join(output_path, f"{row[1].group:05}_map.{ftype}")
         )
-        for ftype in GLOBAL_TYPES
+        for ftype in IMAGE_FORMATS
     ]
     if np.all(fexists) and not overwrite:
         logging.info(f"Skipping existing plot {row[1].group:05}")
@@ -1534,58 +1645,89 @@ def detailed_map(
 
     # Make geodataframe and add to plot
     shp_gdf = gp.GeoDataFrame(geometry=[row[1].geometry], crs=crs)
-    fig, ax = plt.subplots(figsize=(16 / 2.54, 11.3 / 2.54), dpi=GLOBAL_DPI)
+    fig, ax = plt.subplots(figsize=(16 / 2.54, 11.3 / 2.54), dpi=IMAGE_DPI)
     shp_gdf.plot(ax=ax, fc="None", ec="C1", label="Region")
     shp_gdf.buffer(plot_buffer).plot(ax=ax, fc="None", ec="None")
 
     # Make plot full image size and fix axis to current extent
     u4plotfmt.full_screen_map(ax=ax)
 
-    # Add additional geological data to plot.
-    u4ax.add_gpkg_data_in_axis(
-        hlnug_path,
-        "rutschungen_mittelpunkte_2021_06_21",
-        ax=ax,
-        color="k",
-        marker="$\Swarrow$",
-        markersize=30,
-        label="Rutschungen, Mittelpunkte",
-    )
-    u4ax.add_gpkg_data_in_axis(
-        hlnug_path,
-        "steinschlag_punkte",
-        ax=ax,
-        color="k",
-        marker="$\therefore$",
-        markersize=30,
-        label="Steinschläge",
-    )
-    u4ax.add_gpkg_data_in_axis(
-        hlnug_path,
-        "Erdfaelle_merged",
-        ax=ax,
-        color="k",
-        marker="$\odot$",
-        markersize=30,
-        label="Erdfälle",
-    )
-    u4ax.add_gpkg_data_in_axis(
-        hlnug_path,
-        "senkungsmulden",
-        ax=ax,
-        facecolor="None",
-        edgecolor="k",
-        linestyle=":",
-        label="Senkungsmulden",
-    )
-    u4ax.add_gpkg_data_in_axis(
-        contour_path,
-        "thresholded_contours_all_shapes",
-        ax=ax,
-        fc="None",
-        column="color_levels",
-        cmap="RdBu",
-    )
+    # Plot other anomalies
+    if not IS_HLNUG:
+        # Add additional geological data to plot.
+        u4ax.add_gpkg_data_in_axis(
+            hlnug_path,
+            "rutschungen_mittelpunkte_2021_06_21",
+            ax=ax,
+            color="k",
+            marker="$\Swarrow$",
+            markersize=30,
+            label="Rutschungen, Mittelpunkte",
+        )
+        u4ax.add_gpkg_data_in_axis(
+            hlnug_path,
+            "steinschlag_punkte",
+            ax=ax,
+            color="k",
+            marker="$\therefore$",
+            markersize=30,
+            label="Steinschläge",
+        )
+        u4ax.add_gpkg_data_in_axis(
+            hlnug_path,
+            "Erdfaelle_merged",
+            ax=ax,
+            color="k",
+            marker="$\odot$",
+            markersize=30,
+            label="Erdfälle",
+        )
+        u4ax.add_gpkg_data_in_axis(
+            hlnug_path,
+            "senkungsmulden",
+            ax=ax,
+            facecolor="None",
+            edgecolor="k",
+            linestyle=":",
+            label="Senkungsmulden",
+        )
+        # For non HLNUG data use the thresholded contours
+        u4ax.add_gpkg_data_in_axis(
+            contour_path,
+            ax=ax,
+            table="thresholded_contours_all_shapes",
+            edgecolor="k",
+            facecolor="None",
+            linewidth=1,
+        )
+    else:
+        # For HLNUG data use the other shapes
+        u4ax.add_gpkg_data_in_axis(
+            contour_path,
+            ax=ax,
+            table="Classified_Shapes",
+            edgecolor="k",
+            facecolor="None",
+            linewidth=1,
+        )
+        handle_motorway = u4ax.add_gpkg_data_in_axis(
+            places_path,
+            ax=ax,
+            table="gis_osm_roads_free_1",
+            fclass="motorway",
+        )
+        handle_primary = u4ax.add_gpkg_data_in_axis(
+            places_path,
+            ax=ax,
+            table="gis_osm_roads_free_1",
+            fclass="primary",
+        )
+        handle_secondary = u4ax.add_gpkg_data_in_axis(
+            places_path,
+            ax=ax,
+            table="gis_osm_roads_free_1",
+            fclass="secondary",
+        )
     ax.annotate(
         row[1].locations.replace(", ", "\n"),
         (0.99, 0.01),
@@ -1598,19 +1740,23 @@ def detailed_map(
         # Catches UserWarning for unsupported handles.
         warnings.simplefilter("ignore")
         h, _ = ax.get_legend_handles_labels()
-    h.append(mpatches.Patch(ec=mcm.RdBu(0), fc="None", label="Senkung"))
-    h.append(mpatches.Patch(ec=mcm.RdBu(256), fc="None", label="Hebung"))
-    ax.legend(
-        handles=h,
-        loc="upper right",
-    )
+    if not IS_HLNUG:
+        h.append(mpatches.Patch(ec=mcm.RdBu(0), fc="None", label="Senkung"))
+        h.append(mpatches.Patch(ec=mcm.RdBu(256), fc="None", label="Hebung"))
+    else:
+        h.append(mpatches.Patch(ec="k", fc="None", label="Rutschung"))
+        for handle in [handle_motorway, handle_primary, handle_secondary]:
+            if handle:
+                h.append(handle)
+    if len(h) > 0:
+        ax.legend(handles=h, loc="upper right").set_zorder(10)
 
     # Formatting and saving
     u4ax.add_basemap(
         ax=ax, crs=crs, source=contextily.providers.CartoDB.Voyager
     )
     u4plotfmt.add_scalebar(ax=ax, width=plot_buffer * 4)
-    for ftype in GLOBAL_TYPES:
+    for ftype in IMAGE_FORMATS:
         fig.savefig(
             os.path.join(output_path, f"{row[1].group:05}_map.{ftype}")
         )
@@ -1648,7 +1794,7 @@ def timeseries_map(
         os.path.exists(
             os.path.join(output_path, f"{row[1].group:05}_psi.{ftype}")
         )
-        for ftype in GLOBAL_TYPES
+        for ftype in IMAGE_FORMATS
     ]
     if np.all(fexists) and not overwrite:
         logging.info(f"Skipping existing plot {row[1].group:05}")
@@ -1666,7 +1812,7 @@ def timeseries_map(
     shp_gdf = gp.GeoDataFrame(geometry=[row[1].geometry], crs=crs)
 
     # Create figure and axes
-    fig = plt.figure(figsize=(13, 5), dpi=GLOBAL_DPI)
+    fig = plt.figure(figsize=(13, 5), dpi=IMAGE_DPI)
     gs = fig.add_gridspec(ncols=2, width_ratios=(1, 3))
     ax_map = fig.add_subplot(gs[0])
     ax_ts = fig.add_subplot(gs[1])
@@ -1688,16 +1834,27 @@ def timeseries_map(
 
     # Add PSI in Map
     ax_map.axis("equal")
-    u4ax.add_gpkg_data_where(
-        contour_path,
-        table="thresholded_contours_all_shapes",
-        where=f"groups=={row[1].group}",
-        ax=ax_map,
-        edgecolor="k",
-        facecolor="None",
-        alpha=0.75,
-        linewidth=1,
-    )
+    # Plot other anomalies
+    if not IS_HLNUG:
+        # For non HLNUG data use the thresholded contours
+        u4ax.add_gpkg_data_in_axis(
+            contour_path,
+            ax=ax_map,
+            table="thresholded_contours_all_shapes",
+            edgecolor="k",
+            facecolor="None",
+            linewidth=1,
+        )
+    else:
+        # For HLNUG data use the
+        u4ax.add_gpkg_data_in_axis(
+            contour_path,
+            ax=ax_map,
+            table="Classified_Shapes",
+            edgecolor="k",
+            facecolor="None",
+            linewidth=1,
+        )
     fig.tight_layout()
     reg_gdf = gp.GeoDataFrame(
         geometry=[u4spatial.bounds_to_polygon(ax_map)],
@@ -1747,7 +1904,7 @@ def timeseries_map(
     ax_ts.set_xlabel("Time")
     ax_ts.set_ylabel("Displacement (mm)")
     fig.tight_layout()
-    for ftype in GLOBAL_TYPES:
+    for ftype in IMAGE_FORMATS:
         fig.savefig(
             os.path.join(output_path, f"{row[1].group:05}_psi.{ftype}")
         )
@@ -1788,7 +1945,7 @@ def plot_legend(
 
     logging.info("Creating legend")
     figl = plt.figure(
-        figsize=(16 / 2.54, len(leg_labels) * 0.25), dpi=GLOBAL_DPI
+        figsize=(16 / 2.54, len(leg_labels) * 0.25), dpi=IMAGE_DPI
     )
     legend = figl.legend(
         handles=leg_handles, labels=leg_labels, framealpha=1, frameon=False
@@ -1797,7 +1954,7 @@ def plot_legend(
     bbox = bbox.from_extents(*(bbox.extents + np.array([-5, -5, 5, 5])))
     bbox = bbox.transformed(figl.dpi_scale_trans.inverted())
 
-    for ftype in GLOBAL_TYPES:
+    for ftype in IMAGE_FORMATS:
         figl.savefig(
             os.path.join(output_path, f"{grp}_{suffix}_leg.{ftype}"),
             bbox_inches=bbox,
