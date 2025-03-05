@@ -16,6 +16,7 @@ import u4py.analysis.spatial as u4spatial
 import u4py.io.gpkg as u4gpkg
 import u4py.io.tiff as u4tiff
 import u4py.plotting.plots as u4plots
+from u4py.utils.types import U4ResDict
 
 
 def classify_shape(
@@ -29,7 +30,7 @@ def classify_shape(
     save_shapes: bool = False,
     save_fig: bool = False,
     save_report: bool = False,
-) -> dict:
+) -> U4ResDict:
     """Classifies a subset of shapes in `shp_gdf` based on the group. To
     include the surroundings of the shapes, a buffered hull around all shapes
     is used.
@@ -55,7 +56,7 @@ def classify_shape(
     :param save_report: Create a text report containing the results, defaults to False
     :type save_report: bool, optional
     :return: The results as a dictionary for further processing
-    :rtype: dict
+    :rtype: U4ResDict
 
     As of now the following classifications are included:
 
@@ -184,6 +185,9 @@ def classify_shape(
             )
             res.update(hydrogeology(res, sub_set_hull, out_folder=cache_path))
             res.update(topsoil(res, sub_set_hull, out_folder=cache_path))
+            res.update(
+                structural_area(res, sub_set_hull, out_folder=cache_path)
+            )
 
         # Geohazard
         res.update(landslides(res, sub_set_hull, shp_path=hlnug_path))
@@ -206,11 +210,11 @@ def classify_shape(
         return dict()
 
 
-def preallocate_results() -> dict:
+def preallocate_results() -> U4ResDict:
     """Preallocates all possible results for unified output and easier generation of master geodataframe.
 
     :return: A dictionary containing all keys but with empty values.
-    :rtype: dict
+    :rtype: U4ResDict
     """
     res = {
         "additional_areas": np.nan,
@@ -238,6 +242,8 @@ def preallocate_results() -> dict:
         "geology_area": [],
         "geology_percent": [],
         "geology_units": [],
+        "geology_mapnum": [],
+        "geology_mapname": [],
         "geometry": gp.GeoDataFrame(),
         "group": np.nan,
         "hydro_area": [],
@@ -270,7 +276,15 @@ def preallocate_results() -> dict:
         "manual_unclear_1": False,
         "manual_unclear_2": False,
         "manual_unclear_3": False,
-        "roads_has_motorway": np.nan,
+        "roads_has_motorway": False,
+        "roads_has_primary": False,
+        "roads_has_secondary": False,
+        "roads_motorway_names": [],
+        "roads_primary_names": [],
+        "roads_secondary_names": [],
+        "roads_motorway_length": [],
+        "roads_primary_length": [],
+        "roads_secondary_length": [],
         "roads_main_area": np.nan,
         "roads_main": gp.GeoDataFrame(),
         "roads_minor_area": np.nan,
@@ -282,6 +296,9 @@ def preallocate_results() -> dict:
         "shape_ellipse_theta": [],
         "shape_flattening": [],
         "shape_roundness": [],
+        "shape_width": [],
+        "shape_breadth": [],
+        "shape_aspect": [],
         "slope_hull_mean_14": [],
         "slope_hull_mean_19": [],
         "slope_hull_mean_21": [],
@@ -304,6 +321,7 @@ def preallocate_results() -> dict:
         "subsidence_percent": [],
         "subsidence_total": np.nan,
         "subsidence_units": [],
+        "structural_region": [],
         "timeseries_annual_cosine": np.nan,
         "timeseries_annual_max_amplitude": np.nan,
         "timeseries_annual_max_time": np.nan,
@@ -332,7 +350,7 @@ def preallocate_results() -> dict:
 
 
 def roads(
-    res: dict,
+    res: U4ResDict,
     sub_set_hull: gp.GeoDataFrame,
     osm_path: os.PathLike,
     shp_cfg: dict,
@@ -340,7 +358,7 @@ def roads(
     """Loads the roads from the openstreetmap database and returns the area of minor and major roads. Also establishes if a motorway is present in the area.
 
     :param res: The results dictionary as of now.
-    :type res: dict
+    :type res: U4ResDict
     :param sub_set_hull: The area where to look for roads.
     :type sub_set_hull: gp.GeoDataFrame
     :param osm_path: The path to the openstreetmap database.
@@ -348,7 +366,7 @@ def roads(
     :param shp_cfg: The shape config containing buffer sizes.
     :type shp_cfg: dict
     :return: An updated version of the results dictionary.
-    :rtype: dict
+    :rtype: U4ResDict
     """
 
     def get_clipped_road_area(
@@ -390,8 +408,6 @@ def roads(
 
     if len(roads_data) > 0:
         logging.info("Classifying Road Data")
-        # Look for motorways
-        res["roads_has_motorway"] = "motorway" in roads_data.fclass.to_list()
 
         # Extract area of main roads
         res["roads_main"] = get_clipped_road_area(
@@ -415,22 +431,49 @@ def roads(
             )
             res["additional_areas"] += res["roads_minor_area"]
 
+        # Look for road classes
+        road_classes = roads_data.fclass.to_list()
+        if ("motorway" in road_classes) or ("trunk" in road_classes):
+            res["roads_has_motorway"] = True
+        if "primary" in road_classes:
+            res["roads_has_primary"] = True
+            for ii, road in roads_data[
+                roads_data.fclass == "primary"
+            ].iterrows():
+                if road.ref not in res["roads_primary_names"]:
+                    res["roads_primary_names"].append(road.ref)
+                    res["roads_primary_length"].append(road.geometry.length)
+                else:
+                    ridx = res["roads_primary_names"].index(road.ref)
+                    res["roads_primary_length"][ridx] += road.geometry.length
+
+        if "secondary" in road_classes:
+            res["roads_has_secondary"] = True
+            for ii, road in roads_data[
+                roads_data.fclass == "secondary"
+            ].iterrows():
+                if road.ref not in res["roads_secondary_names"]:
+                    res["roads_secondary_names"].append(road.ref)
+                    res["roads_secondary_length"].append(road.geometry.length)
+                else:
+                    ridx = res["roads_secondary_names"].index(road.ref)
+                    res["roads_secondary_length"][ridx] += road.geometry.length
     return res
 
 
 def buildings(
-    res: dict, sub_set_hull: gp.GeoDataFrame, osm_path: os.PathLike
-) -> dict:
+    res: U4ResDict, sub_set_hull: gp.GeoDataFrame, osm_path: os.PathLike
+) -> U4ResDict:
     """Calculates the area that is covered by buildings
 
     :param res: The results dictionary including some previous results.
-    :type res: dict
+    :type res: U4ResDict
     :param sub_set_hull: The hull of the area.
     :type sub_set_hull: gp.GeoDataFrame
     :param osm_path: The path to the osm dataset.
     :type osm_path: os.PathLike
     :return: The results dictionary with the classified data appended.
-    :rtype: dict
+    :rtype: U4ResDict
     """
     logging.info("Loading Building Data")
     res["buildings"] = u4gpkg.load_gpkg_data_region_ogr(
@@ -445,15 +488,15 @@ def buildings(
 
 
 def rivers_water(
-    res: dict,
+    res: U4ResDict,
     sub_set_hull: gp.GeoDataFrame,
     osm_path: os.PathLike,
     shp_cfg: dict,
-) -> dict:
+) -> U4ResDict:
     """Calculates the area that is covered by water
 
     :param res: The results dictionary including some previous results.
-    :type res: dict
+    :type res: U4ResDict
     :param sub_set_hull: The hull of the area.
     :type sub_set_hull: gp.GeoDataFrame
     :param osm_path: The path to the osm dataset.
@@ -461,7 +504,7 @@ def rivers_water(
     :param shp_cfg: The shape config to calculate the buffers for the rivers.
     :type shp_cfg: dict
     :return: The results dictionary with the classified data appended.
-    :rtype: dict
+    :rtype: U4ResDict
     """
     logging.info("Loading River Data")
     rivers_data = u4gpkg.load_gpkg_data_region_ogr(
@@ -491,19 +534,19 @@ def rivers_water(
 
 
 def landuse(
-    res: dict, sub_set_hull: gp.GeoDataFrame, osm_path: os.PathLike
-) -> dict:
+    res: U4ResDict, sub_set_hull: gp.GeoDataFrame, osm_path: os.PathLike
+) -> U4ResDict:
     """Calculates the area of each landuse including some other landuses from
     previous results, e.g. roads or water.
 
     :param res: The results dictionary including some previous results.
-    :type res: dict
+    :type res: U4ResDict
     :param sub_set_hull: The hull of the area.
     :type sub_set_hull: gp.GeoDataFrame
     :param osm_path: The path to the osm dataset.
     :type osm_path: os.PathLike
     :return: The results dictionary with the classified data appended.
-    :rtype: dict
+    :rtype: U4ResDict
     """
     logging.info("Loading Landuse Data")
     landuse_data = u4gpkg.load_gpkg_data_region_ogr(
@@ -579,7 +622,7 @@ def slope(
     dem_path_14: os.PathLike,
     dem_path_19: os.PathLike,
     dem_path_21: os.PathLike,
-) -> dict:
+) -> U4ResDict:
     """Calculates the average slope in the area
 
     :param sub_set_hull: The hull of the area.
@@ -639,27 +682,33 @@ def slope(
     return res
 
 
-def shape(sub_set: gp.GeoDataFrame) -> dict:
+def shape(sub_set: gp.GeoDataFrame) -> U4ResDict:
     """Calculates shape parameters for all shapes in the geodataframe.
 
     :param sub_set: The geodataframe with the polygons of the group.
     :type sub_set: gp.GeoDataFrame
     :return: The results dictionary with the classified data appended.
-    :rtype: dict
+    :rtype: U4ResDict
     """
     logging.info("Computing shape parameters")
     roundness = u4spatial.roundness(sub_set)
     aa, bb, tt, flattn = u4spatial.flattening(sub_set)
+    min_f, max_f = u4spatial.feret_diameters(
+        sub_set.convex_hull.geometry.get_coordinates().to_numpy()
+    )
     res = dict()
     res["shape_roundness"] = roundness
     res["shape_ellipse_a"] = aa
     res["shape_ellipse_b"] = bb
     res["shape_ellipse_theta"] = tt
     res["shape_flattening"] = flattn
+    res["shape_width"] = max_f
+    res["shape_breadth"] = min_f
+    res["shape_aspect"] = max_f / min_f
     return res
 
 
-def volume(geometry: gp.GeoDataFrame, diffplan_path: os.PathLike) -> dict:
+def volume(geometry: gp.GeoDataFrame, diffplan_path: os.PathLike) -> U4ResDict:
     """Calculates the some volumetric quantities for the input geometry.
 
     :param geometry: The geometry where to calculate the volume.
@@ -667,7 +716,7 @@ def volume(geometry: gp.GeoDataFrame, diffplan_path: os.PathLike) -> dict:
     :param diffplan_path: The path to the folder where the diff plan tiffs are located.
     :type diffplan_path: os.PathLike
     :return: The results dictionary with the classified data appended.
-    :rtype: dict
+    :rtype: U4ResDict
     """
     logging.info("Computing volumes in shapes")
     volumes = u4tiff.calculate_volume_in_shape(geometry, diffplan_path)
@@ -686,15 +735,15 @@ def volume(geometry: gp.GeoDataFrame, diffplan_path: os.PathLike) -> dict:
 
 
 def geology(
-    res: dict,
+    res: U4ResDict,
     sub_set_hull: gp.GeoDataFrame,
     out_folder: os.PathLike = "",
     use_internal: bool = True,
-) -> dict:
+) -> U4ResDict:
     """Gets the geological units and their spatial extend in the area.
 
     :param res: The results dictionary including some previous results.
-    :type res: dict
+    :type res: U4ResDict
     :param sub_set_hull: The hull of the area.
     :type sub_set_hull: gp.GeoDataFrame
     :param out_folder: The path to a gpkg file containing the data (not implemented yet), defaults to ""
@@ -702,7 +751,7 @@ def geology(
     :param use_internal: Try internal web server first, defaults to True.
     :type use_internal: os.PathLike, optional
     :return: The results dictionary with the classified data appended.
-    :rtype: dict
+    :rtype: U4ResDict
     """
     logging.info("Looking for geology data")
     if use_internal:
@@ -716,7 +765,21 @@ def geology(
                 region_crs=sub_set_hull.crs,
                 out_folder=out_folder,
                 suffix=f"{res['group']:05}",
-            ).clip(sub_set_hull)
+            )
+            if geology_data.empty:
+                logging.debug("Retrying to get geological data.")
+                geology_data = u4web.query_internal(
+                    "gk25-hessen:GK25_f_GK3",
+                    region=[
+                        bounds.minx,
+                        bounds.miny,
+                        bounds.maxx,
+                        bounds.maxy,
+                    ],
+                    region_crs=sub_set_hull.crs,
+                    out_folder=out_folder,
+                    suffix=f"{res['group']:05}",
+                )
             if len(geology_data) < 1:
                 logging.info("Got empty response, try HLNUG")
                 raise NotImplementedError
@@ -729,7 +792,32 @@ def geology(
                 region=sub_set_hull,
                 out_folder=out_folder,
                 suffix=f"{res['group']:05}",
-            ).clip(sub_set_hull)
+            )
+            if geology_data.empty:
+                logging.debug("Retrying to get geological data.")
+                geology_data = u4web.query_hlnug(
+                    "geologie/gk25/MapServer",
+                    "Geologie (Kartiereinheiten)",
+                    region=sub_set_hull,
+                    out_folder=out_folder,
+                    suffix=f"{res['group']:05}",
+                )
+            geology_metadata = u4web.query_hlnug(
+                "geologie/gk25/MapServer",
+                "GK25 Blattschnitt",
+                region=sub_set_hull,
+                out_folder=out_folder,
+                suffix=f"{res['group']:05}",
+            )
+            if geology_metadata.empty:
+                logging.debug("Retrying to get geological metadata.")
+                geology_metadata = u4web.query_hlnug(
+                    "geologie/gk25/MapServer",
+                    "GK25 Blattschnitt",
+                    region=sub_set_hull,
+                    out_folder=out_folder,
+                    suffix=f"{res['group']:05}",
+                )
     else:
         unit_name = "GEOLOGISCHE_EINHEIT"
         petro_name = "PETROGRAPHIE"
@@ -739,9 +827,35 @@ def geology(
             region=sub_set_hull,
             out_folder=out_folder,
             suffix=f"{res['group']:05}",
-        ).clip(sub_set_hull)
+        )
+        if geology_data.empty:
+            logging.debug("Retrying to get geological data.")
+            geology_data = u4web.query_hlnug(
+                "geologie/gk25/MapServer",
+                "Geologie (Kartiereinheiten)",
+                region=sub_set_hull,
+                out_folder=out_folder,
+                suffix=f"{res['group']:05}",
+            )
+        geology_metadata = u4web.query_hlnug(
+            "geologie/gk25/MapServer",
+            "GK25 Blattschnitt",
+            region=sub_set_hull,
+            out_folder=out_folder,
+            suffix=f"{res['group']:05}",
+        )
+        if geology_metadata.empty:
+            logging.debug("Retrying to get geological metadata.")
+            geology_metadata = u4web.query_hlnug(
+                "geologie/gk25/MapServer",
+                "GK25 Blattschnitt",
+                region=sub_set_hull,
+                out_folder=out_folder,
+                suffix=f"{res['group']:05}",
+            )
 
     if len(geology_data) > 0:
+        geology_data = geology_data.clip(sub_set_hull)
         # Replace empty unit names with petrographic description
         unit_list = geology_data[unit_name]
         if None in unit_list:
@@ -764,26 +878,28 @@ def geology(
             round((area / res["area"]) * 100, 1)
             for area in res["geology_area"]
         ]
+        res["geology_mapnum"] = list(np.unique(geology_metadata.GK25_NUMMER))
+        res["geology_mapname"] = list(np.unique(geology_metadata.GK25_NAME))
     else:
         logging.info(f"No geology data found for group {res['group']:05}.")
     return res
 
 
 def hydrogeology(
-    res: dict,
+    res: U4ResDict,
     sub_set_hull: gp.GeoDataFrame,
     out_folder: os.PathLike = "",
-) -> dict:
+) -> U4ResDict:
     """Gets the hydraulic conductivity and their spatial extend in the area.
 
     :param res: The results dictionary including some previous results.
-    :type res: dict
+    :type res: U4ResDict
     :param sub_set_hull: The hull of the area.
     :type sub_set_hull: gp.GeoDataFrame
     :param out_folder: The path to a gpkg file containing the data (not implemented yet), defaults to ""
     :type out_folder: os.PathLike, optional
     :return: The results dictionary with the classified data appended.
-    :rtype: dict
+    :rtype: U4ResDict
     """
     logging.info("Querying HLNUG for hydro_units_data")
     hydro_units_data = u4web.query_hlnug(
@@ -792,9 +908,19 @@ def hydrogeology(
         region=sub_set_hull,
         out_folder=out_folder,
         suffix=f"{res['group']:05}",
-    ).clip(sub_set_hull)
+    )
+    if hydro_units_data.empty:
+        logging.debug("Retrying to get hydrological information")
+        hydro_units_data = u4web.query_hlnug(
+            "geologie/huek200/MapServer",
+            "Hydrogeologische Einheiten",
+            region=sub_set_hull,
+            out_folder=out_folder,
+            suffix=f"{res['group']:05}",
+        )
 
     if len(hydro_units_data) > 0:
+        hydro_units_data = hydro_units_data.clip(sub_set_hull)
         logging.info("Classifying hydrogeology.")
         res["hydro_units"], res["hydro_area"] = u4spatial.area_per_feature(
             hydro_units_data, "L_CH_TXT"
@@ -810,11 +936,11 @@ def hydrogeology(
 
 
 def landslides(
-    res: dict,
+    res: U4ResDict,
     sub_set_hull: gp.GeoDataFrame,
     use_online: bool = False,
     shp_path: os.PathLike = "",
-) -> dict:
+) -> U4ResDict:
     """Gets the landslide prone units and their spatial extend in the area as
     well as the number of known landslides in the area.
 
@@ -827,7 +953,7 @@ def landslides(
     :param shp_path: The path to a gpkg file containing the data, defaults to ""
     :type shp_path: os.PathLike, optional
     :return: The results dictionary with the classified data appended.
-    :rtype: dict
+    :rtype: U4ResDict
     """
     if use_online:
         logging.info("Querying HLNUG for landslide_data")
@@ -876,7 +1002,7 @@ def rockfall(
     sub_set_hull: gp.GeoDataFrame,
     use_online: bool = False,
     shp_path: os.PathLike = "",
-) -> dict:
+) -> U4ResDict:
     """Gets the number of known rockfalls in the area.
     :param sub_set_hull: The hull of the area.
     :type sub_set_hull: gp.GeoDataFrame
@@ -885,7 +1011,7 @@ def rockfall(
     :param shp_path: The path to a gpkg file containing the data, defaults to ""
     :type shp_path: os.PathLike, optional
     :return: The results dictionary with the classified data appended.
-    :rtype: dict
+    :rtype: U4ResDict
     """
     if use_online:
         logging.info("Querying HLNUG for rockfall_points")
@@ -914,15 +1040,15 @@ def rockfall(
 
 
 def subsidence(
-    res: dict,
+    res: U4ResDict,
     sub_set_hull: gp.GeoDataFrame,
     use_online: bool = False,
     shp_path: os.PathLike = "",
-) -> dict:
+) -> U4ResDict:
     """Gets the subsidence prone units and their spatial extend in the area.
 
     :param res: The results dictionary including some previous results.
-    :type res: dict
+    :type res: U4ResDict
     :param sub_set_hull: The hull of the area.
     :type sub_set_hull: gp.GeoDataFrame
     :param use_online: Whether to query the online webservice of the HLNUG, defaults to False
@@ -930,7 +1056,7 @@ def subsidence(
     :param shp_path: The path to a gpkg file containing the data, defaults to ""
     :type shp_path: os.PathLike, optional
     :return: The results dictionary with the classified data appended.
-    :rtype: dict
+    :rtype: U4ResDict
     """
     if use_online:
         logging.info("Querying HLNUG for subsidence_data")
@@ -960,16 +1086,16 @@ def subsidence(
 
 
 def karst(
-    res: dict,
+    res: U4ResDict,
     sub_set_hull: gp.GeoDataFrame,
     use_online: bool = False,
     shp_path: os.PathLike = "",
-) -> dict:
+) -> U4ResDict:
     """Gets the known karst risk and the spatial extend in the area as
     well as the number of known sinkholes in the area.
 
     :param res: The results dictionary including some previous results.
-    :type res: dict
+    :type res: U4ResDict
     :param sub_set_hull: The hull of the area.
     :type sub_set_hull: gp.GeoDataFrame
     :param use_online: Whether to query the online webservice of the HLNUG, defaults to False
@@ -977,7 +1103,7 @@ def karst(
     :param shp_path: The path to a gpkg file containing the data, defaults to ""
     :type shp_path: os.PathLike, optional
     :return: The results dictionary with the classified data appended.
-    :rtype: dict
+    :rtype: U4ResDict
     """
     if use_online:
         logging.info("Querying HLNUG for karst_data")
@@ -1020,20 +1146,20 @@ def karst(
 
 
 def topsoil(
-    res: dict,
+    res: U4ResDict,
     sub_set_hull: gp.GeoDataFrame,
     out_folder: os.PathLike = "",
-) -> dict:
+) -> U4ResDict:
     """Gets the composition of the topsoil and its spatial extent in the area.
 
     :param res: The results dictionary including some previous results.
-    :type res: dict
+    :type res: U4ResDict
     :param sub_set_hull: The hull of the area.
     :type sub_set_hull: gp.GeoDataFrame
     :param out_folder: The path to a gpkg file containing the data (not implemented yet), defaults to ""
     :type out_folder: os.PathLike, optional
     :return: The results dictionary with the classified data appended.
-    :rtype: dict
+    :rtype: U4ResDict
     """
     logging.info("Looking for topsoil_data")
     topsoil_data = u4web.query_hlnug(
@@ -1058,7 +1184,9 @@ def topsoil(
     return res
 
 
-def psi_data(sub_set_hull: gp.GeoDataFrame, psi_path: os.PathLike) -> dict:
+def psi_data(
+    sub_set_hull: gp.GeoDataFrame, psi_path: os.PathLike
+) -> U4ResDict:
     """Gets the PSI Data in the region and does a time series inversion.
 
     :param sub_set_hull: The region to select the data.
@@ -1066,7 +1194,7 @@ def psi_data(sub_set_hull: gp.GeoDataFrame, psi_path: os.PathLike) -> dict:
     :param psi_path: The path to the file containing the PSI data.
     :type psi_path: os.PathLike
     :return: The results dictionary with the classified data appended.
-    :rtype: dict
+    :rtype: U4ResDict
     """
     logging.info("Loading PSI Data")
     data = u4gpkg.load_gpkg_data_region(sub_set_hull, psi_path, "vertikal")
@@ -1100,7 +1228,7 @@ def psi_data(sub_set_hull: gp.GeoDataFrame, psi_path: os.PathLike) -> dict:
 
 
 def write_shape(
-    res: dict,
+    res: U4ResDict,
     sub_set: gp.GeoDataFrame,
     group: str,
     project: configparser.ConfigParser,
@@ -1108,7 +1236,7 @@ def write_shape(
     """Writes the shapes including their individual results to a shapefile.
 
     :param res: The results dictionary.
-    :type res: dict
+    :type res: U4ResDict
     :param sub_set: The shapes for which the results where compiled.
     :type sub_set: gp.GeoDataFrame
     :param group: The name of the group.
@@ -1128,11 +1256,13 @@ def write_shape(
     gdf.to_file(os.path.join(shape_folder, f"{group}.shp"))
 
 
-def write_report(res: dict, group: str, project: configparser.ConfigParser):
+def write_report(
+    res: U4ResDict, group: str, project: configparser.ConfigParser
+):
     """Saves the results for the specified group to a text file.
 
     :param res: The results dictionary.
-    :type res: dict
+    :type res: U4ResDict
     :param group: The name of the group.
     :type group: str
     :param project: The project containing paths.
@@ -1154,7 +1284,7 @@ def write_report(res: dict, group: str, project: configparser.ConfigParser):
 
 
 def write_fig(
-    res: dict,
+    res: U4ResDict,
     sub_set_hull: gp.GeoDataFrame,
     group: str,
     project: configparser.ConfigParser,
@@ -1162,7 +1292,7 @@ def write_fig(
     """Creates several plots for each site, including statistics.
 
     :param res: The results dictionary.
-    :type res: dict
+    :type res: U4ResDict
     :param sub_set_hull: The hull of the region.
     :type sub_set_hull: gp.GeoDataFrame
     :param group: The name of the group.
@@ -1184,11 +1314,11 @@ def write_fig(
 
 
 def manual_classification(
-    res: dict,
+    res: U4ResDict,
     sub_set_hull: gp.GeoDataFrame,
     group: str,
     project: configparser.ConfigParser,
-) -> dict:
+) -> U4ResDict:
     """
     Loads the manually defined classification from a shape-file and checks if
     the hull overlaps with any of the points. This is necessary because in
@@ -1196,7 +1326,7 @@ def manual_classification(
     association is persisting.
 
     :param res: The results dictionary.
-    :type res: dict
+    :type res: U4ResDict
     :param sub_set_hull: The hull of the region.
     :type sub_set_hull: gp.GeoDataFrame
     :param group: The name of the group.
@@ -1204,7 +1334,7 @@ def manual_classification(
     :param project: The project containing paths.
     :type project: configparser.ConfigParser
     :return: The results dictionary with the results appended.
-    :rtype: dict
+    :rtype: U4ResDict
     """
 
     man_path = os.path.join(
@@ -1251,7 +1381,7 @@ def manual_classification(
             # Extract three most common classes
             for ii, cla in enumerate(unique_classes):
                 if ii < 3:
-                    res[f"manual_class_{ii+1}"] = cla
+                    res[f"manual_class_{ii + 1}"] = cla
         elif len(candidates) > 1:
             logging.info(
                 f"Multiple classifications found for group {group:05}"
@@ -1266,4 +1396,42 @@ def manual_classification(
     else:
         logging.info(f"No manual classification found for group {group:05}")
 
+    return res
+
+
+def structural_area(
+    res: U4ResDict,
+    sub_set_hull: gp.GeoDataFrame,
+    out_folder: os.PathLike = "",
+) -> U4ResDict:
+    """Gets the geological structural region of the area.
+
+    :param res: The results dictionary including some previous results.
+    :type res: U4ResDict
+    :param sub_set_hull: The hull of the area.
+    :type sub_set_hull: gp.GeoDataFrame
+    :param out_folder: The path to a gpkg file containing the data (not implemented yet), defaults to ""
+    :type out_folder: os.PathLike, optional
+    :return: The results dictionary with the classified data appended.
+    :rtype: U4ResDict
+    """
+
+    logging.info("Looking for structural data")
+    structural_data = u4web.query_hlnug(
+        "geologie/guek300_ogc/MapServer",
+        "strukturraeume",
+        region=sub_set_hull,
+        out_folder=out_folder,
+        suffix=f"{res['group']:05}",
+    )
+
+    if len(structural_data) > 0:
+        structural_data = structural_data.clip(sub_set_hull)
+        logging.info("Classifying structural area")
+        structural_areas = structural_data.EBENE3_TXT.to_list()
+        res["structural_region"] = structural_areas
+    else:
+        logging.info(
+            f"No structural area data found for group {res['group']:05}."
+        )
     return res

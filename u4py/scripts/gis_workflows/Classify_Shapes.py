@@ -14,6 +14,7 @@ from tqdm import tqdm
 
 import u4py.analysis.classify as u4class
 import u4py.analysis.processing as u4proc
+import u4py.utils.cmd_args as u4args
 import u4py.utils.config as u4config
 import u4py.utils.projects as u4proj
 
@@ -21,8 +22,16 @@ import u4py.utils.projects as u4proj
 
 
 def main():
+    args = u4args.load()
+    if args.input:
+        proj_path = args.input
+    else:
+        proj_path = (
+            "/home/rudolf/Documents/umwelt4/Classify_ShapesHLNUG.u4project"
+        )
+
     project = u4proj.get_project(
-        proj_path="/home/rudolf/Documents/umwelt4/Classify_ShapesHLNUG.u4project",
+        proj_path=proj_path,
         required=[
             "base_path",
             "psi_path",
@@ -34,30 +43,29 @@ def main():
         interactive=False,
     )
     shp_cfg = u4config.get_shape_config()
-    use_parallel = True
-    use_online = True
-    use_internal = False
 
     # Setting up paths
     shp_file = os.path.join(
         project["paths"]["sites_path"],
         "thresholded_contours_all_shapes.gpkg",
     )
+
     if not (os.path.exists(shp_file)):
         shp_file = os.path.join(
             project["paths"]["sites_path"], "RD_Rutschungen_gesamt.shp"
         )
 
     # Getting Data
-    # sub_region = create_test_region()
-    # shp_gdf = u4gpkg.load_gpkg_data_region_ogr(sub_region, shp_file)
     shp_gdf = gp.read_file(shp_file).to_crs("EPSG:32632")
-    # shp_gdf = shp_gdf[:100]
     if "groups" in shp_gdf.keys():
         unique_groups = np.unique(shp_gdf.groups)
     else:
-        unique_groups = np.unique(shp_gdf.AMT_NR_)
-    # unique_groups = [9]
+        logging.info(
+            "The dataset is the HLNUG Landslide database, extracting only the Landslides"
+        )
+        shp_gdf = shp_gdf[shp_gdf.OBJEKT == "Rutschung"]
+        shp_gdf["groups"] = shp_gdf.AMT_NR_
+        unique_groups = np.unique(shp_gdf.groups)
     kwargs = [
         {
             "shp_gdf": shp_gdf,
@@ -65,13 +73,13 @@ def main():
             "buffer_size": 5,
             "shp_cfg": shp_cfg,
             "project": project,
-            "use_online": use_online,
-            "use_internal": use_internal,
+            "use_online": project.getboolean("config", "use_online"),
+            "use_internal": project.getboolean("config", "use_internal"),
             "save_report": True,
         }
         for group in unique_groups
     ]
-    if use_parallel:
+    if project.getboolean("config", "use_parallel"):
         main_list = u4proc.batch_mapping(
             kwargs, classifier_wrapper, "Classifying Groups"
         )

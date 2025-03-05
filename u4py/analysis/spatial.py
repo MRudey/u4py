@@ -637,7 +637,7 @@ def contour_shapes(
                         data["geometry"].append(pgon)
                         if ii < len(levels) - 1:
                             data["polygon_levels"].append(
-                                f"{levels[ii]} - {levels[ii+1]}"
+                                f"{levels[ii]} - {levels[ii + 1]}"
                             )
                         else:
                             data["polygon_levels"].append(f">{levels[ii]}")
@@ -1283,3 +1283,31 @@ def shape_in_tiff(shp: shapely.Polygon, src: rasterio.DatasetReader) -> bool:
         or (shp_bnd[3] >= rst_bnd.bottom and shp_bnd[3] <= rst_bnd.top)
     )
     return result
+
+
+def feret_diameters(polygon: np.ndarray) -> Tuple[float, float]:
+    """
+    Calculates the minimum and maximum Feret diameters of a convex polygon
+    based on the rotating caliper method
+
+    :param polygon: A numpy array of (x, y) coordinates
+    :type polygon: np.ndarray
+    :return: The minimum and maximum Feret diameter
+    :rtype: Tuple[float, float]
+    """
+    if np.all(polygon[0] == polygon[-1]):
+        polygon = polygon[:-1]
+    length = len(polygon)
+    Ds = np.empty(length)
+
+    for i in range(length):
+        p1 = polygon[i]
+        p2 = polygon[(i + 1) % length]
+
+        ds = np.abs(np.cross(p2 - p1, p1 - polygon) / np.linalg.norm(p2 - p1))
+
+        Ds[i] = np.max(ds)
+    minf = np.min(Ds)
+    maxf = np.max(Ds)
+
+    return (minf, maxf)

@@ -8,9 +8,12 @@ import argparse
 import logging
 
 import u4py.utils.config as u4config
+import u4py.utils.types as u4types
 
 
-def load(module_descript: str = "No description given."):
+def load(
+    module_descript: str = "No description given.",
+) -> u4types.U4Namespace:
     """Loads the commandline parser and sets everything in the config for later use.
 
     :param module_descript: The description of the module, defaults to "No description given."
