@@ -1,10 +1,14 @@
+from pathlib import Path
+
 import geopandas as gp
 import numpy as np
 from tqdm import tqdm
 
 
 def main():
-    file_path = r"c:\Users\Michael Rudolf\Documents\ArcGIS\SelectedSites_August24\Filtered_Classified_Shapes_all_merged_unclean.gpkg"
+    file_path = Path(
+        r"~\Documents\ArcGIS\SelectedSites_August24\Filtered_Classified_Shapes_all_merged_unclean.gpkg"
+    ).expanduser()
     gdf: gp.GeoDataFrame
     print("Loading File")
     gdf = gp.read_file(file_path, layer="Filtered_Classified_Shapes")

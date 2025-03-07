@@ -35,7 +35,9 @@ def main():
     # Testing classifier
     project = {
         "paths": {
-            "sites_path": r"C:\Users\Michael Rudolf\Documents\ArcGIS\SelectedSites_April24"
+            "sites_path": Path(
+                r"~\Documents\ArcGIS\SelectedSites_April24"
+            ).expanduser()
         }
     }
     res = dict()
@@ -75,9 +77,9 @@ def get_manual_classes(file_path: os.PathLike) -> dict:
                     classes = val.split(",")
                     for jj, cls in enumerate(classes):
                         if "$^{?}$" in cls:
-                            data[f"unclear_{jj+1}"][nrow] = True
+                            data[f"unclear_{jj + 1}"][nrow] = True
                         cls = cls.replace("$^{?}$", "")
-                        data[f"class_{jj+1}"][nrow] = cls
+                        data[f"class_{jj + 1}"][nrow] = cls
                 if ii == 2:
                     data["comment"][nrow] = (
                         val.replace("$^\\circ$", "°")

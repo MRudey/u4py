@@ -26,7 +26,7 @@ def main():
         r"~\Documents\ArcGIS\EndberichtWorkflowPlots"
     ).expanduser()
     output_path = Path(
-        r"~\HESSENBOX-DA\Umwelt_4\Bericht_2024\images"
+        r"~\nextHessenbox\Umwelt_4\Bericht_2024\images"
     ).expanduser()
 
     fig, axes = plt.subplots(
@@ -35,7 +35,7 @@ def main():
 
     # Original difference plan and boundary of plot
     logging.info("Plotting Differenzenplan")
-    axes[0][0].set_title("Differenzenplan")
+    axes[0][0].set_title("DEM difference")
     orig_folder = os.path.join(base_path, "original_tiffs")
     orig_tiffs = [
         os.path.join(orig_folder, f)
@@ -61,7 +61,7 @@ def main():
 
     # Get and plot buffered shapes
     logging.info("Plotting Filter Masken")
-    axes[0][1].set_title("Filter Masken")
+    axes[0][1].set_title("Masking")
     shp_cfg = u4config.get_shape_config()
     shape_cache_folder = os.path.join(base_path, "shape_cache")
     os.makedirs(shape_cache_folder, exist_ok=True)
@@ -81,7 +81,7 @@ def main():
 
     # Plot Clipped tiffs
     logging.info("Plotting Clipped Tiffs")
-    axes[0][2].set_title("Geschnittener Differenzenplan")
+    axes[0][2].set_title("Filtered differences")
     clip_folder = os.path.join(base_path, "clipped_tiffs")
     clip_tiffs = [
         os.path.join(clip_folder, f)
@@ -93,7 +93,7 @@ def main():
 
     # Contours
     logging.info("Plotting Contours")
-    axes[1][0].set_title("Konturierung")
+    axes[1][0].set_title("Contouring")
     u4ax.add_gpkg_data_in_axis(
         os.path.join(base_path, "contours.gpkg"),
         table="contours",
@@ -106,7 +106,7 @@ def main():
 
     # Groups
     logging.info("Plotting Groups")
-    axes[1][1].set_title("Gruppierung")
+    axes[1][1].set_title("Clustering")
     u4ax.add_gpkg_data_in_axis(
         os.path.join(base_path, "Classified_Shapes.gpkg"),
         table="Classified_Shapes",
@@ -119,7 +119,7 @@ def main():
 
     # Klassifikation
     logging.info("Plotting Classification")
-    axes[1][2].set_title("Klassifikation")
+    axes[1][2].set_title("Classification")
     gpkg_crs = u4sql.get_crs(
         os.path.join(base_path, "Filtered_Classified_Shapes_onlyLarge.gpkg"),
         "Filtered_Classified_Shapes_2410",
@@ -157,9 +157,9 @@ def main():
     axes[1][0].xaxis.set_major_formatter(u4pltfmt.coordinate_formatter)
     axes[1][1].xaxis.set_major_formatter(u4pltfmt.coordinate_formatter)
     axes[1][2].xaxis.set_major_formatter(u4pltfmt.coordinate_formatter)
-    u4pltfmt.enumerate_axes(fig)
+    # u4pltfmt.enumerate_axes(fig)
     fig.tight_layout()
-    fig.savefig(os.path.join(output_path, "ContourWorkflow.png"))
+    fig.savefig(os.path.join(output_path, "ContourWorkflow_en.png"))
     # fig.savefig(os.path.join(output_path, "ContourWorkflow.pdf"))
 
 

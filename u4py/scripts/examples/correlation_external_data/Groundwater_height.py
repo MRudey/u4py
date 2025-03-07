@@ -16,12 +16,14 @@ import u4py.utils.projects as u4proj
 def main():
     project = u4proj.get_project(
         proj_path=Path(
-            r"C:\Users\Michael Rudolf\Documents\ArcGIS\U4_projects\Groundwater_height.u4project"
+            r"~\Documents\ArcGIS\U4_projects\Groundwater_height.u4project"
         ).expanduser(),
         required=["base_path", "places_path", "ext_path", "diff_plan_path"],
         interactive=False,
     )
-    wells_shp_path = r"C:\Users\Michael Rudolf\HESSENBOX-DA\Datenaustausch_Umwelt4.0\All_Correlations_GW_PSI.shp"
+    wells_shp_path = Path(
+        r"~\nextHessenbox\Datenaustausch_Umwelt4.0\All_Correlations_GW_PSI.shp"
+    ).expanduser()
     wells_gdf = gp.read_file(wells_shp_path)
     wells_path = os.path.join(
         project["paths"]["ext_path"], "GWStände_2015", "GWStände_2015.pkl"

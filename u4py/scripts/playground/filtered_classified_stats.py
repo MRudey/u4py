@@ -1,4 +1,5 @@
 import os
+from pathlib import Path
 
 import geopandas as gp
 import matplotlib.axes as max
@@ -7,9 +8,9 @@ import numpy as np
 
 
 def main():
-    folder_path = (
-        r"C:\Users\Michael Rudolf\Documents\ArcGIS\SelectedSites_August24"
-    )
+    folder_path = Path(
+        r"~\Documents\ArcGIS\SelectedSites_August24"
+    ).expanduser()
     flist = [
         "Filtered_Classified_Shapes_hazard.gpkg",
         "Filtered_Classified_Shapes_onlyLarge.gpkg",

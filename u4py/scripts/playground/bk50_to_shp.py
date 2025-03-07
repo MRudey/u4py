@@ -1,3 +1,5 @@
+from pathlib import Path
+
 import contextily
 import geopandas as gp
 import matplotlib.pyplot as plt
@@ -8,7 +10,7 @@ import u4py.analysis.spatial as u4spatial
 
 
 def main():
-    out_folder = r"c:\Users\Michael Rudolf\Documents\ArcGIS\Places\bodenkarte"
+    out_folder = Path(r"~\Documents\ArcGIS\Places\bodenkarte").expanduser()
     region = gp.GeoDataFrame(
         geometry=[
             u4spatial.bounds_to_polygon(

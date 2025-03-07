@@ -1112,7 +1112,7 @@ def invert_test_data():
     fig.tight_layout()
     fig.savefig(
         Path(
-            r"~\HESSENBOX-DA\Umwelt_4\Bericht_2024\images\beispiel_zeitreihe.pdf"
+            r"~\nextHessenbox\Umwelt_4\Bericht_2024\images\beispiel_zeitreihe.pdf"
         ).expanduser()
     )
     # plt.show()

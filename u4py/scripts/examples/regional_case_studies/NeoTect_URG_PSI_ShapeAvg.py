@@ -11,7 +11,7 @@ def main():
         r"~\Documents\ArcGIS\INSAR_results\NeoTect_URG_PSI\Faults"
     ).expanduser()
     out_path = Path(
-        r"~\HESSENBOX-DA\Entwurf_Neotectonics_URG (Johannes Mair)\Python Plots"
+        r"~\nextHessenbox\Entwurf_Neotectonics_URG (Johannes Mair)\Python Plots"
     ).expanduser()
 
     fault_list = ["1A", "1B", "1C", "1D", "1E", "2A", "2B"]

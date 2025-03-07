@@ -69,7 +69,7 @@ def main():
         fig.savefig(
             os.path.join(
                 Path(
-                    r"~\HESSENBOX-DA\Umwelt_4_privat\2023-12 HLNUG Kolloq"
+                    r"~\nextHessenbox\Umwelt_4_privat\2023-12 HLNUG Kolloq"
                 ).expanduser(),
                 f"{kk}.png",
             )
