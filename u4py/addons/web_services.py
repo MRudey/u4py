@@ -8,11 +8,13 @@ import logging
 import os
 import tempfile
 from pathlib import Path
+from typing import Tuple
 
 import geopandas as gp
 import numpy as np
 import PIL
 import PIL.PngImagePlugin
+import pyproj
 import requests
 import restapi
 import shapely
@@ -327,7 +329,7 @@ def wms_in_gdf_boundary(
     wms_version: str,
     layer: str,
     size: tuple,
-) -> PIL.Image.Image:
+) -> Tuple[PIL.Image.Image, pyproj.CRS]:
     """Gets a WMS image within the region of a geodataframe.
 
     :param bound_gdf: The geodataframe to use for the region selection.
@@ -341,8 +343,8 @@ def wms_in_gdf_boundary(
     :param size: The size of the image (maximum 3000x3000)
     :type size: tuple
     :raises ValueError: Raises a Value error if the layer is not available.
-    :return: The image as a pillow image object for easy plotting with matplotlib.
-    :rtype: PIL.Image.Image
+    :return: The image as a pillow image object for easy plotting with matplotlib and the CRS of the image
+    :rtype: Tuple[PIL.Image.Image, pyproj.CRS]
     """
     wms = WebMapService(wms_url, version=wms_version)
     layers = list(wms.contents)
@@ -355,16 +357,17 @@ def wms_in_gdf_boundary(
             lyr_crsopts = [
                 v[-1] for v in lyr.crs_list if v[-1].startswith("EPSG:")
             ]  # use only a reduced set where the bounds are supplied
+            # Check if the input crs is supported
+            if str(bound_gdf.crs) not in lyr_crsopts:
+                # if not supported use default crs from layer
+                bound_gdf = bound_gdf.to_crs(lyr_crsopts[0])
         elif hasattr(lyr, "crsOptions"):
-            lyr_crsopts = [
-                v[-1] for v in lyr.crsOptions if v[-1].startswith("EPSG:")
-            ]
+            lyr_crsopts = [v for v in lyr.crsOptions if v.startswith("EPSG:")]
+            if str(bound_gdf.crs) not in lyr_crsopts:
+                # if not supported use crs from boundary (I think this is for 1.1.1 servers)
+                bound_gdf = bound_gdf.to_crs(lyr.boundingBox[-1])
         else:
             raise AttributeError("Check the WMS layer crs attribute!")
-        # Check if the input crs is supported
-        if not str(bound_gdf.crs) in lyr_crsopts:
-            # if not supported use default crs from layer
-            bound_gdf = bound_gdf.to_crs(lyr_crsopts[0])
 
         # Check if the gdf lies within the supported range of the WMS
         if gdf_in_wms_bounds(lyr, bound_gdf):
@@ -408,12 +411,12 @@ def gdf_in_wms_bounds(
     # Look for crs in respective lists and select boundary tuple
     if hasattr(lyr, "crs_list"):
         lyr_crs_list = lyr.crs_list
+        crs_idx_list = [v[-1] for v in lyr_crs_list]
+        crs_idx = crs_idx_list.index(str(bound_gdf.crs))
+        lyr_bnd_box = lyr_crs_list[crs_idx]
     elif hasattr(lyr, "crsOptions"):
-        lyr_crs_list = lyr.crsOptions
+        lyr_bnd_box = [v for v in lyr.boundingBox[:4]]
 
-    crs_idx_list = [v[-1] for v in lyr_crs_list]
-    crs_idx = crs_idx_list.index(str(bound_gdf.crs))
-    lyr_bnd_box = lyr_crs_list[crs_idx]
     bnd_bnd_box = bound_gdf.bounds
 
     result = (
