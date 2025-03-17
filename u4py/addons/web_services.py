@@ -406,9 +406,14 @@ def gdf_in_wms_bounds(
     :rtype: bool
     """
     # Look for crs in respective lists and select boundary tuple
-    crs_idx_list = [v[-1] for v in lyr.crs_list]
+    if hasattr(lyr, "crs_list"):
+        lyr_crs_list = lyr.crs_list
+    elif hasattr(lyr, "crsOptions"):
+        lyr_crs_list = lyr.crsOptions
+
+    crs_idx_list = [v[-1] for v in lyr_crs_list]
     crs_idx = crs_idx_list.index(str(bound_gdf.crs))
-    lyr_bnd_box = lyr.crs_list[crs_idx]
+    lyr_bnd_box = lyr_crs_list[crs_idx]
     bnd_bnd_box = bound_gdf.bounds
 
     result = (
