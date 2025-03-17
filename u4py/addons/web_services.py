@@ -351,10 +351,16 @@ def wms_in_gdf_boundary(
     if layer in layers:
         lyr = wms[layer]
         # Get info from layer
-        lyr_crsopts = [
-            v[-1] for v in lyr.crs_list if v[-1].startswith("EPSG:")
-        ]  # use only a reduced set where the bounds are supplied
-
+        if hasattr(lyr, "crs_list"):
+            lyr_crsopts = [
+                v[-1] for v in lyr.crs_list if v[-1].startswith("EPSG:")
+            ]  # use only a reduced set where the bounds are supplied
+        elif hasattr(lyr, "crsOptions"):
+            lyr_crsopts = [
+                v[-1] for v in lyr.crs_list if v[-1].startswith("EPSG:")
+            ]
+        else:
+            raise AttributeError("Check the WMS layer crs attribute!")
         # Check if the input crs is supported
         if not str(bound_gdf.crs) in lyr_crsopts:
             # if not supported use default crs from layer
