@@ -92,15 +92,17 @@ def site_report(
     # Volumina
     document = moved_volumes(row[1], document)
 
-    # Difference maps
+    # DEM
     if os.path.exists(img_path + f"_dem.{img_fmt}"):
         document = dem(img_path, img_fmt, document)
 
     # Topographie
-    if os.path.exists(img_path + f"_slope.{img_fmt}") or os.path.exists(
-        img_path + f"_aspect_slope.{img_fmt}"
-    ):
+    if os.path.exists(img_path + f"_slope.{img_fmt}"):
         document = topography(row[1], img_path, img_fmt, document)
+
+    # Difference Map
+    if os.path.exists(img_path + f"_diffplan.{img_fmt}"):
+        document = difference(img_path, img_fmt, document)
 
     # PSI Data
     if os.path.exists(img_path + f"_psi.{img_fmt}"):
@@ -436,7 +438,7 @@ def dem(img_path: os.PathLike, img_fmt: str, document: Document) -> Document:
         prgph.alignment = WD_ALIGN_PARAGRAPH.CENTER
         run = prgph.add_run()
         run.add_picture(
-            img_path + f"_dem.{img_fmt}", width=docx.shared.Mm(140)
+            img_path + f"_dem.{img_fmt}", width=docx.shared.Mm(150)
         )
     prgph = document.add_paragraph()
     prgph.add_run(f"Abbildung {FIGURENUM}: ").bold = True
@@ -532,35 +534,23 @@ def topography(
         prgph.alignment = WD_ALIGN_PARAGRAPH.CENTER
         run = prgph.add_run()
         run.add_picture(
-            img_path + f"_slope.{img_fmt}", width=docx.shared.Mm(70)
+            img_path + f"_slope.{img_fmt}", width=docx.shared.Mm(150)
         )
+        prgph = document.add_paragraph()
+        prgph.alignment = WD_ALIGN_PARAGRAPH.CENTER
+        run = prgph.add_run()
         run.add_picture(
-            img_path + f"_aspect.{img_fmt}", width=docx.shared.Mm(70)
+            img_path + f"_aspect.{img_fmt}", width=docx.shared.Mm(150)
         )
 
         prgph = document.add_paragraph()
         prgph.add_run(f"Abbildung {FIGURENUM}: ").bold = True
         FIGURENUM += 1
         prgph.add_run("Topographie im Gebiet. ")
-        prgph.add_run("Links: ").italic = True
+        prgph.add_run("Oben: ").italic = True
         prgph.add_run("Steigung. ")
-        prgph.add_run("Rechts: ").italic = True
+        prgph.add_run("Unten: ").italic = True
         prgph.add_run("Exposition.")
-
-    if os.path.exists(img_path + f"_aspect_slope.{img_fmt}"):
-        prgph = document.add_paragraph()
-        prgph.alignment = WD_ALIGN_PARAGRAPH.CENTER
-        run = prgph.add_run()
-        run.add_picture(
-            img_path + f"_aspect_slope.{img_fmt}",
-            width=docx.shared.Mm(150),
-        )
-        prgph = document.add_paragraph()
-        prgph.add_run(f"Abbildung {FIGURENUM}: ").bold = True
-        FIGURENUM += 1
-        prgph.add_run(
-            "Gemischte Darstellung von Steigung (Sättigung) und Exposition (Farbe)."
-        )
 
     return document
 
@@ -699,4 +689,27 @@ def soils(img_path: os.PathLike, img_fmt: str, document: Document) -> Document:
         "Bodenhauptgruppen im Gebiet basierend auf der BFD50 (Quelle: HLNUG)."
     )
 
+    return document
+
+
+def difference(
+    img_path: os.PathLike, img_fmt: str, document: Document
+) -> Document:
+    """Adds the difference and slope maps.
+    :param img_path: The path to the image folder including group name.
+    :type img_path: os.PathLike
+    :rtype: str
+    """
+    global FIGURENUM
+
+    prgph = document.add_paragraph()
+    prgph.alignment = WD_ALIGN_PARAGRAPH.CENTER
+    run = prgph.add_run()
+    run.add_picture(
+        img_path + f"_diffplan.{img_fmt}", width=docx.shared.Mm(150)
+    )
+    prgph = document.add_paragraph()
+    prgph.add_run(f"Abbildung {FIGURENUM}: ").bold = True
+    FIGURENUM += 1
+    prgph.add_run("Differenzenplan im Gebiet.")
     return document

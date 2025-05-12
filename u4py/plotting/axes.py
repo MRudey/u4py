@@ -24,6 +24,7 @@ from typing import Callable, Iterable, Tuple
 import contextily
 import geopandas as gp
 import mapclassify  # Keep for user defined chloropleths
+import matplotlib.colors as mcolors
 import matplotlib.lines as mlines
 import matplotlib.patches as mpatches
 import matplotlib.path as mpath
@@ -788,7 +789,12 @@ def add_dem(region: gp.GeoDataFrame, tiff_folder: os.PathLike, ax: Axes):
 
 
 @_add_or_create
-def add_slope(region: gp.GeoDataFrame, tiff_folder: os.PathLike, ax: Axes):
+def add_slope(
+    region: gp.GeoDataFrame,
+    tiff_folder: os.PathLike,
+    ax: Axes,
+    cmap: mcolors.Colormap = "inferno",
+):
     """Adds a slope map to the axis.
 
     :param region: The region where to extract the data.
@@ -797,6 +803,8 @@ def add_slope(region: gp.GeoDataFrame, tiff_folder: os.PathLike, ax: Axes):
     :type tiff_folder: os.PathLike
     :param ax: The axis to plot into.
     :type ax: Axes
+    :param cmap: The colormap to use for the plot.
+    :type cmap: mcolors.Colormap
     """
     file_list = u4files.get_file_list_adf(tiff_folder)
     points = u4spatial.select_points_region(region, file_list)
@@ -805,17 +813,17 @@ def add_slope(region: gp.GeoDataFrame, tiff_folder: os.PathLike, ax: Axes):
         for ii, fpath in enumerate(file_list):
             sl_fpath = u4tiff.get_terrain(fpath, terrain_feature="slope")
             if ii > 0:
-                add_tile(sl_fpath, ax=ax, cmap="inferno", vm=(0, 45))
+                add_tile(sl_fpath, ax=ax, cmap=cmap, vm=(0, 60))
             else:
                 add_tile(
                     sl_fpath,
                     ax=ax,
-                    cmap="inferno",
-                    vm=(0, 45),
+                    cmap=cmap,
+                    vm=(0, 60),
                     colorbar={
                         "label": "Hangneigung (°)",
                         "shrink": 0.7,
-                        "extend": "both",
+                        "extend": "max",
                         # "pad": 0.05,
                     },
                 )

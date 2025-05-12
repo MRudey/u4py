@@ -13,6 +13,7 @@ import contextily
 import geopandas as gp
 import matplotlib.artist as martist
 import matplotlib.cm as mcm
+import matplotlib.colors as mcolors
 import matplotlib.patches as mpatches
 import matplotlib.pyplot as plt
 import numpy as np
@@ -1321,10 +1322,10 @@ def slope_map(
     region = gp.GeoDataFrame(
         geometry=[u4spatial.bounds_to_polygon(ax)], crs=crs
     )
-    u4ax.add_slope(region, dem_path, ax=ax)
     # Plot other anomalies
     if not IS_HLNUG:
-        # For non HLNUG data use the thresholded contours
+        # For non HLNUG data use the thresholded contours and default colormap
+        u4ax.add_slope(region, dem_path, ax=ax)
         u4ax.add_gpkg_data_in_axis(
             contour_path,
             ax=ax,
@@ -1334,7 +1335,24 @@ def slope_map(
             linewidth=2,
         )
     else:
-        # For HLNUG data use the
+        # For HLNUG data use the classified shapes and custom colormap
+        # Color thresholds and corresponding named colors
+        bounds = [0, 5, 10, 20, 30, 45, 60]
+        mapping = [b / 60 for b in bounds]
+        color_names = [
+            "lightgreen",  # 0-5
+            "green",  # 5-10
+            "lightyellow",  # 10-20
+            "yellow",  # 20-30
+            "orange",  # 30-45
+            "red",  # 45-60
+            "darkviolet",  # 60-90
+        ]
+        col_list = [(m, c) for m, c in zip(mapping, color_names)]
+        cmap = mcolors.LinearSegmentedColormap.from_list(
+            "custom", colors=col_list
+        )
+        u4ax.add_slope(region, dem_path, ax=ax, cmap=cmap)
         u4ax.add_gpkg_data_in_axis(
             contour_path,
             ax=ax,

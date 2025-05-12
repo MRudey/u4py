@@ -326,12 +326,21 @@ def map_worker(
             overwrite=overwrite_plots,
         )
     else:
+        u4plots.diffplan_map(
+            row,
+            crs,
+            output_path,
+            "known_features",
+            project["paths"]["diff_plan_path"],
+            plot_buffer=100,
+            overwrite=overwrite_plots,
+        )
         u4plots.dem_map(
             row,
             crs,
             output_path,
             "known_features",
-            dem_path,
+            project["paths"]["diff_plan_path"],
             contour_path,
             plot_buffer=100,
             overwrite=overwrite_plots,
