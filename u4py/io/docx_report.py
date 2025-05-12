@@ -5,6 +5,7 @@ requirements of the HLNUG.
 
 import os
 
+import numpy as np
 import docx
 import docx.parts
 import docx.shared
@@ -67,7 +68,7 @@ def site_report(
     section.footer_distance = docx.shared.Mm(12.7)
 
     # Start filling the Document
-    document.add_heading(f"Beschreibung für Nr. {group}", level=0)
+    document.add_heading(f"Beschreibung für Amt-Nr. {group}", level=0)
 
     # Add header
     heading = ",".join(row[1].locations.split(",")[:-4])
@@ -86,7 +87,7 @@ def site_report(
         document,
         web_query_path,
     )
-    document = landuse(row[1], document)
+    # document = landuse(row[1], document)
 
     # Volumina
     document = moved_volumes(row[1], document)
@@ -198,19 +199,24 @@ def hlnug_description(
         )
 
     # Add number and name of geological map
-    if isinstance(row["geology_mapnum"], list):
-        map_list = [
-            f"{mpnum} {mpname}"
-            for mpnum, mpname in zip(
-                row["geology_mapnum"], row["geology_mapname"]
+    mapnum = eval(row["geology_mapnum"])
+    if mapnum:
+        if isinstance(mapnum, list):
+            mapname = eval(row["geology_mapname"])
+            map_list = [
+                f"{mpnum} {mpname}"
+                for mpnum, mpname in zip(
+                    mapnum, mapname
+                )
+            ]
+            mapnum_string = u4human.listed_strings(map_list)
+            prgph.add_run(f"auf den Kartenblättern {mapnum_string}. ")
+        else:
+            prgph.add_run(
+                f"auf dem Kartenblatt {row['geology_mapnum']} {row['geology_mapname']}. "
             )
-        ]
-        mapnum_string = u4human.listed_strings(map_list)
-        prgph.add_run(f"auf den Kartenblättern {mapnum_string}. ")
     else:
-        prgph.add_run(
-            f"auf dem Kartenblatt {row['geology_mapnum']} {row['geology_mapname']}. "
-        )
+        prgph.add_run(". ")
 
     # Add dimensions
     prgph.add_run(
@@ -241,7 +247,7 @@ def hlnug_description(
             if isinstance(motorway_lengths, list):
                 for rname, rlen in zip(motorway_names, motorway_lengths):
                     road_list.append(
-                        f"der {rname} auf einer Länge von {rlen:.1f}\u00a0m"
+                        f"der {rname} auf einer Länge von {int(rlen)}\u00a0m"
                     )
             else:
                 road_list.append(
@@ -256,7 +262,7 @@ def hlnug_description(
             if isinstance(primary_lengths, list):
                 for rname, rlen in zip(primary_names, primary_lengths):
                     road_list.append(
-                        f"der {rname} auf einer Länge von {rlen:.1f}\u00a0m"
+                        f"der {rname} auf einer Länge von {int(rlen)}\u00a0m"
                     )
             else:
                 road_list.append(
@@ -271,7 +277,7 @@ def hlnug_description(
             if isinstance(secondary_lengths, list):
                 for rname, rlen in zip(secondary_names, secondary_lengths):
                     road_list.append(
-                        f"der {rname} auf einer Länge von {rlen:.1f}\u00a0m"
+                        f"der {rname} auf einer Länge von {int(rlen)}\u00a0m"
                     )
             else:
                 road_list.append(
@@ -279,6 +285,41 @@ def hlnug_description(
                 )
         prgph.add_run(
             f"Die Rutschung wird von {u4human.listed_strings(road_list)} durchkreuzt. "
+        )
+
+    else:
+        if row["roads_nearest_motorway_name"]:
+            prgph.add_run(
+                f"In ca. {int(row['roads_nearest_motorway_dist'])}\u00a0m "
+                + "Entfernung vom Mittelpunkt der Rutschung befindet sich die "
+                + f"{row['roads_nearest_motorway_name']}. "
+            )
+        elif row["roads_nearest_primary_name"]:
+            prgph.add_run(
+                f"In ca. {int(row['roads_nearest_primary_dist'])}\u00a0m "
+                + "Entfernung vom Mittelpunkt der Rutschung befindet sich die "
+                + f"{row['roads_nearest_primary_name']}. "
+            )
+        elif row["roads_nearest_secondary_dist"]>0:
+            prgph.add_run(
+                f"In ca. {int(row['roads_nearest_secondary_dist'])}\u00a0m "
+                + "Entfernung vom Mittelpunkt der Rutschung befindet sich "
+            )
+            if row["roads_nearest_secondary_name"]:
+                prgph.add_run(f"die {row['roads_nearest_secondary_name']}. ")
+            else:
+                prgph.add_run("eine nicht benannte Landstraße. ")
+        else:
+            prgph.add_run("Im Umkreis von 1\u00a0km sind keine größeren Straßen vorhanden. ")
+
+    if row["railways_has"]:
+        prgph.add_run(
+            "Eine Bahnlinie durchquert das Gebiet auf "
+            +f"{int(row['railways_length'])}\u00a0m Länge. "
+        )
+    elif row["railways_close"]:
+        prgph.add_run(
+            f"Eine Bahnlinie liegt ca. {int(row['railways_length'])}\u00a0m " + "entfernt vom Mittelpunkt der Rutschung. "
         )
 
     # Add drill sites
@@ -305,8 +346,6 @@ def landuse(series: gp.GeoSeries, document: Document) -> Document:
     :return: The tex code.
     :rtype: str
     """
-    prgph = document.add_paragraph()
-    prgph.add_run("Landnutzung: ").bold = True
     landuse = ""
     try:
         landuse = eval(series.landuse_names)
@@ -314,6 +353,8 @@ def landuse(series: gp.GeoSeries, document: Document) -> Document:
         landuse = series.landuse_names
     landuse_perc = eval(series.landuse_percent)
     if landuse:
+        prgph = document.add_paragraph()
+        prgph.add_run("Landnutzung: ").bold = True
         prgph.add_run(
             "Der überwiegende Teil wird durch "
             + f"{u4human.landuse_str(series.landuse_major)} bedeckt. "
@@ -342,15 +383,32 @@ def moved_volumes(series: gp.GeoSeries, document: Document) -> Document:
     :rtype: str
     """
     document.add_heading("Höhenveränderungen", level=1)
-    document.add_paragraph(
-        "Im Gebiet um die detektierte Anomalie wurde laut vorliegendem "
-        + "Differenzenplan (HVBG) insgesamt "
-        + f"{series.volumes_moved}\u00a0m³ Material bewegt, "
-        + f"wovon {series.volumes_added}\u00a0m³ hinzugefügt und "
-        + f"{abs(series.volumes_removed)}\u00a0m³ abgetragen wurde. "
-        + f"Dies ergibt eine Gesamtbilanz von {series.volumes_total}\u00a0m³,"
-        + f" in Summe wurde also {u4human.vol_str(series.volumes_total)}."
-    )
+    if np.all(
+        np.abs(
+            [
+                series.volumes_moved,
+                series.volumes_added,
+                series.volumes_removed,
+                series.volumes_total,
+            ]
+        )
+        <= 200
+    ):
+        document.add_paragraph(
+            "Im Gebiet um die detektierte Anomalie wurde laut vorliegendem "
+            + "Differenzenplan (HVBG) keine Bewegung festgestellt."
+        )
+    else:
+        document.add_paragraph(
+            "Im Gebiet um die detektierte Anomalie wurde laut vorliegendem "
+            + "Differenzenplan (HVBG) insgesamt "
+            + f"{series.volumes_moved}\u00a0m³ Material bewegt, "
+            + f"wovon {series.volumes_added}\u00a0m³ hinzugefügt und "
+            + f"{abs(series.volumes_removed)}\u00a0m³ abgetragen wurde. "
+            + f"Dies ergibt eine Gesamtbilanz von {series.volumes_total}"
+            + f"\u00b1{series.volumes_error}\u00a0m³,"
+            + f" in Summe wurde also {u4human.vol_str(series.volumes_total)}."
+        )
     return document
 
 
@@ -547,7 +605,7 @@ def geology(
     prgph.alignment = WD_ALIGN_PARAGRAPH.CENTER
     run = prgph.add_run()
     run.add_picture(
-        img_path + f"_GK25_leg.{img_fmt}", width=docx.shared.Mm(70)
+        img_path + f"_GK25_leg.{img_fmt}", width=docx.shared.Mm(100)
     )
 
     prgph = document.add_paragraph()
@@ -585,7 +643,7 @@ def hydrogeology(
     prgph.alignment = WD_ALIGN_PARAGRAPH.CENTER
     run = prgph.add_run()
     run.add_picture(
-        img_path + f"_HUEK200_leg.{img_fmt}", width=docx.shared.Mm(70)
+        img_path + f"_HUEK200_leg.{img_fmt}", width=docx.shared.Mm(100)
     )
 
     prgph = document.add_paragraph()
@@ -621,7 +679,7 @@ def soils(img_path: os.PathLike, img_fmt: str, document: Document) -> Document:
     prgph.alignment = WD_ALIGN_PARAGRAPH.CENTER
     run = prgph.add_run()
     run.add_picture(
-        img_path + f"_BFD50_leg.{img_fmt}", width=docx.shared.Mm(70)
+        img_path + f"_BFD50_leg.{img_fmt}", width=docx.shared.Mm(100)
     )
 
     prgph = document.add_paragraph()
