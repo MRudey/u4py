@@ -291,7 +291,7 @@ def hlnug_description(
                     f"der {secondary_names} auf einer Länge von {secondary_lengths:.1f}\u00a0m"
                 )
         prgph.add_run(
-            f"Die Rutschung wird von {u4human.listed_strings(road_list)} durchkreuzt. "
+            f"Die Rutschung wird von {u4human.listed_strings(road_list)} gequert. "
         )
 
     else:
