@@ -5,12 +5,12 @@ requirements of the HLNUG.
 
 import os
 
-import numpy as np
 import docx
 import docx.parts
 import docx.shared
 import geopandas as gp
 import humanize
+import numpy as np
 import uncertainties as unc
 from docx.document import Document
 from docx.enum.text import WD_ALIGN_PARAGRAPH
@@ -115,7 +115,17 @@ def site_report(
         document = soils(img_path, img_fmt, document)
     FIGURENUM = 1
     # Save to docx file
-    document.save(os.path.join(output_path_docx, f"{group:05}_info.docx"))
+    mapnums = eval(row[1].geology_mapnum)
+    if mapnums:
+        docx_path = (
+            os.path.join(output_path_docx, f"{str(mapnums)}_{group:05}.docx")
+            .replace("[", "")
+            .replace("]", "")
+            .replace(", ", "_")
+        )
+    else:
+        docx_path = os.path.join(output_path_docx, f"XXXX_{group:05}.docx")
+    document.save(docx_path)
 
 
 def location(series: gp.GeoSeries, document: Document) -> Document:
@@ -204,10 +214,7 @@ def hlnug_description(
         if isinstance(mapnum, list):
             mapname = eval(row["geology_mapname"])
             map_list = [
-                f"{mpnum} {mpname}"
-                for mpnum, mpname in zip(
-                    mapnum, mapname
-                )
+                f"{mpnum} {mpname}" for mpnum, mpname in zip(mapnum, mapname)
             ]
             mapnum_string = u4human.listed_strings(map_list)
             prgph.add_run(f"auf den Kartenblättern {mapnum_string}. ")
@@ -300,7 +307,7 @@ def hlnug_description(
                 + "Entfernung vom Mittelpunkt der Rutschung befindet sich die "
                 + f"{row['roads_nearest_primary_name']}. "
             )
-        elif row["roads_nearest_secondary_dist"]>0:
+        elif row["roads_nearest_secondary_dist"] > 0:
             prgph.add_run(
                 f"In ca. {int(row['roads_nearest_secondary_dist'])}\u00a0m "
                 + "Entfernung vom Mittelpunkt der Rutschung befindet sich "
@@ -310,16 +317,19 @@ def hlnug_description(
             else:
                 prgph.add_run("eine nicht benannte Landstraße. ")
         else:
-            prgph.add_run("Im Umkreis von 1\u00a0km sind keine größeren Straßen vorhanden. ")
+            prgph.add_run(
+                "Im Umkreis von 1\u00a0km sind keine größeren Straßen vorhanden. "
+            )
 
     if row["railways_has"]:
         prgph.add_run(
             "Eine Bahnlinie durchquert das Gebiet auf "
-            +f"{int(row['railways_length'])}\u00a0m Länge. "
+            + f"{int(row['railways_length'])}\u00a0m Länge. "
         )
     elif row["railways_close"]:
         prgph.add_run(
-            f"Eine Bahnlinie liegt ca. {int(row['railways_length'])}\u00a0m " + "entfernt vom Mittelpunkt der Rutschung. "
+            f"Eine Bahnlinie liegt ca. {int(row['railways_length'])}\u00a0m "
+            + "entfernt vom Mittelpunkt der Rutschung. "
         )
 
     # Add drill sites
