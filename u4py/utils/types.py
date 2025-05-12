@@ -124,6 +124,9 @@ class U4ResDict(TypedDict):
     manual_unclear_1: bool
     manual_unclear_2: bool
     manual_unclear_3: bool
+    railways_has: bool
+    railways_length: float
+    railways_close: bool
     roads_has_motorway: bool
     roads_has_primary: bool
     roads_has_secondary: bool
@@ -133,6 +136,12 @@ class U4ResDict(TypedDict):
     roads_motorway_length: list
     roads_primary_length: list
     roads_secondary_length: list
+    roads_nearest_motorway_name: str
+    roads_nearest_primary_name: str
+    roads_nearest_secondary_name: str
+    roads_nearest_motorway_dist: float
+    roads_nearest_primary_dist: float
+    roads_nearest_secondary_dist: float
     roads_main_area: float
     roads_main: gp.GeoDataFrame
     roads_minor_area: float
@@ -188,6 +197,7 @@ class U4ResDict(TypedDict):
     volumes_moved: float
     volumes_removed: float
     volumes_total: float
+    volumes_error: float
     volumes_polygons_added: float
     volumes_polygons_moved: float
     volumes_polygons_removed: float

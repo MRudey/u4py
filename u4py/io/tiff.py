@@ -278,7 +278,7 @@ def get_clipped_tiff_list(
     """
     logging.info("Getting clipped tiffs using GPKG shapes and SQL.")
     base_path = u4files.multi_split(tiff_file_list[0], 2)
-    ctiff_fol = os.path.join(base_path, f"clipped_tiffs_gpkg")
+    ctiff_fol = os.path.join(base_path, "clipped_tiffs_gpkg")
     os.makedirs(ctiff_fol, exist_ok=True)
 
     clipped_tiff_list = []
@@ -416,6 +416,7 @@ def calculate_volume_in_shape(
     volumes_removed = []
     volumes_added = []
     volumes_moved = []
+    volumes_error = []
     for geom in shapes.geometry:
         part = coverage.clip(geom)
         if len(part) > 0:
@@ -423,42 +424,51 @@ def calculate_volume_in_shape(
             vol_removed = 0
             vol_added = 0
             vol_moved = 0
+            vol_error = 0
             flist = part.path.to_list()
             for fp in flist:
                 v = u4spatial.compute_for_raster_in_geom(
                     fp, geom, np.nansum, shapes.crs
                 )
-                if not v is None:
+                if v is not None:
                     vol += v
                 v = u4spatial.compute_for_raster_in_geom(
                     fp, geom, u4spatial.vol_removed, shapes.crs
                 )
-                if not v is None:
+                if v is not None:
                     vol_removed += v
                 v = u4spatial.compute_for_raster_in_geom(
                     fp, geom, u4spatial.vol_added, shapes.crs
                 )
-                if not v is None:
+                if v is not None:
                     vol_added += v
                 v = u4spatial.compute_for_raster_in_geom(
                     fp, geom, u4spatial.vol_moved, shapes.crs
                 )
-                if not v is None:
+                if v is not None:
                     vol_moved += v
+                v = u4spatial.compute_for_raster_in_geom(
+                    fp, geom, u4spatial.vol_error, shapes.crs
+                )
+                if v is not None:
+                    vol_error += v
         else:
             vol = np.nan
             vol_removed = np.nan
             vol_added = np.nan
             vol_moved = np.nan
+            vol_error = np.nan
         volumes.append(vol)
         volumes_removed.append(vol_removed)
         volumes_added.append(vol_added)
         volumes_moved.append(vol_moved)
+        volumes_error.append(np.sqrt(vol_error))
     return {
         "volumes": volumes,
         "volumes_removed": volumes_removed,
         "volumes_added": volumes_added,
         "volumes_moved": volumes_moved,
+        "volumes_error": volumes_error,
     }
 
 
@@ -514,12 +524,12 @@ def get_terrain(
     :rtype: os.PathLike
     """
 
-    processing_keywords = {
-        "slope": {"slopeFormat": "percent"},
-        "aspect": {"zeroForFlat": True},
-        "hillshade": {"zFactor": 3},
-        "multi_hillshade": {"zFactor": 3, "multiDirectional": True},
-    }
+    # processing_keywords = {
+    #     "slope": {"slopeFormat": "percent"},
+    #     "aspect": {"zeroForFlat": True},
+    #     "hillshade": {"zFactor": 3},
+    #     "multi_hillshade": {"zFactor": 3, "multiDirectional": True},
+    # }
     processing = {
         "slope": "slope",
         "aspect": "aspect",
@@ -538,9 +548,10 @@ def get_terrain(
 
     if not os.path.exists(out_path) or overwrite:
         logging.debug(f"Creating slope for {file_name}.")
-        gdal_opts = gdal.DEMProcessingOptions(
-            **processing_keywords[terrain_feature]
-        )  # For now the Options seem not to work properly, DEMProcessing does
+        # gdal_opts = gdal.DEMProcessingOptions(
+        #     **processing_keywords[terrain_feature]
+        # )
+        # For now the Options seem not to work properly, DEMProcessing does
         # not accept further kwargs, even though its mentioned in the
         # documentation.
         gdal.DEMProcessing(out_path, file_path, processing[terrain_feature])

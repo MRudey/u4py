@@ -5,7 +5,9 @@ or spatial lookup of features.
 
 from __future__ import annotations
 
+import itertools
 import logging
+import operator as op
 import os
 import pickle as pkl
 import re
@@ -75,7 +77,7 @@ def reproject_raster(
     return out_path
 
 
-def get_cKDTree(file_path: os.PathLike) -> spspatial.cKDTree:
+def get_cKDTree(file_path: os.PathLike) -> spspatial.KDTree:
     """Loads all x and y coordinates from the given file or folder and returns a cKDTree for easy spatial lookup.
 
     :param file_path: The path to the folder or file.
@@ -1155,7 +1157,7 @@ def vol_added(im_data: np.ndarray) -> np.ndarray:
 
     :param im_data: The input raster dem data.
     :type im_data: np.ndarray
-    :return: The slope at each pixel in degrees.
+    :return: The volume added.
     :rtype: np.ndarray
     """
     return np.nansum(im_data[im_data > 0])
@@ -1166,7 +1168,7 @@ def vol_removed(im_data: np.ndarray) -> np.ndarray:
 
     :param im_data: The input raster dem data.
     :type im_data: np.ndarray
-    :return: The slope at each pixel in degrees.
+    :return: The volume removed.
     :rtype: np.ndarray
     """
     return np.nansum(im_data[im_data < 0])
@@ -1177,10 +1179,21 @@ def vol_moved(im_data: np.ndarray) -> np.ndarray:
 
     :param im_data: The input raster dem data.
     :type im_data: np.ndarray
-    :return: The slope at each pixel in degrees.
+    :return: The volume moved.
     :rtype: np.ndarray
     """
     return np.nansum(np.abs(im_data))
+
+
+def vol_error(im_data: np.ndarray) -> np.ndarray:
+    """Calculates the error of volume estimates inside the area of the numpy array.
+
+    :param im_data: The input raster dem data.
+    :type im_data: np.ndarray
+    :return: The error of volume estimates.
+    :rtype: np.ndarray
+    """
+    return 0.3**2 * len(im_data[np.isfinite(im_data)])
 
 
 def roundness(shapes: gp.GeoDataFrame) -> list:
@@ -1311,3 +1324,127 @@ def feret_diameters(polygon: np.ndarray) -> Tuple[float, float]:
     maxf = np.max(Ds)
 
     return (minf, maxf)
+
+
+def get_clipped_road_area(
+    roads: gp.GeoDataFrame,
+    road_type: str,
+    clip_reg: gp.GeoDataFrame,
+    shp_cfg: dict,
+) -> gp.GeoDataFrame:
+    """Buffers and clips the roads to the area of interest, removing tunnels as well.
+
+    :param roads: The roads dataframe.
+    :type roads: gp.GeoDataFrame
+    :param road_type: The list of roads to use.
+    :type road_type: str
+    :param clip_reg: The region used for clipping.
+    :type clip_reg: gp.GeoDataFrame
+    :param shp_cfg: The shape config containing buffer sizes.
+    :type shp_cfg: dict
+    :return: The clipped roads as polygons.
+    :rtype: gp.GeoDataFrame
+    """
+    roads = roads[roads["tunnel"] == "F"]
+    road_gdf = gp.GeoDataFrame(
+        geometry=gp.pd.concat(
+            [
+                roads[roads["fclass"] == rds]
+                for rds in shp_cfg["fclass"][road_type]
+            ]
+        ).buffer(shp_cfg["buffer_dist"][road_type]),
+        crs=roads.crs,
+    )
+
+    return road_gdf.clip(clip_reg)
+
+
+def road_info(
+    roads_data: gp.GeoDataFrame, fclass: str
+) -> Tuple[list] | Tuple[list, float]:
+    """
+    Calculates the length and names of the features in the geodataframe with
+    the given fclass.
+
+    :param roads_data: A set of roads or railways
+    :type roads_data: gp.GeoDataFrame
+    :param fclass: The feature class to filter for, e.g. "motorway"
+    :type fclass: str
+    :return: The road names and road lengths, for railways the name is empty and the length is a single float
+    :rtype: Tuple[list] | Tuple[list, float]
+    """
+    if hasattr(roads_data, "ref"):
+        road_names = []
+        road_length = []
+        for ii, road in roads_data[roads_data.fclass == fclass].iterrows():
+            if road.ref not in road_names:
+                road_names.append(road.ref)
+                road_length.append(road.geometry.length)
+            else:
+                ridx = road_names.index(road.ref)
+                road_length[ridx] += road.geometry.length
+    elif hasattr(roads_data, "code"):
+        road_names = []
+        road_length = 0
+        for ii, road in roads_data[roads_data.fclass == fclass].iterrows():
+            road_length += road.geometry.length
+
+    return road_names, road_length
+
+
+def ckdnearest(
+    geom_a: shapely.Point, gdf_b: gp.GeoDataFrame, col: list[str] = ["Place"]
+) -> gp.GeoDataFrame:
+    """Finds nearest line features in `gdf_b` to the points in `gdf_a`.
+
+    :param gdf_a: A geodataframe containing points
+    :type gdf_a: gp.GeoDataFrame
+    :param gdf_b: A geodataframe containing lines
+    :type gdf_b: gp.GeoDataFrame
+    :param col: The column to select, defaults to ["Place"]
+    :type col: list, optional
+    :return: _description_
+    :rtype: gp.GeoDataFrame
+    """
+    geom_a = (geom_a.x, geom_a.y)
+    geom_b = [np.array(geom.coords) for geom in gdf_b.geometry.to_list()]
+    idx_b = tuple(
+        itertools.chain.from_iterable(
+            [
+                itertools.repeat(i, x)
+                for i, x in enumerate(list(map(len, geom_b)))
+            ]
+        )
+    )
+    geom_b = np.concatenate(geom_b)
+    ckd_tree = spspatial.cKDTree(geom_b)
+    dist, idx = ckd_tree.query([geom_a], k=1)
+    idx = op.itemgetter(*idx)(idx_b)
+    return dist, idx
+
+
+def get_nearest_road_segment(
+    point: shapely.Point, road_data: gp.GeoDataFrame, fclass: str
+) -> Tuple[str, int]:
+    """Gets the closest road segment from `road_data` to the given `point`. Returns the name of the road and its name.
+
+    :param point: The point to use for querying.
+    :type point: shapely.Point
+    :param road_data: A set of roads to select from.
+    :type road_data: gp.GeoDataFrame
+    :param fclass: The feature class to filter the selection.
+    :type fclass: str
+    :return: The name of the road and the distance in metres.
+    :rtype: Tuple[str, int]
+    """
+    dist, idx = ckdnearest(
+        point,
+        road_data[road_data.fclass == fclass],
+    )
+    if hasattr(road_data, "name") and hasattr(road_data, "ref"):
+        name = road_data[road_data.fclass == fclass].iloc[idx].ref
+        if not name:
+            name = road_data[road_data.fclass == fclass].iloc[idx].name
+    else:
+        name = ""
+    return name, int(dist)

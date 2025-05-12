@@ -145,8 +145,9 @@ def classify_shape(
         # Manual Classification
         res.update(manual_classification(res, sub_set_hull, group, project))
 
-        # Roads
+        # Roads and Railways
         res.update(roads(res, sub_set_hull, osm_path, shp_cfg))
+        res.update(railways(res, sub_set_hull, osm_path))
 
         # Buildings
         res.update(buildings(res, sub_set_hull, osm_path))
@@ -276,6 +277,9 @@ def preallocate_results() -> U4ResDict:
         "manual_unclear_1": False,
         "manual_unclear_2": False,
         "manual_unclear_3": False,
+        "railways_has": False,
+        "railways_length": np.nan,
+        "railways_close": False,
         "roads_has_motorway": False,
         "roads_has_primary": False,
         "roads_has_secondary": False,
@@ -285,6 +289,13 @@ def preallocate_results() -> U4ResDict:
         "roads_motorway_length": [],
         "roads_primary_length": [],
         "roads_secondary_length": [],
+        "roads_main_area": np.nan,
+        "roads_nearest_motorway_name": "",
+        "roads_nearest_primary_name": "",
+        "roads_nearest_secondary_name": "",
+        "roads_nearest_motorway_dist": np.nan,
+        "roads_nearest_primary_dist": np.nan,
+        "roads_nearest_secondary_dist": np.nan,
         "roads_main_area": np.nan,
         "roads_main": gp.GeoDataFrame(),
         "roads_minor_area": np.nan,
@@ -340,6 +351,7 @@ def preallocate_results() -> U4ResDict:
         "volumes_moved": np.nan,
         "volumes_removed": np.nan,
         "volumes_total": np.nan,
+        "volumes_error": np.nan,
         "volumes_polygons_added": np.nan,
         "volumes_polygons_moved": np.nan,
         "volumes_polygons_removed": np.nan,
@@ -369,48 +381,20 @@ def roads(
     :rtype: U4ResDict
     """
 
-    def get_clipped_road_area(
-        roads: gp.GeoDataFrame,
-        road_type: str,
-        clip_reg: gp.GeoDataFrame,
-        shp_cfg: dict,
-    ) -> gp.GeoDataFrame:
-        """Buffers and clips the roads to the area of interest, removing tunnels as well.
-
-        :param roads: The roads dataframe.
-        :type roads: gp.GeoDataFrame
-        :param road_type: The list of roads to use.
-        :type road_type: str
-        :param clip_reg: The region used for clipping.
-        :type clip_reg: gp.GeoDataFrame
-        :param shp_cfg: The shape config containing buffer sizes.
-        :type shp_cfg: dict
-        :return: The clipped roads as polygons.
-        :rtype: gp.GeoDataFrame
-        """
-        roads = roads[roads["tunnel"] == "F"]
-        road_gdf = gp.GeoDataFrame(
-            geometry=gp.pd.concat(
-                [
-                    roads[roads["fclass"] == rds]
-                    for rds in shp_cfg["fclass"][road_type]
-                ]
-            ).buffer(shp_cfg["buffer_dist"][road_type]),
-            crs=roads.crs,
-        )
-
-        return road_gdf.clip(clip_reg)
-
     logging.info("Loading Road Data")
     roads_data = u4gpkg.load_gpkg_data_region_ogr(
         sub_set_hull, osm_path, "gis_osm_roads_free_1"
     )
-
+    close_roads_data = u4gpkg.load_gpkg_data_region_ogr(
+        sub_set_hull.buffer(1000), osm_path, "gis_osm_roads_free_1"
+    )
+    if len(close_roads_data) > 0:
+        close_road_classes = close_roads_data.fclass.to_list()
     if len(roads_data) > 0:
         logging.info("Classifying Road Data")
 
         # Extract area of main roads
-        res["roads_main"] = get_clipped_road_area(
+        res["roads_main"] = u4spatial.get_clipped_road_area(
             roads_data, "mainroads", sub_set_hull, shp_cfg
         )
         if len(res["roads_main"]) > 0:
@@ -422,7 +406,7 @@ def roads(
             res["roads_main_area"] = 0
 
         # Extract area of minor roads
-        res["roads_minor"] = get_clipped_road_area(
+        res["roads_minor"] = u4spatial.get_clipped_road_area(
             roads_data, "minor_roads", sub_set_hull, shp_cfg
         )
         if len(res["roads_minor"]) > 0:
@@ -435,29 +419,78 @@ def roads(
         road_classes = roads_data.fclass.to_list()
         if ("motorway" in road_classes) or ("trunk" in road_classes):
             res["roads_has_motorway"] = True
+            res["roads_motorway_names"], res["roads_motorway_length"] = (
+                u4spatial.road_info(roads_data, "motorway")
+            )
+        elif "motorway" in close_road_classes:
+            name, dist = u4spatial.get_nearest_road_segment(
+                sub_set_hull.centroid.iloc[0], close_roads_data, "motorway"
+            )
+            res["roads_nearest_motorway_name"] = name
+            res["roads_nearest_motorway_dist"] = dist
+
         if "primary" in road_classes:
             res["roads_has_primary"] = True
-            for ii, road in roads_data[
-                roads_data.fclass == "primary"
-            ].iterrows():
-                if road.ref not in res["roads_primary_names"]:
-                    res["roads_primary_names"].append(road.ref)
-                    res["roads_primary_length"].append(road.geometry.length)
-                else:
-                    ridx = res["roads_primary_names"].index(road.ref)
-                    res["roads_primary_length"][ridx] += road.geometry.length
+            res["roads_primary_names"], res["roads_primary_length"] = (
+                u4spatial.road_info(roads_data, "primary")
+            )
+        elif "primary" in close_road_classes:
+            name, dist = u4spatial.get_nearest_road_segment(
+                sub_set_hull.centroid.iloc[0], close_roads_data, "primary"
+            )
+            res["roads_nearest_primary_name"] = name
+            res["roads_nearest_primary_dist"] = dist
 
         if "secondary" in road_classes:
             res["roads_has_secondary"] = True
-            for ii, road in roads_data[
-                roads_data.fclass == "secondary"
-            ].iterrows():
-                if road.ref not in res["roads_secondary_names"]:
-                    res["roads_secondary_names"].append(road.ref)
-                    res["roads_secondary_length"].append(road.geometry.length)
-                else:
-                    ridx = res["roads_secondary_names"].index(road.ref)
-                    res["roads_secondary_length"][ridx] += road.geometry.length
+            res["roads_secondary_names"], res["roads_secondary_length"] = (
+                u4spatial.road_info(roads_data, "secondary")
+            )
+        elif "secondary" in close_road_classes:
+            name, dist = u4spatial.get_nearest_road_segment(
+                sub_set_hull.centroid.iloc[0], close_roads_data, "secondary"
+            )
+            res["roads_nearest_secondary_name"] = name
+            res["roads_nearest_secondary_dist"] = dist
+    return res
+
+
+def railways(
+    res: U4ResDict,
+    sub_set_hull: gp.GeoDataFrame,
+    osm_path: os.PathLike,
+) -> dict:
+    """Loads the railways from the openstreetmap database and calculates length or distance to closest points.
+
+    :param res: The results dictionary as of now.
+    :type res: U4ResDict
+    :param sub_set_hull: The area where to look for railways.
+    :type sub_set_hull: gp.GeoDataFrame
+    :param osm_path: The path to the openstreetmap database.
+    :type osm_path: os.PathLike
+    :return: An updated version of the results dictionary.
+    :rtype: U4ResDict
+    """
+
+    logging.info("Loading Railways Data")
+    railways_data = u4gpkg.load_gpkg_data_region_ogr(
+        sub_set_hull, osm_path, "gis_osm_railways_free_1"
+    )
+    close_rails_data = u4gpkg.load_gpkg_data_region_ogr(
+        sub_set_hull.buffer(1000), osm_path, "gis_osm_railways_free_1"
+    )
+    logging.info("Classifying Railways Data")
+    if len(railways_data) > 0:
+        _, res["railways_length"] = u4spatial.road_info(railways_data, "rail")
+        if res["railways_length"] > 0:
+            res["railways_has"] = True
+    elif len(close_rails_data) > 0:
+        _, res["railways_length"] = u4spatial.get_nearest_road_segment(
+                sub_set_hull.centroid.iloc[0], close_rails_data, "rail"
+            )
+        if res["railways_length"] > 0:
+            res["railways_close"] = True
+
     return res
 
 
@@ -731,6 +764,12 @@ def volume(geometry: gp.GeoDataFrame, diffplan_path: os.PathLike) -> U4ResDict:
     res["volumes_moved"] = int(
         np.round(np.nansum(volumes["volumes_moved"]), -2)
     )
+    if len(volumes["volumes_error"]) > 1:
+        res["volumes_error"] = int(
+            np.sqrt(np.nansum([v**2 for v in volumes["volumes_error"]]))
+        )
+    else:
+        res["volumes_error"] = int(volumes["volumes_error"][0])
     return res
 
 
