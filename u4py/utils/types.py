@@ -86,14 +86,15 @@ class U4ResDict(TypedDict):
     aspect_polygons_std_19: list
     aspect_polygons_std_21: list
     buildings_area: float
-    buildings: gp.GeoDataFrame
-    buildings_num: int
     buildings_close: bool
+    buildings_num: int
+    buildings: gp.GeoDataFrame
+    district: list
     geology_area: list
+    geology_mapname: list
+    geology_mapnum: list
     geology_percent: list
     geology_units: list
-    geology_mapnum: list
-    geology_mapname: list
     geometry: gp.GeoDataFrame
     group: float
     hydro_area: list
@@ -126,40 +127,40 @@ class U4ResDict(TypedDict):
     manual_unclear_1: bool
     manual_unclear_2: bool
     manual_unclear_3: bool
+    railways_close: bool
     railways_has: bool
     railways_length: float
-    railways_close: bool
-    roads_has: bool
+    roads_close: bool
     roads_has_motorway: bool
     roads_has_primary: bool
     roads_has_secondary: bool
-    roads_motorway_names: list
-    roads_primary_names: list
-    roads_secondary_names: list
-    roads_motorway_length: list
-    roads_primary_length: list
-    roads_secondary_length: list
-    roads_close: bool
-    roads_nearest_motorway_name: str
-    roads_nearest_primary_name: str
-    roads_nearest_secondary_name: str
-    roads_nearest_motorway_dist: float
-    roads_nearest_primary_dist: float
-    roads_nearest_secondary_dist: float
+    roads_has: bool
     roads_main_area: float
     roads_main: gp.GeoDataFrame
     roads_minor_area: float
     roads_minor: gp.GeoDataFrame
+    roads_motorway_length: list
+    roads_motorway_names: list
+    roads_nearest_motorway_dist: float
+    roads_nearest_motorway_name: str
+    roads_nearest_primary_dist: float
+    roads_nearest_primary_name: str
+    roads_nearest_secondary_dist: float
+    roads_nearest_secondary_name: str
+    roads_primary_length: list
+    roads_primary_names: list
+    roads_secondary_length: list
+    roads_secondary_names: list
     rockfall_num_1km: float
     rockfall_num_inside: float
+    shape_aspect: list
+    shape_breadth: list
     shape_ellipse_a: list
     shape_ellipse_b: list
     shape_ellipse_theta: list
     shape_flattening: list
     shape_roundness: list
     shape_width: list
-    shape_breadth: list
-    shape_aspect: list
     slope_hull_mean_14: list
     slope_hull_mean_19: list
     slope_hull_mean_21: list
@@ -178,11 +179,11 @@ class U4ResDict(TypedDict):
     slope_polygons_std_14: list
     slope_polygons_std_19: list
     slope_polygons_std_21: list
+    structural_region: list
     subsidence_area: list
     subsidence_percent: list
     subsidence_total: float
     subsidence_units: list
-    structural_region: list
     timeseries_annual_cosine: float
     timeseries_annual_max_amplitude: float
     timeseries_annual_max_time: float
@@ -198,14 +199,14 @@ class U4ResDict(TypedDict):
     topsoil_percent: float
     topsoil_units: float
     volumes_added: float
-    volumes_moved: float
-    volumes_removed: float
-    volumes_total: float
     volumes_error: float
+    volumes_moved: float
     volumes_polygons_added: float
     volumes_polygons_moved: float
     volumes_polygons_removed: float
     volumes_polygons_total: float
+    volumes_removed: float
+    volumes_total: float
     water_area: float
     well_number: int
 

@@ -157,6 +157,10 @@ def classify_shape(
         else:
             res.update(buildings(res, sub_set_hull, shp_cfg, osm_path))
 
+        # District
+        if use_online:
+            res.update(district(res, sub_set_hull, out_folder=cache_path))
+
         # Water
         res.update(rivers_water(res, sub_set_hull, osm_path, shp_cfg))
 
@@ -244,14 +248,15 @@ def preallocate_results() -> U4ResDict:
         "aspect_polygons_std_19": [],
         "aspect_polygons_std_21": [],
         "buildings_area": np.nan,
-        "buildings": gp.GeoDataFrame(),
-        "buildings_num": 0,
         "buildings_close": False,
+        "buildings_num": 0,
+        "buildings": gp.GeoDataFrame(),
+        "district": [],
         "geology_area": [],
+        "geology_mapname": [],
+        "geology_mapnum": [],
         "geology_percent": [],
         "geology_units": [],
-        "geology_mapnum": [],
-        "geology_mapname": [],
         "geometry": gp.GeoDataFrame(),
         "group": np.nan,
         "hydro_area": [],
@@ -284,40 +289,40 @@ def preallocate_results() -> U4ResDict:
         "manual_unclear_1": False,
         "manual_unclear_2": False,
         "manual_unclear_3": False,
+        "railways_close": False,
         "railways_has": False,
         "railways_length": np.nan,
-        "railways_close": False,
-        "roads_has": False,
         "roads_close": False,
         "roads_has_motorway": False,
         "roads_has_primary": False,
         "roads_has_secondary": False,
-        "roads_motorway_names": [],
-        "roads_primary_names": [],
-        "roads_secondary_names": [],
-        "roads_motorway_length": [],
-        "roads_primary_length": [],
-        "roads_secondary_length": [],
-        "roads_nearest_motorway_name": "",
-        "roads_nearest_primary_name": "",
-        "roads_nearest_secondary_name": "",
-        "roads_nearest_motorway_dist": np.nan,
-        "roads_nearest_primary_dist": np.nan,
-        "roads_nearest_secondary_dist": np.nan,
+        "roads_has": False,
         "roads_main_area": np.nan,
         "roads_main": gp.GeoDataFrame(),
         "roads_minor_area": np.nan,
         "roads_minor": gp.GeoDataFrame(),
+        "roads_motorway_length": [],
+        "roads_motorway_names": [],
+        "roads_nearest_motorway_dist": np.nan,
+        "roads_nearest_motorway_name": "",
+        "roads_nearest_primary_dist": np.nan,
+        "roads_nearest_primary_name": "",
+        "roads_nearest_secondary_dist": np.nan,
+        "roads_nearest_secondary_name": "",
+        "roads_primary_length": [],
+        "roads_primary_names": [],
+        "roads_secondary_length": [],
+        "roads_secondary_names": [],
         "rockfall_num_1km": np.nan,
         "rockfall_num_inside": np.nan,
+        "shape_aspect": [],
+        "shape_breadth": [],
         "shape_ellipse_a": [],
         "shape_ellipse_b": [],
         "shape_ellipse_theta": [],
         "shape_flattening": [],
         "shape_roundness": [],
         "shape_width": [],
-        "shape_breadth": [],
-        "shape_aspect": [],
         "slope_hull_mean_14": [],
         "slope_hull_mean_19": [],
         "slope_hull_mean_21": [],
@@ -336,11 +341,11 @@ def preallocate_results() -> U4ResDict:
         "slope_polygons_std_14": [],
         "slope_polygons_std_19": [],
         "slope_polygons_std_21": [],
+        "structural_region": [],
         "subsidence_area": [],
         "subsidence_percent": [],
         "subsidence_total": np.nan,
         "subsidence_units": [],
-        "structural_region": [],
         "timeseries_annual_cosine": np.nan,
         "timeseries_annual_max_amplitude": np.nan,
         "timeseries_annual_max_time": np.nan,
@@ -356,14 +361,14 @@ def preallocate_results() -> U4ResDict:
         "topsoil_percent": np.nan,
         "topsoil_units": np.nan,
         "volumes_added": np.nan,
-        "volumes_moved": np.nan,
-        "volumes_removed": np.nan,
-        "volumes_total": np.nan,
         "volumes_error": np.nan,
+        "volumes_moved": np.nan,
         "volumes_polygons_added": np.nan,
         "volumes_polygons_moved": np.nan,
         "volumes_polygons_removed": np.nan,
         "volumes_polygons_total": np.nan,
+        "volumes_removed": np.nan,
+        "volumes_total": np.nan,
         "water_area": np.nan,
     }
     return res
@@ -597,6 +602,31 @@ def buildings(
     else:
         res["buildings"] = []
 
+    return res
+
+
+def district(
+    res: U4ResDict,
+    sub_set_hull: gp.GeoDataFrame,
+    out_folder: os.PathLike = "",
+) -> U4ResDict:
+    district_data = u4web.query_hlnug(
+        "geobasis/alkis_grenzen/MapServer",
+        "GEMARKUNG",
+        region=sub_set_hull,
+        out_folder=out_folder,
+        suffix=f"{res['group']:05}",
+    )
+    if district_data.empty:
+        logging.debug("Retrying to get building data.")
+        district_data = u4web.query_hlnug(
+            "geobasis/alkis_grenzen/MapServer",
+            "GEMARKUNG",
+            region=sub_set_hull,
+            out_folder=out_folder,
+            suffix=f"{res['group']:05}",
+        )
+    res["district"] = district_data["GM_NA"].unique().tolist()
     return res
 
 

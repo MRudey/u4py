@@ -226,6 +226,19 @@ def hlnug_description(
     else:
         prgph.add_run(". ")
 
+    # Add district name(s)
+    try:
+        district = eval(row["district"])
+    except NameError:
+        district = row["district"]
+    if district:
+        prgph.add_run("Sie befindet sich innerhalb ")
+        if isinstance(district, list):
+            district_string = u4human.listed_strings(district)
+            prgph.add_run(f"der Gemarkungen {district_string}. ")
+        else:
+            prgph.add_run(f"der Germarkung {district}. ")
+
     # Add dimensions
     prgph.add_run(
         f"Sie hat eine Länge von ca. {hld['LAENGE_M'].values[0]}\u00a0m, eine Breite von ca. {hld['BREITE_M'].values[0]}\u00a0m und verläuft nach {u4human.direction_to_text(hld['EXPOSITION'].values[0], in_lang='de')}. "
