@@ -229,7 +229,7 @@ def hlnug_description(
     # Add district name(s)
     try:
         district = eval(row["district"])
-    except NameError:
+    except (NameError, SyntaxError):
         district = row["district"]
     if district:
         prgph.add_run("Sie befindet sich innerhalb ")
