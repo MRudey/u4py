@@ -16,15 +16,15 @@ import u4py.analysis.spatial as u4spatial
 import u4py.io.gpkg as u4gpkg
 import u4py.io.tiff as u4tiff
 import u4py.plotting.plots as u4plots
-from u4py.utils.types import U4ResDict
+from u4py.utils.types import ShapeCfgDict, U4Project, U4ResDict
 
 
 def classify_shape(
     shp_gdf: gp.GeoDataFrame,
     group: int,
     buffer_size: float,
-    shp_cfg: dict,
-    project: dict,
+    shp_cfg: ShapeCfgDict,
+    project: U4Project,
     use_online: bool = False,
     use_internal: bool = True,
     save_shapes: bool = False,
@@ -42,9 +42,9 @@ def classify_shape(
     :param buffer_size: The buffer size for the hull around the shapes.
     :type buffer_size: float
     :param shp_cfg: The configuration for shapes, e.g. including the buffer sizes for roads etc.
-    :type shp_cfg: dict
+    :type shp_cfg: ShapeCfgDict
     :param project: The project config containing file paths.
-    :type project: dict
+    :type project: U4Project
     :param use_online: Query online webservices by the HLNUG for geology, hydrogeology and soil, defaults to False
     :type use_online: bool, optional
     :param use_internal: First query the internal geoserver, defaults to True
@@ -147,10 +147,10 @@ def classify_shape(
 
         # Roads and Railways
         res.update(roads(res, sub_set_hull, osm_path, shp_cfg))
-        res.update(railways(res, sub_set_hull, osm_path))
+        res.update(railways(res, sub_set_hull, osm_path, shp_cfg))
 
         # Buildings
-        res.update(buildings(res, sub_set_hull, osm_path))
+        res.update(buildings(res, sub_set_hull, shp_cfg, osm_path))
 
         # Water
         res.update(rivers_water(res, sub_set_hull, osm_path, shp_cfg))
@@ -240,6 +240,8 @@ def preallocate_results() -> U4ResDict:
         "aspect_polygons_std_21": [],
         "buildings_area": np.nan,
         "buildings": gp.GeoDataFrame(),
+        "buildings_num": 0,
+        "buildings_close": False,
         "geology_area": [],
         "geology_percent": [],
         "geology_units": [],
@@ -280,6 +282,8 @@ def preallocate_results() -> U4ResDict:
         "railways_has": False,
         "railways_length": np.nan,
         "railways_close": False,
+        "roads_has": False,
+        "roads_close": False,
         "roads_has_motorway": False,
         "roads_has_primary": False,
         "roads_has_secondary": False,
@@ -289,7 +293,6 @@ def preallocate_results() -> U4ResDict:
         "roads_motorway_length": [],
         "roads_primary_length": [],
         "roads_secondary_length": [],
-        "roads_main_area": np.nan,
         "roads_nearest_motorway_name": "",
         "roads_nearest_primary_name": "",
         "roads_nearest_secondary_name": "",
@@ -365,7 +368,7 @@ def roads(
     res: U4ResDict,
     sub_set_hull: gp.GeoDataFrame,
     osm_path: os.PathLike,
-    shp_cfg: dict,
+    shp_cfg: ShapeCfgDict,
 ) -> dict:
     """Loads the roads from the openstreetmap database and returns the area of minor and major roads. Also establishes if a motorway is present in the area.
 
@@ -376,7 +379,7 @@ def roads(
     :param osm_path: The path to the openstreetmap database.
     :type osm_path: os.PathLike
     :param shp_cfg: The shape config containing buffer sizes.
-    :type shp_cfg: dict
+    :type shp_cfg: ShapeCfgDict
     :return: An updated version of the results dictionary.
     :rtype: U4ResDict
     """
@@ -385,14 +388,9 @@ def roads(
     roads_data = u4gpkg.load_gpkg_data_region_ogr(
         sub_set_hull, osm_path, "gis_osm_roads_free_1"
     )
-    close_roads_data = u4gpkg.load_gpkg_data_region_ogr(
-        sub_set_hull.buffer(1000), osm_path, "gis_osm_roads_free_1"
-    )
-    if len(close_roads_data) > 0:
-        close_road_classes = close_roads_data.fclass.to_list()
     if len(roads_data) > 0:
         logging.info("Classifying Road Data")
-
+        res["roads_has"] = True
         # Extract area of main roads
         res["roads_main"] = u4spatial.get_clipped_road_area(
             roads_data, "mainroads", sub_set_hull, shp_cfg
@@ -422,31 +420,45 @@ def roads(
             res["roads_motorway_names"], res["roads_motorway_length"] = (
                 u4spatial.road_info(roads_data, "motorway")
             )
-        elif "motorway" in close_road_classes:
-            name, dist = u4spatial.get_nearest_road_segment(
-                sub_set_hull.centroid.iloc[0], close_roads_data, "motorway"
-            )
-            res["roads_nearest_motorway_name"] = name
-            res["roads_nearest_motorway_dist"] = dist
-
         if "primary" in road_classes:
             res["roads_has_primary"] = True
             res["roads_primary_names"], res["roads_primary_length"] = (
                 u4spatial.road_info(roads_data, "primary")
             )
-        elif "primary" in close_road_classes:
-            name, dist = u4spatial.get_nearest_road_segment(
-                sub_set_hull.centroid.iloc[0], close_roads_data, "primary"
-            )
-            res["roads_nearest_primary_name"] = name
-            res["roads_nearest_primary_dist"] = dist
-
         if "secondary" in road_classes:
             res["roads_has_secondary"] = True
             res["roads_secondary_names"], res["roads_secondary_length"] = (
                 u4spatial.road_info(roads_data, "secondary")
             )
-        elif "secondary" in close_road_classes:
+
+    logging.info(
+        f"Loading close roads in {shp_cfg['classify_buffers']['roads']}"
+        + " m buffer."
+    )
+    close_roads_data = u4gpkg.load_gpkg_data_region_ogr(
+        sub_set_hull.buffer(shp_cfg["classify_buffers"]["roads"]),
+        osm_path,
+        "gis_osm_roads_free_1",
+    )
+
+    if len(close_roads_data) > 0:
+        logging.info("Classifying Close Road Data")
+        res["roads_close"] = True
+        # Look for road classes
+        close_road_classes = close_roads_data.fclass.to_list()
+        if "motorway" in close_road_classes:
+            name, dist = u4spatial.get_nearest_road_segment(
+                sub_set_hull.centroid.iloc[0], close_roads_data, "motorway"
+            )
+            res["roads_nearest_motorway_name"] = name
+            res["roads_nearest_motorway_dist"] = dist
+        if "primary" in close_road_classes:
+            name, dist = u4spatial.get_nearest_road_segment(
+                sub_set_hull.centroid.iloc[0], close_roads_data, "primary"
+            )
+            res["roads_nearest_primary_name"] = name
+            res["roads_nearest_primary_dist"] = dist
+        if "secondary" in close_road_classes:
             name, dist = u4spatial.get_nearest_road_segment(
                 sub_set_hull.centroid.iloc[0], close_roads_data, "secondary"
             )
@@ -459,6 +471,7 @@ def railways(
     res: U4ResDict,
     sub_set_hull: gp.GeoDataFrame,
     osm_path: os.PathLike,
+    shp_cfg: ShapeCfgDict,
 ) -> dict:
     """Loads the railways from the openstreetmap database and calculates length or distance to closest points.
 
@@ -468,6 +481,8 @@ def railways(
     :type sub_set_hull: gp.GeoDataFrame
     :param osm_path: The path to the openstreetmap database.
     :type osm_path: os.PathLike
+    :param shp_cfg: The shape config containing buffer sizes.
+    :type shp_cfg: ShapeCfgDict
     :return: An updated version of the results dictionary.
     :rtype: U4ResDict
     """
@@ -477,7 +492,9 @@ def railways(
         sub_set_hull, osm_path, "gis_osm_railways_free_1"
     )
     close_rails_data = u4gpkg.load_gpkg_data_region_ogr(
-        sub_set_hull.buffer(1000), osm_path, "gis_osm_railways_free_1"
+        sub_set_hull.buffer(shp_cfg["classify_buffers"]["railways"]),
+        osm_path,
+        "gis_osm_railways_free_1",
     )
     logging.info("Classifying Railways Data")
     if len(railways_data) > 0:
@@ -486,8 +503,8 @@ def railways(
             res["railways_has"] = True
     elif len(close_rails_data) > 0:
         _, res["railways_length"] = u4spatial.get_nearest_road_segment(
-                sub_set_hull.centroid.iloc[0], close_rails_data, "rail"
-            )
+            sub_set_hull.centroid.iloc[0], close_rails_data, "rail"
+        )
         if res["railways_length"] > 0:
             res["railways_close"] = True
 
@@ -495,7 +512,11 @@ def railways(
 
 
 def buildings(
-    res: U4ResDict, sub_set_hull: gp.GeoDataFrame, osm_path: os.PathLike
+    res: U4ResDict,
+    sub_set_hull: gp.GeoDataFrame,
+    shp_cfg: ShapeCfgDict,
+    osm_path: os.PathLike = "",
+    out_folder: os.PathLike = "",
 ) -> U4ResDict:
     """Calculates the area that is covered by buildings
 
@@ -503,20 +524,53 @@ def buildings(
     :type res: U4ResDict
     :param sub_set_hull: The hull of the area.
     :type sub_set_hull: gp.GeoDataFrame
+    :param shp_cfg: The shape config containing buffer sizes.
+    :type shp_cfg: ShapeCfgDict
     :param osm_path: The path to the osm dataset.
     :type osm_path: os.PathLike
+    :param out_folder: The path to a gpkg file containing the data, defaults to ""
+    :type out_folder: os.PathLike, optional
     :return: The results dictionary with the classified data appended.
     :rtype: U4ResDict
     """
-    logging.info("Loading Building Data")
-    res["buildings"] = u4gpkg.load_gpkg_data_region_ogr(
-        sub_set_hull, osm_path, "gis_osm_buildings_a_free_1"
-    )
+    if osm_path:
+        logging.info("Loading building data from shape")
+        res["buildings"] = u4gpkg.load_gpkg_data_region_ogr(
+            sub_set_hull, osm_path, "gis_osm_buildings_a_free_1"
+        )
+        buildings_close = u4gpkg.load_gpkg_data_region_ogr(
+            sub_set_hull.buffer(shp_cfg["classify_buffers"]["buildings"]),
+            osm_path,
+            "gis_osm_buildings_a_free_1",
+        )
+        if len(buildings_close) > 0:
+            res["buildings_close"] = True
+    else:
+        logging.info("Loading building data from HLNUG server")
+        building_data = u4web.query_hlnug(
+            "geologie/gk25/MapServer",
+            "Geologie (Kartiereinheiten)",
+            region=sub_set_hull,
+            out_folder=out_folder,
+            suffix=f"{res['group']:05}",
+        )
+        if building_data.empty:
+            logging.debug("Retrying to get geological data.")
+            building_data = u4web.query_hlnug(
+                "geologie/gk25/MapServer",
+                "Geologie (Kartiereinheiten)",
+                region=sub_set_hull,
+                out_folder=out_folder,
+                suffix=f"{res['group']:05}",
+            )
+
     if len(res["buildings"]) > 0:
         res["buildings_area"] = round(res["buildings"].area.sum(), 1)
         res["additional_areas"] += res["buildings_area"]
+        res["buildings_num"] = len(res["buildings"])
     else:
         res["buildings"] = []
+
     return res
 
 
@@ -524,7 +578,7 @@ def rivers_water(
     res: U4ResDict,
     sub_set_hull: gp.GeoDataFrame,
     osm_path: os.PathLike,
-    shp_cfg: dict,
+    shp_cfg: ShapeCfgDict,
 ) -> U4ResDict:
     """Calculates the area that is covered by water
 
@@ -535,7 +589,7 @@ def rivers_water(
     :param osm_path: The path to the osm dataset.
     :type osm_path: os.PathLike
     :param shp_cfg: The shape config to calculate the buffers for the rivers.
-    :type shp_cfg: dict
+    :type shp_cfg: ShapeCfgDict
     :return: The results dictionary with the classified data appended.
     :rtype: U4ResDict
     """
@@ -785,7 +839,7 @@ def geology(
     :type res: U4ResDict
     :param sub_set_hull: The hull of the area.
     :type sub_set_hull: gp.GeoDataFrame
-    :param out_folder: The path to a gpkg file containing the data (not implemented yet), defaults to ""
+    :param out_folder: The path to a gpkg file containing the data, defaults to ""
     :type out_folder: os.PathLike, optional
     :param use_internal: Try internal web server first, defaults to True.
     :type use_internal: os.PathLike, optional
@@ -935,7 +989,7 @@ def hydrogeology(
     :type res: U4ResDict
     :param sub_set_hull: The hull of the area.
     :type sub_set_hull: gp.GeoDataFrame
-    :param out_folder: The path to a gpkg file containing the data (not implemented yet), defaults to ""
+    :param out_folder: The path to a gpkg file containing the data, defaults to ""
     :type out_folder: os.PathLike, optional
     :return: The results dictionary with the classified data appended.
     :rtype: U4ResDict
@@ -1195,7 +1249,7 @@ def topsoil(
     :type res: U4ResDict
     :param sub_set_hull: The hull of the area.
     :type sub_set_hull: gp.GeoDataFrame
-    :param out_folder: The path to a gpkg file containing the data (not implemented yet), defaults to ""
+    :param out_folder: The path to a gpkg file containing the data, defaults to ""
     :type out_folder: os.PathLike, optional
     :return: The results dictionary with the classified data appended.
     :rtype: U4ResDict
@@ -1305,7 +1359,7 @@ def write_report(
     :param group: The name of the group.
     :type group: str
     :param project: The project containing paths.
-    :type project: dict
+    :type project: U4Project
     """
     logging.info("Writing report")
     report_folder = os.path.join(project["paths"]["sites_path"], "Reports")
@@ -1449,7 +1503,7 @@ def structural_area(
     :type res: U4ResDict
     :param sub_set_hull: The hull of the area.
     :type sub_set_hull: gp.GeoDataFrame
-    :param out_folder: The path to a gpkg file containing the data (not implemented yet), defaults to ""
+    :param out_folder: The path to a gpkg file containing the data, defaults to ""
     :type out_folder: os.PathLike, optional
     :return: The results dictionary with the classified data appended.
     :rtype: U4ResDict

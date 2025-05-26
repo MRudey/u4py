@@ -8,6 +8,8 @@ import logging
 import os
 import sys
 
+from u4py.utils.types import ShapeCfgDict
+
 # Setting the cpu count for parallel processing to a convenient amount.
 if os.cpu_count() < 2:
     ResourceWarning("Not enough processors for parallel processing.")
@@ -36,11 +38,11 @@ def start_logger():
     )
 
 
-def get_shape_config() -> dict:
+def get_shape_config() -> ShapeCfgDict:
     """Returns the parameters for buffering OSM shapes.
 
     :return: The configuration.
-    :rtype: dict
+    :rtype: ShapeCfgDict
     """
     # Names of the shapes for the legend
     name = {
@@ -56,8 +58,9 @@ def get_shape_config() -> dict:
         "lakes": "Lakes",
         "power": "Wind Turbines",
         "traffic": "Parking Lots,...",
-        "transportx": "Terminals, Airports,...",
+        "transport": "Terminals, Airports,...",
     }
+
     # Name of the shapefile containing the original data
     shp_file = {
         "build": "gis_osm_buildings_a_free_1.shp",
@@ -74,12 +77,13 @@ def get_shape_config() -> dict:
         "traffic": "gis_osm_traffic_a_free_1.shp",
         "transport": "gis_osm_transport_a_free_1.shp",
     }
+
     # List of feature classes to extract from the file (empty=all)
     fclass = {
         "build": [],
         "pois_area": [
             "sports_centre",
-            "track" "pitch",
+            "trackpitch",
             "swimming_pool",
             "wastewater_plant",
             "golf_course",
@@ -132,6 +136,7 @@ def get_shape_config() -> dict:
         "traffic": [],
         "transport": [],
     }
+
     # Default buffer size around each feature is 10 meters.
     buffer_dist = {
         "build": 15,
@@ -147,6 +152,13 @@ def get_shape_config() -> dict:
         "power": 250,
         "traffic": 15,
         "transport": 15,
+    }
+
+    # Classification buffers
+    classify_buffers = {
+        "roads": 50,
+        "railways": 50,
+        "buildings": 50,
     }
 
     # Plotting Stuff
@@ -165,6 +177,7 @@ def get_shape_config() -> dict:
         "traffic": "blue",
         "transport": "blue",
     }
+
     zorder = {
         "build": 2,
         "pois_area": 2,
@@ -183,6 +196,7 @@ def get_shape_config() -> dict:
 
     shp_cfg = {
         "buffer_dist": buffer_dist,
+        "classify_buffers": classify_buffers,
         "name": name,
         "shp_file": shp_file,
         "fclass": fclass,

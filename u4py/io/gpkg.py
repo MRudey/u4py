@@ -16,6 +16,7 @@ import u4py.analysis.spatial as u4spatial
 import u4py.io.sql as u4sql
 import u4py.io.tiff as u4tiff
 import u4py.utils.convert as u4conv
+from u4py.utils.types import ShapeCfgDict
 
 ogr.UseExceptions()
 
@@ -24,7 +25,7 @@ def load_and_buffer_gpkg(
     gpkg_path: os.PathLike,
     tiff_path: os.PathLike,
     tables: list = [],
-    shp_cfg: dict = {},
+    shp_cfg: ShapeCfgDict = {},
     out_crs: str = "EPSG:32632",
     buffer_dist: bool = False,
 ) -> gp.GeoDataFrame:

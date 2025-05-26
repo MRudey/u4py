@@ -30,6 +30,8 @@ from shapely.errors import GEOSException
 from skimage import measure as skmeasure
 from tqdm import tqdm
 
+from u4py.utils.types import ShapeCfgDict
+
 
 def reproject_raster(
     in_path: os.PathLike,
@@ -1152,28 +1154,6 @@ def area_per_feature(
     return (fclasses, areas)
 
 
-def vol_added(im_data: np.ndarray) -> np.ndarray:
-    """Calculates the volume added inside the area of the numpy array.
-
-    :param im_data: The input raster dem data.
-    :type im_data: np.ndarray
-    :return: The volume added.
-    :rtype: np.ndarray
-    """
-    return np.nansum(im_data[im_data > 0])
-
-
-def vol_removed(im_data: np.ndarray) -> np.ndarray:
-    """Calculates the volume removed inside the area of the numpy array.
-
-    :param im_data: The input raster dem data.
-    :type im_data: np.ndarray
-    :return: The volume removed.
-    :rtype: np.ndarray
-    """
-    return np.nansum(im_data[im_data < 0])
-
-
 def vol_moved(im_data: np.ndarray) -> np.ndarray:
     """Calculates the volume moved inside the area of the numpy array.
 
@@ -1182,7 +1162,10 @@ def vol_moved(im_data: np.ndarray) -> np.ndarray:
     :return: The volume moved.
     :rtype: np.ndarray
     """
-    return np.nansum(np.abs(im_data))
+    if np.isfinite(im_data).any():
+        return np.nansum(np.abs(im_data))
+    else:
+        return 0
 
 
 def vol_error(im_data: np.ndarray) -> np.ndarray:
@@ -1193,11 +1176,16 @@ def vol_error(im_data: np.ndarray) -> np.ndarray:
     :return: The error of volume estimates.
     :rtype: np.ndarray
     """
-    return 0.3**2 * len(im_data[np.isfinite(im_data)])
+    if np.isfinite(im_data).any():
+        return 0.3**2 * len(im_data[np.isfinite(im_data)])
+    else:
+        return 0
 
 
 def roundness(shapes: gp.GeoDataFrame) -> list:
     """Calculates the roundness of all polygons in shapes.
+
+    :math:`Roundness=\\frac{4\\pi A}{p^2}`
 
     :param shapes: A geodataframe with polygons.
     :type shapes: gp.GeoDataFrame
@@ -1206,7 +1194,7 @@ def roundness(shapes: gp.GeoDataFrame) -> list:
     """
     peri = shapes.geometry.length
     area = shapes.area
-    roundness = round((4 * np.pi * area) / (area) ** 2, 3)
+    roundness = round((4 * np.pi * area) / (peri) ** 2, 3)
     return roundness.to_list()
 
 
@@ -1330,7 +1318,7 @@ def get_clipped_road_area(
     roads: gp.GeoDataFrame,
     road_type: str,
     clip_reg: gp.GeoDataFrame,
-    shp_cfg: dict,
+    shp_cfg: ShapeCfgDict,
 ) -> gp.GeoDataFrame:
     """Buffers and clips the roads to the area of interest, removing tunnels as well.
 
@@ -1341,7 +1329,7 @@ def get_clipped_road_area(
     :param clip_reg: The region used for clipping.
     :type clip_reg: gp.GeoDataFrame
     :param shp_cfg: The shape config containing buffer sizes.
-    :type shp_cfg: dict
+    :type shp_cfg: ShapeCfgDict
     :return: The clipped roads as polygons.
     :rtype: gp.GeoDataFrame
     """
@@ -1407,7 +1395,9 @@ def ckdnearest(
     :rtype: gp.GeoDataFrame
     """
     geom_a = (geom_a.x, geom_a.y)
-    geom_b = [np.array(geom.coords) for geom in gdf_b.geometry.to_list()]
+    geom_b = [
+        np.array(geom.coords) for geom in gdf_b.geometry.explode().to_list()
+    ]
     idx_b = tuple(
         itertools.chain.from_iterable(
             [

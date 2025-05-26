@@ -87,6 +87,8 @@ class U4ResDict(TypedDict):
     aspect_polygons_std_21: list
     buildings_area: float
     buildings: gp.GeoDataFrame
+    buildings_num: int
+    buildings_close: bool
     geology_area: list
     geology_percent: list
     geology_units: list
@@ -127,6 +129,7 @@ class U4ResDict(TypedDict):
     railways_has: bool
     railways_length: float
     railways_close: bool
+    roads_has: bool
     roads_has_motorway: bool
     roads_has_primary: bool
     roads_has_secondary: bool
@@ -136,6 +139,7 @@ class U4ResDict(TypedDict):
     roads_motorway_length: list
     roads_primary_length: list
     roads_secondary_length: list
+    roads_close: bool
     roads_nearest_motorway_name: str
     roads_nearest_primary_name: str
     roads_nearest_secondary_name: str
@@ -212,3 +216,131 @@ class U4Namespace(Namespace):
     input: os.PathLike
     overwrite: bool
     cpus: int
+
+
+class BufferDistDict(TypedDict):
+    """Default buffer distances for features"""
+
+    build: float
+    pois_area: float
+    landfill: float
+    landuse: float
+    construction: float
+    railway: float
+    mainroads: float
+    minor_roads: float
+    water: float
+    lakes: float
+    power: float
+    traffic: float
+    transport: float
+
+
+class ClassifyDict(TypedDict):
+    """Buffer distances for classification"""
+
+    roads: float
+    railways: float
+    buildings: float
+
+
+class NameDict(TypedDict):
+    """Names for shapes of the legend"""
+
+    build: str
+    pois_area: str
+    landfill: str
+    landuse: str
+    construction: str
+    railway: str
+    mainroads: str
+    minor_roads: str
+    water: str
+    lakes: str
+    power: str
+    traffic: str
+    transport: str
+
+
+class ShpFileDict(TypedDict):
+    """Names of the shapefile containing the original data"""
+
+    build: os.PathLike
+    pois_area: os.PathLike
+    landfill: os.PathLike
+    landuse: os.PathLike
+    construction: os.PathLike
+    railway: os.PathLike
+    mainroads: os.PathLike
+    minor_roads: os.PathLike
+    water: os.PathLike
+    lakes: os.PathLike
+    power: os.PathLike
+    traffic: os.PathLike
+    transport: os.PathLike
+
+
+class FclassDict(TypedDict):
+    """List of feature classes to extract from the file"""
+
+    build: list[str]
+    pois_area: list[str]
+    landfill: list[str]
+    landuse: list[str]
+    construction: list[str]
+    railway: list[str]
+    mainroads: list[str]
+    minor_roads: list[str]
+    water: list[str]
+    lakes: list[str]
+    power: list[str]
+    traffic: list[str]
+    transport: list[str]
+
+
+class ColorsDict(TypedDict):
+    """Colors for plotting features"""
+
+    build: str
+    pois_area: str
+    landfill: str
+    landuse: str
+    construction: str
+    railway: str
+    mainroads: str
+    minor_roads: str
+    water: str
+    lakes: str
+    power: str
+    traffic: str
+    transport: str
+
+
+class ZorderDict(TypedDict):
+    """Layer `zorder` for plotting"""
+
+    build: int
+    pois_area: int
+    landfill: int
+    landuse: int
+    construction: int
+    railway: int
+    mainroads: int
+    minor_roads: int
+    water: int
+    lakes: int
+    power: int
+    traffic: int
+    transport: int
+
+
+class ShapeCfgDict(TypedDict):
+    """A dictionary containing configs for shapes and buffers"""
+
+    buffer_dist: BufferDistDict
+    classify_buffers: ClassifyDict
+    name: NameDict
+    shp_file: ShpFileDict
+    fclass: FclassDict
+    colors: ColorsDict
+    zorder: ZorderDict

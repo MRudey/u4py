@@ -17,6 +17,7 @@ import u4py.analysis.processing as u4proc
 import u4py.io.files as u4files
 import u4py.io.gpkg as u4gpkg
 import u4py.io.sql as u4sql
+from u4py.utils.types import U4Project
 
 
 def create_adafinder_read_map(
@@ -133,13 +134,13 @@ def load_region_as_gdf(
         return [], []
 
 
-def convert_gpkg_to_shp(fname: str, project: dict):
+def convert_gpkg_to_shp(fname: str, project: U4Project):
     """Converts the data from the gpkg to a shape file and readmap for table.
 
     :param fname: The filename of the gpkg file.
     :type fname: str
     :param project: The project config
-    :type project: dict
+    :type project: U4Project
 
     Subdivides the tables into smaller shape files depending on the number of
     entries in the table. The resulting subdivisions are stored in shapefiles
@@ -209,14 +210,14 @@ def conversion_worker(args: Iterable):
 
 
 def create_adafinder_config(
-    in_path: os.PathLike, project: dict, **kwargs
+    in_path: os.PathLike, project: U4Project, **kwargs
 ) -> os.PathLike:
     """Creates a config for use with ADAfinder CLI
 
     :param in_path: The path to the input points shapefile or csvfile.
     :type in_path: os.PathLike
     :param project: The u4py project config
-    :type project: dict
+    :type project: U4Project
     :param **kwargs: Additional arguments passed to ADAfinder config, with keys in UPPERCASE.
     :type **kwargs: dict
     :return: The path to the ADAfinder config
@@ -296,11 +297,11 @@ def create_adafinder_config(
     return adacfg_path
 
 
-def merge_shps(project: dict, ending: str, direction: str):
+def merge_shps(project: U4Project, ending: str, direction: str):
     """Merges output of several ADAfinder runs into a single shapefile.
 
     :param project: The project config
-    :type project: dict
+    :type project: U4Project
     :param ending: The ending to identify the type of results.
     :type ending: str
     :param direction: The direction (vertikal, Ost_West) of the results.

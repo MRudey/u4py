@@ -70,14 +70,14 @@ def main():
         {
             "shp_gdf": shp_gdf,
             "group": group,
-            "buffer_size": 5,
+            "buffer_size": 0.1,
             "shp_cfg": shp_cfg,
             "project": project,
             "use_online": project.getboolean("config", "use_online"),
             "use_internal": project.getboolean("config", "use_internal"),
             "save_report": True,
         }
-        for group in unique_groups
+        for group in unique_groups[:50]
     ]
     if project.getboolean("config", "use_parallel"):
         main_list = u4proc.batch_mapping(

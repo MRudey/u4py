@@ -20,6 +20,7 @@ from packaging.version import Version
 from tqdm import tqdm
 
 import u4py.utils.utils as u4utils
+from u4py.utils.types import U4Project
 
 
 def get_clipped_shapefile(
@@ -72,7 +73,7 @@ def get_clipped_shapefile(
 
 def get_osm_as_shp(
     tags: dict,
-    project: dict,
+    project: U4Project,
     query: str = "Hesse",
     shape_type: shapely.GeometryType = shapely.Point,
     overwrite: bool = False,
@@ -82,7 +83,7 @@ def get_osm_as_shp(
     :param tags: The tags for open street map (same as for the overpass API)
     :type tags: dict
     :param project: The loaded project file (for path management)
-    :type project: dict
+    :type project: U4Project
     :param query: The region where to get the data, defaults to "Hesse"
     :type query: str, optional
     :param shape_type: The type of the shape data, defaults to `shapely.Point`
