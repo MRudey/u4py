@@ -150,7 +150,12 @@ def classify_shape(
         res.update(railways(res, sub_set_hull, osm_path, shp_cfg))
 
         # Buildings
-        res.update(buildings(res, sub_set_hull, shp_cfg, osm_path))
+        if use_online:
+            res.update(
+                buildings(res, sub_set_hull, shp_cfg, out_folder=cache_path)
+            )
+        else:
+            res.update(buildings(res, sub_set_hull, shp_cfg, osm_path))
 
         # Water
         res.update(rivers_water(res, sub_set_hull, osm_path, shp_cfg))
@@ -548,21 +553,42 @@ def buildings(
     else:
         logging.info("Loading building data from HLNUG server")
         building_data = u4web.query_hlnug(
-            "geologie/gk25/MapServer",
-            "Geologie (Kartiereinheiten)",
+            "geobasis/alkis_grenzen/MapServer",
+            "GEBAEUDE",
             region=sub_set_hull,
             out_folder=out_folder,
             suffix=f"{res['group']:05}",
         )
         if building_data.empty:
-            logging.debug("Retrying to get geological data.")
+            logging.debug("Retrying to get building data.")
             building_data = u4web.query_hlnug(
-                "geologie/gk25/MapServer",
-                "Geologie (Kartiereinheiten)",
+                "geobasis/alkis_grenzen/MapServer",
+                "GEBAEUDE",
                 region=sub_set_hull,
                 out_folder=out_folder,
                 suffix=f"{res['group']:05}",
             )
+        if not building_data.empty:
+            res["buildings"] = building_data
+
+        building_data_close = u4web.query_hlnug(
+            "geobasis/alkis_grenzen/MapServer",
+            "GEBAEUDE",
+            region=sub_set_hull,
+            out_folder=out_folder,
+            suffix=f"{res['group']:05}_close_",
+        )
+        if building_data_close.empty:
+            logging.debug("Retrying to get building data.")
+            building_data_close = u4web.query_hlnug(
+                "geobasis/alkis_grenzen/MapServer",
+                "GEBAEUDE",
+                region=sub_set_hull,
+                out_folder=out_folder,
+                suffix=f"{res['group']:05}_close_",
+            )
+        if not building_data_close.empty:
+            res["buildings_close"] = True
 
     if len(res["buildings"]) > 0:
         res["buildings_area"] = round(res["buildings"].area.sum(), 1)

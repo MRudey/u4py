@@ -106,7 +106,7 @@ def _get_coords(in_path: os.PathLike | list) -> list:
     """
     coords = None
 
-    if isinstance(in_path, list):
+    if isinstance(in_path, list) and len(in_path) > 0:
         if isinstance(in_path[0], str):
             coords, source_index = _file_list_to_coords(in_path)
         elif isinstance(in_path[0], tuple):

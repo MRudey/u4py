@@ -340,7 +340,7 @@ def map_worker(
             crs,
             output_path,
             "known_features",
-            project["paths"]["diff_plan_path"],
+            dem_path,
             contour_path,
             plot_buffer=100,
             overwrite=overwrite_plots,

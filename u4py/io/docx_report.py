@@ -241,7 +241,7 @@ def hlnug_description(
 
     # Add buildings
     if row["buildings_num"] > 0:
-        prgph.add_run("Auf der Rutschung ist Bebauung vorhanden. ")
+        prgph.add_run("Auf der Fläche der Rutschung ist Bebauung vorhanden. ")
     elif row["buildings_close"]:
         prgph.add_run(
             "In in maximal 50\u00a0m Entfernung vom Rand der Rutschung ist "
