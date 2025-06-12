@@ -1432,9 +1432,12 @@ def get_nearest_road_segment(
         road_data[road_data.fclass == fclass],
     )
     if hasattr(road_data, "name") and hasattr(road_data, "ref"):
-        name = road_data[road_data.fclass == fclass].iloc[idx].ref
-        if not name:
-            name = road_data[road_data.fclass == fclass].iloc[idx].name
+        try:
+            name = road_data[road_data.fclass == fclass].iloc[idx].ref
+            if not name:
+                name = road_data[road_data.fclass == fclass].iloc[idx].name
+        except IndexError:
+            name = ""
     else:
         name = ""
     return name, int(dist)

@@ -28,6 +28,7 @@ def site_report(
     suffix: str,
     hlnug_data: gp.GeoDataFrame,
     img_fmt: str = "png",
+    overwrite: bool = True,
 ):
     """Creates a report for each area of interest using python-docx.
 
@@ -51,71 +52,6 @@ def site_report(
         "Classifier_shapes",
         "Web_Queries_" + suffix.split("_")[-1],
     )
-
-    # Create Document and apply style
-    document = docx.Document()
-    styles = document.styles
-    styles["Normal"].paragraph_format.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
-    section = document.sections[0]
-    section.page_height = docx.shared.Mm(297)
-    section.page_width = docx.shared.Mm(210)
-    section.left_margin = docx.shared.Mm(25.4)
-    section.right_margin = docx.shared.Mm(25.4)
-    section.top_margin = docx.shared.Mm(25.4)
-    section.bottom_margin = docx.shared.Mm(25.4)
-    section.header_distance = docx.shared.Mm(12.7)
-    section.footer_distance = docx.shared.Mm(12.7)
-
-    # Start filling the Document
-    document.add_heading(f"Beschreibung für Amt-Nr. {group}", level=0)
-
-    # Add header
-    heading = ",".join(row[1].locations.split(",")[:-4])
-    document.add_heading(heading, level=1)
-
-    # Overview plot and satellite image
-    document = location(row[1], document)
-    if os.path.exists(img_path + f"_map.{img_fmt}") and os.path.exists(
-        img_path + f"_satimg.{img_fmt}"
-    ):
-        document = details_and_satellite(img_path, img_fmt, document)
-    # Manual Classification or HLNUG data
-    document = hlnug_description(
-        hlnug_data[hlnug_data.AMT_NR_ == group],
-        row[1],
-        document,
-        web_query_path,
-    )
-    # document = landuse(row[1], document)
-
-    # Volumina
-    document = moved_volumes(row[1], document)
-
-    # DEM
-    if os.path.exists(img_path + f"_dem.{img_fmt}"):
-        document = dem(img_path, img_fmt, document)
-
-    # Topographie
-    if os.path.exists(img_path + f"_slope.{img_fmt}"):
-        document = topography(row[1], img_path, img_fmt, document)
-
-    # Difference Map
-    if os.path.exists(img_path + f"_diffplan.{img_fmt}"):
-        document = difference(img_path, img_fmt, document)
-
-    # PSI Data
-    if os.path.exists(img_path + f"_psi.{img_fmt}"):
-        document = psi_map(img_path, img_fmt, document)
-
-    # Geologie etc...
-    if os.path.exists(img_path + f"_GK25.{img_fmt}"):
-        document = geology(img_path, img_fmt, document)
-    if os.path.exists(img_path + f"_HUEK200.{img_fmt}"):
-        document = hydrogeology(img_path, img_fmt, document)
-    if os.path.exists(img_path + f"_BFD50.{img_fmt}"):
-        document = soils(img_path, img_fmt, document)
-    FIGURENUM = 1
-    # Save to docx file
     mapnums = eval(row[1].geology_mapnum)
     if mapnums:
         docx_path = (
@@ -126,7 +62,74 @@ def site_report(
         )
     else:
         docx_path = os.path.join(output_path_docx, f"XXXX_{group:05}.docx")
-    document.save(docx_path)
+    if not os.path.exists(docx_path) or overwrite:
+        # Create Document and apply style
+        document = docx.Document()
+        styles = document.styles
+        styles[
+            "Normal"
+        ].paragraph_format.alignment = WD_ALIGN_PARAGRAPH.JUSTIFY
+        section = document.sections[0]
+        section.page_height = docx.shared.Mm(297)
+        section.page_width = docx.shared.Mm(210)
+        section.left_margin = docx.shared.Mm(25.4)
+        section.right_margin = docx.shared.Mm(25.4)
+        section.top_margin = docx.shared.Mm(25.4)
+        section.bottom_margin = docx.shared.Mm(25.4)
+        section.header_distance = docx.shared.Mm(12.7)
+        section.footer_distance = docx.shared.Mm(12.7)
+
+        # Start filling the Document
+        document.add_heading(f"Beschreibung für Amt-Nr. {group}", level=0)
+
+        # Add header
+        heading = ",".join(row[1].locations.split(",")[:-4])
+        document.add_heading(heading, level=1)
+
+        # Overview plot and satellite image
+        document = location(row[1], document)
+        if os.path.exists(img_path + f"_map.{img_fmt}") and os.path.exists(
+            img_path + f"_satimg.{img_fmt}"
+        ):
+            document = details_and_satellite(img_path, img_fmt, document)
+        # Manual Classification or HLNUG data
+        document = hlnug_description(
+            hlnug_data[hlnug_data.AMT_NR_ == group],
+            row[1],
+            document,
+            web_query_path,
+        )
+        # document = landuse(row[1], document)
+
+        # Volumina
+        document = moved_volumes(row[1], document)
+
+        # DEM
+        if os.path.exists(img_path + f"_dem.{img_fmt}"):
+            document = dem(img_path, img_fmt, document)
+
+        # Topographie
+        if os.path.exists(img_path + f"_slope.{img_fmt}"):
+            document = topography(row[1], img_path, img_fmt, document)
+
+        # Difference Map
+        if os.path.exists(img_path + f"_diffplan.{img_fmt}"):
+            document = difference(img_path, img_fmt, document)
+
+        # PSI Data
+        if os.path.exists(img_path + f"_psi.{img_fmt}"):
+            document = psi_map(img_path, img_fmt, document)
+
+        # Geologie etc...
+        if os.path.exists(img_path + f"_GK25.{img_fmt}"):
+            document = geology(img_path, img_fmt, document)
+        if os.path.exists(img_path + f"_HUEK200.{img_fmt}"):
+            document = hydrogeology(img_path, img_fmt, document)
+        if os.path.exists(img_path + f"_BFD50.{img_fmt}"):
+            document = soils(img_path, img_fmt, document)
+        FIGURENUM = 1
+        # Save to docx file
+        document.save(docx_path)
 
 
 def location(series: gp.GeoSeries, document: Document) -> Document:
@@ -200,14 +203,15 @@ def hlnug_description(
 
     # Add geological structural area
     structure_string = u4human.listed_strings(row["structural_region"])
-    if isinstance(structure_string, list):
-        prgph.add_run(
-            f"Die Rutschung liegt in den geologischen Strukturräumen {structure_string} "
-        )
-    else:
-        prgph.add_run(
-            f'Die Rutschung liegt im geologischen Strukturraum "{structure_string}" '
-        )
+    if structure_string:
+        if isinstance(structure_string, list):
+            prgph.add_run(
+                f"Die Rutschung liegt in den geologischen Strukturräumen {structure_string} "
+            )
+        else:
+            prgph.add_run(
+                f'Die Rutschung liegt im geologischen Strukturraum "{structure_string}" '
+            )
 
     # Add number and name of geological map
     mapnum = eval(row["geology_mapnum"])
@@ -240,9 +244,14 @@ def hlnug_description(
             prgph.add_run(f"der Germarkung {district}. ")
 
     # Add dimensions
-    prgph.add_run(
-        f"Sie hat eine Länge von ca. {hld['LAENGE_M'].values[0]}\u00a0m, eine Breite von ca. {hld['BREITE_M'].values[0]}\u00a0m und verläuft nach {u4human.direction_to_text(hld['EXPOSITION'].values[0], in_lang='de')}. "
-    )
+    if (
+        (hld["LAENGE_M"].values[0] > 0)
+        and (hld["BREITE_M"].values[0] > 0)
+        and hld["EXPOSITION"].values[0]
+    ):
+        prgph.add_run(
+            f"Sie hat eine Länge von ca. {hld['LAENGE_M'].values[0]}\u00a0m, eine Breite von ca. {hld['BREITE_M'].values[0]}\u00a0m und verläuft nach {u4human.direction_to_text(hld['EXPOSITION'].values[0], in_lang='de')}. "
+        )
 
     # Add sliding layers
     prgph.add_run(

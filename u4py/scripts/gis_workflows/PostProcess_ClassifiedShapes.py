@@ -13,6 +13,7 @@ import geopandas as gp
 import numpy as np
 from tqdm import tqdm
 
+import u4py.addons.web_services as u4web
 import u4py.analysis.processing as u4proc
 import u4py.analysis.spatial as u4spatial
 import u4py.io.docx_report as u4docx
@@ -20,6 +21,9 @@ import u4py.io.tex_report as u4tex
 import u4py.plotting.plots as u4plots
 import u4py.utils.cmd_args as u4args
 import u4py.utils.projects as u4proj
+
+logging.getLogger("matplotlib").setLevel(level=logging.CRITICAL)
+logging.getLogger("geopandas").setLevel(level=logging.CRITICAL)
 
 
 def main():
@@ -50,6 +54,8 @@ def main():
     if project.getboolean("config", "is_hlnug"):
         u4plots.IMAGE_FORMATS = ["png"]
         u4plots.IS_HLNUG = True
+
+    u4web.set_client()
 
     # Setting up paths
     output_path = os.path.join(
@@ -180,6 +186,7 @@ def main():
                     output_path,
                     "docx_reports" + project["metadata"]["report_suffix"],
                     hlnug_data,
+                    project.getboolean("config", "overwrite_reports"),
                 )
 
 

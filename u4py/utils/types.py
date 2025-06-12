@@ -34,13 +34,15 @@ class U4PathsConfig(TypedDict):
 class U4Config(TypedDict):
     """Options for u4py"""
 
-    overwrite: bool
+    overwrite_data: bool
     use_filtered: bool
     use_parallel: bool
     use_online: bool
     use_internal: bool
     generate_plots: bool
     overwrite_plots: bool
+    overwrite: bool
+    overwrite_reports: bool
     generate_document: bool
     single_report: bool
     is_hlnug: bool

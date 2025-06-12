@@ -230,10 +230,13 @@ def direction_to_text(
     elif isinstance(direction, str):
         desc = direction
     if out_lang != "abbrev":
-        if in_lang == "en":
-            desc = translate_abbrev_en[out_lang][desc]
-        elif in_lang == "de":
-            desc = translate_abbrev_de[out_lang][desc]
+        try:
+            if in_lang == "en":
+                desc = translate_abbrev_en[out_lang][desc]
+            elif in_lang == "de":
+                desc = translate_abbrev_de[out_lang][desc]
+        except KeyError:
+            return desc
     return desc
 
 
@@ -303,6 +306,8 @@ def listed_strings(entry: str | list) -> str:
             return entry
 
     if isinstance(entry, list):
+        if len(entry) < 1:
+            return ""
         if len(entry) < 2:
             return entry[0]
         if len(entry) > 2:

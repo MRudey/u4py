@@ -28,6 +28,12 @@ HLNUG_URL = "https://geologie.hessen.de/arcgis/rest/services/"
 INTERN_URL = "http://130.83.190.169:8080/geoserver/gk25-hessen/ows"
 
 
+def set_client():
+    session = requests.Session()
+    client = restapi.RequestClient(session)
+    restapi.set_request_client(client)
+
+
 def query_hlnug(
     map_server_suffix: str,
     layer_name: str,
@@ -230,7 +236,7 @@ def _save_features(
     :rtype: gp.GeoDataFrame
     """
     if len(features) == 0:
-        gdf = gp.GeoDataFrame(geometry=[])
+        gdf = gp.GeoDataFrame(geometry=[], crs="EPSG:32632")
     elif isinstance(features, dict):
         with open(out_fname + ".json", "wt") as geojson:
             json.dump(features, geojson)
@@ -268,9 +274,7 @@ def _query_server(
     # Query webservice to find layer
     logging.info("Querying HLNUG for geology_data")
     map_url = f"{HLNUG_URL}/{map_server_suffix}"
-    feat_serv = restapi.MapService(
-        map_url, client="u4py, rudolf@geo.tu-darmstadt.de"
-    )
+    feat_serv = restapi.MapService(map_url)
     lyr_types = [lyr.type for lyr in feat_serv.layers]
     lyr_names = [lyr.name for lyr in feat_serv.layers]
 
@@ -285,9 +289,7 @@ def _query_server(
 
     # Assemble url to layer and get data
     lyr_url = f"{map_url}/{ii}"
-    ms_lyr = restapi.MapServiceLayer(
-        lyr_url, client="u4py, rudolf@geo.tu-darmstadt.de"
-    )
+    ms_lyr = restapi.MapServiceLayer(lyr_url)
     if len(region) > 0:
         restgeom = polygon_to_restapi(
             region.geometry[0], region.crs.to_string()

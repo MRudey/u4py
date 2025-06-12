@@ -12,16 +12,18 @@ import geopandas as gp
 import numpy as np
 from tqdm import tqdm
 
+import u4py.addons.web_services as u4web
 import u4py.analysis.classify as u4class
 import u4py.analysis.processing as u4proc
 import u4py.utils.cmd_args as u4args
 import u4py.utils.config as u4config
 import u4py.utils.projects as u4proj
 
-# u4config.start_logger()
+u4config.start_logger()
 
 
 def main():
+    print("Starting setup of classification.")
     args = u4args.load()
     if args.input:
         proj_path = args.input
@@ -66,6 +68,9 @@ def main():
         shp_gdf = shp_gdf[shp_gdf.OBJEKT == "Rutschung"]
         shp_gdf["groups"] = shp_gdf.AMT_NR_
         unique_groups = np.unique(shp_gdf.groups)
+    if project.getboolean("config", "use_online"):
+        u4web.set_client()
+
     kwargs = [
         {
             "shp_gdf": shp_gdf,
@@ -77,8 +82,9 @@ def main():
             "use_internal": project.getboolean("config", "use_internal"),
             "save_report": True,
         }
-        for group in unique_groups[:50]
+        for group in unique_groups  # [:50]
     ]
+    print("Starting Classification.")
     if project.getboolean("config", "use_parallel"):
         main_list = u4proc.batch_mapping(
             kwargs, classifier_wrapper, "Classifying Groups"
@@ -96,6 +102,8 @@ def main():
     for kk in main_results.keys():
         main_results[kk] = []
 
+    print("Finished Queries, staring reformatting.")
+
     for res in tqdm(main_list, desc="Reformatting Results List"):
         if res:
             for kk in res.keys():
@@ -110,9 +118,9 @@ def main():
                         main_results[kk].append(str(res[kk]))
                 else:
                     main_results[kk].append(res[kk])
-    logging.info("Creating final dataframe.")
+    print("Creating final dataframe.")
     main_gdf = gp.GeoDataFrame(data=main_results, crs=shp_gdf.crs)
-    logging.info("Saving final dataframe")
+    print("Saving final dataframe")
     main_gdf.to_file(
         os.path.join(project["paths"]["sites_path"], "Classified_Shapes.gpkg")
     )

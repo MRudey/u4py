@@ -626,7 +626,8 @@ def district(
             out_folder=out_folder,
             suffix=f"{res['group']:05}",
         )
-    res["district"] = district_data["GM_NA"].unique().tolist()
+    else:
+        res["district"] = district_data["GM_NA"].unique().tolist()
     return res
 
 
@@ -878,7 +879,7 @@ def volume(geometry: gp.GeoDataFrame, diffplan_path: os.PathLike) -> U4ResDict:
         res["volumes_error"] = int(
             np.sqrt(np.nansum([v**2 for v in volumes["volumes_error"]]))
         )
-    else:
+    elif np.isfinite(volumes["volumes_error"][0]):
         res["volumes_error"] = int(volumes["volumes_error"][0])
     return res
 

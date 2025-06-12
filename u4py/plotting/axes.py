@@ -959,7 +959,7 @@ def add_gpkg_data_in_axis(
         if plot_kwargs["column"] not in data.keys():
             plot_kwargs["column"] = None
     # Special plotting for roads
-    if "fclass" in plot_kwargs.keys():
+    if "fclass" in plot_kwargs.keys() and isinstance(data, gp.GeoDataFrame):
         data = data[data["fclass"] == plot_kwargs["fclass"]]
         if not data.empty:
             if plot_kwargs["fclass"] == "motorway":
