@@ -18,6 +18,7 @@ import u4py.io.sql as u4sql
 import u4py.io.tiff as u4tiff
 import u4py.utils.config as u4config
 import u4py.utils.projects as u4proj
+from u4py.utils.types import ShapeCfgDict
 
 
 def main():
@@ -84,7 +85,7 @@ def get_masking_features(
     shapes_path: os.PathLike,
     anomaly_path: os.PathLike,
     raster_file: os.PathLike,
-    shp_cfg: dict,
+    shp_cfg: ShapeCfgDict,
 ) -> gp.GeoDataFrame:
     """
     Combines the shapes in the area of the `raster_file` from `shapes_path`
@@ -98,7 +99,7 @@ def get_masking_features(
     :param raster_file: The path to the raster file.
     :type raster_file: os.PathLike
     :param shp_cfg: The shape configuration
-    :type shp_cfg: dict
+    :type shp_cfg: ShapeCfgDict
     :return: The merged shapes for masking.
     :rtype: gp.GeoDataFrame
     """
@@ -195,7 +196,7 @@ def raster_features(
 
 
 def create_feature_index(
-    shp_cfg: dict,
+    shp_cfg: ShapeCfgDict,
     shapes_path: os.PathLike,
     anomaly_path: os.PathLike,
     out_path: os.PathLike,
@@ -205,7 +206,7 @@ def create_feature_index(
     the mask with the feature classes.
 
     :param shp_cfg: The shape config
-    :type shp_cfg: dict
+    :type shp_cfg: ShapeCfgDict
     :param shapes_path: The path to the osm shape file.
     :type shapes_path: os.PathLike
     :param anomaly_path: The path to the classified anomalies shape file.
