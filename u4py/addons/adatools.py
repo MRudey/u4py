@@ -14,14 +14,13 @@ import shapely as shp
 from tqdm import tqdm
 
 import u4py.analysis.processing as u4proc
-import u4py.io.files as u4files
 import u4py.io.gpkg as u4gpkg
 import u4py.io.sql as u4sql
 from u4py.utils.types import U4Project
 
 
 def create_adafinder_read_map(
-    file_path: os.PathLike,
+    file_path: os.PathLike | str,
     position_x: int = 0,
     position_y: int = 1,
     position_velocity: int = 2,
@@ -36,7 +35,7 @@ def create_adafinder_read_map(
     `dump_dbf_header` from ADAtools to see the indices for each column.
 
     :param file_path: The path where to store the readmap.
-    :type file_path: os.PathLike
+    :type file_path: os.PathLike | str
     :param position_x: The column index of the x coordinate, defaults to 0
     :type position_x: int, optional
     :param position_y: The column index of the y coordinate, defaults to 1
@@ -85,7 +84,9 @@ def create_adafinder_read_map(
 
 
 def load_region_as_gdf(
-    gpkg_path: os.PathLike, table: str, region: gp.GeoDataFrame = []
+    gpkg_path: os.PathLike | str,
+    table: str,
+    region: gp.GeoDataFrame = gp.GeoDataFrame(),
 ) -> Tuple[gp.GeoDataFrame, list]:
     """Loads data within the given region from `fname` and the `table`.
     Returns a geodatabase that has suitable format for ADAtools shapefiles and
@@ -103,7 +104,7 @@ def load_region_as_gdf(
     :rtype: Tuple[gp.GeoDataFrame, list]
     """
 
-    if region:
+    if len(region) > 0:
         data = u4gpkg.load_gpkg_data_region(
             region,
             gpkg_path,
@@ -131,14 +132,14 @@ def load_region_as_gdf(
         gdf = gp.GeoDataFrame(data=data_gdf, crs="EPSG:32632")
         return gdf, time_stamps
     else:
-        return [], []
+        return gp.GeoDataFrame(), []
 
 
-def convert_gpkg_to_shp(fname: str, project: U4Project):
+def convert_gpkg_to_shp(fname: os.PathLike | str, project: U4Project):
     """Converts the data from the gpkg to a shape file and readmap for table.
 
     :param fname: The filename of the gpkg file.
-    :type fname: str
+    :type fname: os.PathLike | str
     :param project: The project config
     :type project: U4Project
 
@@ -184,15 +185,11 @@ def conversion_worker(args: Iterable):
         if subreg:
             tblshrt += f"_{subreg}"
 
-        # Use custom saving function with progress display
-        u4files.to_file_fiona(
-            gdf,
+        gdf.to_file(
             os.path.join(
                 project["paths"]["output_path"],
                 f"input_points_{tblshrt}.shp",
-            ),
-            driver="ESRI Shapefile",
-            position=ii,
+            )
         )
 
         logging.info("Creating readmap for input_points")
@@ -210,18 +207,18 @@ def conversion_worker(args: Iterable):
 
 
 def create_adafinder_config(
-    in_path: os.PathLike, project: U4Project, **kwargs
-) -> os.PathLike:
+    in_path: os.PathLike | str, project: U4Project, **kwargs
+) -> os.PathLike | str:
     """Creates a config for use with ADAfinder CLI
 
     :param in_path: The path to the input points shapefile or csvfile.
-    :type in_path: os.PathLike
+    :type in_path: os.PathLike | str
     :param project: The u4py project config
     :type project: U4Project
     :param **kwargs: Additional arguments passed to ADAfinder config, with keys in UPPERCASE.
     :type **kwargs: dict
     :return: The path to the ADAfinder config
-    :rtype: os.PathLike
+    :rtype: os.PathLike | str
     """
     logging.info("Creating config")
     file_format = {".shp": "SHAPEFILE", ".csv": "CSV-COMMA"}
@@ -241,10 +238,12 @@ def create_adafinder_config(
         out_folder, f"{in_fname}_buffered_points.csv"
     )
 
+    read_map_path = os.path.splitext(in_path)[0] + "_readmap.op"
+
     adacfg = OrderedDict(
         INPUT_POINTS=in_path,
         INPUT_POINTS_FORMAT=file_format[in_format],
-        INPUT_POINTS_READMAP=in_path.replace(".shp", "_readmap.op"),
+        INPUT_POINTS_READMAP=read_map_path,
         INPUT_SHAPEFILE_BOUNDARIES="-",
         OUTPUT_SHAPEFILE_ADAS=output_shapefile_adas,
         OUTPUT_POINTS=output_points,
@@ -319,6 +318,7 @@ def merge_shps(project: U4Project, ending: str, direction: str):
     )
     if shp_file_list:
         data = dict()
+        gdf = gp.GeoDataFrame()
         for shpf in tqdm(
             shp_file_list, desc="Reading files for merge", leave=False
         ):

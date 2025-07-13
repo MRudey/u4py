@@ -52,12 +52,12 @@ def get_file_paths(**kwargs) -> list | os.PathLike:
     return file_list
 
 
-def get_save_path(**kwargs) -> os.PathLike:
+def get_save_path(**kwargs) -> os.PathLike | str:
     """Safe wrapper for saving a file using filedialog by tkinter.
 
     :param kwargs: Keyword arguments supported by :func:`tkinter.filedialog.asksaveasfilename` (optional).
     :return: The filepath where to save the data.
-    :rtype: os.PathLike"""
+    :rtype: os.PathLike | str"""
     try:
         root = Tk()
     except TclError:
@@ -72,12 +72,12 @@ def get_save_path(**kwargs) -> os.PathLike:
     return file_path
 
 
-def get_folder_paths(**kwargs) -> os.PathLike:
+def get_folder_paths(**kwargs) -> os.PathLike | str:
     """Safe wrapper for to get a folder path using filedialog by tkinter.
 
     :param kwargs: Keyword arguments supported by :func:`tkinter.filedialog.askdirectory` (optional).
     :return: The filepath to the folder.
-    :rtype: os.PathLike"""
+    :rtype: os.PathLike | str"""
     folder_path = ""
     try:
         root = Tk()
@@ -96,7 +96,7 @@ def get_folder_paths(**kwargs) -> os.PathLike:
 
 def get_file_list(
     filetype: str,
-    folder_path: os.PathLike = None,
+    folder_path: os.PathLike | str = None,
     recursive: bool = False,
     **kwargs,
 ) -> list:
@@ -105,7 +105,7 @@ def get_file_list(
     :param filetype: The filetype to create the list from
     :type filetype: str
     :param folder_path: The base path to look for files, if emtpy the user is asked to select a folder, defaults to None
-    :type folder_path: os.PathLike, optional
+    :type folder_path: os.PathLike | str, optional
     :param recursive: When True, recurses through all subfolders, defaults to False
     :type recursive: bool, optional
     :return: A list of filepaths to files of the given filetype within the folderpath.
@@ -138,26 +138,30 @@ def get_file_list(
     return file_list
 
 
-def multi_split(file_path: os.PathLike, nsplits: int) -> os.PathLike:
+def multi_split(
+    file_path: os.PathLike | str, nsplits: int
+) -> os.PathLike | str:
     """Splits the filepath multiple times. Useful for traversing several levels upwards.
 
     :param file_path: The path to split.
-    :type file_path: os.PathLike
+    :type file_path: os.PathLike | str
     :param nsplits: The number of splits to do.
     :type nsplits: int
     :return: The path `nsplits` levels higher.
-    :rtype: os.PathLike
+    :rtype: os.PathLike | str
     """
     for n in range(nsplits):
         file_path = os.path.split(file_path)[0]
     return file_path
 
 
-def get_rois(file_path: os.PathLike) -> list[Tuple[str, shapely.Polygon]]:
+def get_rois(
+    file_path: os.PathLike | str,
+) -> list[Tuple[str, shapely.Polygon]]:
     """Read all regions of interest from the shapefile
 
     :param file_path: The path to the shapefile containing the regions of interest.
-    :type file_path: os.PathLike
+    :type file_path: os.PathLike | str
     :return: A list of (`region name`, `GeoDataFrame`) tuples.
     :rtype: list[Tuple[str, shapely.Polygon]]
     """
@@ -174,12 +178,12 @@ def get_rois(file_path: os.PathLike) -> list[Tuple[str, shapely.Polygon]]:
 
 
 def get_all_pickle_data(
-    file_path: os.PathLike,
+    file_path: os.PathLike | str,
 ) -> list[Tuple[float, float, Iterable]]:
     """Gets pickled data for all stations.
 
     :param file_path: The file to the pickled data.
-    :type file_path: os.PathLike
+    :type file_path: os.PathLike | str
     :return: The data separated into first and second fit.
     :rtype: list[Tuple[float, float, Iterable]]
     """
@@ -190,11 +194,11 @@ def get_all_pickle_data(
         return (fit_1, fit_2)
 
 
-def get_file_list_tiff(folder_path: os.PathLike) -> list[os.PathLike]:
+def get_file_list_tiff(folder_path: os.PathLike | str) -> list[os.PathLike]:
     """Gets a file list of tif files in `TB` folders
 
     :param folder_path: The path to the folder containing `TB` folders
-    :type folder_path: os.PathLike
+    :type folder_path: os.PathLike | str
     :return: A list of all tif files.
     :rtype: list
     """
@@ -217,12 +221,12 @@ def get_file_list_tiff(folder_path: os.PathLike) -> list[os.PathLike]:
 
 
 def set_point_file_paths(
-    source_fpath: os.PathLike, name: str, rtype: str
+    source_fpath: os.PathLike | str, name: str, rtype: str
 ) -> Tuple[os.PathLike, os.PathLike]:
     """Sets the paths for selected psi points.
 
     :param source_fpath: The file path to the data source.
-    :type source_fpath: os.PathLike
+    :type source_fpath: os.PathLike | str
     :param name: A unique name for the region.
     :type name: str
     :param rtype: The extraction type (e.g., `points`, `clip`, `region`)
@@ -240,12 +244,12 @@ def set_point_file_paths(
 
 
 def set_data_file_paths(
-    source_fpath: os.PathLike, name: str, rtype: str
+    source_fpath: os.PathLike | str, name: str, rtype: str
 ) -> Tuple[os.PathLike, os.PathLike]:
     """Sets the path for storing the data of selected psi points as a pickle file.
 
     :param source_fpath: The file path to the data source.
-    :type source_fpath: os.PathLike
+    :type source_fpath: os.PathLike | str
     :param name: A unique name for the region.
     :type name: str
     :param rtype: The extraction type (e.g., `points`, `clip`, `region`)
@@ -262,11 +266,11 @@ def set_data_file_paths(
     return folder, fpath
 
 
-def get_file_list_adf(base_folder: os.PathLike) -> list[os.PathLike]:
+def get_file_list_adf(base_folder: os.PathLike | str) -> list[os.PathLike]:
     """Gets a file list of all folders containing individual adf files for a DEM raster dataset.
 
     :param base_folder: The path to the raster folder containing folders in the form of `g_lat_long`.
-    :type base_folder: os.PathLike
+    :type base_folder: os.PathLike | str
     :return: The list of paths to the adf files.
     :rtype: list[os.PathLike]
     """

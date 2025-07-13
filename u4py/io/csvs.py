@@ -13,11 +13,11 @@ import shapely
 from tqdm import tqdm
 
 
-def load_csv(file_path: os.PathLike) -> dict:
+def load_csv(file_path: os.PathLike | str) -> dict:
     """Loads a CSV File from the EGMS dataset
 
     :param file_path: The path to file.
-    :type file_path: os.PathLike
+    :type file_path: os.PathLike | str
     :return: A dictionary with the data and the headers as keys.
     :rtype: dict
     """
@@ -55,18 +55,20 @@ def load_csv(file_path: os.PathLike) -> dict:
     return data
 
 
-def egms_csv_to_gdf(file_path: os.PathLike) -> Tuple[gp.GeoDataFrame, str]:
-    """Imports the csv in EGMS format and converts it to a geodatabase in the correct CRS.
+def egms_csv_to_gdf(
+    file_path: os.PathLike | str,
+) -> Tuple[gp.GeoDataFrame, str]:
+    """Imports the csv in EGMS format and converts it to a geodatabase in the correct pyproj.CRS.
 
     :param file_path: The path to the csv file
-    :type file_path: os.PathLike
+    :type file_path: os.PathLike | str
     :return: The data as a geodataframe and the associated layer (EW or vertical)
     :rtype: Tuple[gp.GeoDataFrame, str]
     """
-    """Imports the csv in EGMS format and converts it to a geodatabase in the correct CRS.
+    """Imports the csv in EGMS format and converts it to a geodatabase in the correct pyproj.CRS.
 
     :param file_path: The path to the csv file
-    :type file_path: os.PathLike
+    :type file_path: os.PathLike | str
     :return: The data as a geodataframe
     :rtype: gp.GeoDataFrame
     """
@@ -124,7 +126,7 @@ def merge_gdf_list(gdf_list: list[gp.GeoDataFrame]) -> gp.GeoDataFrame:
     return merged
 
 
-def buf_count_newlines_gen(fname: os.PathLike) -> int:
+def buf_count_newlines_gen(fname: os.PathLike | str) -> int:
     """Counts the number of lines in a text file.
     Adapted from https://stackoverflow.com/questions/845058/how-to-get-the-line-count-of-a-large-file-cheaply-in-python.
 

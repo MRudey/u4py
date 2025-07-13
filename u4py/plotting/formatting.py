@@ -63,7 +63,12 @@ def outline_text(txt: mpath.Path, color: str = "white", width: float = 3):
     )
 
 
-def map_style(ax: Axes, divisor: int = 0, grid: bool = True, crs: str = ""):
+def map_style(
+    ax: Axes,
+    divisor: int = 0,
+    grid: bool = True,
+    crs: str | pyproj.CRS | None = "",
+):
     """Changes axis to be in a good format for a map.
 
     :param ax: The axis object containing the map.
@@ -422,7 +427,7 @@ def _label_scalebar(ax: Axes, x: float, y: float, width: float, height: float):
 
 
 def get_style_from_legend(
-    map_uuids: list, legend_path: os.PathLike
+    map_uuids: list, legend_path: os.PathLike | str
 ) -> Tuple[dict, list]:
     """
     Creates a dictionary with plot format arguments and a list of legend
@@ -432,7 +437,7 @@ def get_style_from_legend(
     :param map_uuids: The unique identifiers of the feature geometries.
     :type map_uuids: list
     :param legend_path: The path to the legend file
-    :type legend_path: os.PathLike
+    :type legend_path: os.PathLike | str
     :return: A dictionary with the plotting arguments and a list of legend handles.
     :rtype: Tuple[dict, list]
     """

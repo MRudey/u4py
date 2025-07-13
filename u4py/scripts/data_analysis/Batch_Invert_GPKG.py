@@ -157,7 +157,7 @@ def merge_data(project: configparser.ConfigParser) -> dict:
     return {"vertikal": data_v, "Ost_West": data_ew}
 
 
-def invert_extracts(extracts: list[dict], output_path: os.PathLike):
+def invert_extracts(extracts: list[dict], output_path: os.PathLike | str):
     results = u4proc.batch_mapping(
         extracts, u4proc.inversion_map_worker, "Inverting Data"
     )

@@ -22,22 +22,22 @@ import u4py.io.tiff as u4tiff
 
 
 def get_gma_results(
-    psi_fpath: os.PathLike,
-    processing_path: os.PathLike,
+    psi_fpath: os.PathLike | str,
+    processing_path: os.PathLike | str,
     cellsize: int | list[int],
     min_mean: float | list[float],
     max_var: float | list[float],
     crs: str,
     overwrite: bool = False,
-) -> os.PathLike:
+) -> os.PathLike | str:
     """Gets GMA results for given psi file using the parameters given. Any of
     the parameters `cellsize`, `min_mean` or `max_var` can be an iterable of
     values. Then the GMA results are computed for each combination of them.
 
     :param psi_fpath: The path to the PSI-files.
-    :type psi_fpath: os.PathLike
+    :type psi_fpath: os.PathLike | str
     :param processing_path: The folder where to store the tiffs.
-    :type processing_path: os.PathLike
+    :type processing_path: os.PathLike | str
     :param cellsize: The cellsize of the GMA
     :type cellsize: int | list[int]
     :param min_mean: The minimum velocity for the GMA
@@ -49,8 +49,9 @@ def get_gma_results(
     :param overwrite: Whether to overwrite the existing tiff, defaults to False
     :type overwrite: bool, optional
     :return: The path to the GMA-results as tiff.
-    :rtype: os.PathLike
+    :rtype: os.PathLike | str
     """
+    gma_paths = ""
     gma_folder = os.path.join(processing_path, "GMA_results")
     os.makedirs(gma_folder, exist_ok=True)
     if not isinstance(cellsize, Iterable):
@@ -69,28 +70,29 @@ def get_gma_results(
         psi_fpath, "vertikal", get_timeseries=False, recalculate_stats=True
     )
     for par in tqdm(params, desc="Calculating GMA", leave=False):
-        load_gma_results(data, gma_folder, overwrite, crs, *par)
+        gma_paths = load_gma_results(data, gma_folder, overwrite, crs, *par)
+    return gma_paths
 
 
 def load_gma_results(
     data: dict,
-    gma_folder: os.PathLike,
+    gma_folder: os.PathLike | str,
     overwrite: bool,
-    crs: bool,
+    crs: str,
     cellsize: int,
     min_mean: float,
     max_var: float,
-) -> os.PathLike:
+) -> os.PathLike | str:
     """Looks for GMA-results in the path, if not creates them using the parameters given.
 
     :param data: The data loaded from the psi file.
     :type data: dict
     :param gma_folder: The folder where to store the results
-    :type gma_folder: os.PathLike
+    :type gma_folder: os.PathLike | str
     :param overwrite: Whether to overwrite the existing files
     :type overwrite: bool
     :param crs: The coordinate system of the data.
-    :type crs: bool
+    :type crs: str
     :param cellsize: The cellsize of the GMA
     :type cellsize: int
     :param min_mean: The minimum velocity for the GMA
@@ -98,7 +100,7 @@ def load_gma_results(
     :param max_var: The maximum variance for the GMA
     :type max_var: float
     :return: The path to the generated tiff file
-    :rtype: os.PathLike
+    :rtype: os.PathLike | str
     """
     gma_path = os.path.join(
         gma_folder,
@@ -118,7 +120,7 @@ def load_gma_results(
             logging.info(
                 f"No GMA results for cell={cellsize}, minmean={min_mean}, maxvar={max_var}"
             )
-            return []
+            return ""
     else:
         logging.info("GMA-results found.")
     return gma_path
@@ -126,7 +128,7 @@ def load_gma_results(
 
 def hotspots_GroundMotionAnalyzer(
     data: dict, cellsize: int, min_mean: float, max_var: float
-) -> Tuple[np.ndarray, tuple]:
+) -> Tuple[np.ndarray, tuple] | tuple:
     """Computes deformation hotspots using the GroundMotionAnalyzer
 
     :param data: The data loaded from the psi file.
@@ -194,20 +196,24 @@ def hotspots_GroundMotionAnalyzer(
         gma_grid = np.fliplr(gma_grid)
         return gma_grid, extent
     else:
-        return []
+        return ()
 
 
 def scattered_to_gridded(
-    x: Iterable, y: Iterable, values: Iterable, dx: float = 50, dy: float = 50
+    x: np.ndarray | list | tuple,
+    y: np.ndarray | list | tuple,
+    values: np.ndarray | list | tuple,
+    dx: float = 50,
+    dy: float = 50,
 ) -> np.ndarray:
     """Converts x, y, z values to a gridded numpy array.
 
     :param x: 1D array of x coordinates
-    :type x: Iterable
+    :type x: np.ndarray|list
     :param y: 1D array of y coordinates
-    :type y: Iterable
+    :type y: np.ndarray|list
     :param values: 1D array of corresponding z values
-    :type values: Iterable
+    :type values: np.ndarray|list
     :return: 2D numpy array representing the gridded data
     :rtype: np.ndarray
     """
@@ -225,7 +231,7 @@ def scattered_to_gridded(
 def hotspots_hexbin(
     vals: np.ndarray,
     coords: dict,
-    thresh: float | Iterable,
+    thresh: float | np.ndarray | list | tuple,
     nbins: int = 3,
     min_count: int = 3,
 ) -> Tuple[Figure, Axes, PolyCollection]:
@@ -238,7 +244,7 @@ def hotspots_hexbin(
     :param coords: A dictionary with minimum x, y and dx, dy.
     :type coords: dict
     :param thresh: Either a single threshold or an iterable with two thresholds. If it is iterable values below the lower threshold and above the higher threshold are detected as hotspots.
-    :type thresh: float | Iterable
+    :type thresh: float | np.ndarray |list | tuple
     :param nbins: The minimum area in n x (dx, dy) that a hotspot has to cover for detection, defaults to 3
     :type nbins: int
     :param min_count: The minimum number of psi in a bin to be detected, defaults to 3
@@ -253,7 +259,7 @@ def hotspots_hexbin(
     xx, yy = np.meshgrid(x, y)
 
     # Thresholding
-    if isinstance(thresh, Iterable):
+    if isinstance(thresh, (np.ndarray, list, tuple)):
         vals[(vals < np.max(thresh)) & (vals > np.min(thresh))] = np.nan
     else:
         vals[vals < thresh] = np.nan

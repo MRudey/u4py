@@ -2,9 +2,10 @@
 Merges the manual classification done by M. Koubik into a single file.
 """
 
-import geopandas as gp
-from pathlib import Path
 import os
+from pathlib import Path
+
+import geopandas as gp
 
 
 def main():
@@ -22,11 +23,11 @@ def main():
     merged.to_file(os.path.join(base_path, "koubik_merged.shp"))
 
 
-def convert_to_manual_class(in_file: os.PathLike) -> gp.GeoDataFrame:
+def convert_to_manual_class(in_file: os.PathLike | str) -> gp.GeoDataFrame:
     """Converts the input file into a geodataframe with the corrrect data keys.
 
     :param in_file: The input shapefile
-    :type in_file: os.PathLike
+    :type in_file: os.PathLike | str
     :return: The geodataframe with correct data keys.
     :rtype: gp.GeoDataFrame
     """

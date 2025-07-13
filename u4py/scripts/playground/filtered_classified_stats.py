@@ -20,7 +20,7 @@ def main():
     # fname_all = "Filtered_Classified_Shapes_all_merged_clean.gpkg"
 
 
-def plot_bar_diagram(folder_path: os.PathLike, fname: str):
+def plot_bar_diagram(folder_path: os.PathLike | str, fname: str):
     gdf_large: gp.GeoDataFrame
     ax: max.Axes
     gdf_large = gp.read_file(os.path.join(folder_path, fname))

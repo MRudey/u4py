@@ -41,8 +41,8 @@ def main():
 
 
 def grid_data(
-    bbd_path: os.PathLike,
-    sbas_path: os.PathLike,
+    bbd_path: os.PathLike | str,
+    sbas_path: os.PathLike | str,
     dx: float,
     width: float,
     use_parallel: bool,

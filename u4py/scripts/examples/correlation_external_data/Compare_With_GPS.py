@@ -164,12 +164,12 @@ def main():
 
 def plot_psi_vs_gnss(
     gnss_data: dict,
-    psi_path: os.PathLike,
+    psi_path: os.PathLike | str,
     table: str,
     station: gp.GeoDataFrame,
     distance: float,
     ax: mplax.Axes,
-    output_folder: os.PathLike,
+    output_folder: os.PathLike | str,
     filter_width: int,
     take_diff: bool,
     overwrite: bool,

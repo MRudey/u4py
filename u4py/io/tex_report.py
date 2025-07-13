@@ -15,7 +15,7 @@ from tqdm import tqdm
 import u4py.io.human_text as u4human
 
 
-def multi_report(output_path: os.PathLike):
+def multi_report(output_path: os.PathLike | str):
     tex_folder = os.path.join(output_path, "tex_includes")
     include_list = [
         os.path.join(tex_folder, fp)
@@ -59,7 +59,7 @@ def multi_report(output_path: os.PathLike):
 
 
 def main_report(
-    output_path: os.PathLike,
+    output_path: os.PathLike | str,
     title: str,
     subtitle: str,
     suffix: str = "",
@@ -67,7 +67,7 @@ def main_report(
     """Generates a single report from all files in the `tex_includes` folder.
 
     :param output_path: The path to the output folder, where also the `tex_includes` are located.
-    :type output_path: os.PathLike
+    :type output_path: os.PathLike | str
     :param suffix: The suffix added to the report to distinguish different datasets, defaults to ""
     :type suffix: str, optional
     """
@@ -117,16 +117,18 @@ def main_report(
 
 
 def run_tool_chain(
-    report_path: os.PathLike, report_out_path: os.PathLike, suffix: str = ""
+    report_path: os.PathLike | str,
+    report_out_path: os.PathLike | str,
+    suffix: str = "",
 ):
     """Runs a 3x Latex toolchain, first two in draft mode and then full compilation.
 
     Requires Latex.
 
     :param report_path: The path to the main file
-    :type report_path: os.PathLike
+    :type report_path: os.PathLike | str
     :param report_out_path: The output path of the final file
-    :type report_out_path: os.PathLike
+    :type report_out_path: os.PathLike | str
     :param suffix: A suffix that was added to the report_path, defaults to ""
     :type suffix: str, optional
     """
@@ -156,11 +158,11 @@ def run_tool_chain(
         )
 
 
-def clean_aux_files(report_out_path: os.PathLike, suffix: str):
+def clean_aux_files(report_out_path: os.PathLike | str, suffix: str):
     """Cleans Latex auxiliary files
 
     :param report_out_path: The path to the latex file
-    :type report_out_path: os.PathLike
+    :type report_out_path: os.PathLike | str
     :param suffix: The suffix of the file
     :type suffix: str
     """
@@ -180,7 +182,7 @@ def clean_aux_files(report_out_path: os.PathLike, suffix: str):
 
 def site_report(
     row: tuple,
-    output_path: os.PathLike,
+    output_path: os.PathLike | str,
     suffix: str,
     img_fmt: str = "pdf",
 ):
@@ -189,7 +191,7 @@ def site_report(
     :param row: The index and data for the area of interest.
     :type row: tuple
     :param output_path: The path where to store the outputs.
-    :type output_path: os.PathLike
+    :type output_path: os.PathLike | str
     :param suffix: The subfolder to use for the LaTeX files.
     :type suffix: str
     :param out_format: The output format (pdf or docx), determines which kind of images are included (pdf or png).
@@ -402,11 +404,11 @@ def manual_description(series: gp.GeoSeries) -> str:
     return tex
 
 
-def details_and_satellite(img_path: os.PathLike, img_fmt: str) -> str:
+def details_and_satellite(img_path: os.PathLike | str, img_fmt: str) -> str:
     """Adds the detailed map and the satellite image map.
 
     :param img_path: The path to the image folder including group name.
-    :type img_path: os.PathLike
+    :type img_path: os.PathLike | str
     :return: The tex code.
     :rtype: str
     """
@@ -447,11 +449,11 @@ def moved_volumes(series: gp.GeoSeries) -> str:
     return tex
 
 
-def difference(img_path: os.PathLike, img_fmt: str) -> str:
+def difference(img_path: os.PathLike | str, img_fmt: str) -> str:
     """Adds the difference and slope maps.
 
     :param img_path: The path to the image folder including group name.
-    :type img_path: os.PathLike
+    :type img_path: os.PathLike | str
     :return: The tex code.
     :rtype: str
     """
@@ -477,7 +479,7 @@ def difference(img_path: os.PathLike, img_fmt: str) -> str:
 
 
 def topography(
-    series: gp.GeoSeries, img_path: os.PathLike, img_fmt: str
+    series: gp.GeoSeries, img_path: os.PathLike | str, img_fmt: str
 ) -> str:
     """Converts the slope into a descriptive text.
 
@@ -603,11 +605,11 @@ def landuse(series: gp.GeoSeries) -> str:
     return tex
 
 
-def psi_map(img_path: os.PathLike, img_fmt: str) -> str:
+def psi_map(img_path: os.PathLike | str, img_fmt: str) -> str:
     """Adds the psi map with timeseries.
 
     :param img_path: The path to the image folder including group name.
-    :type img_path: os.PathLike
+    :type img_path: os.PathLike | str
     :return: The tex code.
     :rtype: str
     """
@@ -739,11 +741,11 @@ def subsidence_risk(series: gp.GeoSeries) -> str:
     return tex
 
 
-def geology(img_path: os.PathLike, img_fmt: str) -> str:
+def geology(img_path: os.PathLike | str, img_fmt: str) -> str:
     """Adds information for geology to the docum
 
     :param img_path: The path to the geology image file.
-    :type img_path: os.PathLike
+    :type img_path: os.PathLike | str
     :param img_fmt: The image file format.
     :type img_fmt: str
     :return: The tex code
@@ -765,11 +767,11 @@ def geology(img_path: os.PathLike, img_fmt: str) -> str:
     return tex
 
 
-def hydrogeology(img_path: os.PathLike, img_fmt: str) -> str:
+def hydrogeology(img_path: os.PathLike | str, img_fmt: str) -> str:
     """Adds information for hydrogeology to the document
 
     :param img_path: The path to the hydrogeology image file.
-    :type img_path: os.PathLike
+    :type img_path: os.PathLike | str
     :param img_fmt: The image file format.
     :type img_fmt: str
     :return: The tex code
@@ -791,11 +793,11 @@ def hydrogeology(img_path: os.PathLike, img_fmt: str) -> str:
     return tex
 
 
-def soils(img_path: os.PathLike, img_fmt: str) -> str:
+def soils(img_path: os.PathLike | str, img_fmt: str) -> str:
     """Adds information for soils to the documen
 
     :param img_path: The path to the soils image file.
-    :type img_path: os.PathLike
+    :type img_path: os.PathLike | str
     :param img_fmt: The image file format.
     :type img_fmt: str
     :return: The tex code

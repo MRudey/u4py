@@ -23,7 +23,7 @@ def main():
         add_raster(folder_path, fgdb_path)
 
 
-def add_raster(folder_path: os.PathLike, workspace):
+def add_raster(folder_path: os.PathLike | str, workspace):
     base_path, dataset_name = os.path.split(folder_path)
     try:
         Output_Mosaic_Dataset = arcpy.management.CreateMosaicDataset(

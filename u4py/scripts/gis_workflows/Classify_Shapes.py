@@ -18,6 +18,7 @@ import u4py.analysis.processing as u4proc
 import u4py.utils.cmd_args as u4args
 import u4py.utils.config as u4config
 import u4py.utils.projects as u4proj
+from u4py.utils.types import U4ResDict
 
 u4config.start_logger()
 
@@ -85,6 +86,7 @@ def main():
         for group in unique_groups  # [:50]
     ]
     print("Starting Classification.")
+    main_list: list[U4ResDict]
     if project.getboolean("config", "use_parallel"):
         main_list = u4proc.batch_mapping(
             kwargs, classifier_wrapper, "Classifying Groups"
@@ -105,7 +107,7 @@ def main():
     print("Finished Queries, staring reformatting.")
 
     for res in tqdm(main_list, desc="Reformatting Results List"):
-        if res:
+        if res["area"] > 0:
             for kk in res.keys():
                 if isinstance(res[kk], gp.GeoDataFrame):
                     main_results[kk].append("[]")
@@ -126,7 +128,7 @@ def main():
     )
 
 
-def classifier_wrapper(kwargs: dict) -> dict:
+def classifier_wrapper(kwargs: dict) -> U4ResDict:
     """Parallel processing wrapper for classify_shape()
 
     :param args: The arguments

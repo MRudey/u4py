@@ -13,7 +13,7 @@ import uncertainties as unc
 from uncertainties import unumpy as unp
 
 
-def main_report(output_path: os.PathLike):
+def main_report(output_path: os.PathLike | str):
     html_folder = os.path.join(output_path, "html_includes")
     include_list = [
         os.path.join(html_folder, fp)
@@ -110,7 +110,7 @@ def main_report(output_path: os.PathLike):
 
 def site_report(
     row: tuple,
-    output_path: os.PathLike,
+    output_path: os.PathLike | str,
     suffix: str,
     hlnug_data: gp.GeoDataFrame,
     prev_grp: str,
@@ -121,7 +121,7 @@ def site_report(
     :param row: The index and data for the area of interest.
     :type row: tuple
     :param output_path: The path where to store the outputs.
-    :type output_path: os.PathLike
+    :type output_path: os.PathLike | str
     :param suffix: The subfolder to use for the LaTeX files.
     :type suffix: str
     :param hlnug_data: More info loaded from HLNUG Dataset
@@ -334,14 +334,14 @@ def location(series: gp.GeoSeries) -> str:
         + "            </tr>\n"
         + f'            <td><a href="https://www.google.com/maps/place/{lat},{lng}/@{lat},{lng}/data=!3m1!1e3"\n'
         + '                target="_blank">\n'
-        + f'                <img src="https://icons.duckduckgo.com/ip3/google.com.ico" width="5%"> {np.round(lat,3)}&nbsp;N, {np.round(lng,3)}&nbsp;E\n'
+        + f'                <img src="https://icons.duckduckgo.com/ip3/google.com.ico" width="5%"> {np.round(lat, 3)}&nbsp;N, {np.round(lng, 3)}&nbsp;E\n'
         + "              </a>\n"
         + "            </td>\n"
         + f'            <td><a href="https://bing.com/maps/default.aspx?cp={lat}~{lng}&style=h&lvl=15" target="_blank"><img\n'
-        + f'                  src="https://icons.duckduckgo.com/ip3/bing.com.ico" width="5%"> {np.round(lat,3)}&nbsp;N, {np.round(lng,3)}&nbsp;E</a>\n'
+        + f'                  src="https://icons.duckduckgo.com/ip3/bing.com.ico" width="5%"> {np.round(lat, 3)}&nbsp;N, {np.round(lng, 3)}&nbsp;E</a>\n'
         + "            </td>\n"
         + f'            <td><a href="http://www.openstreetmap.org/?lat={lat}&lon={lng}&zoom=17&layers=M" target="_blank"><img\n'
-        + f'                  src="https://icons.duckduckgo.com/ip3/openstreetmap.com.ico" width="5%"> {np.round(lat,3)}&nbsp;N, {np.round(lng,3)}&nbsp;E</a>\n'
+        + f'                  src="https://icons.duckduckgo.com/ip3/openstreetmap.com.ico" width="5%"> {np.round(lat, 3)}&nbsp;N, {np.round(lng, 3)}&nbsp;E</a>\n'
         + "            </td>\n"
         + "            <tr></tr>\n"
         + "          </tbody>\n"
@@ -460,11 +460,11 @@ def manual_description(series: gp.GeoSeries) -> str:
     return html
 
 
-def details_and_satellite(img_path: os.PathLike) -> str:
+def details_and_satellite(img_path: os.PathLike | str) -> str:
     """Adds the detailed map and the satellite image map.
 
     :param img_path: The path to the image folder including group name.
-    :type img_path: os.PathLike
+    :type img_path: os.PathLike | str
     :return: The html code.
     :rtype: str
     """
@@ -519,11 +519,11 @@ def vol_str(val: float) -> str:
         return "das Gesamtvolumen nur wenig verändert"
 
 
-def difference(img_path: os.PathLike) -> str:
+def difference(img_path: os.PathLike | str) -> str:
     """Adds the difference and slope maps.
 
     :param img_path: The path to the image folder including group name.
-    :type img_path: os.PathLike
+    :type img_path: os.PathLike | str
     :return: The html code.
     :rtype: str
     """
@@ -532,7 +532,7 @@ def difference(img_path: os.PathLike) -> str:
         html += (
             "\\begin{figure}[!ht]\n"
             + "  \\centering"
-            + f"  \\includegraphics[width=.9\\htmltwidth]{{{img_path+'_diffplan.pdf'}}}\n"
+            + f"  \\includegraphics[width=.9\\htmltwidth]{{{img_path + '_diffplan.pdf'}}}\n"
             + "  \\caption{Differenzenplan im Gebiet.}\n"
             + "\\end{figure}\n"
         )
@@ -541,14 +541,14 @@ def difference(img_path: os.PathLike) -> str:
         html += (
             "\\begin{figure}[!ht]\n"
             + "  \\centering"
-            + f"  \\includegraphics[width=.9\\htmltwidth]{{{img_path+'_dem.pdf'}}}\n"
+            + f"  \\includegraphics[width=.9\\htmltwidth]{{{img_path + '_dem.pdf'}}}\n"
             + "  \\caption{Digitales Höhenmodell (Schummerung).}\n"
             + "\\end{figure}\n\n"
         )
     return html
 
 
-def topography(series: gp.GeoSeries, img_path: os.PathLike) -> str:
+def topography(series: gp.GeoSeries, img_path: os.PathLike | str) -> str:
     """Converts the slope into a descriptive htmlt.
 
     :param series: The GeoSeries object extracted from the row.
@@ -613,12 +613,12 @@ def topography(series: gp.GeoSeries, img_path: os.PathLike) -> str:
         html += (
             "\n\\begin{figure}[!ht]\n"
             + "  \\begin{subfigure}[][][t]{.49\\htmltwidth}\n"
-            + f"  \\includegraphics[width=\\htmltwidth]{{{img_path+'_slope.pdf'}}}\n"
+            + f"  \\includegraphics[width=\\htmltwidth]{{{img_path + '_slope.pdf'}}}\n"
             + "  \\caption{Steigung}\n"
             + "  \\end{subfigure}\n\hfill\n"
             + "  \\begin{subfigure}[][][t]{.49\\htmltwidth}\n"
             + "\\centering\n"
-            + f"  \\includegraphics[width=\\htmltwidth]{{{img_path+'_aspect.pdf'}}}\n"
+            + f"  \\includegraphics[width=\\htmltwidth]{{{img_path + '_aspect.pdf'}}}\n"
             + "  \\caption{Exposition.}\n"
             + "  \\end{subfigure}\n\hfill\n"
             + "  \\caption{Topographie im Gebiet.}"
@@ -629,7 +629,7 @@ def topography(series: gp.GeoSeries, img_path: os.PathLike) -> str:
         html += (
             "\\begin{figure}[!ht]\n"
             + "  \\centering\n"
-            + f"  \\includegraphics[width=.95\\htmltwidth]{{{img_path+'_aspect_slope.pdf'}}}\n"
+            + f"  \\includegraphics[width=.95\\htmltwidth]{{{img_path + '_aspect_slope.pdf'}}}\n"
             + "  \\caption{Steigung und Exposition}\n"
             + "\\end{figure}\n"
         )
@@ -770,11 +770,11 @@ def part_str(val: float) -> str:
         return "quasi vollständig"
 
 
-def psi_map(img_path: os.PathLike) -> str:
+def psi_map(img_path: os.PathLike | str) -> str:
     """Adds the psi map with timeseries.
 
     :param img_path: The path to the image folder including group name.
-    :type img_path: os.PathLike
+    :type img_path: os.PathLike | str
     :return: The html code.
     :rtype: str
     """
@@ -782,7 +782,7 @@ def psi_map(img_path: os.PathLike) -> str:
         "\\subsection*{InSAR Daten}\n\n"
         + "\\begin{figure}[h!]\n"
         + "  \\centering\n"
-        + f"  \\includegraphics[width=\\htmltwidth]{{{img_path+'_psi.png'}}}\n"
+        + f"  \\includegraphics[width=\\htmltwidth]{{{img_path + '_psi.png'}}}\n"
         + "  \\caption{Persistent scatterer und Zeitreihe der Deformation "
         + "im Gebiet der Gruppe.}\n"
         + "\\end{figure}\n\n"
@@ -911,46 +911,46 @@ def geology(img_path) -> str:
         "\n\\subsection*{Geologie}\n\n"
         + "\\begin{figure}[H]\n"
         + "\\centering\n"
-        + f"  \\includegraphics[width=\\htmltwidth]{{{img_path+'_GK25.pdf'}}}\n"
+        + f"  \\includegraphics[width=\\htmltwidth]{{{img_path + '_GK25.pdf'}}}\n"
         + "\\end{figure}\n"
         + "\\vspace{-2ex}\n"
         + "\\begin{figure}[H]\n"
         + "\\centering\n"
-        + f"  \\includegraphics[width=.75\\htmltwidth]{{{img_path+'_GK25_leg.pdf'}}}\n"
+        + f"  \\includegraphics[width=.75\\htmltwidth]{{{img_path + '_GK25_leg.pdf'}}}\n"
         + "  \\caption{Geologie im Gebiet basierend auf GK25 (Quelle: HLNUG).}\n"
         + "\\end{figure}\n\n"
     )
     return html
 
 
-def hydrogeology(img_path: os.PathLike) -> str:
+def hydrogeology(img_path: os.PathLike | str) -> str:
     html = (
         "\n\\subsection*{Hydrogeologie}\n\n"
         + "\\begin{figure}[H]\n"
         + "\\centering\n"
-        + f"  \\includegraphics[width=\\htmltwidth]{{{img_path+'_HUEK200.pdf'}}}\n"
+        + f"  \\includegraphics[width=\\htmltwidth]{{{img_path + '_HUEK200.pdf'}}}\n"
         + "\\end{figure}\n"
         + "\\vspace{-2ex}\n"
         + "\\begin{figure}[H]\n"
         + "\\centering\n"
-        + f"  \\includegraphics[width=.75\\htmltwidth]{{{img_path+'_HUEK200_leg.pdf'}}}\n"
+        + f"  \\includegraphics[width=.75\\htmltwidth]{{{img_path + '_HUEK200_leg.pdf'}}}\n"
         + "  \\caption{Hydrogeologische Einheiten im Gebiet basierend auf HÜK200 (Quelle: HLNUG).}\n"
         + "\\end{figure}\n\n"
     )
     return html
 
 
-def soils(img_path: os.PathLike) -> str:
+def soils(img_path: os.PathLike | str) -> str:
     html = (
         "\n\\subsection*{Bodengruppen}\n\n"
         + "\\begin{figure}[H]\n"
         + "\\centering\n"
-        + f"  \\includegraphics[width=\\htmltwidth]{{{img_path+'_BFD50.pdf'}}}\n"
+        + f"  \\includegraphics[width=\\htmltwidth]{{{img_path + '_BFD50.pdf'}}}\n"
         + "\\end{figure}\n"
         + "\\vspace{-2ex}\n"
         + "\\begin{figure}[H]\n"
         + "\\centering\n"
-        + f"  \\includegraphics[width=.75\\htmltwidth]{{{img_path+'_BFD50_leg.pdf'}}}\n"
+        + f"  \\includegraphics[width=.75\\htmltwidth]{{{img_path + '_BFD50_leg.pdf'}}}\n"
         + "  \\caption{Bodenhauptgruppen im Gebiet basierend auf der BFD50 (Quelle: HLNUG).}\n"
         + "\\end{figure}\n\n"
     )

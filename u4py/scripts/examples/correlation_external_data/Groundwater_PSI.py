@@ -101,7 +101,7 @@ def make_plot(
     k: str,
     psi_paths: list,
     wells_gdf: gp.GeoDataFrame,
-    out_path: os.PathLike,
+    out_path: os.PathLike | str,
 ):
     data = wells_data[k]
     len_ts = len(data["time"])
@@ -249,7 +249,7 @@ def make_plot(
 
 
 def load_data(
-    wells_gdf: gp.GeoDataFrame, fpath: os.PathLike, table: str, k: str
+    wells_gdf: gp.GeoDataFrame, fpath: os.PathLike | str, table: str, k: str
 ):
     region = wells_gdf["geometry"][wells_gdf["name"] == k].buffer(500)
     well_psi = u4gpkg.load_gpkg_data_region_ogr(
@@ -261,7 +261,7 @@ def load_data(
         return [], []
 
 
-def export_to_csv(data: dict, fpath: os.PathLike, gdf: dict):
+def export_to_csv(data: dict, fpath: os.PathLike | str, gdf: dict):
     header = ["Time", "GW (m.a.s.l)", "Median PSI (m)"]
     for pid in gdf["ps_id"]:
         header.append(f"PS_{pid}")

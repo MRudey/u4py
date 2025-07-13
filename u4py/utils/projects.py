@@ -25,7 +25,7 @@ global PROJECT
 
 
 def get_project(
-    proj_path: os.PathLike = "",
+    proj_path: os.PathLike | str = "",
     required: list[str] = [
         "base_path",
     ],
@@ -37,7 +37,7 @@ def get_project(
     paths are interpolated using :func:`configparser.BasicInterpolation`.
 
     :param proj_path: Path to the project file, defaults to ""
-    :type proj_path: os.PathLike, optional
+    :type proj_path: os.PathLike | str, optional
     :param required: A list of required path keys in the project, defaults to [ "base_path", ]
     :type required: list[str], optional
     :param interactive: Whether to use the interactive project loader, defaults to True
@@ -95,12 +95,12 @@ def get_project(
 
 
 def _load_project(
-    proj_path: os.PathLike = "", required: list[str] = []
+    proj_path: os.PathLike | str = "", required: list[str] = []
 ) -> configparser.ConfigParser:
     """Loads the project from a file or generates a new one based on defaults.
 
     :param proj_path: Path to the project file, defaults to ""
-    :type proj_path: os.PathLike, optional
+    :type proj_path: os.PathLike | str, optional
     :param required: List of required keys for project, defaults to []
     :type required: list[str], optional
     :return: `ConfigParser` of the config file
@@ -182,7 +182,7 @@ def _generate_default() -> configparser.ConfigParser:
 
 def _path_dialog(
     required: list,
-    proj_path: os.PathLike,
+    proj_path: os.PathLike | str,
     project_name: str = "Project Name",
 ):
     """Shows a path dialog for interactive adjustments.
@@ -190,7 +190,7 @@ def _path_dialog(
     :param required: A list of required paths keys.
     :type required: list
     :param proj_path: The path of the project file
-    :type proj_path: os.PathLike
+    :type proj_path: os.PathLike | str
     :param project_name: A name for the project, defaults to "Project Name"
     :type project_name: str, optional
     """
@@ -310,7 +310,7 @@ def _save_n_go(
     root: tk.Tk,
     entries: dict,
     project: configparser.ConfigParser,
-    file_path: os.PathLike = None,
+    file_path: os.PathLike | str = None,
 ):
     """Closes the dialog, saves all current entries to the config file and
     then returns to main script.
@@ -322,7 +322,7 @@ def _save_n_go(
     :param project: The loaded project config.
     :type project: configparser.ConfigParser
     :param file_path: The path to the config, defaults to None
-    :type file_path: os.PathLike, optional
+    :type file_path: os.PathLike | str, optional
     """
     changed = False
     for k in entries.keys():

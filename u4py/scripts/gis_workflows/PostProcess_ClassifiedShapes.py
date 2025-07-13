@@ -191,16 +191,16 @@ def main():
 
 
 def filter_shapes(
-    input_path: os.PathLike,
-    output_path: os.PathLike,
+    input_path: os.PathLike | str,
+    output_path: os.PathLike | str,
     project: configparser.ConfigParser,
 ):
     """Filters the classified shapes by known geohazards
 
     :param input_path: The path to the file where all classified shapes are located.
-    :type input_path: os.PathLike
+    :type input_path: os.PathLike | str
     :param output_path: Path where to save the filtered shapes as shapefile.
-    :type output_path: os.PathLike
+    :type output_path: os.PathLike | str
     :param project: The project config for paths etc...
     :type project: configparser.ConfigParser
     """
@@ -216,8 +216,8 @@ def filter_shapes(
 
 def reverse_geolocate(
     gdf_filtered: gp.GeoDataFrame,
-    output_path: os.PathLike,
-    cls_shp_fp_filtered: os.PathLike,
+    output_path: os.PathLike | str,
+    cls_shp_fp_filtered: os.PathLike | str,
 ) -> gp.GeoDataFrame:
     # Do a reverse geocoding to get the address of the locations.
     cached_locations = os.path.join(output_path, "cached_locations.txt")
@@ -257,11 +257,11 @@ def wrap_map_worker(args: tuple):
 def map_worker(
     row: tuple,
     crs: str,
-    output_path: os.PathLike,
-    hlnug_path: os.PathLike,
+    output_path: os.PathLike | str,
+    hlnug_path: os.PathLike | str,
     project: configparser.ConfigParser,
-    dem_path: os.PathLike,
-    contour_path: os.PathLike,
+    dem_path: os.PathLike | str,
+    contour_path: os.PathLike | str,
     overwrite_plots: bool,
     suffix: str,
 ):
@@ -272,15 +272,15 @@ def map_worker(
     :param crs: The crs of the dataset.
     :type crs: str
     :param output_path: The path where the output shall be saved.
-    :type output_path: os.PathLike
+    :type output_path: os.PathLike | str
     :param hlnug_path: The path where HLNUG data is found.
-    :type hlnug_path: os.PathLike
+    :type hlnug_path: os.PathLike | str
     :param project: The project's config.
     :type project: configparser.ConfigParser
     :param dem_path: The path to the digital elevation model.
-    :type dem_path: os.PathLike
+    :type dem_path: os.PathLike | str
     :param contour_path: The path to the contour file.
-    :type contour_path: os.PathLike
+    :type contour_path: os.PathLike | str
     """
 
     shp_path = os.path.join(

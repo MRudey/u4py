@@ -1,3 +1,5 @@
+"""Tests the superposition of two sine functions"""
+
 from datetime import datetime, timedelta
 
 import matplotlib.pyplot as plt

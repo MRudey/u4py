@@ -34,20 +34,20 @@ from u4py.utils.types import ShapeCfgDict
 
 
 def reproject_raster(
-    in_path: os.PathLike,
-    out_path: os.PathLike,
+    in_path: os.PathLike | str,
+    out_path: os.PathLike | str,
     output_crs: str,
-) -> os.PathLike:
+) -> os.PathLike | str:
     """Reprojects the raster file in `in_path` to the given crs.
 
     :param in_path: The path to the rasterfile.
-    :type in_path: os.PathLike
+    :type in_path: os.PathLike | str
     :param out_path: The new file path of the reprojected raster file.
-    :type out_path: os.PathLike
-    :param output_crs: The output CRS string.
+    :type out_path: os.PathLike | str
+    :param output_crs: The output pyproj.CRS string.
     :type output_crs: str
     :return: The path to the output file.
-    :rtype: os.PathLike
+    :rtype: os.PathLike | str
     """
     crs_out = {"init": output_crs}
     with rio.open(in_path) as src:
@@ -79,11 +79,11 @@ def reproject_raster(
     return out_path
 
 
-def get_cKDTree(file_path: os.PathLike) -> spspatial.KDTree:
+def get_cKDTree(file_path: os.PathLike | str) -> spspatial.KDTree:
     """Loads all x and y coordinates from the given file or folder and returns a cKDTree for easy spatial lookup.
 
     :param file_path: The path to the folder or file.
-    :type file_path: os.PathLike
+    :type file_path: os.PathLike | str
     :return: The spatial lookup Tree object
     :rtype: spspatial.cKDTree
     """
@@ -92,7 +92,7 @@ def get_cKDTree(file_path: os.PathLike) -> spspatial.KDTree:
     return spspatial.cKDTree(coords)
 
 
-def _get_coords(in_path: os.PathLike | list) -> list:
+def _get_coords(in_path: os.PathLike | str | list) -> list:
     """
     Loads all x and y coordinates from the given file or folder.
 
@@ -128,13 +128,13 @@ def _get_coords(in_path: os.PathLike | list) -> list:
 
 
 def _file_list_to_coords(
-    in_path: os.PathLike | list, ending: str = ".h5"
+    in_path: os.PathLike | str | list, ending: str = ".h5"
 ) -> list:
     """Converts a file list of files with x and y coordinates in their names
     to a list of coordinates.
 
     :param in_path: The folder containing the files.
-    :type in_path: os.PathLike
+    :type in_path: os.PathLike | str
     :return: List of coordinates [(x1, y1), (x2, y2),...].
     :rtype: list
     """
@@ -209,11 +209,11 @@ def _file_list_to_coords(
     return coords, source_index
 
 
-def _bounds_to_coords(fpath: os.PathLike, tilesize=1000) -> list:
+def _bounds_to_coords(fpath: os.PathLike | str, tilesize=1000) -> list:
     """Converts the bounds of a GeoTiff to four `shapely.Points` representing the corners of the Box.
 
     :param fpath: The path to a GeoTiff
-    :type fpath: os.PathLike
+    :type fpath: os.PathLike | str
     :return: The corners as a list of `shapely.Points`
     :rtype: list
     """
@@ -244,12 +244,12 @@ def _tuple_list_to_coords(tuple_list: list) -> list:
     return coords
 
 
-def _pkl_to_coords(pkl_path: os.PathLike) -> list:
+def _pkl_to_coords(pkl_path: os.PathLike | str) -> list:
     """Converts contents of a pickled inversion results file to list of
     coordinates.
 
     :param pkl_path: The path to the pkl file.
-    :type pkl_path: os.PathLike
+    :type pkl_path: os.PathLike | str
     :return: List of coordinates [(x1, y1), (x2, y2),...].
     :rtype: list
     """
@@ -260,13 +260,15 @@ def _pkl_to_coords(pkl_path: os.PathLike) -> list:
 
 
 def spatial_lookup(
-    input_feature: os.PathLike | list, points: gp.GeoDataFrame, n: int = 1
+    input_feature: os.PathLike | str | list,
+    points: gp.GeoDataFrame,
+    n: int = 1,
 ) -> List[Tuple[float, int]]:
     """Does a spatial lookup for the nearest point to all points in `points`.
     The data at `input_feature` has to have a valid format for creating a  lookup Tree.
 
     :param input_feature: A variable that contains some sort of x and y table which can be converted to a lookup table with :func:`get_cKDTree`
-    :type input_feature: os.PathLike | list
+    :type input_feature: os.PathLike | str | list
     :param points: Point features to query.
     :type points: gp.GeoDataFrame
     :param n: The number of nearest neighbors, defaults to 1
@@ -282,7 +284,9 @@ def spatial_lookup(
 
 
 def select_points_osm(
-    osm_query: dict, psi_file_path: os.PathLike, crs: str = "EPSG:32632"
+    osm_query: dict,
+    psi_file_path: os.PathLike | str,
+    crs: str | pyproj.CRS | None = "EPSG:32632",
 ) -> gp.GeoDataFrame:
     """Selects PSI measurements from the specified file or folder from the specified file or files in `psi_file_path` and crops them by the rectangles found in the given osm query.
 
@@ -291,7 +295,7 @@ def select_points_osm(
     :param osm_query: A properly formatted osm query in dictionary form. (see https://osmnx.readthedocs.io/en/stable/ for more)
     :type osm_query: dict
     :param psi_file_path: The files or folder where the psi data is stored (e.g., a folder containing h5 files)
-    :type psi_file_path: os.PathLike
+    :type psi_file_path: os.PathLike | str
     :return: A GeoDataFrame containing all points within the openstreetmap geometry.
     :rtype: gp.GeoDataFrame
     """
@@ -310,7 +314,7 @@ def select_points_osm(
 
 
 def get_osm_region(
-    osm_query: dict, crs: str = "EPSG:32632"
+    osm_query: dict, crs: str | pyproj.CRS | None = "EPSG:32632"
 ) -> gp.GeoDataFrame:
     """Loads a region from a OSM query.
 
@@ -331,8 +335,8 @@ def get_osm_region(
 
 def select_points_region(
     region: gp.GeoDataFrame | gp.GeoSeries,
-    psi_file_path: os.PathLike,
-    crs: str = "",
+    psi_file_path: os.PathLike | str,
+    crs: str | pyproj.CRS | None = "",
 ) -> gp.GeoDataFrame:
     """Selects PSI measurements from the specified file or folder and crops them by the rectangles found in the given region.
 
@@ -341,8 +345,8 @@ def select_points_region(
     :param region: The region to crop the data (e.g, a loaded shapefile)
     :type region: gp.GeoDataFrame | gp.GeoSeries
     :param psi_file_path: The file or folder to select from
-    :type psi_file_path: os.PathLike
-    :param crs: The CRS of thinput region, defaults to ""
+    :type psi_file_path: os.PathLike | str
+    :param crs: The pyproj.CRS of thinput region, defaults to ""
     :type crs: str, optional
     :return: The points from `psi_file_path` cropped to the `region`.
     :rtype: gp.GeoDataFrame
@@ -368,9 +372,9 @@ def select_points_region(
 def select_points_point(
     point: list | Tuple | gp.GeoDataFrame | shapely.Point,
     radius: float,
-    psi_file_path: os.PathLike | List[os.PathLike],
+    psi_file_path: os.PathLike | str | List[os.PathLike],
     split_points: bool = False,
-    crs: str = "EPSG:32632",
+    crs: str | pyproj.CRS | None = "EPSG:32632",
 ) -> gp.GeoDataFrame | List[gp.GeoDataFrame]:
     """Selects PSI measurements in a `radius` around the specified `point` from the files or folder.
 
@@ -381,7 +385,7 @@ def select_points_point(
     :param radius: The radius to calculate the buffer
     :type radius: float
     :param psi_file_path: The file or folder to select from
-    :type psi_file_path: os.PathLike | List[os.PathLike]
+    :type psi_file_path: os.PathLike | str | List[os.PathLike]
     :param split_points: Splits the output into a list of points based on the selection, defaults to False
     :type split_points: bool, optional
     :param crs: The coordinate system of the output points, defaults to "EPSG:32632".
@@ -412,7 +416,7 @@ def clip_data_points(
     data: dict,
     region: gp.GeoDataFrame,
     split_points: bool = False,
-    crs: str = "EPSG:32632",
+    crs: str | pyproj.CRS | None = "EPSG:32632",
 ) -> dict:
     """Clips the input data dictionary by the region and returns a GeoDataBase
 
@@ -480,7 +484,7 @@ def clipped_data_to_dict(
 def region_around_point(
     point: list | Tuple | gp.GeoDataFrame | shapely.Point,
     radius: float,
-    crs: str = "EPSG:32632",
+    crs: str | pyproj.CRS | None = "EPSG:32632",
 ) -> gp.GeoDataFrame:
     """Calculates the region around a point
 
@@ -628,7 +632,7 @@ def contour_shapes(
         if len(segs) > 0:
             for p in segs:
                 if len(p) > 3:
-                    # Scale contours back to CRS
+                    # Scale contours back to pyproj.CRS
                     p_rescaled = [
                         (
                             coords["x"] + c[0] * coords["dx"],
@@ -706,7 +710,7 @@ def xy_data_to_gdf(
     x: np.ndarray | list,
     y: np.ndarray | list,
     data: np.ndarray | list = [],
-    crs: str = "EPSG:32632",
+    crs: str | pyproj.CRS | None = "EPSG:32632",
     z: np.ndarray | list = [],
 ) -> gp.GeoDataFrame:
     """Converts the three input iterables to a GeoDataFrame of Points with the
@@ -867,7 +871,7 @@ def group_nearest(x: np.ndarray, y: np.ndarray, max_dist: float) -> list:
     :type x: np.ndarray
     :param y: The y coordinate of the points
     :type y: np.ndarray
-    :param max_dist: The maximum distance below which two points belong together in the same CRS as the points.
+    :param max_dist: The maximum distance below which two points belong together in the same pyproj.CRS as the points.
     :type max_dist: float
     :return: A numpy array of integers with the group for each point.
     :rtype: list
@@ -1012,7 +1016,7 @@ def merge_geometries(geometries: gp.GeoSeries) -> dict:
 
 
 def get_subset(
-    shp_gdf: gp.GeoDataFrame, group: int, level: float = 0.5
+    shp_gdf: gp.GeoDataFrame, group: int | str, level: float = 0.5
 ) -> gp.GeoDataFrame:
     """Selects a subset of contours from the geodataframe. The selection is based on the `group` and +- `level`.
 
@@ -1033,7 +1037,7 @@ def get_subset(
 
 
 def get_subset_hull(
-    shp_gdf: gp.GeoDataFrame, group: int, buffer_size: float
+    shp_gdf: gp.GeoDataFrame, group: int | str, buffer_size: float
 ) -> gp.GeoDataFrame:
     """Gets the hull of a subset. First selects the subset using the `group` and then calculates the convex hull of all selected shapes. The hull is then buffered by `buffer_size` for better coverage of the immediate surroundings.
 
@@ -1069,7 +1073,10 @@ def get_subset_hull(
 
 
 def compute_for_raster_in_geom(
-    fpath: os.PathLike, geom: shapely.Polygon, func: Callable, geom_crs: str
+    fpath: os.PathLike | str,
+    geom: shapely.Polygon,
+    func: Callable,
+    geom_crs: str,
 ) -> np.ndarray | int:
     """
     Applies the function `func` to the data in the raster file, masked by
@@ -1077,7 +1084,7 @@ def compute_for_raster_in_geom(
     warnings and returns `None` if the shape is outside.
 
     :param fpath: The path to the raster file
-    :type fpath: os.PathLike
+    :type fpath: os.PathLike | str
     :param geom: The geometry to use for masking.
     :type geom: shapely.Polygon
     :param func: The function to apply to the data.
@@ -1349,7 +1356,7 @@ def get_clipped_road_area(
 
 def road_info(
     roads_data: gp.GeoDataFrame, fclass: str
-) -> Tuple[list] | Tuple[list, float]:
+) -> Tuple[list[str], list[float] | float]:
     """
     Calculates the length and names of the features in the geodataframe with
     the given fclass.
@@ -1361,9 +1368,9 @@ def road_info(
     :return: The road names and road lengths, for railways the name is empty and the length is a single float
     :rtype: Tuple[list] | Tuple[list, float]
     """
+    road_names = []
+    road_length = []
     if hasattr(roads_data, "ref"):
-        road_names = []
-        road_length = []
         for ii, road in roads_data[roads_data.fclass == fclass].iterrows():
             if road.ref not in road_names:
                 road_names.append(road.ref)

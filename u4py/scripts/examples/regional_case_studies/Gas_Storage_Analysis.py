@@ -146,7 +146,7 @@ def main():
     )
 
 
-# def add_gas_geology(places_path: os.PathLike, ax: Axes):
+# def add_gas_geology(places_path: os.PathLike | str, ax: Axes):
 #     u4ax.add_shapefile(
 #         os.path.join(places_path, "Tiefenlinie_Top_Sand_7.shp"),
 #         ax=ax,

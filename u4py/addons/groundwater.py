@@ -15,13 +15,14 @@ from shapely.geometry import Point
 from tqdm import tqdm
 
 import u4py.utils.convert as u4conv
+from u4py.utils.types import GWStation
 
 
-def get_groundwater_data(file_path: os.PathLike) -> dict:
+def get_groundwater_data(file_path: os.PathLike | str) -> dict[str, GWStation]:
     """Loads data from pickled file.
 
     :param file_path: Path to the pickle file
-    :type file_path: os.PathLike
+    :type file_path: os.PathLike | str
     :return: The data as a dictionary with station names as keys.
     :rtype: dict
 
@@ -44,7 +45,7 @@ def get_groundwater_data(file_path: os.PathLike) -> dict:
     return stations
 
 
-def get_stations(stations: dict) -> gp.GeoDataFrame:
+def get_stations(stations: dict[str, GWStation | dict]) -> gp.GeoDataFrame:
     """Converts the stations dictionary to a GeoDataFrame for plotting.
 
     :param stations: The dictionary of stations.
@@ -72,11 +73,13 @@ def get_stations(stations: dict) -> gp.GeoDataFrame:
     return stations_gdf
 
 
-def convert_GW_csv(file_path: os.PathLike) -> dict:
+def convert_GW_csv(
+    file_path: os.PathLike | str,
+) -> dict[str, GWStation | dict]:
     """Converts a groundwater csv file provided by HLNUG to a dictionary.
 
     :param file_path: Path to the csv file.
-    :type file_path: os.PathLike
+    :type file_path: os.PathLike | str
     :return: Dictionary of data data organized in nested dictionaries.
     :rtype: dict
 
@@ -91,12 +94,11 @@ def convert_GW_csv(file_path: os.PathLike) -> dict:
         | `"time"`: The time as a list of datetime objects,
         | `"height"`: The height of the water table above NN.
     """
-
     with open(file_path, "rt") as csv_file:
         csv_reader = csv.reader(csv_file, delimiter=";")
         next(csv_reader, None)  # skip header
-
         stations = dict()
+        station = dict()
         first_run = True
         for row in tqdm(csv_reader, desc="Reading entries from csv..."):
             if first_run:
@@ -111,7 +113,7 @@ def convert_GW_csv(file_path: os.PathLike) -> dict:
     return stations
 
 
-def _new_station(row: list) -> dict:
+def _new_station(row: list) -> GWStation:
     """Creates a new station from the entries in the row
 
     :param row: row read from the csv file
@@ -123,7 +125,7 @@ def _new_station(row: list) -> dict:
         shortID = int(row[0])
     except ValueError:
         shortID = 0
-    station = {
+    station: GWStation = {
         "shortID": shortID,
         "gruwahID": int(row[1]),
         "name": row[2],

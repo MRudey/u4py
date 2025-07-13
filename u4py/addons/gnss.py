@@ -1,6 +1,7 @@
 """
 Contains functions for handling GNSS datasets.
 """
+
 import os
 from typing import Callable, Tuple
 
@@ -10,13 +11,15 @@ import shapely as shp
 import u4py.io.files as u4files
 
 
-def sitelog_to_shp(folder_path: os.PathLike, shp_path: os.PathLike):
+def sitelog_to_shp(
+    folder_path: os.PathLike | str, shp_path: os.PathLike | str
+):
     """Converts all sitelogs in the given folderpath from the International GNSS Service to a shapefile.
 
     :param folder_path: The path to a folder containing sitelogs
-    :type folder_path: os.PathLike
+    :type folder_path: os.PathLike | str
     :param shp_path: The path to the shapefile
-    :type shp_path: os.PathLike
+    :type shp_path: os.PathLike | str
     """
 
     log_filelist = u4files.get_file_list(
@@ -27,19 +30,19 @@ def sitelog_to_shp(folder_path: os.PathLike, shp_path: os.PathLike):
         name, x, y, z = read_sitelog(fp)
         data["ID"].append(os.path.splitext(os.path.split(fp)[-1])[0].upper())
         data["name"].append(name)
-        data["geometry"].append(shp.Point(x, y, z))
+        data["geometry"].append(shp.Point(float(x), float(y), float(z)))
 
     gdf = gp.GeoDataFrame(data, crs="EPSG:5332").to_crs("EPSG:32632")
     gdf.to_file(shp_path)
 
 
 def get_station_coordinates(
-    folder_path: os.PathLike, overwrite: bool = False
+    folder_path: os.PathLike | str, overwrite: bool = False
 ) -> gp.GeoDataFrame:
     """Loads station coordinates from the given folder. If no shape file with the coordinates is found, it is created.
 
     :param folder_path: The path to a folder containing sitelogs
-    :type folder_path: os.PathLike
+    :type folder_path: os.PathLike | str
     :param overwrite: Whether to overwrite existing data.
     :type overwrite: bool
     :return: A geodataframe for plotting
@@ -54,21 +57,28 @@ def get_station_coordinates(
     return stations
 
 
-def read_sitelog(file_path: os.PathLike) -> Tuple[str, float, float, float]:
+def read_sitelog(
+    file_path: os.PathLike | str,
+) -> Tuple[str | float, str | float, str | float, str | float]:
     """Reads a sitelog and returns name and coordinates of the station.
 
     :param file_path: The path to the sitelog file
-    :type file_path: os.PathLike
+    :type file_path: os.PathLike | str
     :return: A tuple containing (name, x, y, z)
     :rtype: Tuple[str, float, float, float]
     """
-
+    name = ""
+    x = 0
+    y = 0
+    z = 0
     with open(file_path, "rt", newline="\n") as sitelog:
         for row in sitelog:
             row = row.replace("\n", "")
             row = row.replace("\r", "")
             if "Site Name" in row:
-                name = get_data(row, str).title()
+                name_obj = get_data(row, str)
+                if isinstance(name_obj, str):
+                    name = name_obj.title()
             elif "X coordinate (m)" in row:
                 x = get_data(row, float)
             elif "Y coordinate (m)" in row:

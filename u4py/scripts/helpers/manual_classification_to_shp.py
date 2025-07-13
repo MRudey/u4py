@@ -45,7 +45,7 @@ def main():
         u4class.manual_classification(res, geom, "111", project)
 
 
-def get_manual_classes(file_path: os.PathLike) -> dict:
+def get_manual_classes(file_path: os.PathLike | str) -> dict:
     num_rows = u4csvs.buf_count_newlines_gen(file_path)
     with open(file_path, "rt", encoding="utf-8", newline="\n") as csv_file:
         reader = csv.reader(csv_file, delimiter=";")

@@ -31,18 +31,18 @@ def batch_clip_tiff(args):
 
 
 def clip_tiff_gpkg(
-    tiff_path: os.PathLike,
-    gpkg_path: os.PathLike,
-    ctiff_fol: os.PathLike,
+    tiff_path: os.PathLike | str,
+    gpkg_path: os.PathLike | str,
+    ctiff_fol: os.PathLike | str,
 ):
     """Extracts the buffered shapes from the gpkg file and uses them to call `clip_tiff`.
 
     :param tiff_path: The path of the tif file to clip.
-    :type tiff_path: os.PathLike
+    :type tiff_path: os.PathLike | str
     :param gpkg_path: The path to the gpkg file containing all features for clipping.
-    :type gpkg_path: os.PathLike
+    :type gpkg_path: os.PathLike | str
     :param ctiff_fol: The folder where to store the clipped tiffs.
-    :type ctiff_fol: os.PathLike
+    :type ctiff_fol: os.PathLike | str
     """
     try:
         folder, fname = os.path.split(tiff_path)
@@ -58,17 +58,17 @@ def clip_tiff_gpkg(
 
 
 def clip_tiff(
-    in_path: os.PathLike,
-    ctiff_fol: os.PathLike,
+    in_path: os.PathLike | str,
+    ctiff_fol: os.PathLike | str,
     shapes: list,
     invert: bool = True,
 ):
     """Clips a tiff file with `shapes` and saves it to `ctiff_fol`.
 
     :param in_path: The path of the tif file to clip.
-    :type in_path: os.PathLike
+    :type in_path: os.PathLike | str
     :param ctiff_fol: The folder where to store the clipped tiffs.
-    :type ctiff_fol: os.PathLike
+    :type ctiff_fol: os.PathLike | str
     :param shapes: The shapes with which to clip
     :type shapes: list
     :param invert: Inverts the clip, if True data inside the shapes is clipped, defaults to True
@@ -93,12 +93,12 @@ def clip_tiff(
 
 
 def extract_xyz_tiff(
-    file_path: os.PathLike,
+    file_path: os.PathLike | str,
 ) -> Tuple[dict, np.ndarray, str]:
     """Extracts the data and coordinates from a tiff file for easier processing with numpy.
 
     :param file_path: The path to the tiff file.
-    :type file_path: os.PathLike
+    :type file_path: os.PathLike | str
     :return: A Tuple with a dictionary containing the coordinates, the values as ndarray and a string with the coordinate system.
     :rtype: Tuple[dict, np.ndarray, str]
     """
@@ -126,14 +126,14 @@ def extract_xyz_tiff(
 
 
 def get_osm_tiff(
-    query: dict, source_file_path: os.PathLike, overwrite: bool = False
+    query: dict, source_file_path: os.PathLike | str, overwrite: bool = False
 ) -> list[os.PathLike]:
     """Gets a list of paths to tiff files within a specified OSM query.
 
     :param query: The OSM query
     :type query: dict
     :param source_file_path: The path to the folder where the tiffs are stored (in `TB` folders)
-    :type source_file_path: os.PathLike
+    :type source_file_path: os.PathLike | str
     :param overwrite: Whether to overwrite the output shapefile, defaults to False
     :type overwrite: bool, optional
     :return: A list of paths to the tiff files within the osm region.
@@ -148,7 +148,7 @@ def get_osm_tiff(
 def get_point_tiff(
     point: Tuple[float, float],
     radius: float,
-    source_file_path: os.PathLike,
+    source_file_path: os.PathLike | str,
 ) -> list[os.PathLike]:
     """Returns paths of tiff files that are within `radius` of `point`.
 
@@ -157,7 +157,7 @@ def get_point_tiff(
     :param radius: The search radius around point (in meters).
     :type radius: float
     :param source_file_path: The path to the folder where the tiffs are stored (in `TB` folders)
-    :type source_file_path: os.PathLike
+    :type source_file_path: os.PathLike | str
     :param overwrite: Whether to overwrite the output shapefile, defaults to False
     :return: A list of paths to the tiff files within region.
     :rtype: list[os.PathLike]
@@ -175,14 +175,14 @@ def get_point_tiff(
 
 def get_pointlist_tiff(
     points: gp.GeoDataFrame,
-    source_file_path: os.PathLike,
+    source_file_path: os.PathLike | str,
 ) -> list[Tuple[int, os.PathLike]]:
     """Returns paths of tiff files where the points are located.
 
     :param points: A geodataframe of points
     :type points: gp.GeoDataFrame
     :param source_file_path: A path where tiffs or adf raster data is found
-    :type source_file_path: os.PathLike
+    :type source_file_path: os.PathLike | str
     :raises FileNotFoundError: When no suitable folder was given
     :return: A list of indices for point and tiff paths for each point
     :rtype: list[Tuple[int, os.PathLike]]
@@ -215,7 +215,7 @@ def get_pointlist_tiff(
 def ndarray_to_geotiff(
     Z: np.ndarray,
     bounds: tuple,
-    file_path: os.PathLike,
+    file_path: os.PathLike | str,
     crs: str,
     compress: str = "none",
 ):
@@ -226,7 +226,7 @@ def ndarray_to_geotiff(
     :param bounds: The edges of the array in real world coordinates, (min x, max x, min y, max y)
     :type bounds: tuple
     :param file_path: The path to save the tiff to.
-    :type file_path: os.PathLike
+    :type file_path: os.PathLike | str
     :param crs: The coordinate system to use.
     :type crs: str
     :param compress: The compression for the tiff file, defaults to "none".
@@ -257,7 +257,7 @@ def ndarray_to_geotiff(
 
 def get_clipped_tiff_list(
     tiff_file_list: list[os.PathLike],
-    gpkg_path: os.PathLike,
+    gpkg_path: os.PathLike | str,
     overwrite: bool = False,
     use_parallel: bool = True,
 ) -> list[os.PathLike]:
@@ -268,7 +268,7 @@ def get_clipped_tiff_list(
     :param tiff_file_list: The file list of tiffs to clip.
     :type tiff_file_list: list[os.PathLike]
     :param gpkg_path: The path to the gpkg file containing all features for clipping.
-    :type gpkg_path: os.PathLike
+    :type gpkg_path: os.PathLike | str
     :param overwrite: Whether to overwrite the output tiffs, defaults to False
     :type overwrite: bool, optional
     :param use_parallel: Whether to use parallel processing, defaults to True
@@ -327,7 +327,7 @@ def batch_get_thresholded_contours(args):
 
 
 def get_thresholded_contours(
-    tiff_file_path: os.PathLike,
+    tiff_file_path: os.PathLike | str,
     levels: list,
     threshold: float,
     overwrite: bool = False,
@@ -338,7 +338,7 @@ def get_thresholded_contours(
     shapefile for faster access
 
     :param tiff_file_path: The input tiff file to create contours.
-    :type tiff_file_path: os.PathLike
+    :type tiff_file_path: os.PathLike | str
     :param levels: The levels of the contours
     :type levels: list
     :param threshold: The minimum area for detection
@@ -371,12 +371,14 @@ def get_thresholded_contours(
     return gdf
 
 
-def wkt_from_tiff_bounds(fpath: os.PathLike, out_crs: str = "") -> str:
+def wkt_from_tiff_bounds(
+    fpath: os.PathLike | str, out_crs: str | pyproj.CRS | None = ""
+) -> str:
     """Returns the boundaries of a tiff file as a wkt string.
 
     :param fpath: The path to the tiff file.
-    :type fpath: os.PathLike
-    :param out_crs: The output CRS, defaults to "" which keeps the tiff's CRS
+    :type fpath: os.PathLike | str
+    :param out_crs: The output pyproj.CRS, defaults to "" which keeps the tiff's pyproj.CRS
     :type out_crs: str, optional
     :return: A wkt string of the bounding polygon.
     :rtype: str
@@ -397,14 +399,14 @@ def wkt_from_tiff_bounds(fpath: os.PathLike, out_crs: str = "") -> str:
 
 
 def calculate_volume_in_shape(
-    shapes: gp.GeoDataFrame, tiff_folder: os.PathLike
-) -> list:
+    shapes: gp.GeoDataFrame, tiff_folder: os.PathLike | str
+) -> dict:
     """Calculates the total volume moved for each shape in `shapes` using the data from the DEM found in `tiff_folder`. Also computes some basic statistics for each area.
 
     :param shapes: The shapes in a geodataframe.
     :type shapes: gp.GeoDataFrame
     :param tiff_folder: The folder where to find the DEM data (in `*.tiff` format.)
-    :type tiff_folder: os.PathLike
+    :type tiff_folder: os.PathLike | str
     :return: A list of the calculated volume for each shape in shapes.
     :rtype: gp.GeoDataFrame
     """
@@ -473,12 +475,12 @@ def calculate_volume_in_shape(
 
 
 def get_tiff_coverage(
-    tiff_folder: os.PathLike, overwrite: bool = False
+    tiff_folder: os.PathLike | str, overwrite: bool = False
 ) -> gp.GeoDataFrame:
     """Reads the coverage from all tiff files in the tiff folder and stores them as polygons for easier intersection of geometries.
 
     :param tiff_folder: The folder where the tiff files are located.
-    :type tiff_folder: os.PathLike
+    :type tiff_folder: os.PathLike | str
     :param overwrite: Whether to overwrite the output shapefile, defaults to False
     :type overwrite: bool, optional
     :return: The geodataframe with the rectangles, paths to the file are stored as separate column `path`.
@@ -505,23 +507,23 @@ def get_tiff_coverage(
 
 
 def get_terrain(
-    file_path: os.PathLike,
+    file_path: os.PathLike | str,
     terrain_feature: str = "slope",
     overwrite: bool = False,
-) -> os.PathLike:
+) -> os.PathLike | str:
     """
     Uses GDAL to calculate the specified terrain feature of a geotiff file,
     e.g. the `slope`, `aspect`, `hillshade`, `multi_hillshade`. Stores the
     results in a separate folder in the input directory for faster access.
 
     :param file_path: The path to the tiff file.
-    :type file_path: os.PathLike
+    :type file_path: os.PathLike | str
     :param terrain_feature: The terrain feature, defaults to "slope"
     :type terrain_feature: str, optional
     :param overwrite: Whether to overwrite the existing slope files, defaults to False
     :type overwrite: bool, optional
     :return: The file_path to the file where the terrain data is stored.
-    :rtype: os.PathLike
+    :rtype: os.PathLike | str
     """
 
     # processing_keywords = {
@@ -562,7 +564,9 @@ def get_terrain(
 
 
 def calculate_terrain_in_shapes(
-    shapes: gp.GeoDataFrame, tiff_folder: os.PathLike, terrain_feature: str
+    shapes: gp.GeoDataFrame,
+    tiff_folder: os.PathLike | str,
+    terrain_feature: str,
 ) -> dict:
     """
     Calculates the specified terrain feature for each shape in `shapes` using
@@ -572,7 +576,7 @@ def calculate_terrain_in_shapes(
     :param shapes: The shapes in a geodataframe.
     :type shapes: gp.GeoDataFrame
     :param tiff_folder: The folder where to find the DEM data (in `*.adf` format.)
-    :type tiff_folder: os.PathLike
+    :type tiff_folder: os.PathLike | str
     :param terrain_feature: One of `'slope'`, `'aspect'`, `'hillshade'`, `'multi_hillshade'`
     :type terrain_feature: str
     :return: The calculated values as dictionary with mean, median and stddev.
@@ -618,14 +622,14 @@ def calculate_terrain_in_shapes(
 
 
 def get_tiff_regions(
-    region: gp.GeoDataFrame, folder: os.PathLike
+    region: gp.GeoDataFrame, folder: os.PathLike | str
 ) -> list[os.PathLike]:
     """Gets a list of all tiff files within the region
 
     :param region: The region to search for tiff files.
     :type region: gp.GeoDataFrame
     :param folder: The folder where the raster data is stored
-    :type folder: os.PathLike
+    :type folder: os.PathLike | str
     :return: A list of all tiffs that intersect the region.
     :rtype: list[os.PathLike]
     """

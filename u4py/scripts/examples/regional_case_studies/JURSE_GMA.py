@@ -196,7 +196,6 @@ def main():
 
 
 def plot_map_ffm(ax, project):
-
     u4ax.add_shapefile(
         ax=ax,
         shp_path=os.path.join(
@@ -241,7 +240,7 @@ def plot_map_crumstadt(
     :param crs: The coordinate system of the map.
     :type crs: str
     :param places_path: The path to additional shapefiles that are to be added.
-    :type places_path: os.PathLike
+    :type places_path: os.PathLike | str
     """
     _, region_well = u4psi.get_point_data(
         (464350, 5516100), 500, "OilWell", psi_path

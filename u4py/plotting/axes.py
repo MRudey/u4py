@@ -31,6 +31,7 @@ import matplotlib.path as mpath
 import matplotlib.pyplot as plt
 import matplotlib.ticker as mticker
 import numpy as np
+import pyproj
 import rasterio
 import rasterio.plot as rioplot
 import scipy.stats as spstats
@@ -39,7 +40,6 @@ import skimage.transform as sktransf
 from matplotlib.axes import Axes
 from matplotlib.colors import ListedColormap, hsv_to_rgb
 from matplotlib.figure import Figure
-from pyproj import CRS
 from shapely import plotting as shplt
 
 import u4py.addons.web_services as u4web
@@ -403,12 +403,12 @@ def plot_region_trend(
 
 @_add_or_create
 def add_shapefile(
-    shp_path: os.PathLike, ax: Axes, **kwargs
+    shp_path: os.PathLike | str, ax: Axes, **kwargs
 ) -> Tuple[Figure, Axes] | None:
     """Creates a plot from the shapefile in the given coordinate system.
 
     :param shp_path: The path to the shapefile containing the geometry.
-    :type shp_path: os.PathLike
+    :type shp_path: os.PathLike | str
     :param ax: The axis to add the plot to (optional).
     :type ax: Axes
     :param crs: The target coordinate system as accepted by GeoPandas (default: {"EPSG:23032"}).
@@ -424,7 +424,7 @@ def add_shapefile(
     if isinstance(kwgs["crs"], str):
         if shape.crs.to_string() != kwgs["crs"]:
             shape = shape.to_crs(kwgs["crs"])
-    elif isinstance(kwgs["crs"], CRS):
+    elif isinstance(kwgs["crs"], pyproj.CRS):
         shape = shape.to_crs(kwgs["crs"])
     kwgs.pop("crs")
 
@@ -452,9 +452,9 @@ def add_shapefile(
 
 @_add_or_create
 def add_basemap(
-    base_map_path: os.PathLike = None,
+    base_map_path: os.PathLike | str = None,
     ax: Axes = None,
-    crs: str = "EPSG:23032",
+    crs: pyproj.CRS | None = "EPSG:23032",
     zoom: str | int = "auto",
     source=contextily.providers.OpenStreetMap.Mapnik,
     attribution=None,
@@ -463,7 +463,7 @@ def add_basemap(
     """Creates a plot with the basemap as the lowest layer. If no basemap is given it is automatically loaded from osm.
 
     :param base_map_path:  Path to the geotiff with the basemap, defaults to None
-    :type base_map_path: os.PathLike, optional
+    :type base_map_path: os.PathLike | str, optional
     :param ax: The axis to add the plot to (optional)., defaults to None
     :type ax: Axes, optional
     :param crs: The coordinate system of the axis, required for correct scaling of the basemap, defaults to "EPSG:23032".
@@ -651,7 +651,7 @@ def plot_fit_residuals(
 
 @_add_or_create
 def add_tile(
-    tiff_tile_path: os.PathLike,
+    tiff_tile_path: os.PathLike | str,
     ax: Axes,
     vm: float | Iterable = 0,
     imsize: int = 0,
@@ -663,7 +663,7 @@ def add_tile(
     """Adds a tiff file to the given axis.
 
     :param tiff_tile_path: The path to the tiff file.
-    :type tiff_tile_path: os.PathLike
+    :type tiff_tile_path: os.PathLike | str
     :param ax: The axis to add the plot (optional).
     :type ax: Axes
     :param vm: Colormap minimum and maximum, defaults to 0. If none is given, then the value for vmin and vmax is determined as +- the 95 percentile of the absolute values. If an Iterable is given, then these are used as (vmin, vmax)
@@ -730,13 +730,15 @@ def add_tile(
 
 
 @_add_or_create
-def add_diff_plan(region: gp.GeoDataFrame, tiff_folder: os.PathLike, ax: Axes):
+def add_diff_plan(
+    region: gp.GeoDataFrame, tiff_folder: os.PathLike | str, ax: Axes
+):
     """Adds a differential motion plot to the axis.
 
     :param region: The region where to extract the data.
     :type region: gp.GeoDataFrame
     :param tiff_folder: The folder where the data is found.
-    :type tiff_folder: os.PathLike
+    :type tiff_folder: os.PathLike | str
     :param ax: The axis to plot into.
     :type ax: Axes
     """
@@ -767,13 +769,13 @@ def add_diff_plan(region: gp.GeoDataFrame, tiff_folder: os.PathLike, ax: Axes):
 
 
 @_add_or_create
-def add_dem(region: gp.GeoDataFrame, tiff_folder: os.PathLike, ax: Axes):
+def add_dem(region: gp.GeoDataFrame, tiff_folder: os.PathLike | str, ax: Axes):
     """Adds a digital elevation model dataset to the axis.
 
     :param region: The region where to extract the data.
     :type region: gp.GeoDataFrame
     :param tiff_folder: The folder where the data is found.
-    :type tiff_folder: os.PathLike
+    :type tiff_folder: os.PathLike | str
     :param ax: The axis to plot into.
     :type ax: Axes
     """
@@ -791,7 +793,7 @@ def add_dem(region: gp.GeoDataFrame, tiff_folder: os.PathLike, ax: Axes):
 @_add_or_create
 def add_slope(
     region: gp.GeoDataFrame,
-    tiff_folder: os.PathLike,
+    tiff_folder: os.PathLike | str,
     ax: Axes,
     cmap: mcolors.Colormap = "inferno",
 ):
@@ -800,7 +802,7 @@ def add_slope(
     :param region: The region where to extract the data.
     :type region: gp.GeoDataFrame
     :param tiff_folder: The folder where the data is found.
-    :type tiff_folder: os.PathLike
+    :type tiff_folder: os.PathLike | str
     :param ax: The axis to plot into.
     :type ax: Axes
     :param cmap: The colormap to use for the plot.
@@ -832,13 +834,15 @@ def add_slope(
 
 
 @_add_or_create
-def add_aspect(region: gp.GeoDataFrame, tiff_folder: os.PathLike, ax: Axes):
+def add_aspect(
+    region: gp.GeoDataFrame, tiff_folder: os.PathLike | str, ax: Axes
+):
     """Adds an aspect map to the axis.
 
     :param region: The region where to extract the data.
     :type region: gp.GeoDataFrame
     :param tiff_folder: The folder where the data is found.
-    :type tiff_folder: os.PathLike
+    :type tiff_folder: os.PathLike | str
     :param ax: The axis to plot into.
     :type ax: Axes
     """
@@ -872,14 +876,14 @@ def add_aspect(region: gp.GeoDataFrame, tiff_folder: os.PathLike, ax: Axes):
 
 @_add_or_create
 def add_aspect_slope(
-    region: gp.GeoDataFrame, tiff_folder: os.PathLike, ax: Axes
+    region: gp.GeoDataFrame, tiff_folder: os.PathLike | str, ax: Axes
 ):
     """Adds an aspect-slope map to the axis.
 
     :param region: The region where to extract the data.
     :type region: gp.GeoDataFrame
     :param tiff_folder: The folder where the data is found.
-    :type tiff_folder: os.PathLike
+    :type tiff_folder: os.PathLike | str
     :param ax: The axis to plot into.
     :type ax: Axes
     """
@@ -929,16 +933,16 @@ def add_aspect_slope(
 
 @_add_or_create
 def add_gpkg_data_in_axis(
-    gpkg_path: os.PathLike,
+    gpkg_path: os.PathLike | str,
     table: str,
     ax: Axes,
-    ax_crs: str = "EPSG:32632",
+    ax_crs: str | pyproj.CRS | None = "EPSG:32632",
     **plot_kwargs,
 ) -> mpatches.Patch:
     """Adds data from a gpkg file to the plot using the boundaries of the axis as the extend of the geometry
 
     :param gpkg_path: The path to the geodatabase with HLNUG data.
-    :type gpkg_path: os.PathLike
+    :type gpkg_path: os.PathLike | str
     :param table: The sql table name to use.
     :type table: str
     :param ax: The axis to plot into.
@@ -1002,7 +1006,7 @@ def add_gpkg_data_in_axis(
 
 @_add_or_create
 def add_gpkg_data_where(
-    gpkg_path: os.PathLike,
+    gpkg_path: os.PathLike | str,
     table: str,
     where: str,
     ax: Axes,
@@ -1012,7 +1016,7 @@ def add_gpkg_data_where(
     """Adds data from a gpkg file using a where clause, e.g., to only plot geometries in a certain group.
 
     :param gpkg_path: The path to the geodatabase.
-    :type gpkg_path: os.PathLike
+    :type gpkg_path: os.PathLike | str
     :param table: The sql table to use.
     :type table: str
     :param where: The where clause used for filtering (in OGRSQL).

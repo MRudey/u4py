@@ -36,7 +36,7 @@ def main():
             parse_lyrx_legend(fpath)
 
 
-def load_lyrx_data(fpath: os.PathLike):
+def load_lyrx_data(fpath: os.PathLike | str):
     with open(fpath, "rt", encoding="utf8") as lyr_file:
         lyr_str = "data = " + lyr_file.read()
         lyr_str = lyr_str.replace("true", "True")
@@ -46,13 +46,13 @@ def load_lyrx_data(fpath: os.PathLike):
     return scope["data"]
 
 
-def parse_lyrx_legend(fpath: os.PathLike):
+def parse_lyrx_legend(fpath: os.PathLike | str):
     """
     Parses the symbology in fpath to a pickle file formatted for plotting
     with matplotlib.
 
     :param fpath: The file path of the LYRX file.
-    :type fpath: os.PathLike
+    :type fpath: os.PathLike | str
     """
     leg_folder = os.path.splitext(fpath)[0]
     os.makedirs(leg_folder, exist_ok=True)
@@ -239,13 +239,13 @@ def parse_lyrx_legend(fpath: os.PathLike):
         )
 
 
-def parse_json_legend(fpath: os.PathLike):
+def parse_json_legend(fpath: os.PathLike | str):
     """
     Parses the JSON legend in fpath to a pickle file formatted for plotting
     with matplotlib.
 
     :param fpath: The file path of the JSON file.
-    :type fpath: os.PathLike
+    :type fpath: os.PathLike | str
     """
     leg_folder = os.path.splitext(fpath)[0]
     os.makedirs(leg_folder, exist_ok=True)

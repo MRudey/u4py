@@ -84,7 +84,7 @@ def main():
 
 def convert_pkl_to_tiff(
     full_name: str,
-    output_dir: os.PathLike,
+    output_dir: os.PathLike | str,
     is_normal: bool,
     chunk_size: int,
 ):
@@ -120,7 +120,7 @@ def convert_pkl_to_tiff(
 def create_grids(
     converted_data: list,
     chunk_size: int,
-    output_dir: os.PathLike,
+    output_dir: os.PathLike | str,
     fname: str,
     crs: str,
 ):

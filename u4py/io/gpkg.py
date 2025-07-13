@@ -22,24 +22,24 @@ ogr.UseExceptions()
 
 
 def load_and_buffer_gpkg(
-    gpkg_path: os.PathLike,
-    tiff_path: os.PathLike,
+    gpkg_path: os.PathLike | str,
+    tiff_path: os.PathLike | str,
     tables: list = [],
     shp_cfg: ShapeCfgDict = {},
-    out_crs: str = "EPSG:32632",
+    out_crs: str | pyproj.CRS | None = "EPSG:32632",
     buffer_dist: bool = False,
 ) -> gp.GeoDataFrame:
     """Loads all features within the bounds of a tiff file as a geodataframe.
 
     :param gpkg_path: The path to the gpkg file.
-    :type gpkg_path: os.PathLike
+    :type gpkg_path: os.PathLike | str
     :param tiff_path: The path to the tiff file.
-    :type tiff_path: os.PathLike
+    :type tiff_path: os.PathLike | str
     :param tables: List of tables to extract, defaults to [] = all tables are extracted.
     :type tables: list, optional
     :param fclass_filter: List of feature classes to extract, defaults to [] = all fclasses are extracted.
     :type fclass_filter: list, optional
-    :param out_crs: CRS for the output, defaults to "EPSG:32632".
+    :param out_crs: pyproj.CRS for the output, defaults to "EPSG:32632".
     :type out_crs: str, optional
     :param buffer: Dictionary of buffer sizes for all `fclass_filter`, defaults to {} = no buffering.
     :type buffer: dict, optional
@@ -74,7 +74,7 @@ def load_and_buffer_gpkg(
         else:
             fclass_filter = []
 
-        # Cache for geometries, depending on CRS we need to reproject them.
+        # Cache for geometries, depending on pyproj.CRS we need to reproject them.
         geometries_table = []
 
         # Getting spatial reference of geometries in table and calculate
@@ -114,7 +114,7 @@ def load_and_buffer_gpkg(
                     shapely.from_wkt(feature.geom.ExportToWkt())
                 )
 
-        # If CRS/SRS of current table does not match with WGS84,
+        # If pyproj.CRS/SRS of current table does not match with WGS84,
         # reproject the geometries.
         if geometries_table:
             if srs_id != 4326:
@@ -150,10 +150,10 @@ def load_and_buffer_gpkg(
 def load_gpkg_data_point(
     point: list | Tuple | gp.GeoDataFrame | shapely.Point,
     radius: float,
-    gpkg_file_path: os.PathLike,
+    gpkg_file_path: os.PathLike | str,
     table: str = "vertikal",
     split_points: bool = False,
-    crs: str = "EPSG:32632",
+    crs: str | pyproj.CRS | None = "EPSG:32632",
 ) -> Tuple[dict, gp.GeoDataFrame]:
     """Selects PSI measurements in a `radius` around the specified `point` from the given **GPKG** File.
 
@@ -164,7 +164,7 @@ def load_gpkg_data_point(
     :param radius: The radius to calculate the buffer
     :type radius: float
     :param gpkg_file_path: The file or folder to select from
-    :type gpkg_file_path: os.PathLike
+    :type gpkg_file_path: os.PathLike | str
     :param table: The table from which to extract the data, defaults to "vertikal"
     :type table: str, optional
     :param split_points: Splits the output into a list of points based on the selection, defaults to False
@@ -187,10 +187,10 @@ def load_gpkg_data_point(
 
 def load_gpkg_data_osm(
     osm_query: dict,
-    gpkg_file_path: os.PathLike,
+    gpkg_file_path: os.PathLike | str,
     table: str = "vertikal",
     split_points: bool = False,
-    crs: str = "EPSG:32632",
+    crs: str | pyproj.CRS | None = "EPSG:32632",
 ) -> Tuple[dict, gp.GeoDataFrame]:
     """Selects PSI measurements in a region defined by an OSM query from the given **GPKG** File.
 
@@ -199,7 +199,7 @@ def load_gpkg_data_osm(
     :param osm_query: A properly formatted osm query in dictionary form. (see https://osmnx.readthedocs.io/en/stable/ for more)
     :type osm_query: dict
     :param gpkg_file_path: The file or folder to select from
-    :type gpkg_file_path: os.PathLike
+    :type gpkg_file_path: os.PathLike | str
     :param table: The table from which to extract the data, defaults to "vertikal"
     :type table: str, optional
     :param split_points: Splits the output into a list of points based on the selection, defaults to False
@@ -223,11 +223,11 @@ def load_gpkg_data_osm(
 
 def load_gpkg_data_region(
     region: gp.GeoDataFrame | gp.GeoSeries,
-    gpkg_file_path: os.PathLike,
+    gpkg_file_path: os.PathLike | str,
     table: str = "",
     split_points: bool = False,
-    gpkg_crs: str = "",
-    region_crs: str = "EPSG:32632",
+    gpkg_crs: str | pyproj.CRS | None = "",
+    region_crs: str | pyproj.CRS | None = "EPSG:32632",
 ) -> dict:
     """Selects PSI measurements in the specified region from the given **GPKG** File.
 
@@ -236,14 +236,14 @@ def load_gpkg_data_region(
     :param region: The region as GeoDataFrame
     :type region: gp.GeoDataFrame | gp.GeoSeries
     :param gpkg_file_path: The file or folder to select from
-    :type gpkg_file_path: os.PathLike
+    :type gpkg_file_path: os.PathLike | str
     :param table: The table from which to extract the data, defaults to ""
     :type table: str, optional
     :param split_points: Whether to split the points into individual sets, defaults to False
     :type split_points: bool, optional
-    :param gpkg_crs: The CRS of the coordinates in the tables of the gpkg, might be different than the CRS of the geometries which is given in the metadata, defaults to "".
+    :param gpkg_crs: The pyproj.CRS of the coordinates in the tables of the gpkg, might be different than the pyproj.CRS of the geometries which is given in the metadata, defaults to "".
     :type gpkg_crs: str, optional
-    :param region_crs: The CRS of the region used for clipping, defaults to "EPSG:32632". Only has an effect if the region is not a GeoDataFrame.
+    :param region_crs: The pyproj.CRS of the region used for clipping, defaults to "EPSG:32632". Only has an effect if the region is not a GeoDataFrame.
     :type region_crs: str, optional
     :return: The points from `psi_file_path` in the `region`.
     :rtype: dict
@@ -260,21 +260,21 @@ def load_gpkg_data_region(
             )
 
     if not gpkg_crs:
-        # Get CRS of sql datbase and convert region to it.
+        # Get pyproj.CRS of sql datbase and convert region to it.
         gpkg_crs = u4sql.get_crs(gpkg_file_path, table)[0]
     if isinstance(region, gp.GeoDataFrame):
         if region.crs != gpkg_crs:
             region = region.to_crs(gpkg_crs)
     elif isinstance(region, (gp.pd.Series, gp.GeoSeries)):
         UserWarning(
-            "Region for selection is a GeoSeries, check input CRS manually!"
+            "Region for selection is a GeoSeries, check input pyproj.CRS manually!"
         )
         region = gp.GeoDataFrame(
             geometry=[region.geometry], crs=region_crs
         ).to_crs(gpkg_crs)
     elif isinstance(region, shapely.Polygon):
         UserWarning(
-            "Region for selection is a GeoSeries, check input CRS manually!"
+            "Region for selection is a GeoSeries, check input pyproj.CRS manually!"
         )
         region = gp.GeoDataFrame(geometry=[region], crs=region_crs).to_crs(
             gpkg_crs
@@ -290,12 +290,12 @@ def load_gpkg_data_region(
 
 
 def load_gpkg_data_where(
-    gpkg_file_path: os.PathLike, table: str = "", where: str = ""
+    gpkg_file_path: os.PathLike | str, table: str = "", where: str = ""
 ) -> dict:
     """Selects data from a gpkg file where the given SQL statement is true.
 
     :param gpkg_file_path: The path to the gpkg file.
-    :type gpkg_file_path: os.PathLike
+    :type gpkg_file_path: os.PathLike | str
     :param table: The table where to look for data, defaults to ""
     :type table: str, optional
     :param where: The SQL query for filtering, defaults to ""
@@ -320,9 +320,9 @@ def load_gpkg_data_where(
 
 def load_gpkg_data_region_ogr(
     region: gp.GeoDataFrame | gp.GeoSeries | shapely.Polygon,
-    gpkg_file_path: os.PathLike,
+    gpkg_file_path: os.PathLike | str,
     table: str = "",
-    crs: str = "EPSG:32632",
+    crs: str | pyproj.CRS | None = "EPSG:32632",
     clip: bool = True,
 ) -> gp.GeoDataFrame:
     """Uses OGR to read data from a table in a gpkg file within a specific region.
@@ -330,7 +330,7 @@ def load_gpkg_data_region_ogr(
     :param region: The region to use for spatial selection.
     :type region: gp.GeoDataFrame | gp.GeoSeries
     :param gpkg_file_path: The path to the gpkg database.
-    :type gpkg_file_path: os.PathLike
+    :type gpkg_file_path: os.PathLike | str
     :param table: The table where to find the data, defaults to ""
     :type table: str, optional
     :param crs: The coordinate system of the output, defaults to "EPSG:32632"
@@ -355,7 +355,7 @@ def load_gpkg_data_region_ogr(
     gpkg_crs = u4sql.get_crs(gpkg_file_path, table)[0]
     if isinstance(region, shapely.Polygon):
         region = gp.GeoDataFrame(geometry=[region], crs=gpkg_crs)
-    # Homogenize input CRS for extraction
+    # Homogenize input pyproj.CRS for extraction
     elif region.crs != gpkg_crs:
         region = region.to_crs(gpkg_crs)
 
@@ -386,15 +386,15 @@ def load_gpkg_data_region_ogr(
 
 
 def load_gpkg_data_where_ogr(
-    gpkg_file_path: os.PathLike,
+    gpkg_file_path: os.PathLike | str,
     table: str = "",
     where: str = "",
-    crs: str = "EPSG:32632",
+    crs: str | pyproj.CRS | None = "EPSG:32632",
 ) -> gp.GeoDataFrame:
     """Uses OGR to read data from a table in a gpkg file with a specific where clause.
 
     :param gpkg_file_path: The path to the gpkg database.
-    :type gpkg_file_path: os.PathLike
+    :type gpkg_file_path: os.PathLike | str
     :param table: The table where to find the data, defaults to ""
     :type table: str, optional
     :param where: The where clause for selection

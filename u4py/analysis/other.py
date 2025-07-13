@@ -1,4 +1,5 @@
-""" General functions for data analysis """
+"""General functions for data analysis"""
+
 from __future__ import annotations
 
 import logging
@@ -22,17 +23,20 @@ def cwt(y: np.ndarray, dt: float) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
     logging.info("Detrend and normalize data for better cwt analysis")
     y_detrend = spsignal.detrend(y)
     std = np.std(y_detrend)  # Standard deviation
-    dat_norm = y_detrend / std  # Normalized dataset
+    dat_norm = y_detrend / std  # Normalized dataset type: ignore
 
     # Wavelet parameters
-    mother = pycwt.wavelet.Morlet(6.0)
     s0 = 8 * dt  # Starting scale
     dj = 1 / 12  # sub-octaves
-    J = 7 / dj  # Seven powers of two with dj sub-octaves
+    jj = 7 / dj  # Seven powers of two with dj sub-octaves
 
     logging.info("Do continous transform")
-    wave, scales, freqs, coi, _, _ = pycwt.wavelet.cwt(
-        dat_norm, dt, dj, s0, J, mother
+    wave, scales, freqs, coi, _, _ = pycwt.cwt(
+        signal=dat_norm,
+        dt=dt,
+        dj=dj,
+        s0=int(s0),
+        J=int(jj),
     )
 
     # Convert cone of influence from periods to frequency and set values above
@@ -45,25 +49,6 @@ def cwt(y: np.ndarray, dt: float) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
     power /= scales[:, None]
 
     return freqs, coi, power
-
-
-def cosinefunc(
-    x: np.ndarray, amplitude: float, width: float, shift: float
-) -> np.ndarray:
-    """Returns the cosine function of the given data
-
-    :param x: The x axis
-    :type x: np.ndarray
-    :param amplitude: The amplitude of the cosine
-    :type amplitude: float
-    :param width: The width/wavelength of the cosine
-    :type width: float
-    :param shift: The phase shift
-    :type shift: float
-    :return: `amplitude * cos(width * (x + shift))`
-    :rtype: np.ndarray
-    """
-    return amplitude * np.cos(width * (x + shift))
 
 
 def poly1(x: np.ndarray, slope: float, offset: float) -> np.ndarray:
@@ -83,7 +68,7 @@ def poly1(x: np.ndarray, slope: float, offset: float) -> np.ndarray:
 
 def find_maximum_sines(
     grid_sin: np.ndarray, grid_cos: np.ndarray, interval: int
-) -> Tuple[np.ndarray, np.ndarray]:
+) -> Tuple[np.ndarray | float, np.ndarray | float]:
     """Finds the maximum amplitudes of two grids containing coefficients of sine functions. Also removes outliers from the grids which are greater than
     99.99% of the values.
 
@@ -94,14 +79,15 @@ def find_maximum_sines(
     :param interval: The interval over which the phase is to be projected (days in a year)
     :type interval: int
     :return: The grids with the maximum amplitude and time of peak.
-    :rtype: Tuple[np.ndarray, np.ndarray]
+    :rtype: Tuple[np.ndarray | float, np.ndarray | float]
     """
     # Do superposition
     logging.info("Superposing grids.")
     max_vals, max_time = superpose(grid_sin, grid_cos)
     # Clean outliers
     logging.info("Cleaning and reprojecting.")
-    max_vals[max_vals > np.nanpercentile(max_vals, 99.99)] = np.nan
+    if isinstance(max_vals, np.ndarray):
+        max_vals[max_vals > np.nanpercentile(max_vals, 99.99)] = np.nan
     # Project time from radians to halfyear
     max_time = (max_time / (2 * np.pi)) * interval
     return max_vals, max_time
@@ -112,7 +98,7 @@ def superpose(
     a_2: float | np.ndarray,
     phi_1: float = 0,
     phi_2: float = np.pi / 2,
-) -> Tuple[float, float]:
+) -> Tuple[float | np.ndarray, float | np.ndarray]:
     """Superposes two sine functions and calculates their amplitude and phase.
 
     The superposition follows this principle:
@@ -135,7 +121,7 @@ def superpose(
     :param phi_2: Phase change of phase 2, defaults to np.pi/2
     :type phi_2: float, optional
     :return: Maximum amplitude and phase change of superposed functions
-    :rtype: Tuple[float, float]
+    :rtype: Tuple[float | np.ndarray, float | np.ndarray]
     """
     a = np.sqrt(a_1**2 + a_2**2 + 2 * a_1 * a_2 * np.cos(phi_2 - phi_1))
     phi_0 = (
@@ -181,6 +167,6 @@ def R_squared(data: np.ndarray, residuals: np.ndarray) -> float:
     :rtype: float
     """
     ym = np.mean(data)
-    ss_res = np.sum(residuals**2)
-    ss_tot = np.sum((data - ym) ** 2)
+    ss_res = float(np.sum(residuals**2))
+    ss_tot = float(np.sum((data - ym) ** 2))
     return 1 - (ss_res / ss_tot)

@@ -4,6 +4,7 @@ requirements of the HLNUG.
 """
 
 import os
+from typing import Tuple
 
 import docx
 import docx.shared
@@ -15,16 +16,16 @@ from docx.document import Document
 from docx.enum.text import WD_ALIGN_PARAGRAPH
 
 import u4py.io.human_text as u4human
-from u4py.utils.types import U4ResDict
+from u4py.utils.types import U4ResGdf
 
 FIGURENUM = 1
-TABLENUM = 1
+# TABLENUM = 1
 humanize.activate("de")
 
 
 def site_report(
-    row: U4ResDict,
-    output_path: os.PathLike,
+    row: Tuple[int, U4ResGdf],
+    output_path: os.PathLike | str,
     suffix: str,
     hlnug_data: gp.GeoDataFrame,
     img_fmt: str = "png",
@@ -35,7 +36,7 @@ def site_report(
     :param row: The index and data for the area of interest.
     :type row: tuple
     :param output_path: The path where to store the outputs.
-    :type output_path: os.PathLike
+    :type output_path: os.PathLike | str
     :param suffix: The subfolder to use for the docx files.
     :type suffix: str
     """
@@ -52,16 +53,18 @@ def site_report(
         "Classifier_shapes",
         "Web_Queries_" + suffix.split("_")[-1],
     )
-    mapnums = eval(row[1].geology_mapnum)
-    if mapnums:
-        docx_path = (
-            os.path.join(output_path_docx, f"{str(mapnums)}_{group:05}.docx")
-            .replace("[", "")
-            .replace("]", "")
-            .replace(", ", "_")
-        )
-    else:
-        docx_path = os.path.join(output_path_docx, f"XXXX_{group:05}.docx")
+    docx_path = os.path.join(output_path_docx, f"XXXX_{group:05}.docx")
+    if isinstance(row[1].geology_mapnum, str):
+        mapnums = eval(row[1].geology_mapnum)
+        if mapnums:
+            docx_path = (
+                os.path.join(
+                    output_path_docx, f"{str(mapnums)}_{group:05}.docx"
+                )
+                .replace("[", "")
+                .replace("]", "")
+                .replace(", ", "_")
+            )
     if not os.path.exists(docx_path) or overwrite:
         # Create Document and apply style
         document = docx.Document()
@@ -155,12 +158,12 @@ def location(series: gp.GeoSeries, document: Document) -> Document:
 
 
 def details_and_satellite(
-    img_path: os.PathLike, img_fmt: str, document: Document
+    img_path: os.PathLike | str, img_fmt: str, document: Document
 ) -> Document:
     """Adds the detailed map and the satellite image map.
 
     :param img_path: The path to the image folder including group name.
-    :type img_path: os.PathLike
+    :type img_path: os.PathLike | str
     :return: The tex code.
     :rtype: str
     """
@@ -168,8 +171,12 @@ def details_and_satellite(
     prgph = document.add_paragraph()
     prgph.alignment = WD_ALIGN_PARAGRAPH.CENTER
     run = prgph.add_run()
-    run.add_picture(img_path + f"_map.{img_fmt}", width=docx.shared.Mm(70))
-    run.add_picture(img_path + f"_satimg.{img_fmt}", width=docx.shared.Mm(70))
+    run.add_picture(
+        str(img_path) + f"_map.{img_fmt}", width=docx.shared.Mm(70)
+    )
+    run.add_picture(
+        str(img_path) + f"_satimg.{img_fmt}", width=docx.shared.Mm(70)
+    )
 
     prgph = document.add_paragraph()
     prgph.add_run(f"Abbildung {FIGURENUM}: ").bold = True
@@ -187,9 +194,9 @@ def details_and_satellite(
 
 def hlnug_description(
     hld: gp.GeoDataFrame,
-    row: U4ResDict,
+    row: U4ResGdf,
     document: Document,
-    web_query_path: os.PathLike,
+    web_query_path: os.PathLike | str,
 ) -> Document:
     """Adds a description based on HLNUG data
 
@@ -202,7 +209,7 @@ def hlnug_description(
     prgph = document.add_paragraph()
 
     # Add geological structural area
-    structure_string = u4human.listed_strings(row["structural_region"])
+    structure_string = u4human.listed_strings(row.structural_region)
     if structure_string:
         if isinstance(structure_string, list):
             prgph.add_run(
@@ -214,27 +221,28 @@ def hlnug_description(
             )
 
     # Add number and name of geological map
-    mapnum = eval(row["geology_mapnum"])
-    if mapnum:
-        if isinstance(mapnum, list):
-            mapname = eval(row["geology_mapname"])
-            map_list = [
-                f"{mpnum} {mpname}" for mpnum, mpname in zip(mapnum, mapname)
-            ]
-            mapnum_string = u4human.listed_strings(map_list)
-            prgph.add_run(f"auf den Kartenblättern {mapnum_string}. ")
+    if isinstance(row.geology_mapnum, str)
+        mapnum = eval(row.geology_mapnum)
+        if mapnum:
+            if isinstance(mapnum, list):
+                mapname = eval(row.geology_mapname)
+                map_list = [
+                    f"{mpnum} {mpname}" for mpnum, mpname in zip(mapnum, mapname)
+                ]
+                mapnum_string = u4human.listed_strings(map_list)
+                prgph.add_run(f"auf den Kartenblättern {mapnum_string}. ")
+            else:
+                prgph.add_run(
+                    f"auf dem Kartenblatt {row['geology_mapnum']} {row['geology_mapname']}. "
+                )
         else:
-            prgph.add_run(
-                f"auf dem Kartenblatt {row['geology_mapnum']} {row['geology_mapname']}. "
-            )
-    else:
-        prgph.add_run(". ")
+            prgph.add_run(". ")
 
     # Add district name(s)
     try:
-        district = eval(row["district"])
+        district = eval(row.district)
     except (NameError, SyntaxError):
-        district = row["district"]
+        district = row.district
     if district:
         prgph.add_run("Sie befindet sich innerhalb ")
         if isinstance(district, list):
@@ -262,7 +270,7 @@ def hlnug_description(
     prgph.add_run(". ")
 
     # Add buildings
-    if row["buildings_num"] > 0:
+    if row.buildings_num > 0:
         prgph.add_run("Auf der Fläche der Rutschung ist Bebauung vorhanden. ")
     elif row["buildings_close"]:
         prgph.add_run(
@@ -273,10 +281,10 @@ def hlnug_description(
         prgph.add_run("In der näheren Umgebung ist keine Bebauung vorhanden. ")
 
     # Add roads
-    if row["roads_has"]:
+    if row.roads_has:
         road_list = []
-        if row["roads_has_motorway"]:
-            if row["roads_motorway_names"].startswith("["):
+        if row.roads_has_motorway:
+            if row.roads_motorway_names.startswith("["):
                 motorway_names = eval(row["roads_motorway_names"])
             else:
                 motorway_names = row["roads_motorway_names"]
@@ -454,11 +462,13 @@ def moved_volumes(series: gp.GeoSeries, document: Document) -> Document:
     return document
 
 
-def dem(img_path: os.PathLike, img_fmt: str, document: Document) -> Document:
+def dem(
+    img_path: os.PathLike | str, img_fmt: str, document: Document
+) -> Document:
     """Adds the dem maps.
 
     :param img_path: The path to the image folder including group name.
-    :type img_path: os.PathLike
+    :type img_path: os.PathLike | str
     :return: The tex code.
     :rtype: str
     """
@@ -481,7 +491,7 @@ def dem(img_path: os.PathLike, img_fmt: str, document: Document) -> Document:
 
 def topography(
     series: gp.GeoSeries,
-    img_path: os.PathLike,
+    img_path: os.PathLike | str,
     img_fmt: str,
     document: Document,
 ) -> Document:
@@ -586,12 +596,12 @@ def topography(
 
 
 def psi_map(
-    img_path: os.PathLike, img_fmt: str, document: Document
+    img_path: os.PathLike | str, img_fmt: str, document: Document
 ) -> Document:
     """Adds the psi map with timeseries.
 
     :param img_path: The path to the image folder including group name.
-    :type img_path: os.PathLike
+    :type img_path: os.PathLike | str
     :return: The tex code.
     :rtype: str
     """
@@ -611,12 +621,12 @@ def psi_map(
 
 
 def geology(
-    img_path: os.PathLike, img_fmt: str, document: Document
+    img_path: os.PathLike | str, img_fmt: str, document: Document
 ) -> Document:
     """Adds information for geology to the document.
 
     :param img_path: The path to the geology image file.
-    :type img_path: os.PathLike
+    :type img_path: os.PathLike | str
     :param img_fmt: The image file format.
     :type img_fmt: str
     :return: The tex code
@@ -647,12 +657,12 @@ def geology(
 
 
 def hydrogeology(
-    img_path: os.PathLike, img_fmt: str, document: Document
+    img_path: os.PathLike | str, img_fmt: str, document: Document
 ) -> Document:
     """Adds information for hydrogeology to the document
 
     :param img_path: The path to the hydrogeology image file.
-    :type img_path: os.PathLike
+    :type img_path: os.PathLike | str
     :param img_fmt: The image file format.
     :type img_fmt: str
     :return: The tex code
@@ -686,11 +696,13 @@ def hydrogeology(
     return document
 
 
-def soils(img_path: os.PathLike, img_fmt: str, document: Document) -> Document:
+def soils(
+    img_path: os.PathLike | str, img_fmt: str, document: Document
+) -> Document:
     """Adds information for soils to the document.
 
     :param img_path: The path to the soils image file.
-    :type img_path: os.PathLike
+    :type img_path: os.PathLike | str
     :param img_fmt: The image file format.
     :type img_fmt: str
     :return: The tex code
@@ -723,11 +735,11 @@ def soils(img_path: os.PathLike, img_fmt: str, document: Document) -> Document:
 
 
 def difference(
-    img_path: os.PathLike, img_fmt: str, document: Document
+    img_path: os.PathLike | str, img_fmt: str, document: Document
 ) -> Document:
     """Adds the difference and slope maps.
     :param img_path: The path to the image folder including group name.
-    :type img_path: os.PathLike
+    :type img_path: os.PathLike | str
     :rtype: str
     """
     global FIGURENUM

@@ -27,6 +27,7 @@ import u4py.analysis.inversion as u4invert
 import u4py.io.gpkg as u4gpkg
 import u4py.utils.config as u4config
 import u4py.utils.convert as u4convert
+from u4py.utils.types import InversionResults
 
 
 def get_psi_dict_inversion(
@@ -35,7 +36,7 @@ def get_psi_dict_inversion(
     t_EQ: list = [],
     t_EX: list = [],
     num_coeffs: int = 1,
-    save_path: os.PathLike = "",
+    save_path: os.PathLike | str = "",
     overwrite: bool = False,
     data_mapping: dict = {
         "dataE": "timeseries",
@@ -54,7 +55,7 @@ def get_psi_dict_inversion(
     :param num_coeffs: The number of parameters to use for inversion, defaults to 1
     :type num_coeffs: int, optional
     :param save_path: The path where to save the results in a pickle, defaults to "".
-    :type save_path: os.PathLike, optional
+    :type save_path: os.PathLike | str, optional
     :param overwrite: Overwrite existing results if True, defaults to False
     :type overwrite: bool, optional
     :param data_mapping: A dictionary mapping the three components to the respective keys in `dataset`, defaults mapping all components to `"timeseries"`.
@@ -106,7 +107,7 @@ def invert_psi_dict(
     t_EQ: list,
     t_EX: list,
     num_coeffs: int,
-) -> dict:
+) -> InversionResults:
     """_summary_
 
     :param data: Data dictionary according to u4py standard (e.g. read from h5).
@@ -157,7 +158,7 @@ def invert_psi_dict(
     return prepared_data
 
 
-def inversion_map_worker(data: dict) -> Tuple[Tuple, Tuple]:
+def inversion_map_worker(data: dict) -> Tuple[Tuple | None, Tuple | None]:
     """Worker function to map the inversion of a dictionary with parallel processing.
 
     :param data: The input data
@@ -280,7 +281,7 @@ def get_results_gpkg_in_roi(
     name: str,
     dataset: str,
     roi: gp.GeoDataFrame,
-    processing_path: os.PathLike,
+    processing_path: os.PathLike | str,
     direction_paths: list[Tuple[os.PathLike, str]],
     overwrite: bool,
     min_psi: int = 0,
@@ -294,7 +295,7 @@ def get_results_gpkg_in_roi(
     :param roi: The region of interest.
     :type roi: gp.GeoDataFrame
     :param processing_path: The path where to store the intermediate results
-    :type processing_path: os.PathLike
+    :type processing_path: os.PathLike | str
     :param direction_paths: The path to the psi data and the table name as a list of (path, table_name) Tuples
     :type direction_paths: List[Tuple[os.PathLike, str]]
     :param overwrite: Whether to overwrite existing intermediate data.
@@ -352,15 +353,11 @@ def get_results_gpkg_in_roi(
     return results
 
 
-def parallel_get_results_gpkg_in_roi(args: Iterable) -> dict:
-    return get_results_gpkg_in_roi(*args)
-
-
 def extract_profile(
     name: str,
     dataset: str,
     roi: gp.GeoDataFrame,
-    processing_path: os.PathLike,
+    processing_path: os.PathLike | str,
     direction_paths: list[Tuple[os.PathLike, str]],
     overwrite: bool = False,
 ) -> dict:
@@ -373,7 +370,7 @@ def extract_profile(
     :param roi: The region of interest.
     :type roi: gp.GeoDataFrame
     :param processing_path: The path where to store the intermediate results
-    :type processing_path: os.PathLike
+    :type processing_path: os.PathLike | str
     :param direction_paths: The path to the psi data and the table name as a list of (path, table_name) Tuples
     :type direction_paths: List[Tuple[os.PathLike, str]]
     """
@@ -432,53 +429,3 @@ def extract_profile(
         with open(psi_save_path, "rb") as pklfile:
             results = pickle.load(pklfile)
     return results
-
-
-def get_results_gpkg_single(
-    dataset: str,
-    pid: str,
-    direction_paths: list[Tuple[os.PathLike, str]],
-) -> dict:
-    """Loads the results of a inversion with two directions.
-
-    :param dataset: The name of the dataset (e.g. "BBD", "EGMS_1", "EGMS_2)
-    :type dataset: str
-    :param pid: The unique identifier of the scatterer.
-    :type pid: str
-    :param direction_paths: The path to the psi data and the table name as a list of (path, table_name) Tuples
-    :type direction_paths: List[Tuple[os.PathLike, str]]
-    """
-    if "EGMS" in dataset:
-        pid_name = "pid"
-    else:
-        pid_name = "ID"
-
-    logging.info("Getting vertical results")
-    data_v = u4gpkg.load_gpkg_data_where(
-        direction_paths[0][0],
-        direction_paths[0][1],
-        where=f"{pid_name}='{pid}'",
-    )
-    logging.info("Getting E-W results")
-    data_ew = u4gpkg.load_gpkg_data_where(
-        direction_paths[1][0],
-        direction_paths[1][1],
-        where=f"{pid_name}='{pid}'",
-    )
-    if data_v and data_ew:
-        data_v["timeseries_ew"] = data_ew["timeseries"]
-        logging.info("Inverting both components")
-        results = get_psi_dict_inversion(
-            data_v,
-            data_mapping={
-                "dataE": "timeseries_ew",
-                "dataN": "timeseries",
-                "dataU": "timeseries",
-            },
-        )
-    return results
-
-
-def parallel_get_results_gpkg_single(args: Iterable) -> dict:
-    """Parallel wrapper for `get_results_gpkg_single`"""
-    return get_results_gpkg_single(*args)

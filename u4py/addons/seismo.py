@@ -1,6 +1,7 @@
 """
 Functions to read and work with the seismic catalogue of Hessen.
 """
+
 from __future__ import annotations
 
 import operator as op
@@ -14,49 +15,54 @@ import numpy as np
 import openpyxl as opyxl
 
 import u4py.analysis.spatial as u4spatial
+from u4py.utils.types import EQStation
 
 
-def get_eq_catalogue(file_path: os.PathLike, overwrite: bool = False) -> dict:
+def get_eq_catalogue(
+    file_path: os.PathLike | str, overwrite: bool = False
+) -> dict[str, EQStation]:
     """Gets the earthquake catalogue from the file. Saves it as a pickle file.
 
     :param file_path: The path to the file.
-    :type file_path: os.PathLike
+    :type file_path: os.PathLike | str
     :param overwrite: Whether to overwrite the existing file, defaults to False
     :type overwrite: bool, optional
     :return: The data as a dictionary.
     :rtype: dict
     """
-    if file_path.endswith(".pkl") and os.path.exists(file_path):
+    if str(file_path).endswith(".pkl") and os.path.exists(file_path):
         with open(file_path, "rb") as pkl_file:
             return pkl.load(pkl_file)
-    elif file_path.endswith(".xlsx"):
+    elif str(file_path).endswith(".xlsx"):
         base_path, _ = os.path.split(file_path)
-        pkl_path = file_path.replace(".xlsx", ".pkl")
+        pkl_path = str(file_path).replace(".xlsx", ".pkl")
         if os.path.exists(pkl_path) and not overwrite:
             return get_eq_catalogue(pkl_path)
         else:
             return _load_eq_catalogue(file_path)
+    else:
+        raise NotImplementedError("Unsupported Format of EQ database")
 
 
-def _load_eq_catalogue(file_path: os.PathLike) -> dict:
+def _load_eq_catalogue(file_path: os.PathLike | str) -> dict[str, EQStation]:
     """Loads the full earthquake catalogue from an Excel-Sheet and returns it as a dictionary of arrays, including a Python compatible datetime array.
 
     :param file_path: The path to the file
-    :type file_path: os.PathLike
+    :type file_path: os.PathLike | str
     :return: The data as dictionary.
     :rtype: dict
     """
     wb = opyxl.load_workbook(file_path, read_only=True)
     ws = wb.active
     data = dict()
-    for ii, row in enumerate(ws.rows):
+    for ii, row in enumerate(ws.rows):  # type: ignore
         if ii < 1:
             keys = [cell.value for cell in row]
             for k in keys:
                 data[k] = []
         else:
             for jj, cell in enumerate(row):
-                data[keys[jj]].append(_convert_entry(cell.value, keys[jj]))
+                data[keys[jj]].append(_convert_entry(cell.value, keys[jj]))  # type: ignore
     for kk in data.keys():
         data[kk] = np.array(data[kk])
     all_ok = _find_wrong_times(data)
@@ -64,7 +70,7 @@ def _load_eq_catalogue(file_path: os.PathLike) -> dict:
         data["DATETIME"] = _add_datetime(
             data["JAHR"], data["MONAT"], data["TAG"], data["ZEIT"]
         )
-    with open(file_path.replace(".xlsx", ".pkl"), "wb") as pkl_file:
+    with open(str(file_path).replace(".xlsx", ".pkl"), "wb") as pkl_file:
         pkl.dump(data, pkl_file)
     return data
 
@@ -175,6 +181,8 @@ def _check_time(t: str) -> str:
         return "0" + t
     elif "." not in t:
         return t + ".0"
+    else:
+        return ""
 
 
 def _find_wrong_times(data: dict) -> bool:
@@ -240,17 +248,17 @@ def cut_catalogue(
 
 
 def get_prepared_eq_catalogue(
-    file_path: os.PathLike,
-    bld_path: os.PathLike,
+    file_path: os.PathLike | str,
+    bld_path: os.PathLike | str,
     start_time: str | datetime = "2015-04-01T00:00",
     min_magnitude: float = 2.5,
 ) -> gp.GeoDataFrame:
     """Returns an already cut and cleaned catalogue ready for the project.
 
     :param file_path: The path to the full catalogue file.
-    :type file_path: os.PathLike
+    :type file_path: os.PathLike | str
     :param bld_path: The path to a shapefile containing the outlines of the states in Germany.
-    :type bld_path: os.PathLike
+    :type bld_path: os.PathLike | str
     :param start_time: The desired starting time of the catalogue, defaults to "2014-01-01T00:00"
     :type start_time: str | datetime, optional
     :param min_magnitude: The desired minimum magnitude, defaults to 2.5

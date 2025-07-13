@@ -20,19 +20,19 @@ import u4py.io.gpkg as u4gpkg
 
 def get_osm_data(
     query: dict,
-    source_fpath: os.PathLike,
+    source_fpath: os.PathLike | str,
     overwrite: bool = False,
-    crs: str = "EPSG:32632",
+    crs: str | pyproj.CRS | None = "EPSG:32632",
 ) -> dict:
     """Gets the data from PSI points in a region defined by an OSM query and saves it into a pickle file for faster access.
 
     :param query: The OSM query
     :type query: dict
     :param source_fpath: Path to folder or file where the PSI data is found.
-    :type source_fpath: os.PathLike
+    :type source_fpath: os.PathLike | str
     :param overwrite:  Whether to overwrite the output pickle file, defaults to False
     :type overwrite: bool, optional
-    :param crs: The CRS of the input shapes, defaults to "EPSG:32632"
+    :param crs: The pyproj.CRS of the input shapes, defaults to "EPSG:32632"
     :type crs: str, optional
     :return: The data as a merged, single dictionary.
     :rtype: dict
@@ -69,9 +69,9 @@ def get_osm_data(
 def get_region_data(
     region: gp.GeoDataFrame,
     region_name: str,
-    source_fpath: os.PathLike,
+    source_fpath: os.PathLike | str,
     overwrite: bool = False,
-    crs: str = "EPSG:32632",
+    crs: str | pyproj.CRS | None = "EPSG:32632",
 ) -> dict:
     """Gets the data from PSI points in a region and saves them into a pickle file for faster access.
 
@@ -80,10 +80,10 @@ def get_region_data(
     :param region_name: The name of the region.
     :type region_name: str
     :param source_fpath: Path to folder or file where the PSI data is found.
-    :type source_fpath: os.PathLike
+    :type source_fpath: os.PathLike | str
     :param overwrite:  Whether to overwrite the output pickle file, defaults to False
     :type overwrite: bool, optional
-    :param crs: The CRS of the input shapes, defaults to "EPSG:32632"
+    :param crs: The pyproj.CRS of the input shapes, defaults to "EPSG:32632"
     :type crs: str, optional
     :return: The data as a merged, single dictionary.
     :rtype: dict
@@ -115,7 +115,7 @@ def get_point_data(
     point: Tuple[float, float] | shapely.Point,
     radius: float,
     region_name: str,
-    source_fpath: os.PathLike,
+    source_fpath: os.PathLike | str,
     table: str = "vertikal",
     overwrite: bool = False,
 ) -> dict:
@@ -129,7 +129,7 @@ def get_point_data(
     :param region_name: A sensible name for the extraction point.
     :type region_name: str
     :param source_fpath: The file where to extract the data.
-    :type source_fpath: os.PathLike
+    :type source_fpath: os.PathLike | str
     :param overwrite: Whether to overwrite the shape file, defaults to False
     :type overwrite: bool, optional
     :return: The data as a merged, single dictionary.
@@ -171,13 +171,15 @@ def get_point_data(
 
 
 def get_pickled_inversion_results(
-    file_path: os.PathLike, ind: slice = None, points: gp.GeoDataFrame = None
+    file_path: os.PathLike | str,
+    ind: slice = None,
+    points: gp.GeoDataFrame = None,
 ) -> Tuple[list[tuple], float]:
     """Loads data from selected pickle file and also returns avg. distance to
     nearest inversion results.
 
     :param file_path: The file path of the pickle file
-    :type file_path: os.PathLike
+    :type file_path: os.PathLike | str
     :param ind: Indices where to look for data. If None takes all data, defaults to None
     :type ind: slice, optional
     :param points: List of points where to look for data. If None takes all data, defaults to None

@@ -32,15 +32,17 @@ from datetime import datetime
 from pathlib import Path
 from typing import Iterable, Tuple
 
-import matplotlib.pyplot as plt
 import numpy as np
 import scipy.linalg as splinalg
 import scipy.sparse as spsparse
+import scipy.sparse.linalg
 import scipy.stats as spstats
+from matplotlib.axes import Axes
 
 import u4py.plotting.plots as u4plots
 import u4py.utils.config as u4config
 import u4py.utils.convert as u4convert
+from u4py.utils.types import GfuncsDict, InversionData, InversionResults
 
 
 def create_synthetic_data(
@@ -67,7 +69,7 @@ def create_synthetic_data(
     t_EX: list[tuple] = [
         (2020, 2021),
     ],
-) -> Tuple[dict, list]:
+) -> Tuple[InversionData, list, list, list, GfuncsDict]:
     """Creates a synthetic dataset for testing the inversion algorithm.
 
     :param lin: Linear component, defaults to 1.1
@@ -92,8 +94,8 @@ def create_synthetic_data(
     :type ex_disp: list, optional
     :param t_EX: A list of water extractions, defaults to [ (2020, 2021),]
     :type t_EX: list[tuple], optional
-    :return: A tuple containing (`data`, `eq_list`)
-    :rtype: Tuple[dict, list]
+    :return: A tuple containing the data, a list of earthquakes, antenna offsets and water extractions, and the individual G-functions
+    :rtype: Tuple[InversionData, list, list, list, GfuncsDict]
 
     This function creates a hypothetical dataset with a single earthquake which
     can be used to test the inversion algorithm if it works the same as the
@@ -146,7 +148,7 @@ def create_synthetic_data(
         + d_noise
     )
 
-    individual_g_funcs = {
+    individual_g_funcs: GfuncsDict = {
         "lin": t * lin,
         "ann_sin": ann_sin * np.sin(2 * np.pi * t),
         "ann_cos": ann_cos * np.cos(2 * np.pi * t),
@@ -160,7 +162,7 @@ def create_synthetic_data(
 
     sigmE = np.ones_like(t)
     dataE = dataE - dataE[0]
-    data = {
+    data: InversionData = {
         "t": t,
         "dataE": dataE,
         "dataN": dataE,
@@ -169,16 +171,23 @@ def create_synthetic_data(
         "sigmN": sigmE,
         "sigmU": sigmE,
         "station": "Dummy",
-    }
+        "xmid": None,
+        "ymid": None,
+        "ori_inversion_results": None,
+        "inversion_results": None,
+        "ori_dhat_data": None,
+        "dhat_data": None,
+        "parameters_list": None,
+    }  # type: ignore
     return data, t_EQdummy, t_AT, t_EX, individual_g_funcs
 
 
 def invert_time_series(
-    data: dict,
+    data: InversionData,
     t_AT: list = [],
     t_EQ: list = [],
     t_EX: list = [],
-    ind: slice = 0,
+    ind: slice = slice(None, None, None),
     num_coeffs: int = 1,
     directions: list = ["dataE", "dataN", "dataU"],
     t_relative: float = 0,
@@ -189,7 +198,7 @@ def invert_time_series(
     """Inverts a timeseries.
 
     :param data: The data formatted as a dictionary.
-    :type data: dict
+    :type data: InversionData
     :param t_AT: A list with times of known antenna offsets, defaults to []
     :type t_AT: list, optional
     :param t_EQ: A list with times of known earthquakes, defaults to []
@@ -333,7 +342,7 @@ def invert_time_series(
     return matrix, data, time_vector, parameter_list
 
 
-def _clean_inputs(data: dict):
+def _clean_inputs(data: InversionData) -> InversionData:
     """Cleans all nonfinite data from input
 
     :param data: The data matrix containing some nonfinite data points
@@ -354,7 +363,9 @@ def _clean_inputs(data: dict):
 
 
 def _invert(
-    G: np.ndarray, D: np.ndarray, S: np.ndarray = np.array([])
+    G: np.ndarray | spsparse.csr_matrix,
+    D: np.ndarray,
+    S: np.ndarray | spsparse.csc_matrix = np.array([]),
 ) -> np.ndarray:
     """Invert for your model parameters using scipy's sparse linear algebra.
 
@@ -372,17 +383,24 @@ def _invert(
     Gp = G.conj().transpose()
     if S.size > 0:
         logging.info("Inverting S.")
-        iS = spsparse.linalg.inv(S)
+        iS = scipy.sparse.linalg.inv(S)
         logging.info("Summing Matrices.")
-        M = iS @ D @ Gp @ spsparse.linalg.inv(spsparse.csc_matrix(G @ iS @ Gp))
+        M = (
+            iS
+            @ D
+            @ Gp
+            @ scipy.sparse.linalg.inv(spsparse.csc_matrix(G @ iS @ Gp))
+        )
     else:
         logging.info("No sigma. Using unweighted inversion.")
-        M = D @ Gp @ spsparse.linalg.inv(spsparse.csc_matrix(G @ Gp))
+        M = D @ Gp @ scipy.sparse.linalg.inv(spsparse.csc_matrix(G @ Gp))
     return M.astype("e")
 
 
 def _invert_np(
-    G: np.ndarray, D: np.ndarray, S: np.ndarray = np.array([])
+    G: np.ndarray | spsparse.csr_matrix,
+    D: np.ndarray,
+    S: np.ndarray | spsparse.csc_matrix = np.array([]),
 ) -> np.ndarray:
     """Invert for your model parameters using numpy's linear algebra.
 
@@ -401,18 +419,18 @@ def _invert_np(
     S = S.astype(np.double)
     logging.info("Transposing G-Matrix.")
     Gp = G.conj().transpose()
-    if S.any():
+    if S.any():  # type: ignore
         logging.info("Inverting S.")
-        iS = np.linalg.inv(S)
+        iS = np.linalg.inv(S)  # type: ignore
         logging.info("Inverting Matrix Component.")
-        iM1 = np.linalg.inv(np.matmul(np.matmul(G, iS), Gp))
+        iM1 = np.linalg.inv(np.matmul(np.matmul(G, iS), Gp))  # type: ignore
         logging.info("Summing Matrices.")
-        M = np.matmul(np.matmul(np.matmul(iS, D), Gp), iM1)
+        M = np.matmul(np.matmul(np.matmul(iS, D), Gp), iM1)  # type: ignore
     else:
         logging.info("Inverting Matrix Component.")
-        iM1 = np.linalg.inv(np.matmul(Gp, G))
+        iM1 = np.linalg.inv(np.matmul(Gp, G))  # type: ignore
         logging.info("Summing Matrices.")
-        M = np.matmul(np.matmul(iM1, D), Gp)
+        M = np.matmul(np.matmul(iM1, D), Gp)  # type: ignore
 
     return M.astype("e")
 
@@ -441,8 +459,12 @@ def _invert_np(
 
 
 def forward_model(
-    M: np.ndarray, G: np.ndarray, data: dict, ind: slice, ori: bool = True
-) -> dict:
+    M: np.ndarray,
+    G: np.ndarray | spsparse.csr_matrix,
+    data: InversionData,
+    ind: slice,
+    ori: bool = True,
+) -> InversionData:
     """Forward model the data using the model parameters.
 
     :param M: The inverted model parameters.
@@ -450,13 +472,13 @@ def forward_model(
     :param G: The Greens function matrix.
     :type G: np.ndarray
     :param data: The measured data dictionary. The forward model is added as `dhat_data`.
-    :type data: dict
+    :type data: InversionData
     :param ind: The time slice to use for calculating.
     :type ind: slice
     :param ori: Whether the data is the first fit or not. (required to test if the solution improves.), defaults to True
     :type ori: bool, optional
     :return: Dictionary with the forward model attached to it as `dhat_data` or `ori_dhat_data`.
-    :rtype: dict
+    :rtype: InversionData
 
     The big `dhat`-vector is separated into different components. The
     residuals are also added to the returned data dictionary.
@@ -466,7 +488,7 @@ def forward_model(
         dhat = np.reshape(M @ G, (3, len(data["t"][ind])))
     else:
         dhat = np.reshape(np.matmul(M, G), (3, len(data["t"][ind])))
-    dhat_data = dict()
+    dhat_data: InversionResults = dict()  # type: ignore
     dhat_data["dhatE"] = dhat[0]
     dhat_data["dhatN"] = dhat[1]
     dhat_data["dhatU"] = dhat[2]
@@ -484,18 +506,18 @@ def forward_model(
 
 
 def _prepare_g_functions(
-    data: dict,
+    data: InversionData,
     ind: slice,
     t_AT: list = [],
     t_EQ: list = [],
     t_EX: list = [],
     num_coeffs: int = 2,
     t_relative: float = 0,
-) -> Tuple[Tuple[np.ndarray], list]:
+) -> Tuple[list[np.ndarray], list]:
     """Prepares the Green's functions.
 
     :param data: The data formatted as a dictionary.
-    :type data: dict
+    :type data: InversionData
     :param ind: Slice to use only a certain time window, defaults to 0
     :type ind: slice
     :param t_AT: A list with times of known antenna offsets, defaults to []
@@ -509,7 +531,7 @@ def _prepare_g_functions(
     :param t_relative: A time offset used mainly for plotting, defaults to 0
     :type t_relative: float, optional
     :return: The Green's functions as a stacked matrix and a list with the names of the components.
-    :rtype: Tuple[Tuple[np.ndarray], list]
+    :rtype: Tuple[list[np.ndarray], list]
     """
     g_funcs = []
     parameter_list = []
@@ -637,14 +659,14 @@ def _set_g_antenna(
 
 
 def _set_g_earthquakes(
-    time: np.ndarray, t_EQ: Iterable, parameter_list: list
+    time: np.ndarray, t_EQ: list, parameter_list: list
 ) -> Tuple[list, list]:
     """Sets a g-function in the form of a heaviside step function for each earthquake.
 
     :param time: The time as array in float years.
     :type time: np.ndarray
     :param t_EQ: An iterable containing the times of earthquakes
-    :type t_EQ: Iterable
+    :type t_EQ: list
     :param parameter_list: The list of parameters to keep track of the coefficient names.
     :type parameter_list: list
     :return: Returns a list of g-functions and the updated parameter list.
@@ -676,14 +698,14 @@ def _set_g_earthquakes(
 
 
 def _set_g_postseismic(
-    time: np.ndarray, t_EQ: Iterable, parameter_list: list
+    time: np.ndarray, t_EQ: list, parameter_list: list
 ) -> Tuple[list, list]:
     """Sets a g-function in the form of logarithmic increase for each earthquake in `t_EQ`.
 
     :param time: The time as array in float years.
     :type time: np.ndarray
     :param t_EQ: An iterable containing the times of earthquakes
-    :type t_EQ: Iterable
+    :type t_EQ: list
     :param parameter_list: The list of parameters to keep track of the coefficient names.
     :type parameter_list: list
     :return: Returns a list of g-functions and the updated parameter list.
@@ -710,14 +732,14 @@ def _set_g_postseismic(
 
 
 def _set_g_extraction(
-    time: np.ndarray, t_EX: Iterable[Tuple], parameter_list: list
+    time: np.ndarray, t_EX: list[Tuple], parameter_list: list
 ) -> Tuple[list, list]:
     """Sets a g-function in the form of a logistic growth for each extraction timerange in `t_EX`.
 
     :param time: The time as array in float years.
     :type time: np.ndarray
     :param t_EX: An Iterable with Tuples of extraction start and extraction ends.
-    :type t_EX: Iterable[Tuple]
+    :type t_EX: list[Tuple]
     :param parameter_list: The list of parameters to keep track of the coefficient names.
     :type parameter_list: list
     :return: Returns a list of g-functions and the updated parameter list.
@@ -791,7 +813,7 @@ def _set_g_matrices(g_funcs) -> np.ndarray:
 
 def remove_outliers(
     data: dict, threshold: float = 2.5, use_stddev: bool = False
-) -> np.ndarray:
+) -> tuple:
     """Creates a numpy slicing array that gives back all data between the 5% and 95% percentile.
 
     :param data: The data dictionary containing the timeseries.
@@ -837,13 +859,13 @@ def remove_outliers(
 
 
 def stack_data(
-    dataset: dict,
+    dataset: InversionData,
     data_mapping: dict = {
         "dataE": "timeseries",
         "dataN": "timeseries",
         "dataU": "timeseries",
     },
-) -> dict:
+) -> InversionData:
     """Stacks all datapoints for inversion
 
     :param dataset: The dataset containing the data to stack.
@@ -855,7 +877,7 @@ def stack_data(
     """
     logging.info("Stacking Data.")
     data_keys = [kk for kk in dataset.keys() if kk != "inversion_results"]
-    time_series = dict()
+    time_series: InversionData = dict()  # type: ignore
 
     # Used when dataset is a dictionary of individual stations
     if isinstance(dataset[data_keys[0]], dict):
@@ -872,18 +894,18 @@ def stack_data(
     # Used when dataset is already a merged dataset with numpy arrays
     else:
         time_series["t"] = np.tile(
-            u4convert.get_floatyear(dataset["time"]),
-            (dataset["num_points"], 1),
-        )
+            u4convert.get_floatyear(dataset["time"]),  # type: ignore
+            (dataset["num_points"], 1),  # type: ignore
+        )  # type: ignore
         for k in ["dataE", "dataN", "dataU"]:
             time_series[k] = dataset[data_mapping[k]]
-        time_series["station"] = [str(nn) for nn in dataset["ps_id"]]
+        time_series["station"] = [str(nn) for nn in dataset["ps_id"]]  # type:ignore
         if "xmid" in data_keys:
             time_series["xmid"] = dataset["xmid"]
             time_series["ymid"] = dataset["ymid"]
         else:
-            time_series["xmid"] = np.mean(dataset["x"])
-            time_series["ymid"] = np.mean(dataset["y"])
+            time_series["xmid"] = np.mean(dataset["x"])  # type: ignore
+            time_series["ymid"] = np.mean(dataset["y"])  # type: ignore
     return time_series
 
 
@@ -919,13 +941,13 @@ def print_inversion_results(matrix: np.ndarray, parameters_list: list[str]):
 
 
 def reformat_dict(
-    dataset: dict,
+    dataset: InversionData,
     data_mapping: dict = {
         "dataE": "timeseries",
         "dataN": "timeseries",
         "dataU": "timeseries",
     },
-) -> dict:
+) -> InversionData:
     """Reformats a loaded hdf5 dictionary to match with the one for inversion.
 
     :param dataset: The dictionary to reformat.
@@ -948,7 +970,7 @@ def reformat_dict(
     else:
         data = stack_data(dataset, data_mapping)
     if isinstance(data["t"][0], datetime):
-        data["t"] = u4convert.get_floatyear(data["t"])
+        data["t"] = u4convert.get_floatyear(data["t"])  # type: ignore
     data["sigmE"] = np.ones_like(data["dataE"])
     data["sigmN"] = np.ones_like(data["dataN"])
     data["sigmU"] = np.ones_like(data["dataU"])
@@ -965,7 +987,7 @@ def reformat_simple_timeseries(
     station: str = "",
     xmid: float = 0,
     ymid: float = 0,
-) -> dict:
+) -> InversionData:
     """Creates a dictionary for inversion from a simple time-value timeseries.
 
     :param time: The numpy array containing timestamps (in datetime)
@@ -978,11 +1000,11 @@ def reformat_simple_timeseries(
     :type xmid: float, optional
     :param ymid: The y coordinate of the station (optional), defaults to 0
     :return: A dictionary reformatted for inversion with all components = values.
-    :rtype: dict
+    :rtype: InversionData
     """
 
-    data = {
-        "t": u4convert.get_floatyear(time),
+    data: InversionData = {
+        "t": u4convert.get_floatyear(time),  # type: ignore
         "dataE": values,
         "dataN": values,
         "dataU": values,
@@ -992,6 +1014,11 @@ def reformat_simple_timeseries(
         "station": station,
         "xmid": xmid,
         "ymid": ymid,
+        "ori_inversion_results": None,
+        "inversion_results": None,
+        "ori_dhat_data": None,
+        "dhat_data": None,
+        "parameters_list": None,
     }
     return data
 
@@ -1047,7 +1074,8 @@ def invert_test_data():
         data=data,
         inversion_results=inversion_results,
         single_dim=True,
-    )
+    )  # type: ignore
+    ax: Axes
     ax.set_title("Inversion Test Data")
     y_EQ = data["ori_dhat_data"]["dhatE"][np.argwhere(data["t"] >= t_EQ)[0]]
     y_AT = data["ori_dhat_data"]["dhatE"][np.argwhere(data["t"] >= t_AT)[0]]

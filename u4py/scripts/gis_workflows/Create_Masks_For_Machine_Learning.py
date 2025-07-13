@@ -82,9 +82,9 @@ def main():
 
 
 def get_masking_features(
-    shapes_path: os.PathLike,
-    anomaly_path: os.PathLike,
-    raster_file: os.PathLike,
+    shapes_path: os.PathLike | str,
+    anomaly_path: os.PathLike | str,
+    raster_file: os.PathLike | str,
     shp_cfg: ShapeCfgDict,
 ) -> gp.GeoDataFrame:
     """
@@ -93,11 +93,11 @@ def get_masking_features(
     buffered by their respective values in `shp_config`.
 
     :param shapes_path: The path to the osm shapefile.
-    :type shapes_path: os.PathLike
+    :type shapes_path: os.PathLike | str
     :param anomaly_path: The path to the classified anomaly shapefile.
-    :type anomaly_path: os.PathLike
+    :type anomaly_path: os.PathLike | str
     :param raster_file: The path to the raster file.
-    :type raster_file: os.PathLike
+    :type raster_file: os.PathLike | str
     :param shp_cfg: The shape configuration
     :type shp_cfg: ShapeCfgDict
     :return: The merged shapes for masking.
@@ -153,7 +153,7 @@ def get_masking_features(
 
 
 def raster_features(
-    raster_file: os.PathLike,
+    raster_file: os.PathLike | str,
     masking_features: gp.GeoDataFrame,
     feature_index: dict,
     project: configparser.ConfigParser,
@@ -164,7 +164,7 @@ def raster_features(
     into a numeric value.
 
     :param raster_file: The path to the raster file.
-    :type raster_file: os.PathLike
+    :type raster_file: os.PathLike | str
     :param masking_features: The masking features
     :type masking_features: gp.GeoDataFrame
     :param feature_index: The index translating feature class names into numbers.
@@ -197,9 +197,9 @@ def raster_features(
 
 def create_feature_index(
     shp_cfg: ShapeCfgDict,
-    shapes_path: os.PathLike,
-    anomaly_path: os.PathLike,
-    out_path: os.PathLike,
+    shapes_path: os.PathLike | str,
+    anomaly_path: os.PathLike | str,
+    out_path: os.PathLike | str,
 ) -> dict:
     """
     Creates an index to the features used for masking. Relates the value of
@@ -208,11 +208,11 @@ def create_feature_index(
     :param shp_cfg: The shape config
     :type shp_cfg: ShapeCfgDict
     :param shapes_path: The path to the osm shape file.
-    :type shapes_path: os.PathLike
+    :type shapes_path: os.PathLike | str
     :param anomaly_path: The path to the classified anomalies shape file.
-    :type anomaly_path: os.PathLike
+    :type anomaly_path: os.PathLike | str
     :param out_path: The path to store the index.
-    :type out_path: os.PathLike
+    :type out_path: os.PathLike | str
     :return: A dictionary mapping feature names to values.
     :rtype: dict
     """

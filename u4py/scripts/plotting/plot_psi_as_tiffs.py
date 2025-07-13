@@ -45,16 +45,18 @@ def main():
         egms_gpkg_to_tiff(fp, project["paths"]["base_path"])
 
 
-def egms_gpkg_to_tiff(gpkg_file_path: os.PathLike, output_path: os.PathLike):
+def egms_gpkg_to_tiff(
+    gpkg_file_path: os.PathLike | str, output_path: os.PathLike | str
+):
     """
     Converts the timeseries data stored in the egms gpkg file to a set of
     geotiffs for faster display. Extracts data from all directions in the
     given file.
 
     :param gpkg_file_path: The path to the gpkg file.
-    :type gpkg_file_path: os.PathLike
+    :type gpkg_file_path: os.PathLike | str
     :param output_path: The path where the folder with the tiffs shall be stored.
-    :type output_path: os.PathLike
+    :type output_path: os.PathLike | str
     """
     directions = u4sql.get_table_names(gpkg_file_path)
     for direction in tqdm(

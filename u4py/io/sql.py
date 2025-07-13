@@ -25,14 +25,14 @@ import u4py.plotting.preparation as u4plotprep
 import u4py.utils.convert as u4conv
 
 
-def get_BBD_table_names(file_path: os.PathLike) -> list:
+def get_BBD_table_names(file_path: os.PathLike | str) -> list:
     """Gets all tables which start with:
     |    'Zeitreihe_',
     |    'Ost_West', or
     |    'vertikal'
 
     :param file_path: The path to the database.
-    :type file_path: os.PathLike
+    :type file_path: os.PathLike | str
     :return: A list of tables to get from the database.
     :rtype: list
     """
@@ -75,13 +75,13 @@ def get_BBD_table_names(file_path: os.PathLike) -> list:
 
 
 def get_table_names(
-    file_path: os.PathLike, include_gpkg: bool = False
+    file_path: os.PathLike | str, include_gpkg: bool = False
 ) -> list:
     """Gets a list of all table names in the sql file. Excludes gpkg specific
     tables by default!.
 
     :param file_path: The path to the sql file.
-    :type file_path: os.PathLike
+    :type file_path: os.PathLike | str
     :param include_gpkg: Whether to include specifics for gpkg files and rtrees, defaults to False
     :type include_gpkg: bool
     :return: The list of all tables.
@@ -108,12 +108,12 @@ def get_table_names(
 
 
 def single_query(
-    file_path: os.PathLike, query: str, jj: int = -1, n_expected: int = 0
+    file_path: os.PathLike | str, query: str, jj: int = -1, n_expected: int = 0
 ) -> Any | Tuple[Any, int]:
     """Executes a single sql query for the given db-file.
 
     :param file_path: The path to the database.
-    :type file_path: os.PathLike
+    :type file_path: os.PathLike | str
     :param query: The sql query to execute.
     :type query: str
     :param jj: The number of the query (useful for Iterables), defaults to -1
@@ -138,7 +138,7 @@ def single_query(
 
 
 def table_to_dict(
-    file_path: os.PathLike,
+    file_path: os.PathLike | str,
     table: str,
     bounds: Tuple = (),
     get_timeseries: bool = True,
@@ -148,7 +148,7 @@ def table_to_dict(
     """Opens the given sql database and gets all content of the given table.
 
     :param file_path: The path to the database.
-    :type file_path: os.PathLike
+    :type file_path: os.PathLike | str
     :param table: The Table to get from.
     :type table: str
     :param bounds: Extent of a region where to get the data, limiting the number of SQL queries. The order follows the definition in geopandas: (`minx`, `miny`, `maxx`, `maxy`).
@@ -261,7 +261,7 @@ def get_stats(
     table: str,
     info: dict,
     where: str,
-    file_path: os.PathLike,
+    file_path: os.PathLike | str,
 ) -> Tuple[np.ndarray, np.ndarray]:
     folder, file = os.path.split(file_path)
     stat_file_path = os.path.join(folder, file.replace(".gpkg", "_stats.pkl"))
@@ -419,7 +419,7 @@ def read_timeseries(
     These can be used with sqlite3 to read them from the tables directly.
 
     :param file_path: The path to the gpkg file
-    :type file_path: os.PathLike
+    :type file_path: os.PathLike | str
     :param table: The table/direction which to extract.
     :type table: str
     :param info: The extracted metadata from the gpkg file.
@@ -453,14 +453,14 @@ def read_timeseries(
 
 
 def gen_timeseries_queries(
-    file_path: os.PathLike, table: str, info: dict, where: str = ""
+    file_path: os.PathLike | str, table: str, info: dict, where: str = ""
 ) -> Tuple[np.ndarray, list]:
     """
     Generates queries for extracting time series data from the given file_path.
     These can be used with sqlite3 to read them from the tables directly.
 
     :param file_path: The path to the gpkg file
-    :type file_path: os.PathLike
+    :type file_path: os.PathLike | str
     :param table: The table/direction which to extract.
     :type table: str
     :param info: The extracted metadata from the gpkg file.
@@ -484,11 +484,11 @@ def gen_timeseries_queries(
     return time, queries
 
 
-def load_tables(file_path: os.PathLike) -> dict:
+def load_tables(file_path: os.PathLike | str) -> dict:
     """Loads content of all tables in the given sql database and returns as a data dictionary.
 
     :param file_path: The input database.
-    :type file_path: os.PathLike
+    :type file_path: os.PathLike | str
     :return: The output dictionary.
     :rtype: dict
     """
@@ -500,7 +500,7 @@ def load_tables(file_path: os.PathLike) -> dict:
 
 
 def load_osm_gpkg(
-    gpkg_file: os.PathLike,
+    gpkg_file: os.PathLike | str,
     fclass: list = [],
     table_name: str = "",
 ) -> list:
@@ -508,7 +508,7 @@ def load_osm_gpkg(
     Loads geometry data by reading the bytestream directly from the gpkg file.
 
     :param gpkg_file: The path to the gpkg file
-    :type gpkg_file: os.PathLike
+    :type gpkg_file: os.PathLike | str
     :param fclass: Feature classes to extract, defaults to []
     :type fclass: list, optional
     :param table_name: The name of the table where to extract the features, defaults to "".
@@ -638,13 +638,13 @@ def get_envlen(eee: str) -> int:
 
 
 def gen_queries_psi_gpkg(
-    file_path: os.PathLike, table: str = "vertikal"
+    file_path: os.PathLike | str, table: str = "vertikal"
 ) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, list]:
     """
     Opens a gpkg and generates queries to extract the data limited to psi files
 
     :param file_path: The database as a gpkg file.
-    :type file_path: os.PathLike
+    :type file_path: os.PathLike | str
     :param table: The direction to use, defaults to "vertikal"
     :type table: str, optional
     :return: Some data and preformatted queries to extract the data from the database.
@@ -705,12 +705,14 @@ def get_meanvelo_keys(all_keys: list) -> Tuple[str, str]:
 
 
 def get_num_entries(
-    file_path: os.PathLike, table: str, region: shapely.Polygon | Tuple = ()
+    file_path: os.PathLike | str,
+    table: str,
+    region: shapely.Polygon | Tuple = (),
 ) -> int:
     """Gets number of entries in given sql file and table.
 
     :param file_path: The path to the sql file.
-    :type file_path: os.PathLike
+    :type file_path: os.PathLike | str
     :param table: The table to look for data.
     :type table: str
     :param region: The region to use for clipping the database
@@ -743,12 +745,12 @@ def get_num_entries(
 
 
 def get_subdivided_regions(
-    file_path: os.PathLike, table: str, max_entries: int
+    file_path: os.PathLike | str, table: str, max_entries: int
 ) -> list[shapely.Polygon]:
     """Subdivides the regions into equally sized areas with a maximum number of entries. This is needed for keeping the shapefile size below 2GB.
 
     :param file_path: The path to the sql file.
-    :type file_path: os.PathLike
+    :type file_path: os.PathLike | str
     :param table: The table to look for data.
     :type table: str
     :param max_entries: The maximum number of entries that a region may have.
@@ -811,11 +813,11 @@ def get_num_entries_numpy(bounds: tuple, x: np.ndarray, y: np.ndarray) -> int:
     return len(all_scl[all_scl])
 
 
-def get_crs(gpkg_path: os.PathLike, table: str = "") -> list[str]:
+def get_crs(gpkg_path: os.PathLike | str, table: str = "") -> list[str]:
     """Reads the spatial reference from the gpkg file.
 
     :param gpkg_path: The path to the gpkg file.
-    :type gpkg_path: os.PathLike
+    :type gpkg_path: os.PathLike | str
     :return: The spatial reference(s).
     :rtype: list[str] | str
     """
@@ -831,11 +833,11 @@ def get_crs(gpkg_path: os.PathLike, table: str = "") -> list[str]:
     return [f"EPSG:{srs}" for srs in srs_id]
 
 
-def get_tables(gpkg_path: os.PathLike) -> list[str]:
+def get_tables(gpkg_path: os.PathLike | str) -> list[str]:
     """Reads the tables from the gpkg file.
 
     :param gpkg_path: The path to the gpkg file.
-    :type gpkg_path: os.PathLike
+    :type gpkg_path: os.PathLike | str
     :return: The table name(s).
     :rtype: list[str]
     """
@@ -847,12 +849,12 @@ def get_tables(gpkg_path: os.PathLike) -> list[str]:
 
 
 def ogr_spatial_select(
-    gpkg_path: os.PathLike, table: str, wkt_bounds: str
+    gpkg_path: os.PathLike | str, table: str, wkt_bounds: str
 ) -> dict:
     """Selects all features from the given gpkg file in the table within the bounds.
 
     :param gpkg_path: The path to the gpkg file.
-    :type gpkg_path: os.PathLike
+    :type gpkg_path: os.PathLike | str
     :param table: The table where to extract the data.
     :type table: str
     :param wkt_bounds: The boundary in well-known-text representation.
@@ -890,11 +892,13 @@ def ogr_spatial_select(
     return data
 
 
-def get_geometry_column(gpkg_path: os.PathLike, table: str = "") -> list[str]:
+def get_geometry_column(
+    gpkg_path: os.PathLike | str, table: str = ""
+) -> list[str]:
     """Gets the geometry column name for the specified table.
 
     :param gpkg_path: The path to the gpkg file.
-    :type gpkg_path: os.PathLike
+    :type gpkg_path: os.PathLike | str
     :param table: The table to query.
     :type table: str
     :return: The column name for the geometry.
@@ -912,11 +916,13 @@ def get_geometry_column(gpkg_path: os.PathLike, table: str = "") -> list[str]:
     return column_name
 
 
-def ogr_where_select(gpkg_path: os.PathLike, table: str, where: str) -> dict:
+def ogr_where_select(
+    gpkg_path: os.PathLike | str, table: str, where: str
+) -> dict:
     """Selects all features from the given gpkg file in the table where `where` clause is True.
 
     :param gpkg_path: The path to the gpkg file.
-    :type gpkg_path: os.PathLike
+    :type gpkg_path: os.PathLike | str
     :param table: The table where to extract the data.
     :type table: str
     :param where: The where clause for selection
@@ -951,12 +957,12 @@ def ogr_where_select(gpkg_path: os.PathLike, table: str, where: str) -> dict:
 
 
 def get_unique_entries(
-    file_path: os.PathLike, field: str, tables: list[str] = []
+    file_path: os.PathLike | str, field: str, tables: list[str] = []
 ) -> list[str]:
     """Gets all unique entries from the field for each table.
 
     :param file_path: The path to the sql database.
-    :type file_path: os.PathLike
+    :type file_path: os.PathLike | str
     :param field: The field name to get the values from.
     :type field: str
     :param tables: A single table, or list of table names, defaults to [] (all tables.)
@@ -983,11 +989,11 @@ def get_unique_entries(
     return list(np.unique(result))
 
 
-def get_bounds(file_path: os.PathLike) -> Tuple | list[tuple]:
+def get_bounds(file_path: os.PathLike | str) -> Tuple | list[tuple]:
     """Gets the bounds of all datasets in the given gpkg file.
 
     :param file_path: The path to the gpkg file.
-    :type file_path: os.PathLike
+    :type file_path: os.PathLike | str
     :param tables: A single table, or list of table names, defaults to [] (all tables.)
     :type tables: str, list[str]
     :return: A list of tuples containing (minx, miny, maxx, maxy) from the tables.

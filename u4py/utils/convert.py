@@ -12,12 +12,14 @@ from typing import Iterable
 import geopandas as gp
 import numpy as np
 
+from u4py.utils.types import InversionData
 
-def gnss_dat_to_dict(file_in: os.PathLike) -> dict:
+
+def gnss_dat_to_dict(file_in: os.PathLike | str) -> dict:
     """Converts a gnss dat file to dictionary
 
     :param file_in: The file to convert.
-    :type file_in: os.PathLike
+    :type file_in: os.PathLike | str
     :return: The data as a dictionary.
     :rtype: dict
     """
@@ -55,14 +57,16 @@ def gps_week_to_time(gps_week: float) -> datetime:
     return dt
 
 
-def get_floatyear(time: str | datetime | Iterable) -> float | Iterable:
+def get_floatyear(
+    time: str | datetime | list | np.ndarray,
+) -> float | list | np.ndarray:
     """Converts from an ISO date or datetime to a float based year.
 
     :param time: The input timestamp to convert.
-    :type time: str | datetime | Iterable
+    :type time: str | datetime | list |np.ndarray
     :raises NotImplementedError: Raised when the input time format is not supported.
     :return: The timestamp as a float based year.
-    :rtype: float | Iterable
+    :rtype: float | list | np.ndarray
     """
     if isinstance(time, str):
         t = datetime_to_floatyear(datetime.fromisoformat(time))
@@ -79,14 +83,16 @@ def get_floatyear(time: str | datetime | Iterable) -> float | Iterable:
     return t
 
 
-def get_datetime(time: float | Iterable) -> float | Iterable:
+def get_datetime(
+    time: float | list | np.ndarray,
+) -> list | np.ndarray | datetime:
     """Converts from a float based year to datetime.
 
     :param time: The input timestamp to convert.
-    :type time: float | Iterable
+    :type time: float | list |np.ndarray
     :raises NotImplementedError: Raised when the input time format is not supported.
     :return: The timestamp as a datetime.
-    :rtype: float | Iterable
+    :rtype: float | list |np.ndarray
     """
     if isinstance(time, (int, float, complex)) and not isinstance(time, bool):
         t = floatyear_to_datetime(time)
@@ -127,7 +133,7 @@ def floatyear_to_datetime(time: float) -> datetime:
 
 
 def reformat_inversion_results(
-    results: dict,
+    results: InversionData,
     directions: list = [
         "U",
     ],
@@ -135,7 +141,7 @@ def reformat_inversion_results(
     """Takes the output of :func:`u4py.analyis.processing.invert_psi_dict` and converts it to a more intuitive format.
 
     :param results: The input dictionary
-    :type results: dict
+    :type results: InversionData
     :param directions: Which directions to use, defaults to ["U",] which is the only reasonable component for most fits in this project
     :type directions: dict
     :return: The reformatted dictionary.
@@ -259,7 +265,12 @@ def reformat_gdf_to_dict(gdf: gp.GeoDataFrame) -> dict:
         "seasonality_std",
         "geometry",
     ]
-
+    x_str = ""
+    y_str = ""
+    z_str = ""
+    id_key = ""
+    mv_key = ""
+    mvs_key = ""
     if "X" in gdf.keys():
         x_str = "X"
         y_str = "Y"
@@ -285,29 +296,35 @@ def reformat_gdf_to_dict(gdf: gp.GeoDataFrame) -> dict:
     elif "mean_velocity" in gdf.keys():
         mv_key = "mean_velocity"
         mvs_key = "mean_velocity_std"
-
-    output = {
-        "x": gdf[x_str].to_numpy(),
-        "y": gdf[y_str].to_numpy(),
-        "z": gdf[z_str].to_numpy(),
-        "ps_id": gdf[id_key].to_numpy(),
-        "mean_vel": gdf[mv_key],
-        "var_mean_vel": gdf[mvs_key],
-        "num_points": len(gdf),
-    }
-    time = np.array(
-        [sql_key_to_time(kk) for kk in gdf.keys() if kk not in filter_keys]
-    )
-    if len(time) > 0:
-        timeseries = np.array(
-            [gdf[kk].to_numpy() for kk in gdf.keys() if kk not in filter_keys]
-        ).T
-        timeseries[timeseries == None] = np.nan
-
-        output.update(
-            {"time": time, "timeseries": np.array(timeseries, dtype=float)}
+    if x_str and y_str and z_str and id_key and mv_key and mvs_key:
+        output = {
+            "x": gdf[x_str].to_numpy(),
+            "y": gdf[y_str].to_numpy(),
+            "z": gdf[z_str].to_numpy(),
+            "ps_id": gdf[id_key].to_numpy(),
+            "mean_vel": gdf[mv_key],
+            "var_mean_vel": gdf[mvs_key],
+            "num_points": len(gdf),
+        }
+        time = np.array(
+            [sql_key_to_time(kk) for kk in gdf.keys() if kk not in filter_keys]
         )
-    return output
+        if len(time) > 0:
+            timeseries = np.array(
+                [
+                    gdf[kk].to_numpy()
+                    for kk in gdf.keys()
+                    if kk not in filter_keys
+                ]
+            ).T
+            timeseries[timeseries is None] = np.nan
+
+            output.update(
+                {"time": time, "timeseries": np.array(timeseries, dtype=float)}
+            )
+        return output
+    else:
+        return dict()
 
 
 def sql_key_to_time(key: str) -> datetime:

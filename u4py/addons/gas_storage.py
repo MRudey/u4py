@@ -27,7 +27,7 @@ def _date2num_gas(time_in: str) -> datetime:
 
 
 def load_gas_data(
-    file_path: os.PathLike,
+    file_path: os.PathLike | str,
 ) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
     """Loads the gas storage data from a `csv` file.
 
@@ -35,7 +35,7 @@ def load_gas_data(
     a csv file or copied from the webinterface directly.
 
     :param file_path: The filepath to the csv file.
-    :type file_path: os.PathLike
+    :type file_path: os.PathLike | str
     :return: A tuple containing three numpy arrays:
 
         | `date`: The date as an array of datetime objects,

@@ -190,7 +190,7 @@ def add_timeseries(
     title: str = "",
     legend: bool = True,
     shareax: Axes = None,
-    inversion_path: os.PathLike = "",
+    inversion_path: os.PathLike | str = "",
     overwrite: bool = False,
     color="C0",
 ):
@@ -207,7 +207,7 @@ def add_timeseries(
     :param shareax: The axis to share the axis limits with, defaults to None
     :type shareax: Axes, optional
     :param inversion_path: The path to the inversion data file for this region, defaults to ""
-    :type inversion_path: os.PathLike, optional
+    :type inversion_path: os.PathLike | str, optional
     """
     results = u4proc.get_psi_dict_inversion(
         data, save_path=inversion_path, overwrite=overwrite

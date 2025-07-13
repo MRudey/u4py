@@ -8,18 +8,18 @@ import logging
 import os
 import tempfile
 from pathlib import Path
-from typing import Tuple
 
 import geopandas as gp
 import numpy as np
 import PIL
-import PIL.PngImagePlugin
+import PIL.Image
 import pyproj
 import requests
 import restapi
 import shapely
 from owslib.wfs import WebFeatureService
 from owslib.wms import WebMapService, wms111, wms130
+from PIL.ImageFile import ImageFile as PILImage
 
 import u4py.analysis.spatial as u4spatial
 
@@ -37,11 +37,11 @@ def set_client():
 def query_hlnug(
     map_server_suffix: str,
     layer_name: str,
-    region: shapely.Polygon = [],
-    out_folder: os.PathLike = "",
+    region: shapely.Polygon | list | gp.GeoDataFrame | gp.GeoSeries = [],
+    out_folder: os.PathLike | str = "",
     suffix: str = "",
     clip: bool = False,
-) -> os.PathLike | gp.GeoDataFrame:
+) -> gp.GeoDataFrame:
     """Queries the HLNUG Webservice for a specific layer.
 
     :param map_server_suffix: The suffix/subfolder on the server where to find the MapServer.
@@ -51,7 +51,7 @@ def query_hlnug(
     :param region: The region to search for data, defaults to [], getting the maximum data present (1000 entries max.).
     :type region: shapely.Polygon
     :param out_folder: The location where to store the data, defaults to "". If empty, uses a temporary folder and returns a GeoDataFrame instead of a path to a shapefile, defaults to ""
-    :type out_folder: os.PathLike, optional
+    :type out_folder: os.PathLike | str, optional
     :param layer_type: Define the type of the layer, defaults to "Feature Layer"
     :type layer_type: str, optional
     :param suffix: Suffix for identifying the intermediate savefile.
@@ -90,12 +90,12 @@ def query_hlnug(
 
 def query_internal(
     layer_name: str,
-    region: shapely.Polygon = [],
-    region_crs: str = "EPSG:32632",
-    out_folder: os.PathLike = "",
+    region: shapely.Polygon | list = [],
+    region_crs: str | pyproj.CRS | None = "EPSG:32632",
+    out_folder: os.PathLike | str = "",
     suffix: str = "",
     maxfeatures: int = 3000,
-    login_path: os.PathLike = "~/Documents/umwelt4/login.json",
+    login_path: os.PathLike | str = "~/Documents/umwelt4/login.json",
 ) -> gp.GeoDataFrame:
     """
     Reads the given layer from the internal Open WFS server (available only in
@@ -122,7 +122,7 @@ def query_internal(
     :param region_crs: The crs of the region, defaults to "EPSG:32632"
     :type region_crs: str, optional
     :param out_folder: The location where to store the data, defaults to "". If empty, uses a temporary folder and returns a GeoDataFrame instead of a path to a shapefile, defaults to ""
-    :type out_folder: os.PathLike, optional
+    :type out_folder: os.PathLike | str, optional
     :param suffix: Suffix for identifying the intermediate savefile, defaults to ""
     :type suffix: str, optional
     :return: The data as geodataframe
@@ -158,9 +158,9 @@ def query_internal(
 
 def _query_internal_server(
     layer_name: str,
-    region: shapely.Polygon,
-    region_crs: str,
-    login_path: os.PathLike,
+    region: shapely.Polygon | list,
+    region_crs: str | pyproj.CRS | None,
+    login_path: os.PathLike | str,
     maxfeatures: int,
 ) -> str:
     """Does the actual query of the internal IAG-GeoServer
@@ -172,7 +172,7 @@ def _query_internal_server(
     :param region_crs: The crs of the region.
     :type region_crs: str
     :param login_path: The path to the login file.
-    :type login_path: os.PathLike
+    :type login_path: os.PathLike | str
     :param maxfeatures: The maximum amount of features to return
     :type maxfeatures: int
     :raises KeyError: Raised when the layer is not found on the server.
@@ -180,6 +180,7 @@ def _query_internal_server(
     :rtype: str
     """
     logging.info("Querying internal server for geology_data")
+    response_data = ""
     login_path = Path(login_path).expanduser()
     if not os.path.exists(login_path):
         FileNotFoundError(
@@ -198,55 +199,61 @@ def _query_internal_server(
     except requests.exceptions.ConnectTimeout:
         logging.info("Connection to internal server timed out.")
         raise requests.exceptions.ConnectTimeout()
-    lyr_names = list(intern_wfs.contents)
-    if layer_name in lyr_names:
-        # Check for correct crs:
-        layer_crs = intern_wfs.contents[layer_name].crsOptions[0].id
-        if region_crs != layer_crs:
-            reg_gdf = gp.GeoDataFrame(
-                geometry=[u4spatial.bounds_to_polygon(region)], crs=region_crs
-            ).to_crs(layer_crs)
-            bounds = reg_gdf.bounds.iloc[0]
-            region = [bounds.minx, bounds.miny, bounds.maxx, bounds.maxy]
+    if intern_wfs is not None:
+        lyr_names = list(intern_wfs.contents)
+        if layer_name in lyr_names:
+            # Check for correct crs:
+            layer_crs = intern_wfs.contents[layer_name].crsOptions[0].id
+            if region_crs != layer_crs:
+                reg_gdf = gp.GeoDataFrame(
+                    geometry=[u4spatial.bounds_to_polygon(region)],  # type: ignore
+                    crs=region_crs,
+                ).to_crs(layer_crs)
+                bounds = reg_gdf.bounds.iloc[0]
+                region = [bounds.minx, bounds.miny, bounds.maxx, bounds.maxy]
 
-        response = intern_wfs.getfeature(
-            typename=layer_name,
-            bbox=region,
-            srsname=intern_wfs.contents[layer_name].crsOptions[0],
-            maxfeatures=maxfeatures,
-            outputFormat="application/json",
-        )
-        response_data = json.loads(response.read())
-    else:
-        raise KeyError(f"Layer {layer_name} not found on Server: {lyr_names}")
+            response = intern_wfs.getfeature(
+                typename=layer_name,
+                bbox=region,
+                srsname=intern_wfs.contents[layer_name].crsOptions[0],
+                maxfeatures=maxfeatures,
+                outputFormat="application/json",
+            )
+            response_data = json.loads(response.read())
+        else:
+            raise KeyError(
+                f"Layer {layer_name} not found on Server: {lyr_names}"
+            )
 
     return response_data
 
 
 def _save_features(
-    features: str, out_fname: os.PathLike, region: gp.GeoDataFrame = []
+    features: str,
+    out_fname: os.PathLike | str,
+    region: shapely.Polygon | list | gp.GeoDataFrame | gp.GeoSeries = [],
 ) -> gp.GeoDataFrame:
     """Saves the features to geojson and shapefile.
 
     :param features: The features loaded from a query (in JSON format)
     :type features: str
     :param out_fname: The path where to store the data.
-    :type out_fname: os.PathLike
+    :type out_fname: os.PathLike | str
     :return: A geodataframe with the features in EPSG:32632
     :rtype: gp.GeoDataFrame
     """
+    out_path = str(out_fname) + ".json"
     if len(features) == 0:
         gdf = gp.GeoDataFrame(geometry=[], crs="EPSG:32632")
     elif isinstance(features, dict):
-        with open(out_fname + ".json", "wt") as geojson:
+        with open(out_path, "wt") as geojson:
             json.dump(features, geojson)
-        gdf = gp.read_file(out_fname + ".json").to_crs("EPSG:32632")
+        gdf = gp.read_file(str(out_fname) + ".json").to_crs("EPSG:32632")
     else:
-        with open(features.dump(out_fname + ".json")) as geojson:
-            gdf = gp.read_file(geojson).to_crs("EPSG:32632")
-    if len(region) > 0:
-        gdf = gdf.clip(region)
-    gdf.to_file(out_fname + ".gpkg")
+        gdf = gp.read_file(out_path).to_crs("EPSG:32632")
+    if len(region) > 0:  # type: ignore
+        gdf = gdf.clip(region)  # type: ignore
+    gdf.to_file(str(out_fname) + ".gpkg")
     return gdf
 
 
@@ -254,7 +261,7 @@ def _query_server(
     map_server_suffix: str,
     layer_name: str,
     layer_type: str = "Feature Layer",
-    region: shapely.Polygon = [],
+    region: gp.GeoDataFrame | shapely.Polygon | list | gp.GeoSeries = [],
 ) -> str:
     """Does the actual query of the Servers.
 
@@ -265,7 +272,7 @@ def _query_server(
     :param layer_type: The layer type of the layer., defaults to "Feature Layer"
     :type layer_type: str, optional
     :param region: The region where to extract the data., defaults to []
-    :type region: shapely.Polygon, optional
+    :type region: gp.GeoDataFrame | shapely.Polygon | list, optional
     :raises TypeError: Raised when the layer is not of the correct layer type.
     :raises KeyError: Raised when the layer given is not found on the server.
     :return: A JSON formatted reply from the webserver.
@@ -290,9 +297,10 @@ def _query_server(
     # Assemble url to layer and get data
     lyr_url = f"{map_url}/{ii}"
     ms_lyr = restapi.MapServiceLayer(lyr_url)
-    if len(region) > 0:
+    if len(region) > 0:  # type: ignore
         restgeom = polygon_to_restapi(
-            region.geometry[0], region.crs.to_string()
+            region.geometry[0],  # type: ignore
+            region.crs.to_string(),  # type: ignore
         )
         try:
             features = ms_lyr.select_by_location(restgeom)
@@ -300,7 +308,7 @@ def _query_server(
             features = []
     else:
         features = ms_lyr.query()
-    return features
+    return features  # type: ignore
 
 
 def polygon_to_restapi(polygon: shapely.Polygon, crs: str) -> dict:
@@ -331,7 +339,7 @@ def wms_in_gdf_boundary(
     wms_version: str,
     layer: str,
     size: tuple,
-) -> Tuple[PIL.Image.Image, pyproj.CRS]:
+) -> PILImage | None:
     """Gets a WMS image within the region of a geodataframe.
 
     :param bound_gdf: The geodataframe to use for the region selection.
@@ -345,11 +353,12 @@ def wms_in_gdf_boundary(
     :param size: The size of the image (maximum 3000x3000)
     :type size: tuple
     :raises ValueError: Raises a Value error if the layer is not available.
-    :return: The image as a pillow image object for easy plotting with matplotlib and the CRS of the image
-    :rtype: Tuple[PIL.Image.Image, pyproj.CRS]
+    :return: The image as a pillow image object for easy plotting with matplotlib and the pyproj.CRS of the image
+    :rtype: Tuple[PILImage, pyproj.CRS]
     """
     wms = WebMapService(wms_url, version=wms_version)
     layers = list(wms.contents)
+    img_dat = None
 
     # Check if the requested layer is there
     if layer in layers:
@@ -412,12 +421,14 @@ def gdf_in_wms_bounds(
     """
     # Look for crs in respective lists and select boundary tuple
     if hasattr(lyr, "crs_list"):
-        lyr_crs_list = lyr.crs_list
+        lyr_crs_list = lyr.crs_list  # type: ignore
         crs_idx_list = [v[-1] for v in lyr_crs_list]
         crs_idx = crs_idx_list.index(str(bound_gdf.crs))
         lyr_bnd_box = lyr_crs_list[crs_idx]
     elif hasattr(lyr, "crsOptions"):
-        lyr_bnd_box = [v for v in lyr.boundingBox[:4]]
+        lyr_bnd_box = [v for v in lyr.boundingBox[:4]]  # type: ignore
+    else:
+        lyr_bnd_box = []
 
     bnd_bnd_box = bound_gdf.bounds
 

@@ -17,6 +17,9 @@ import matplotlib.colors as mcolors
 import matplotlib.patches as mpatches
 import matplotlib.pyplot as plt
 import numpy as np
+import numpy.typing as npt
+from matplotlib.axes import Axes
+from matplotlib.figure import Figure
 
 import u4py.addons.gma as u4gma
 import u4py.addons.web_services as u4web
@@ -39,10 +42,10 @@ def plot_inversion_results(
     time2: np.ndarray = np.array([]),
     data: dict = dict(),
     inversion_results: dict = dict(),
-    save_path: os.PathLike = None,
+    save_path: os.PathLike | str = "",
     single_dim: bool = False,
     unit: str = "mm",
-):
+) -> None | Tuple[Figure, Axes | list[Axes]]:
     """Plots the results of a full inversion.
 
     :param time: The time axis of the first fit.
@@ -54,13 +57,17 @@ def plot_inversion_results(
     :param inversion_results: The results formatted as a dictionary.
     :type inversion_results: dict
     :param save_path: The path where to save the figure, defaults to None
-    :type save_path: os.PathLike, optional
+    :type save_path: os.PathLike | str, optional
     :param single_dim: If the input data is single dimensional reduce to one axis, defaults to False
     :type single_dim: bool, optional
     :param unit: The unit of the input signal, defaults to "mm"
     :type unit: str, optional
     """
     logging.info("Plotting inversion results")
+
+    # Types for better type hints:
+    axes: list[Axes] | Axes
+
     if single_dim:
         fig, axes = plt.subplots(figsize=(10, 5))
         axes.plot(time[0], data["dataE"], ".", label="Data")
@@ -97,77 +104,81 @@ def plot_inversion_results(
             np.nanpercentile(data["dataE"][np.argwhere(time[0] == uu)], 32)
             for uu in ux
         ]
-        axes[0].set_title("East-West Component")
-        axes[0].plot(ux, y, ".", label="Median")
-        axes[0].fill_between(
-            ux,
-            yed,
-            yep,
-            color="C0",
-            alpha=0.5,
-            edgecolor=None,
-            label="95% range",
-        )
-        axes[0].fill_between(
-            ux,
-            yed2,
-            yep2,
-            color="C0",
-            alpha=0.5,
-            edgecolor=None,
-            label="68% range",
-        )
-        axes[0].plot(
-            time[0], data["ori_dhat_data"]["dhatE"], color="C1", label="Fit"
-        )
-        if time2.size > 0:
-            axes[0].plot(
-                time2[0],
-                data["dhat_data"]["dhatE"],
-                color="C2",
-                label="Fit (w/o outliers)",
+        if isinstance(axes, np.ndarray):
+            axes[0].set_title("East-West Component")
+            axes[0].plot(ux, y, ".", label="Median")
+            axes[0].fill_between(
+                ux,
+                yed,
+                yep,
+                color="C0",
+                alpha=0.5,
+                edgecolor=None,
+                label="95% range",
             )
-        axes[0].annotate(
-            f"{ew_mov:.2} mm/yr", (0.05, 0.05), xycoords="axes fraction"
-        )
-        axes[0].legend(loc="best", fontsize="small", markerscale=0.5)
-        # axes[1][0].plot(time[0], data["ori_dhat_data"]["dhatE"], "C1")
-        y = [
-            np.nanmedian(data["dataU"][np.argwhere(time[0] == uu)])
-            for uu in ux
-        ]
-        yep = [
-            np.nanpercentile(data["dataU"][np.argwhere(time[0] == uu)], 95)
-            for uu in ux
-        ]
-        yed = [
-            np.nanpercentile(data["dataU"][np.argwhere(time[0] == uu)], 5)
-            for uu in ux
-        ]
-        yep2 = [
-            np.nanpercentile(data["dataU"][np.argwhere(time[0] == uu)], 68)
-            for uu in ux
-        ]
-        yed2 = [
-            np.nanpercentile(data["dataU"][np.argwhere(time[0] == uu)], 32)
-            for uu in ux
-        ]
-        axes[1].set_title("Vertical Component")
-        axes[1].plot(ux, y, ".")
-        axes[1].fill_between(
-            ux, yed, yep, color="C0", alpha=0.5, edgecolor=None
-        )
-        axes[1].fill_between(
-            ux, yed2, yep2, color="C0", alpha=0.5, edgecolor=None
-        )
-        axes[1].plot(time[0], data["ori_dhat_data"]["dhatU"])
-        if time2.size > 0:
-            axes[1].plot(time2[0], data["dhat_data"]["dhatU"])
-        axes[1].annotate(
-            f"Hebung/Senkung = {ud_mov:.2} {unit}/yr",
-            (0.05, 0.05),
-            xycoords="axes fraction",
-        )
+            axes[0].fill_between(
+                ux,
+                yed2,
+                yep2,
+                color="C0",
+                alpha=0.5,
+                edgecolor=None,
+                label="68% range",
+            )
+            axes[0].plot(
+                time[0],
+                data["ori_dhat_data"]["dhatE"],
+                color="C1",
+                label="Fit",
+            )
+            if time2.size > 0:
+                axes[0].plot(
+                    time2[0],
+                    data["dhat_data"]["dhatE"],
+                    color="C2",
+                    label="Fit (w/o outliers)",
+                )
+            axes[0].annotate(
+                f"{ew_mov:.2} mm/yr", (0.05, 0.05), xycoords="axes fraction"
+            )
+            axes[0].legend(loc="best", fontsize="small", markerscale=0.5)
+            # axes[1][0].plot(time[0], data["ori_dhat_data"]["dhatE"], "C1")
+            y = [
+                np.nanmedian(data["dataU"][np.argwhere(time[0] == uu)])
+                for uu in ux
+            ]
+            yep = [
+                np.nanpercentile(data["dataU"][np.argwhere(time[0] == uu)], 95)
+                for uu in ux
+            ]
+            yed = [
+                np.nanpercentile(data["dataU"][np.argwhere(time[0] == uu)], 5)
+                for uu in ux
+            ]
+            yep2 = [
+                np.nanpercentile(data["dataU"][np.argwhere(time[0] == uu)], 68)
+                for uu in ux
+            ]
+            yed2 = [
+                np.nanpercentile(data["dataU"][np.argwhere(time[0] == uu)], 32)
+                for uu in ux
+            ]
+            axes[1].set_title("Vertical Component")
+            axes[1].plot(ux, y, ".")
+            axes[1].fill_between(
+                ux, yed, yep, color="C0", alpha=0.5, edgecolor=None
+            )
+            axes[1].fill_between(
+                ux, yed2, yep2, color="C0", alpha=0.5, edgecolor=None
+            )
+            axes[1].plot(time[0], data["ori_dhat_data"]["dhatU"])
+            if time2.size > 0:
+                axes[1].plot(time2[0], data["dhat_data"]["dhatU"])
+            axes[1].annotate(
+                f"Hebung/Senkung = {ud_mov:.2} {unit}/yr",
+                (0.05, 0.05),
+                xycoords="axes fraction",
+            )
     # axes[1][1].plot(time[0], data["ori_dhat_data"]["dhatU"], "C1")
     fig.tight_layout()
     if save_path:
@@ -182,10 +193,10 @@ def plot_gridded(
     sin_2d: np.ndarray,
     extent: tuple,
     suptitle: str = "",
-    base_map_path: os.PathLike = None,
-    tektonik_path: os.PathLike = None,
-    roi: gp.GeoDataFrame = None,
-    save_path: os.PathLike = None,
+    base_map_path: os.PathLike | str = "",
+    tektonik_path: os.PathLike | str = "",
+    roi: gp.GeoDataFrame = gp.GeoDataFrame(),
+    save_path: os.PathLike | str = "",
     perc: int = 95,
     dpi: int = 300,
 ):
@@ -199,14 +210,14 @@ def plot_gridded(
     :type extent: tuple
     :param suptitle: The title for the plot, defaults to ""
     :type suptitle: str, optional
-    :param base_map_path: Path to the basemap, defaults to None
-    :type base_map_path: os.PathLike, optional
-    :param tektonik_path: Path to the shape file with tectonic information, defaults to None
-    :type tektonik_path: os.PathLike, optional
+    :param base_map_path: Path to the basemap, defaults to ""
+    :type base_map_path: os.PathLike | str, optional
+    :param tektonik_path: Path to the shape file with tectonic information, defaults to ""
+    :type tektonik_path: os.PathLike | str, optional
     :param roi: GeoDataFrame containing the regions of interest for detailed plots, defaults to None
     :type roi: gp.GeoDataFrame, optional
-    :param save_path: Path where to save the plot, defaults to None
-    :type save_path: os.PathLike, optional
+    :param save_path: Path where to save the plot, defaults to ""
+    :type save_path: os.PathLike | str, optional
     :param perc:  Percentile for the visualization, defaults to 95
     :type perc: int, optional
     :param dpi: Resolution of the plot for saving to png, defaults to 300
@@ -290,7 +301,7 @@ def plot_gridded(
     axes[1].set_title("Seasonal Component", fontweight="bold")
     if suptitle:
         fig.suptitle(suptitle, fontsize="large", fontweight="bold")
-    if bounds:
+    if len(bounds) > 0:
         axes[0].set_xlim(bounds[0], bounds[2])
         axes[0].set_ylim(bounds[1], bounds[3])
     u4plotfmt.map_style(ax=axes[0])
@@ -304,17 +315,17 @@ def plot_gridded(
 
 
 def plot_hotspots(
-    tif_file_path: os.PathLike,
-    thresh: float | Iterable,
+    tif_file_path: os.PathLike | str,
+    thresh: float | np.ndarray,
     nbins: int = 3,
     min_count: int = 3,
-    output_filepath: os.PathLike = "",
+    output_filepath: os.PathLike | str = "",
     title: str = "",
-) -> list:
+) -> Tuple[npt.ArrayLike, np.ndarray | None, str]:
     """Loads the data from a tiff file and detects hotspots.
 
     :param tif_file_path: The path to the Tiff file.
-    :type tif_file_path: os.PathLike
+    :type tif_file_path: os.PathLike | str
     :param thresh: Either a single threshold or an iterable with two thresholds. If it is iterable values below the lower threshold and above the higher threshold are detected as hotspots.
     :type thresh: float | Iterable
     :param nbins: The minimum area in n x (dx, dy) that a hotspot has to cover for detection, defaults to 3
@@ -322,7 +333,7 @@ def plot_hotspots(
     :param min_count: The minimum number of psi in a bin to be detected, defaults to 3
     :type min_count: int
     :param output_filepath: The output path of the figure, defaults to ""
-    :type output_filepath: os.PathLike, optional
+    :type output_filepath: os.PathLike | str, optional
     :param title: The title to put on the figure, defaults to ""
     :type title: str, optional
     :return: A list of shapely polygons for plotting and exporting to files.
@@ -363,22 +374,22 @@ def plot_hotspots(
 
 
 def plot_GroundMotionAnalyzer(
-    psi_fpath: os.PathLike,
-    processing_path: os.PathLike,
+    psi_fpath: os.PathLike | str,
+    processing_path: os.PathLike | str,
     cellsize: int = 500,
     min_mean: float = 2,
     max_var: float = 1,
-    output_filepath: os.PathLike = "",
+    output_filepath: os.PathLike | str = "",
     title: str = "",
-    crs: str = "EPSG:32632",
+    crs: str | pyproj.CRS | None = "EPSG:32632",
     overwrite: bool = False,
 ):
     """Creates and plots the results for the GroundMotionAnalyzer
 
     :param psi_fpath: The path to the gpkg file containing the PSI data.
-    :type psi_fpath: os.PathLike
+    :type psi_fpath: os.PathLike | str
     :param processing_path: The folderpath where to save the results as a tiff file.
-    :type processing_path: os.PathLike
+    :type processing_path: os.PathLike | str
     :param cellsize: The cellsize of the ground motion analyzer in meters, defaults to 500
     :type cellsize: int, optional
     :param min_mean: The minimum mean velocity for the detection, defaults to 2
@@ -386,7 +397,7 @@ def plot_GroundMotionAnalyzer(
     :param max_var: The maximum variance for the detection, defaults to 1
     :type max_var: float, optional
     :param output_filepath: The output file path of the figure, if none is given no plot is produced, defaults to ""
-    :type output_filepath: os.PathLike, optional
+    :type output_filepath: os.PathLike | str, optional
     :param title: The title for the plot, defaults to ""
     :type title: str, optional
     :param crs: The coordinate system of the data, defaults to "EPSG:32632"
@@ -427,7 +438,7 @@ def plot_GroundMotionAnalyzer(
 
 
 def plot_site_statistics(
-    res: dict, x_key: str, y_key: str, folder_path: os.PathLike
+    res: dict, x_key: str, y_key: str, folder_path: os.PathLike | str
 ):
     """Plots statistics of a given site that was classified using `u4py.analysis.classify`.
 
@@ -438,7 +449,7 @@ def plot_site_statistics(
     :param y_key: The key for the y-axis (must be in `res.keys()`)
     :type y_key: str
     :param folder_path: The output folder.
-    :type folder_path: os.PathLike
+    :type folder_path: os.PathLike | str
     """
     logging.info("Calculating and plotting site statistics.")
     if x_key in res.keys() and y_key in res.keys():
@@ -470,7 +481,7 @@ def plot_shape(
     roads: gp.GeoDataFrame,
     slope_str: str,
     group: int,
-    save_folder: os.PathLike,
+    save_folder: os.PathLike | str,
 ):
     """Plots the given subset and some additional data.
 
@@ -485,7 +496,7 @@ def plot_shape(
     :param group: The group number.
     :type group: int
     :param save_folder: The folder where to store the output figure.
-    :type save_folder: os.PathLike
+    :type save_folder: os.PathLike | str
     """
     logging.info(f"Plotting a subset of shapes of group {group:05}.")
     fig, ax = default_figure()
@@ -521,11 +532,11 @@ def default_figure():
 def geology_map(
     row: tuple,
     crs: str,
-    output_path: os.PathLike,
+    output_path: os.PathLike | str,
     suffix: str,
-    contour_path: os.PathLike,
-    legend_path: os.PathLike,
-    shp_path: os.PathLike,
+    contour_path: os.PathLike | str,
+    legend_path: os.PathLike | str,
+    shp_path: os.PathLike | str,
     plot_buffer: float,
     overwrite: bool,
     use_internal: bool = True,
@@ -537,15 +548,15 @@ def geology_map(
     :param crs: The coordinate system of the dataset.
     :type crs: str
     :param output_path: The path where to store the output plots.
-    :type output_path: os.PathLike
+    :type output_path: os.PathLike | str
     :param suffix: The subfolder to use for plots.
     :type suffix: str
     :param contour_path: The path where the contour dataset is found.
-    :type contour_path: os.PathLike
+    :type contour_path: os.PathLike | str
     :param legend_path: The path where the legend is found.
-    :type legend_path: os.PathLike
+    :type legend_path: os.PathLike | str
     :param shp_path: The path where query data for HLNUG/GeoServer Data is found.
-    :type shp_path: os.PathLike
+    :type shp_path: os.PathLike | str
     :param plot_buffer: The buffer width around the area of interest.
     :type plot_buffer: float
     """
@@ -802,11 +813,11 @@ def geology_map(
 def hydrogeology_map(
     row: tuple,
     crs: str,
-    output_path: os.PathLike,
+    output_path: os.PathLike | str,
     suffix: str,
-    contour_path: os.PathLike,
-    legend_path: os.PathLike,
-    shp_path: os.PathLike,
+    contour_path: os.PathLike | str,
+    legend_path: os.PathLike | str,
+    shp_path: os.PathLike | str,
     plot_buffer: float,
     overwrite: bool,
 ):
@@ -817,15 +828,15 @@ def hydrogeology_map(
     :param crs: The coordinate system of the dataset.
     :type crs: str
     :param output_path: The path where to store the output plots.
-    :type output_path: os.PathLike
+    :type output_path: os.PathLike | str
     :param suffix: The subfolder to use for plots.
     :type suffix: str
     :param contour_path: The path where the contour dataset is found.
-    :type contour_path: os.PathLike
+    :type contour_path: os.PathLike | str
     :param legend_path: The path where the legend is found.
-    :type legend_path: os.PathLike
+    :type legend_path: os.PathLike | str
     :param shp_path: The path where query data for HLNUG/GeoServer Data is found.
-    :type shp_path: os.PathLike
+    :type shp_path: os.PathLike | str
     :param plot_buffer: The buffer width around the area of interest.
     :type plot_buffer: float
     """
@@ -936,11 +947,11 @@ def hydrogeology_map(
 def topsoil_map(
     row: tuple,
     crs: str,
-    output_path: os.PathLike,
+    output_path: os.PathLike | str,
     suffix: str,
-    contour_path: os.PathLike,
-    legend_path: os.PathLike,
-    shp_path: os.PathLike,
+    contour_path: os.PathLike | str,
+    legend_path: os.PathLike | str,
+    shp_path: os.PathLike | str,
     plot_buffer: float,
     overwrite: bool,
 ):
@@ -951,15 +962,15 @@ def topsoil_map(
     :param crs: The coordinate system of the dataset.
     :type crs: str
     :param output_path: The path where to store the output plots.
-    :type output_path: os.PathLike
+    :type output_path: os.PathLike | str
     :param suffix: The subfolder to use for plots.
     :type suffix: str
     :param contour_path: The path where the contour dataset is found.
-    :type contour_path: os.PathLike
+    :type contour_path: os.PathLike | str
     :param legend_path: The path where the legend is found.
-    :type legend_path: os.PathLike
+    :type legend_path: os.PathLike | str
     :param shp_path: The path where query data for HLNUG/GeoServer Data is found.
-    :type shp_path: os.PathLike
+    :type shp_path: os.PathLike | str
     :param plot_buffer: The buffer width around the area of interest.
     :type plot_buffer: float
     """
@@ -1073,9 +1084,9 @@ def topsoil_map(
 def satimg_map(
     row: tuple,
     crs: str,
-    output_path: os.PathLike,
+    output_path: os.PathLike | str,
     suffix: str,
-    contour_path: os.PathLike,
+    contour_path: os.PathLike | str,
     plot_buffer: float,
     overwrite: bool,
 ):
@@ -1086,11 +1097,11 @@ def satimg_map(
     :param crs: The coordinate system of the dataset.
     :type crs: str
     :param output_path: The path where to store the output plots.
-    :type output_path: os.PathLike
+    :type output_path: os.PathLike | str
     :param suffix: The subfolder to use for plots.
     :type suffix: str
     :param contour_path: The path where the contour dataset is found.
-    :type contour_path: os.PathLike
+    :type contour_path: os.PathLike | str
     :param plot_buffer: The buffer width around the area of interest.
     :type plot_buffer: float
     """
@@ -1158,13 +1169,13 @@ def satimg_map(
 def dem_map(
     row: tuple,
     crs: str,
-    output_path: os.PathLike,
+    output_path: os.PathLike | str,
     suffix: str,
-    dem_path: os.PathLike,
-    contour_path: os.PathLike,
+    dem_path: os.PathLike | str,
+    contour_path: os.PathLike | str,
     plot_buffer: float,
     overwrite: bool,
-    shp_path: os.PathLike = "",
+    shp_path: os.PathLike | str = "",
 ):
     """Creates a hillshade map of the digital elevation model in the area of interest.
 
@@ -1173,13 +1184,13 @@ def dem_map(
     :param crs: The coordinate system of the dataset.
     :type crs: str
     :param output_path: The path where to store the output plots.
-    :type output_path: os.PathLike
+    :type output_path: os.PathLike | str
     :param suffix: The subfolder to use for plots.
     :type suffix: str
     :param dem_path: The path where the dem data is found.
-    :type dem_path: os.PathLike
+    :type dem_path: os.PathLike | str
     :param contour_path: The path where the contour dataset is found.
-    :type contour_path: os.PathLike
+    :type contour_path: os.PathLike | str
     :param plot_buffer: The buffer width around the area of interest.
     :type plot_buffer: float
     """
@@ -1269,10 +1280,10 @@ def dem_map(
 def slope_map(
     row: tuple,
     crs: str,
-    output_path: os.PathLike,
+    output_path: os.PathLike | str,
     suffix: str,
-    dem_path: os.PathLike,
-    contour_path: os.PathLike,
+    dem_path: os.PathLike | str,
+    contour_path: os.PathLike | str,
     plot_buffer: float,
     overwrite: bool,
 ):
@@ -1283,13 +1294,13 @@ def slope_map(
     :param crs: The coordinate system of the dataset.
     :type crs: str
     :param output_path: The path where to store the output plots.
-    :type output_path: os.PathLike
+    :type output_path: os.PathLike | str
     :param suffix: The subfolder to use for plots.
     :type suffix: str
     :param dem_path: The path where the dem data is found.
-    :type dem_path: os.PathLike
+    :type dem_path: os.PathLike | str
     :param contour_path: The path where the contour dataset is found.
-    :type contour_path: os.PathLike
+    :type contour_path: os.PathLike | str
     :param plot_buffer: The buffer width around the area of interest.
     :type plot_buffer: float
     """
@@ -1374,10 +1385,10 @@ def slope_map(
 def aspect_map(
     row: tuple,
     crs: str,
-    output_path: os.PathLike,
+    output_path: os.PathLike | str,
     suffix: str,
-    dem_path: os.PathLike,
-    contour_path: os.PathLike,
+    dem_path: os.PathLike | str,
+    contour_path: os.PathLike | str,
     plot_buffer: float,
     overwrite: bool,
 ):
@@ -1388,13 +1399,13 @@ def aspect_map(
     :param crs: The coordinate system of the dataset.
     :type crs: str
     :param output_path: The path where to store the output plots.
-    :type output_path: os.PathLike
+    :type output_path: os.PathLike | str
     :param suffix: The subfolder to use for plots.
     :type suffix: str
     :param dem_path: The path where the dem data is found.
-    :type dem_path: os.PathLike
+    :type dem_path: os.PathLike | str
     :param contour_path: The path where the contour dataset is found.
-    :type contour_path: os.PathLike
+    :type contour_path: os.PathLike | str
     :param xlim: The extend of the xaxis for consistent plotting.
     :type xlim: tuple
     :param ylim: The extend of the yaxis for consistent plotting.
@@ -1463,10 +1474,10 @@ def aspect_map(
 def aspect_slope_map(
     row: tuple,
     crs: str,
-    output_path: os.PathLike,
+    output_path: os.PathLike | str,
     suffix: str,
-    dem_path: os.PathLike,
-    contour_path: os.PathLike,
+    dem_path: os.PathLike | str,
+    contour_path: os.PathLike | str,
     plot_buffer: float,
     overwrite: bool,
 ):
@@ -1477,13 +1488,13 @@ def aspect_slope_map(
     :param crs: The coordinate system of the dataset.
     :type crs: str
     :param output_path: The path where to store the output plots.
-    :type output_path: os.PathLike
+    :type output_path: os.PathLike | str
     :param suffix: The subfolder to use for plots.
     :type suffix: str
     :param dem_path: The path where the dem data is found.
-    :type dem_path: os.PathLike
+    :type dem_path: os.PathLike | str
     :param contour_path: The path where the contour dataset is found.
-    :type contour_path: os.PathLike
+    :type contour_path: os.PathLike | str
     :param plot_buffer: The buffer width around the area of interest.
     :type plot_buffer: float
     """
@@ -1551,9 +1562,9 @@ def aspect_slope_map(
 def diffplan_map(
     row: tuple,
     crs: str,
-    output_path: os.PathLike,
+    output_path: os.PathLike | str,
     suffix: str,
-    diff_plan_path: os.PathLike,
+    diff_plan_path: os.PathLike | str,
     plot_buffer: float,
     overwrite: bool,
 ):
@@ -1564,13 +1575,13 @@ def diffplan_map(
     :param crs: The coordinate system of the dataset.
     :type crs: str
     :param output_path: The path where to store the output plots.
-    :type output_path: os.PathLike
+    :type output_path: os.PathLike | str
     :param suffix: The subfolder to use for plots.
     :type suffix: str
     :param diff_plan_path: The path where the differential data is found.
-    :type diff_plan_path: os.PathLike
+    :type diff_plan_path: os.PathLike | str
     :param contour_path: The path where the contour dataset is found.
-    :type contour_path: os.PathLike
+    :type contour_path: os.PathLike | str
     :param plot_buffer: The buffer width around the area of interest.
     :type plot_buffer: float
     """
@@ -1618,13 +1629,13 @@ def diffplan_map(
 def detailed_map(
     row: tuple,
     crs: str,
-    output_path: os.PathLike,
+    output_path: os.PathLike | str,
     suffix: str,
-    hlnug_path: os.PathLike,
-    contour_path: os.PathLike,
+    hlnug_path: os.PathLike | str,
+    contour_path: os.PathLike | str,
     plot_buffer: float,
     overwrite: bool,
-    places_path: os.PathLike,
+    places_path: os.PathLike | str,
 ) -> Tuple[tuple, tuple]:
     """Makes a detailed overview map of the region including some geological features.
 
@@ -1633,17 +1644,17 @@ def detailed_map(
     :param crs: The coordinate system of the dataset.
     :type crs: str
     :param output_path: The folder where to store the output plots.
-    :type output_path: os.PathLike
+    :type output_path: os.PathLike | str
     :param suffix: The subfolder to use for saving.
     :type suffix: str
     :param hlnug_path: The path where the HLNUG data is found.
-    :type hlnug_path: os.PathLike
+    :type hlnug_path: os.PathLike | str
     :param contour_path: The path where the contour dataset is found.
-    :type contour_path: os.PathLike
+    :type contour_path: os.PathLike | str
     :param plot_buffer: The buffer width around the area of interest.
     :type plot_buffer: float
     :param places_path: The path where other shapefiles are found.
-    :type places_path: os.PathLike
+    :type places_path: os.PathLike | str
     """
     # Setup Paths
     output_path = os.path.join(output_path, suffix)
@@ -1785,10 +1796,10 @@ def detailed_map(
 def timeseries_map(
     row: tuple,
     crs: str,
-    output_path: os.PathLike,
+    output_path: os.PathLike | str,
     suffix: str,
-    contour_path: os.PathLike,
-    psi_path: os.PathLike,
+    contour_path: os.PathLike | str,
+    psi_path: os.PathLike | str,
     plot_buffer: float,
     overwrite: bool,
 ) -> Tuple[tuple, tuple]:
@@ -1799,11 +1810,11 @@ def timeseries_map(
     :param crs: The coordinate system of the dataset.
     :type crs: str
     :param output_path: The folder where to store the output plots.
-    :type output_path: os.PathLike
+    :type output_path: os.PathLike | str
     :param suffix: The subfolder to use for saving.
     :type suffix: str
     :param contour_path: The path where the contour dataset is found.
-    :type contour_path: os.PathLike
+    :type contour_path: os.PathLike | str
     :param plot_buffer: The buffer width around the area of interest.
     :type plot_buffer: float
     """
@@ -1932,7 +1943,7 @@ def timeseries_map(
 def plot_legend(
     leg_handles: list[martist.Artist],
     leg_labels: list[str],
-    output_path: os.PathLike,
+    output_path: os.PathLike | str,
     group: int | str,
     suffix: str,
 ):
@@ -1943,7 +1954,7 @@ def plot_legend(
     :param leg_labels: A list of labels for the artists
     :type leg_labels: list
     :param output_path: The folder where the legend is to be stored.
-    :type output_path: os.PathLike
+    :type output_path: os.PathLike | str
     :param group: The group number or name for the file name.
     :type group: int | str
     :param suffix: The suffix for the filename, e.g. `GK25`.

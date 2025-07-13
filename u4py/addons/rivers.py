@@ -15,17 +15,20 @@ from tqdm import tqdm
 
 import u4py.addons.web_services as u4webs
 import u4py.io.files as u4files
+from u4py.utils.types import PegelStation
 
 
-def get_pegel_data(file_path: os.PathLike, overwrite: bool = False) -> dict:
+def get_pegel_data(
+    file_path: os.PathLike | str, overwrite: bool = False
+) -> dict[str, PegelStation | dict]:  # type: ignore
     """Loads river level data from a dataset delivered by HLNUG. Loads from a pickeled file if it exists.
 
     :param file_path: The path to the csv or pkl file with the data.
-    :type file_path: os.PathLike
+    :type file_path: os.PathLike | str
     :param overwrite: Overwrite the pkl file if csv is given, defaults to False
     :type overwrite: bool, optional
     :return: Data in a dictionary.
-    :rtype: dict
+    :rtype: PegelStation
 
     *Format of each station:*
 
@@ -43,10 +46,10 @@ def get_pegel_data(file_path: os.PathLike, overwrite: bool = False) -> dict:
         | }
     """
 
-    if file_path.endswith(".pkl") and os.path.exists(file_path):
+    if str(file_path).endswith(".pkl") and os.path.exists(file_path):
         with open(file_path, "rb") as pkl_file:
             return pkl.load(pkl_file)
-    elif file_path.endswith(".zrx"):
+    elif str(file_path).endswith(".zrx"):
         base_path, _ = os.path.split(file_path)
         pkl_path = os.path.join(base_path, "Pegel.pkl")
         if os.path.exists(pkl_path) and not overwrite:
@@ -59,14 +62,14 @@ def get_pegel_data(file_path: os.PathLike, overwrite: bool = False) -> dict:
 
 
 def _convert_level_zrx(
-    file_list: list[os.PathLike], output_path: os.PathLike
-) -> dict:
+    file_list: list[os.PathLike], output_path: os.PathLike | str
+) -> dict[str, PegelStation | dict]:
     """Converts a list of zrx files to a single pickle file containing all stations.
 
     :param file_list: The file list
     :type file_list: list[os.PathLike]
     :param output_path: The path where to save the data.
-    :type output_path: os.PathLike
+    :type output_path: os.PathLike | str
     :return: A dictionary of all stations.
     :rtype: dict
     """
@@ -79,11 +82,11 @@ def _convert_level_zrx(
     return stations
 
 
-def _load_pegel_from_file(file_path: os.PathLike) -> dict:
+def _load_pegel_from_file(file_path: os.PathLike | str) -> PegelStation | dict:
     """Gets the data from a single file. Also loads the temperature data if it exists.
 
     :param file_path: The path to the water level file.
-    :type file_path: os.PathLike
+    :type file_path: os.PathLike | str
     :return: The water level data, optionally including the water temperature.
     :rtype: dict
     """
@@ -123,16 +126,19 @@ def _get_attribute(in_str: str, attrib: str) -> str:
     return substring[:ii_end]
 
 
-def _load_level_data(file_path: os.PathLike) -> dict:
+def _load_level_data(file_path: os.PathLike | str) -> dict:
     """Loads the level data.
 
     :param file_path: The path to the zrx file
-    :type file_path: os.PathLike
+    :type file_path: os.PathLike | str
     :return: The data as a dictionary
     :rtype: dict
     """
     time = []
     value = []
+    name = ""
+    water = ""
+    station = ""
     with open(file_path, "rt") as csv_file:
         reader = csv.reader(csv_file, delimiter=" ")
         for row in reader:
@@ -159,15 +165,15 @@ def _load_level_data(file_path: os.PathLike) -> dict:
     return data
 
 
-def _load_water_temp_data(file_path: os.PathLike) -> dict:
+def _load_water_temp_data(file_path: os.PathLike | str) -> dict:
     """Loads the water temperature data.
 
     :param file_path: The path to the zrx file
-    :type file_path: os.PathLike
+    :type file_path: os.PathLike | str
     :return: The data as a dictionary
     :rtype: dict
     """
-    if "h.Cmd.PWT" not in file_path:
+    if "h.Cmd.PWT" not in str(file_path):
         level_path, file_name = os.path.split(file_path)
         base_path, _ = os.path.split(level_path)
         wtemp_name = file_name.replace("Day.MeanW", "h.Cmd.PWT")
@@ -176,7 +182,9 @@ def _load_water_temp_data(file_path: os.PathLike) -> dict:
         )
     else:
         water_temp_path = file_path
-
+    name = ""
+    water = ""
+    station = ""
     if os.path.exists(water_temp_path):
         time = []
         value = []
@@ -204,18 +212,18 @@ def _load_water_temp_data(file_path: os.PathLike) -> dict:
             "station": station,
         }
     else:
-        data = False
+        data = dict()
     return data
 
 
 def get_pegel_locations(
-    file_path: os.PathLike, overwrite: bool = False
+    file_path: os.PathLike | str, overwrite: bool = False
 ) -> gp.GeoDataFrame:
     """Gets the locations for the water level data (Pegel). Loads them from a
     shape file. If that is not available, loads it from HLNUG and saves it.
 
     :param file_path: The path to the shape file, pkl file (with pegel data).
-    :type file_path: os.PathLike
+    :type file_path: os.PathLike | str
     :param overwrite: Overwrite existing data, defaults to False
     :type overwrite: bool, optional
     :return: The water level measuring stations as Point features.
@@ -230,9 +238,11 @@ def get_pegel_locations(
             out_folder = file_path
         os.makedirs(out_folder, exist_ok=True)
 
-        file_path = u4webs.query_hlnug(
+        gdf = u4webs.query_hlnug(
             map_server_suffix="wasser/wasser/MapServer",
             layer_name="Pegel",
             out_folder=out_folder,
         )
-    return gp.read_file(file_path)
+    else:
+        gdf = gp.GeoDataFrame()
+    return gdf

@@ -24,7 +24,7 @@ from u4py.utils.types import U4Project
 
 
 def get_clipped_shapefile(
-    file_path_in: os.PathLike,
+    file_path_in: os.PathLike | str,
     mask: gp.GeoDataFrame | gp.GeoSeries,
     region_name: str,
     fclass: list[str] = [],
@@ -33,7 +33,7 @@ def get_clipped_shapefile(
     """Reads the contents of a shapefile and returns it clipped by `mask`
 
     :param file_path_in: The path to the shapefile
-    :type file_path_in: os.PathLike
+    :type file_path_in: os.PathLike | str
     :param mask: The mask used for clipping
     :type mask: gp.GeoDataFrame | gp.GeoSeries
     :param fclass: A list of feature classes to use from the original dataset, defaults to [] (all `fclasses`)
@@ -149,11 +149,11 @@ def get_osm_as_shp(
     return slc_gdf
 
 
-def gdb_to_shp(gdb_path: os.PathLike) -> list[os.PathLike]:
+def gdb_to_shp(gdb_path: os.PathLike | str) -> list[os.PathLike]:
     """Converts all features inside a geodatabase to shapefiles with the same name.
 
     :param gdb_path: The path to the geodatabase.
-    :type gdb_path: os.PathLike
+    :type gdb_path: os.PathLike | str
     :return: A list of paths to the shapefiles.
     :rtype: list[os.PathLike]
     """
@@ -190,10 +190,10 @@ def clean_fields(gdf: gp.GeoDataFrame) -> gp.GeoDataFrame:
 
 def to_file_fiona(
     df: gp.GeoDataFrame,
-    filename: os.PathLike,
+    filename: os.PathLike | str,
     driver: str,
     schema: dict = None,
-    crs: str = "",
+    crs: str | pyproj.CRS | None = "",
     mode: str = "w",
     chunk_size: int = 1000,
     position: int = None,
@@ -204,12 +204,12 @@ def to_file_fiona(
     :param df: The source geodataframe
     :type df: gp.GeoDataFrame
     :param filename: The filename where to save the data
-    :type filename: os.PathLike
+    :type filename: os.PathLike | str
     :param driver: The driver for the file
     :type driver: str
     :param schema: The schema, defaults to None
     :type schema: dict
-    :param crs: The CRS, defaults to ""
+    :param crs: The pyproj.CRS, defaults to ""
     :type crs: str
     :param mode: The mode of the file, defaults to "w" (write).
     :type mode: str
@@ -257,7 +257,9 @@ def to_file_fiona(
                 # colxn.write(feature)
 
 
-def fiona_load(shp_path: os.PathLike, fclasses: list = []) -> gp.GeoDataFrame:
+def fiona_load(
+    shp_path: os.PathLike | str, fclasses: list = []
+) -> gp.GeoDataFrame:
     logging.info("Reading with fiona.")
     with fiona.open(shp_path, "r") as shapefile:
         if "fclass" in shapefile.keys() and fclasses:
