@@ -7,9 +7,9 @@
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#project-information
 
 project = "U4Py"
-copyright = "2024, M. Rudolf"
+copyright = "2025, M. Rudolf"
 author = "M. Rudolf"
-release = "0.0.7beta"
+release = "0.1.0b"
 
 # -- General configuration ---------------------------------------------------
 # https://www.sphinx-doc.org/en/master/usage/configuration.html#general-configuration

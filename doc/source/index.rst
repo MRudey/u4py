@@ -20,9 +20,7 @@ Each module can be imported and used separately for creating individual workflow
 
 Installation
 ============
-Currently supported Python **Version: 3.11.**, due to some packages being not available for 3.12, yet.
-
-This module uses `GDAL <https://gdal.org>`_ which cannot be installed from pypi for many operating systems. You can download precompiled binary wheels from `here <https://github.com/cgohlke/geospatial-wheels/releases>`_.
+Currently supported Python Versions: 3.10. to 3.13.
 
 Some scripts use ADAtools by Barra et al. 2017, Tomás et al. 2019 and Navarro et al. 2020. If this functionality is needed, please contact one of the authors for a personal copy of ADAtools.
 
@@ -40,8 +38,6 @@ Examples and Notebooks
 Several standalone scripts and interactive Jupyter notebooks are available. Scripts and notebooks require ``u4py`` installed on your system. Additionally, all notebooks and some scripts (``arcpy_*.py``) require a valid installation of ArcGIS including an ``arcpy`` environment.
 
 The scripts contain full workflows to do data preparation or processing. You can `Download Example Scripts <https://git-ce.rwth-aachen.de/rudolf/u4py/-/archive/main/u4py-main.zip?path=scripts>`_ as zip files.
-
-The notebooks contain the workflow to prepare the dataset for manual classification. You can `Download Example Notebooks <https://git-ce.rwth-aachen.de/rudolf/u4py/-/archive/main/u4py-main.zip?path=notebooks>`_ as zip files.
 
 Source
 ======
