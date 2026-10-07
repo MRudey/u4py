@@ -15,14 +15,14 @@ Some scripts use ADAtools by Barra et al. 2017, Tomás et al. 2019 and Navarro e
 To install the module you need to use pip together with git:
 
 ```bash
-pip install git+https://git-ce.rwth-aachen.de/rudolf/u4py
+pip install git+https://github.com/MRudey/u4py
 ```
 
 This automatically installs the module u4py including all prerequisites to your Python environment.
 
 ## Documentation
 
-You can find an automatically generated documentation [here](https://rudolf.pages.git-ce.rwth-aachen.de/u4py/).
+You can find an automatically generated documentation [(WIP) here](https://github.com/MRudey/u4py).
 
 Currently, the python module `u4py` and the `scripts` are mainly for the analysis of persistent scatterer interferometry data (PSI). The Jupyter `notebooks` additionally use digital elevation models, height differences and further information.
 
